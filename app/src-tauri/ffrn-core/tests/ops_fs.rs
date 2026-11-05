@@ -578,3 +578,88 @@ fn set_readonly(path: &Path, on: bool) {
     perms.set_readonly(on);
     fs::set_permissions(native_path(path), perms).unwrap();
 }
+
+/// 撤销跳过日志的端到端闭环：两平台都跑。
+///
+/// - btime 不可写的平台（Linux）：连做两次「改时间 → 撤销」，每次撤销都应往
+///   `<dataDir>/logs/undo.log` 追加一行 `undo\t<ts>\tbatch=<id>\tfield=creation\tpath=…\treason=…`，
+///   两次共 2 行（追加而非覆盖），且不得泄漏文件内容。
+/// - btime 可写的平台（Windows NTFS）：撤销不产生跳过项，断言无跳过字段、不写日志。
+#[test]
+fn undo_logs_btime_skip_and_appends() {
+    let t = Temp::new("undo-log");
+    // 文件名与内容都带标记，用于检查日志只记元数据、不含文件内容
+    let secret = "secret-content-should-not-be-logged";
+    let file = t.file("泄漏检查.txt", secret);
+    set_times(&file, T0);
+    let core = t.core();
+    let log_path = t.data.join("logs").join("undo.log");
+
+    let spec = TimeSpec {
+        mode: "shift".into(),
+        shift_seconds: 600, // 用 shift 而非 fixed，避免「未变化被跳过」导致无操作
+        fixed_ms: 0,
+        fields: vec!["mtime".into(), "atime".into()],
+    };
+
+    let mut outcomes = Vec::new();
+    for _ in 0..2 {
+        let applied = core.apply_time(vec![target(&file)], &spec).unwrap();
+        assert_eq!(applied.applied.len(), 1, "{:?}", applied.failed);
+        let undo = core.undo(&applied.batch.id).unwrap();
+        assert!(
+            undo.failed.is_empty(),
+            "跳过项不得进入失败路径：{:?}",
+            undo.failed
+        );
+        outcomes.push((applied.batch.id.clone(), undo));
+    }
+
+    if ffrn_core::platform::can_write_btime() {
+        // Windows：btime 可写，撤销后没有跳过项，也就不该写 undo.log
+        for (_, undo) in &outcomes {
+            assert!(
+                undo.skipped_fields.is_empty(),
+                "可写 btime 的平台不应有跳过项：{:?}",
+                undo.skipped_fields
+            );
+        }
+        assert!(!log_path.exists(), "无跳过项时不应生成 undo.log");
+        return;
+    }
+
+    for (batch_id, undo) in &outcomes {
+        assert_eq!(undo.restored.len(), 1, "mtime/atime 应照常恢复");
+        assert_eq!(undo.skipped_fields.len(), 1, "应记录一条 btime 跳过项");
+        assert_eq!(undo.skipped_fields[0].field, "creation");
+        assert_eq!(undo.skipped_fields[0].path, file.to_string_lossy());
+        assert!(undo.skipped_fields[0].reason.contains("创建时间"));
+
+        let raw = fs::read_to_string(native_path(&log_path)).expect("撤销后应有 undo.log");
+        let lines: Vec<&str> = raw.lines().collect();
+        let line = lines
+            .iter()
+            .find(|l| l.contains(&format!("batch={batch_id}")));
+        let line = line.unwrap_or_else(|| panic!("undo.log 缺少批次 {batch_id} 的行：{raw}"));
+        let cols: Vec<&str> = line.split('\t').collect();
+        assert_eq!(cols.len(), 6, "行格式应为 6 列：{line}");
+        assert_eq!(cols[0], "undo", "{line}");
+        let ts: i64 = cols[1].parse().expect("时间戳应为可解析的整数毫秒");
+        assert!(ts > 1_500_000_000_000, "时间戳明显异常：{ts}");
+        assert_eq!(cols[2], format!("batch={batch_id}"), "{line}");
+        assert_eq!(cols[3], "field=creation", "{line}");
+        assert_eq!(
+            cols[4],
+            format!("path={}", file.to_string_lossy()),
+            "{line}"
+        );
+        assert!(cols[5].starts_with("reason="), "{line}");
+        // 只允许路径/原因等元数据；不得出现文件内容或结构化片段
+        assert!(!line.contains(secret), "日志泄漏了文件内容：{line}");
+        assert!(!line.contains('{') && !line.contains('}'), "{line}");
+    }
+
+    // 追加而非覆盖：两次撤销后恰好 2 行
+    let raw = fs::read_to_string(native_path(&log_path)).unwrap();
+    assert_eq!(raw.lines().count(), 2, "日志必须追加而不是覆盖：{raw}");
+}

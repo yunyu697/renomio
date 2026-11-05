@@ -61,7 +61,17 @@ Get-FileHash .\Renomio_0.1.0_x64-setup.exe -Algorithm SHA256
 - 安装向导界面、需要 UAC 的安装/卸载、安装后首次启动的真实窗口交互，本轮均未在自动化中执行（按项目约定不在会话里启动带 GUI 或会弹 UAC 的进程）；因此「装到 `Program Files` 的落点、卸载残留、快捷方式位置、旧版并存拦截弹窗」属于**静态核验**结论，不是真机验收。
 - 真实 Explorer 拖放、提权后的拖放（UIPI 会拦截）、真实物理跨盘移动、EXIF 拍摄时间写入（未实现，时间面板只改文件系统时间）均未完成或未验证。
 - 繁中 / 日 / 西三套译文本工具产出，**未经母语审校**。
-- **创建时间（btime）在 Linux 上不可撤销。** 平台能力按三态处理：Windows 可读可写；Linux 可读（取决于文件系统是否暴露 btime）但**不可写**（`statx` 能读 `STATX_BTIME`，没有对应写回接口）；macOS 按「不支持」处理（本轮未验证）。撤销时 btime 会在计划阶段标记为跳过，mtime / atime 照常恢复，界面会提示「已撤销 N 项；创建时间在 Linux 上不支持恢复，已跳过」，并写入 `<dataDir>/logs/undo.log`。
+
+### 创建时间（btime）的跨平台可见性
+
+| 平台 | 读 | 写 | 撤销时的行为 |
+| --- | --- | --- | --- |
+| Windows（NTFS） | 可读 | 可写 | btime 与 mtime / atime 一起恢复 |
+| Linux | 可读（取决于文件系统是否暴露 `STATX_BTIME`） | **不可写**（内核没有写回 btime 的接口） | 在计划阶段标记为跳过，mtime / atime 照常恢复 |
+| macOS | 标 `unsupported` | 标 `unsupported` | 与 Linux 同样按跳过处理（本轮未验证） |
+
+- **跳过是「部分成功」，不会让整批撤销失败。** 被跳过的字段进入返回结构的 `skippedFields`（字段名 + 原因），**不计入** `failed`；批次仍记为已撤销，已经恢复的 mtime / atime 也不会被回滚。
+- **UI 与日志都明示，不静默。** 撤销完成后界面提示「已撤销 N 项；创建时间在 Linux 上不支持恢复，已跳过」，同时向 `<dataDir>/logs/undo.log` **追加**一行 `undo\t<ts>\tbatch=<id>\tfield=creation\tpath=…\treason=…`（只记元数据，不写文件内容）。
 
 ## 卸载
 
@@ -112,6 +122,8 @@ npm run tauri build    # 产出 NSIS + MSI 到 src-tauri/target/release/bundle/
 
 - **离线组 11 条**：只读 `tauri.conf.json` / `installer-hooks.nsh` 判定 productName、identifier、version、`bundle.targets`、NSIS `installMode=both`、旧版检测与中止逻辑。CI **每次都真实执行**（`-Offline`），任一不成立即红。
 - **产物组 14 条**：读 MSI、NSIS 安装包与 WiX/NSIS 生成的脚本，**必须 `npm run tauri build` 后才有**。CI 不构建安装包（托管 runner 上完整打包约 8–12 分钟，还要下载 NSIS/WiX 工具链，且安装包尚未签名），所以无产物时该组会**显式跳过，并在 Job Summary 列出跳过原因与逐条依赖**，不把跳过伪装成通过。发布前的产物合规仍由本地 `npm run test:bundle` 逐条执行。
+
+两组的边界：**每次 push 真实执行的是 11 条离线断言**（结果在 `bundle-checks` 日志里，任一失败即红）；**14 条产物断言只读构建产物**，CI 未构建时不执行，二者互不重叠、也不互相代替。因此「CI 绿」只能证明配置层面的 11 条成立，**不能**证明安装包的 14 条成立。
 
 ## 许可
 

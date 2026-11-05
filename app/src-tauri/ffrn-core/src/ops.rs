@@ -1113,7 +1113,7 @@ pub fn undo_ops(store: &BatchStore, id: &str) -> Result<UndoOutcome, String> {
     store
         .save(&batch)
         .map_err(|e| format!("写入撤销日志失败：{e}"))?;
-    append_undo_skip_log(store, &batch.id, &skipped_fields);
+    append_undo_skip_log(store.data_dir(), &batch.id, &skipped_fields);
 
     Ok(UndoOutcome {
         batch,
@@ -1124,12 +1124,12 @@ pub fn undo_ops(store: &BatchStore, id: &str) -> Result<UndoOutcome, String> {
 }
 
 /// 把本次撤销中被平台能力跳过的字段追加到 `<dataDir>/logs/undo.log`，不静默。
-fn append_undo_skip_log(store: &BatchStore, batch_id: &str, skipped: &[SkippedField]) {
+fn append_undo_skip_log(data_dir: &Path, batch_id: &str, skipped: &[SkippedField]) {
     use std::io::Write as _;
     if skipped.is_empty() {
         return;
     }
-    let dir = store.data_dir().join("logs");
+    let dir = data_dir.join("logs");
     if fs::create_dir_all(&dir).is_err() {
         return;
     }
@@ -1498,4 +1498,49 @@ fn set_creation_time(path: &Path, when: SystemTime) -> std::io::Result<()> {
         return Err(err);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod undo_log_tests {
+    use super::*;
+
+    /// 撤销跳过日志的写入语义：两平台都跑（Windows 上 btime 可写，端到端不会产生跳过项，这里直接验证写入器）。
+    #[test]
+    fn undo_skip_log_appends_with_parseable_ts() {
+        let dir = std::env::temp_dir().join("ffrn-core-undo-log-unit");
+        let _ = fs::remove_dir_all(&dir);
+        let _ = fs::create_dir_all(&dir);
+
+        let skip = SkippedField {
+            field: "creation".into(),
+            path: "files/photo.jpg".into(),
+            reason: crate::platform::btime_support()
+                .skip_reason()
+                .unwrap_or("创建时间（btime）在当前平台不支持写回，撤销时已跳过该字段")
+                .into(),
+        };
+        append_undo_skip_log(&dir, "b-001", std::slice::from_ref(&skip));
+        append_undo_skip_log(&dir, "b-002", std::slice::from_ref(&skip));
+
+        let log = fs::read_to_string(dir.join("logs").join("undo.log")).unwrap();
+        let lines: Vec<&str> = log.lines().collect();
+        assert_eq!(lines.len(), 2, "日志必须追加而不是覆盖：{log}");
+
+        for line in &lines {
+            let cols: Vec<&str> = line.split('\t').collect();
+            assert_eq!(cols.len(), 6, "字段数不对：{line}");
+            assert_eq!(cols[0], "undo");
+            let ts: i64 = cols[1].parse().expect("时间戳必须是整数毫秒");
+            assert!(ts > 1_500_000_000_000, "时间戳不可解析或明显异常：{ts}");
+            assert!(cols[2].starts_with("batch="), "{line}");
+            assert_eq!(cols[3], "field=creation");
+            assert!(cols[4].starts_with("path="), "{line}");
+            assert!(cols[5].starts_with("reason="), "{line}");
+            // 只允许路径/原因等元数据，不得出现文件内容或 JSON 片段
+            assert!(!line.contains("CONTENT_SHOULD_NOT_LEAK"), "{line}");
+            assert!(!line.contains('{') && !line.contains('}'), "{line}");
+        }
+        assert!(lines[0].contains("batch=b-001"), "{}", lines[0]);
+        assert!(lines[1].contains("batch=b-002"), "{}", lines[1]);
+    }
 }
