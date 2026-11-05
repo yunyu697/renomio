@@ -108,7 +108,9 @@ fn left_temp_files(dir: &Path) -> Vec<String> {
 const T0: i64 = 1_577_836_800_000; // 2020-01-01T00:00:00Z
 
 // 以下三条断言依赖 Windows 语义：撤销时要把 creation（创建时间）一并写回，write_times 的 creation
-// 分支只在 Windows 实现；Linux 上 read_times 能读到 btime，但写回失败会导致整批撤销被标记为失败。\n// 跨平台支持阶段应先修实现，再放开这三条。\n#[cfg(windows)]
+// 分支只在 Windows 实现；Linux 上 read_times 能读到 btime，但写回失败会导致整批撤销被标记为失败。
+// 跨平台支持阶段应先修实现，再放开这三条。
+#[cfg(windows)]
 #[test]
 fn time_shift_then_undo_restores_original() {
     let t = Temp::new("time-shift");
@@ -135,7 +137,9 @@ fn time_shift_then_undo_restores_original() {
 }
 
 // 以下三条断言依赖 Windows 语义：撤销时要把 creation（创建时间）一并写回，write_times 的 creation
-// 分支只在 Windows 实现；Linux 上 read_times 能读到 btime，但写回失败会导致整批撤销被标记为失败。\n// 跨平台支持阶段应先修实现，再放开这三条。\n#[cfg(windows)]
+// 分支只在 Windows 实现；Linux 上 read_times 能读到 btime，但写回失败会导致整批撤销被标记为失败。
+// 跨平台支持阶段应先修实现，再放开这三条。
+#[cfg(windows)]
 #[test]
 fn time_fixed_value_survives_restart_and_undo() {
     let t = Temp::new("time-fixed");
@@ -160,7 +164,9 @@ fn time_fixed_value_survives_restart_and_undo() {
 }
 
 // 以下三条断言依赖 Windows 语义：撤销时要把 creation（创建时间）一并写回，write_times 的 creation
-// 分支只在 Windows 实现；Linux 上 read_times 能读到 btime，但写回失败会导致整批撤销被标记为失败。\n// 跨平台支持阶段应先修实现，再放开这三条。\n#[cfg(windows)]
+// 分支只在 Windows 实现；Linux 上 read_times 能读到 btime，但写回失败会导致整批撤销被标记为失败。
+// 跨平台支持阶段应先修实现，再放开这三条。
+#[cfg(windows)]
 #[test]
 fn time_skips_unchanged_and_marks_locked_per_item() {
     let t = Temp::new("time-per-item");
