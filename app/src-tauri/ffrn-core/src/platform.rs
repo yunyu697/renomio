@@ -81,10 +81,20 @@ pub struct NameIssue {
 
 impl NameIssue {
     fn block(code: &'static str, message: impl Into<String>, detail: Option<String>) -> Self {
-        Self { severity: "block", code, message: message.into(), detail }
+        Self {
+            severity: "block",
+            code,
+            message: message.into(),
+            detail,
+        }
     }
     fn warn(code: &'static str, message: impl Into<String>, detail: Option<String>) -> Self {
-        Self { severity: "warn", code, message: message.into(), detail }
+        Self {
+            severity: "warn",
+            code,
+            message: message.into(),
+            detail,
+        }
     }
 }
 
@@ -97,7 +107,10 @@ pub struct NamePolicy {
 
 impl NamePolicy {
     pub fn new(platform: Platform, windows_safe: bool) -> Self {
-        Self { platform, windows_safe }
+        Self {
+            platform,
+            windows_safe,
+        }
     }
     fn strict(self) -> bool {
         self.platform == Platform::Windows || self.windows_safe
@@ -105,9 +118,8 @@ impl NamePolicy {
 }
 
 const WINDOWS_RESERVED: &[&str] = &[
-    "CON", "PRN", "AUX", "NUL", "CLOCK$", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6",
-    "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8",
-    "LPT9",
+    "CON", "PRN", "AUX", "NUL", "CLOCK$", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7",
+    "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
 ];
 
 pub fn utf16_len(text: &str) -> usize {
@@ -170,7 +182,11 @@ pub fn validate_component(name: &str, policy: NamePolicy) -> Vec<NameIssue> {
             ));
         }
     } else if name.contains(['/', '\0']) {
-        issues.push(NameIssue::block("invalid_char", "名称包含路径分隔符或空字符", None));
+        issues.push(NameIssue::block(
+            "invalid_char",
+            "名称包含路径分隔符或空字符",
+            None,
+        ));
     }
 
     match policy.platform {
@@ -210,7 +226,10 @@ pub fn path_length_issue(path: &Path, policy: NamePolicy) -> Option<NameIssue> {
     if len > policy.platform.path_hard_limit() {
         return Some(NameIssue::block(
             "path_too_long",
-            format!("完整路径 {len} 字符，超过平台上限 {}", policy.platform.path_hard_limit()),
+            format!(
+                "完整路径 {len} 字符，超过平台上限 {}",
+                policy.platform.path_hard_limit()
+            ),
             None,
         ));
     }
@@ -218,7 +237,10 @@ pub fn path_length_issue(path: &Path, policy: NamePolicy) -> Option<NameIssue> {
         return Some(NameIssue::warn(
             "path_long",
             format!("完整路径 {len} 字符，接近平台上限"),
-            Some(format!("阈值 {} 字符", policy.platform.path_warn_threshold())),
+            Some(format!(
+                "阈值 {} 字符",
+                policy.platform.path_warn_threshold()
+            )),
         ));
     }
     None
@@ -284,9 +306,15 @@ mod tests {
     #[test]
     fn rejects_windows_specific_names() {
         let p = NamePolicy::new(Platform::Windows, true);
-        assert!(validate_component("a:b.txt", p).iter().any(|i| i.code == "invalid_char"));
-        assert!(validate_component("CON.txt", p).iter().any(|i| i.code == "reserved"));
-        assert!(validate_component("report.", p).iter().any(|i| i.code == "trailing"));
+        assert!(validate_component("a:b.txt", p)
+            .iter()
+            .any(|i| i.code == "invalid_char"));
+        assert!(validate_component("CON.txt", p)
+            .iter()
+            .any(|i| i.code == "reserved"));
+        assert!(validate_component("report.", p)
+            .iter()
+            .any(|i| i.code == "trailing"));
         assert!(validate_component("ok-中文.txt", p).is_empty());
     }
 
@@ -302,6 +330,8 @@ mod tests {
     fn long_component_is_blocked() {
         let p = NamePolicy::new(Platform::Linux, false);
         let name = "汉".repeat(100); // 300 bytes
-        assert!(validate_component(&name, p).iter().any(|i| i.code == "too_long"));
+        assert!(validate_component(&name, p)
+            .iter()
+            .any(|i| i.code == "too_long"));
     }
 }

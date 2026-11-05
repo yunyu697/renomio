@@ -21,6 +21,10 @@ Proprietary — all rights reserved, not open source
 | 时间 / 属性 / 归类移动 | 批量平移或固定时间、只读与隐藏属性、按扩展名 / 日期 / 首字母 / 正则捕获组移动到子目录 |
 | 五语言界面 | 简体中文、繁体中文、English、日本語、Español |
 
+## 界面语言
+
+内置五套界面文案，可在设置中切换（跟随系统或手动指定）：简体中文、繁體中文、English、日本語、Español。繁中 / 日 / 西三套为团队自行翻译，**未经母语审校**（见「已知限制」）。
+
 详细能力表、验证分层与未验证清单见 [app/README.md](app/README.md)。
 
 ## 下载与安装
@@ -58,9 +62,17 @@ Get-FileHash .\Renomio_0.1.0_x64-setup.exe -Algorithm SHA256
 - 真实 Explorer 拖放、提权后的拖放（UIPI 会拦截）、真实物理跨盘移动、EXIF 拍摄时间写入（未实现，时间面板只改文件系统时间）均未完成或未验证。
 - 繁中 / 日 / 西三套译文本工具产出，**未经母语审校**。
 
+## 卸载
+
+- **NSIS 安装的**：设置 → 应用 → 已安装的应用 → `Renomio` → 卸载；或运行安装目录下的 `uninstall.exe`。
+- **MSI 安装的**：设置 → 应用 → 已安装的应用 → `Renomio` → 卸载；或 `msiexec /x <ProductCode>`（ProductCode 可在该应用属性页或注册表 `Uninstall` 项中查到）。
+- 卸载程序**只移除程序文件、快捷方式与 ARP 项**，不会自动删除 `%APPDATA%\app.renomio.desktop`（配置、撤销历史、迁移备份）。需要彻底清理时再手动删除该目录。
+- 卸载**旧版 Rename Studio** 时不要勾选「删除应用数据」，否则新版无法导入配置与撤销历史（见上）。
+
 ## 仓库结构
 
 ```
+.github/workflows/    CI（frontend / backend / bundle-checks）
 app/                  Tauri 2 + React 应用源码
   src/                前端（React + TypeScript）
   src-tauri/          Rust 桌面壳、打包配置、NSIS 安装钩子
@@ -85,6 +97,18 @@ npm run test:e2e       # 无头 E2E
 npm run tauri build    # 产出 NSIS + MSI 到 src-tauri/target/release/bundle/
 ```
 
+## 持续集成
+
+[.github/workflows/ci.yml](.github/workflows/ci.yml) 三个 job，push 到 `main` 与 PR 时触发：
+
+| job | runner | 内容 |
+| --- | --- | --- |
+| `frontend` | ubuntu | `npm ci` → `tsc --noEmit` → `vite build` |
+| `backend` | ubuntu | 安装 Tauri v2 Linux 依赖 → `cargo fmt --check`（阻断）→ `cargo clippy`（只暴露警告，不加 `-D warnings`）→ `cargo test`（ffrn-core + Tauri 壳，含 `migrate.rs` 迁移单测） |
+| `bundle-checks` | windows | 判定构建产物是否就位；就位才执行 `scripts/check-bundle.ps1` 的 14 条断言 |
+
+`bundle-checks` 的 14 条断言**全部依赖 `npm run tauri build` 的产物**（MSI、NSIS 安装包、WiX/NSIS 生成的脚本），没有可离线执行的条目。CI 不构建安装包：GitHub 托管 windows runner 上完整打包约 8–12 分钟，还要下载 NSIS/WiX 工具链，且安装包尚未签名。因此无产物时该 job 会**显式跳过，并在 Job Summary 列出跳过原因与 14 条断言的逐条依赖**，不把跳过伪装成通过。发布前的打包合规仍由本地 `npm run test:bundle` 逐条执行。
+
 ## 许可
 
-Proprietary — all rights reserved, not open source。本仓库未附开源许可证，未经授权不得复制、分发、修改或商用。第三方依赖仍遵循其各自的许可证。
+**许可待定** —— 本项目尚未选择开源许可证，仓库内**没有** `LICENSE` 文件，许可证由项目所有者决定。在许可证确定前按专有软件处理（Proprietary — all rights reserved, not open source）：未经授权不得复制、分发、修改或商用。许可证确定后会更新本节并补上 `LICENSE`。第三方依赖仍遵循其各自的许可证（如 `ffrn-core` 的 crate 元数据中标注的 MIT）。

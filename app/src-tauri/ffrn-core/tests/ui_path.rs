@@ -107,7 +107,11 @@ fn duplicate_targets_never_chain_overwrite() {
     assert_eq!(outcome.skipped.len(), 1, "第二行必须显式跳过");
     assert!(outcome.skipped[0].reason.contains("同一目标"));
     assert_eq!(fs::read_to_string(t.root.join("same.txt")).unwrap(), "A");
-    assert_eq!(fs::read_to_string(&b).unwrap(), "B", "被跳过行的源文件必须原样保留");
+    assert_eq!(
+        fs::read_to_string(&b).unwrap(),
+        "B",
+        "被跳过行的源文件必须原样保留"
+    );
     assert!(t.temps().is_empty(), "不应残留临时文件：{:?}", t.temps());
 
     let undo = core.undo(&outcome.batch.id).unwrap();
@@ -115,7 +119,11 @@ fn duplicate_targets_never_chain_overwrite() {
     assert_eq!(fs::read_to_string(&a).unwrap(), "A");
     assert_eq!(fs::read_to_string(&b).unwrap(), "B");
     assert!(!t.root.join("same.txt").exists());
-    assert!(t.temps().is_empty(), "撤销后不应残留临时文件：{:?}", t.temps());
+    assert!(
+        t.temps().is_empty(),
+        "撤销后不应残留临时文件：{:?}",
+        t.temps()
+    );
 }
 
 #[test]
@@ -132,7 +140,11 @@ fn skip_conflict_rolls_back_temp_and_undo_stays_clean() {
     assert_eq!(outcome.skipped.len(), 1);
     assert_eq!(fs::read_to_string(&a).unwrap(), "KEEP");
     assert_eq!(fs::read_to_string(&b).unwrap(), "NEW");
-    assert!(t.temps().is_empty(), "跳过回滚后不应残留临时文件：{:?}", t.temps());
+    assert!(
+        t.temps().is_empty(),
+        "跳过回滚后不应残留临时文件：{:?}",
+        t.temps()
+    );
 
     let undo = core.undo(&outcome.batch.id).unwrap();
     assert_eq!(undo.failed.len(), 0);
@@ -161,7 +173,11 @@ fn overwrite_backup_and_undo_restore_are_clean() {
     assert_eq!(fs::read_to_string(&target).unwrap(), "OLD");
     assert_eq!(fs::read_to_string(&incoming).unwrap(), "NEW");
     assert!(!Path::new(&backup).exists(), "撤销后备份应已归位");
-    assert!(t.temps().is_empty(), "撤销后不应残留临时文件：{:?}", t.temps());
+    assert!(
+        t.temps().is_empty(),
+        "撤销后不应残留临时文件：{:?}",
+        t.temps()
+    );
 }
 
 #[test]

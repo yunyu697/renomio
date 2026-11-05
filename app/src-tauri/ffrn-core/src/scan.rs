@@ -154,7 +154,10 @@ fn make_entry(path: &Path, is_dir: bool, meta: &fs::Metadata) -> ScannedEntry {
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| path.to_string_lossy().to_string());
-    let parent = path.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+    let parent = path
+        .parent()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
     ScannedEntry {
         id: path.to_string_lossy().to_string(),
         path: path.to_string_lossy().to_string(),
@@ -180,7 +183,9 @@ pub fn scan_paths(inputs: &[String], opts: &ScanOptions, platform: Platform) -> 
         let meta = match fs::symlink_metadata(&path) {
             Ok(m) => m,
             Err(err) => {
-                result.warnings.push(format!("无法读取 {}：{}", trimmed, err));
+                result
+                    .warnings
+                    .push(format!("无法读取 {}：{}", trimmed, err));
                 continue;
             }
         };
@@ -249,14 +254,18 @@ fn walk_dir(
     depth: usize,
 ) {
     if depth > 64 {
-        result.warnings.push(format!("目录层级过深，已跳过：{}", dir.display()));
+        result
+            .warnings
+            .push(format!("目录层级过深，已跳过：{}", dir.display()));
         return;
     }
     result.visited_dirs += 1;
     let read = match fs::read_dir(dir) {
         Ok(rd) => rd,
         Err(err) => {
-            result.warnings.push(format!("无法读取目录 {}：{}", dir.display(), err));
+            result
+                .warnings
+                .push(format!("无法读取目录 {}：{}", dir.display(), err));
             return;
         }
     };
@@ -273,7 +282,9 @@ fn walk_dir(
         let meta = match fs::symlink_metadata(&path) {
             Ok(m) => m,
             Err(err) => {
-                result.warnings.push(format!("无法读取 {}：{}", path.display(), err));
+                result
+                    .warnings
+                    .push(format!("无法读取 {}：{}", path.display(), err));
                 continue;
             }
         };
@@ -355,11 +366,15 @@ mod tests {
             include_hidden,
             ..Default::default()
         };
-        scan_paths(&[dir.to_string_lossy().to_string()], &opts, Platform::Windows)
-            .entries
-            .into_iter()
-            .map(|e| e.name)
-            .collect()
+        scan_paths(
+            &[dir.to_string_lossy().to_string()],
+            &opts,
+            Platform::Windows,
+        )
+        .entries
+        .into_iter()
+        .map(|e| e.name)
+        .collect()
     }
 
     #[test]
@@ -371,7 +386,11 @@ mod tests {
         let on = scan_names(&dir, true);
         assert_eq!(on.len(), 2, "默认应包含前导点文件：{on:?}");
         let off = scan_names(&dir, false);
-        assert_eq!(off, vec!["visible.txt".to_string()], "关闭后应排除前导点文件");
+        assert_eq!(
+            off,
+            vec!["visible.txt".to_string()],
+            "关闭后应排除前导点文件"
+        );
 
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -397,7 +416,11 @@ mod tests {
         let on = scan_names(&dir, true);
         assert_eq!(on.len(), 2, "开启时应包含隐藏属性文件：{on:?}");
         let off = scan_names(&dir, false);
-        assert_eq!(off, vec!["普通.txt".to_string()], "关闭后应排除隐藏属性文件");
+        assert_eq!(
+            off,
+            vec!["普通.txt".to_string()],
+            "关闭后应排除隐藏属性文件"
+        );
 
         // 清掉隐藏属性，保证临时目录可删除
         unsafe { SetFileAttributesW(wide.as_ptr(), 0x80) };

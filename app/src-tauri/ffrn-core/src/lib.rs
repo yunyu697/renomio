@@ -53,7 +53,11 @@ impl Core {
         let _ = windows_safe;
         EnvInfo {
             os: self.platform.as_str(),
-            separator: if self.platform.separator() == '\\' { "\\" } else { "/" },
+            separator: if self.platform.separator() == '\\' {
+                "\\"
+            } else {
+                "/"
+            },
             case_sensitive: self.case_sensitive,
             component_limit: self.platform.component_limit(),
             path_warn_threshold: self.platform.path_warn_threshold(),
@@ -77,7 +81,11 @@ impl Core {
         paths.iter().map(|p| PathBuf::from(p).exists()).collect()
     }
 
-    pub fn apply(&self, items: Vec<ApplyItem>, opts: &ApplyOptions) -> Result<ApplyOutcome, String> {
+    pub fn apply(
+        &self,
+        items: Vec<ApplyItem>,
+        opts: &ApplyOptions,
+    ) -> Result<ApplyOutcome, String> {
         rename::apply(&self.store, self.platform, items, opts)
     }
 

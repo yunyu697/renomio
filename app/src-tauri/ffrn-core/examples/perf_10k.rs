@@ -34,7 +34,11 @@ fn main() {
         fs::create_dir_all(native_path(&dir)).unwrap();
         for i in 0..per_dir {
             let ext = exts[(d + i) % exts.len()];
-            let long = if i % 50 == 0 { "这是一个比较长的中文文件名用于测试长路径与渲染" } else { "" };
+            let long = if i % 50 == 0 {
+                "这是一个比较长的中文文件名用于测试长路径与渲染"
+            } else {
+                ""
+            };
             let name = format!("照片_{long}_中文_{d:03}_{i:03}.{ext}");
             fs::write(native_path(&dir.join(name)), b"x").unwrap();
         }
@@ -110,5 +114,9 @@ fn main() {
 
     t = Instant::now();
     let _ = fs::remove_dir_all(native_path(&base));
-    println!("cleanup_ms={} base={}", t.elapsed().as_millis(), Path::new(&base).display());
+    println!(
+        "cleanup_ms={} base={}",
+        t.elapsed().as_millis(),
+        Path::new(&base).display()
+    );
 }

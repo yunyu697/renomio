@@ -10,8 +10,10 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::journal::{now_ms, new_batch_id, Batch, BatchCounts, BatchItem, BatchStore};
-use crate::platform::{is_readonly, native_path, path_length_issue, validate_component, NamePolicy, Platform};
+use crate::journal::{new_batch_id, now_ms, Batch, BatchCounts, BatchItem, BatchStore};
+use crate::platform::{
+    is_readonly, native_path, path_length_issue, validate_component, NamePolicy, Platform,
+};
 
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -102,7 +104,9 @@ fn same_file(a: &Path, b: &Path) -> bool {
 }
 
 fn parent_of(path: &Path) -> PathBuf {
-    path.parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from("."))
+    path.parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("."))
 }
 
 fn split_name(name: &str) -> (String, String) {
@@ -316,7 +320,11 @@ pub fn apply_with_hooks(
         .save(&batch)
         .map_err(|e| format!("无法写入批次日志，已中止（未改动任何文件）：{e}"))?;
 
-    let stage_total = batch.items.iter().filter(|i| staged.contains(&i.id)).count();
+    let stage_total = batch
+        .items
+        .iter()
+        .filter(|i| staged.contains(&i.id))
+        .count();
     on_progress("prepare", 0, stage_total, "");
 
     // 阶段 A：全部源移入临时名
@@ -459,7 +467,8 @@ pub fn apply_with_hooks(
                     });
                     if let Err(err) = rename_native(&temp, &from) {
                         item.state = "failed".into();
-                        item.reason = Some(format!("回退失败，文件仍在临时名 {}：{err}", item.temp));
+                        item.reason =
+                            Some(format!("回退失败，文件仍在临时名 {}：{err}", item.temp));
                         failed.push(SkippedChange {
                             id: item.id.clone(),
                             source: item.from.clone(),
@@ -540,7 +549,12 @@ pub fn apply_with_hooks(
     };
     let _ = store.save(&batch);
 
-    Ok(ApplyOutcome { batch, applied, skipped, failed })
+    Ok(ApplyOutcome {
+        batch,
+        applied,
+        skipped,
+        failed,
+    })
 }
 
 pub fn undo(store: &BatchStore, id: &str) -> Result<UndoOutcome, String> {
@@ -594,10 +608,20 @@ pub fn undo(store: &BatchStore, id: &str) -> Result<UndoOutcome, String> {
                 });
                 continue;
             };
-            let staged =
-                free_temp_path(&parent_of(&current), &format!("undo-{id}"), idx, item.is_dir);
+            let staged = free_temp_path(
+                &parent_of(&current),
+                &format!("undo-{id}"),
+                idx,
+                item.is_dir,
+            );
             match rename_native(&current, &staged) {
-                Ok(()) => moves.push(UndoMove { current, staged, from, to, id: item.id.clone() }),
+                Ok(()) => moves.push(UndoMove {
+                    current,
+                    staged,
+                    from,
+                    to,
+                    id: item.id.clone(),
+                }),
                 Err(err) => failed.push(SkippedChange {
                     id: item.id.clone(),
                     source: current.to_string_lossy().to_string(),
@@ -671,11 +695,21 @@ pub fn undo(store: &BatchStore, id: &str) -> Result<UndoOutcome, String> {
         }
     }
 
-    batch.state = if failed.is_empty() { "undone".into() } else { "undo-partial".into() };
+    batch.state = if failed.is_empty() {
+        "undone".into()
+    } else {
+        "undo-partial".into()
+    };
     batch.finished_at = Some(now_ms());
-    store.save(&batch).map_err(|e| format!("写入撤销日志失败：{e}"))?;
+    store
+        .save(&batch)
+        .map_err(|e| format!("写入撤销日志失败：{e}"))?;
 
-    Ok(UndoOutcome { batch, restored, failed })
+    Ok(UndoOutcome {
+        batch,
+        restored,
+        failed,
+    })
 }
 
 /// 供启动恢复使用：列出尚未完成的批次
@@ -705,10 +739,8 @@ mod tests {
     impl Sandbox {
         fn new(label: &str) -> Self {
             let seq = SEQ.fetch_add(1, Ordering::Relaxed);
-            let root = std::env::temp_dir().join(format!(
-                "ffrn-{label}-{}-{seq}",
-                std::process::id()
-            ));
+            let root =
+                std::env::temp_dir().join(format!("ffrn-{label}-{}-{seq}", std::process::id()));
             let _ = fs::remove_dir_all(native_path(&root));
             fs::create_dir_all(native_path(&root)).unwrap();
             let data = root.join(".data");
@@ -772,8 +804,14 @@ mod tests {
             .flatten()
             .filter_map(|e| e.file_name().to_str().map(str::to_string))
             .collect();
-        assert!(names.iter().any(|n| n == "REPORT.TXT"), "目录项应为 REPORT.TXT，实际 {names:?}");
-        assert!(!names.iter().any(|n| n == "Report.txt"), "旧大小写名称不应继续存在");
+        assert!(
+            names.iter().any(|n| n == "REPORT.TXT"),
+            "目录项应为 REPORT.TXT，实际 {names:?}"
+        );
+        assert!(
+            !names.iter().any(|n| n == "Report.txt"),
+            "旧大小写名称不应继续存在"
+        );
     }
 
     #[test]
@@ -790,7 +828,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(skipped.applied.len(), 0);
-        assert!(skipped.skipped.iter().any(|s| s.reason.contains("目标已存在")));
+        assert!(skipped
+            .skipped
+            .iter()
+            .any(|s| s.reason.contains("目标已存在")));
 
         let suffixed = apply(
             &sb.store(),
@@ -817,7 +858,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(outcome.applied.len(), 0, "大小写不敏感平台应视为同名冲突");
-        assert!(outcome.skipped.iter().any(|s| s.reason.contains("目标已存在")));
+        assert!(outcome
+            .skipped
+            .iter()
+            .any(|s| s.reason.contains("目标已存在")));
     }
 
     #[test]
@@ -882,7 +926,11 @@ mod tests {
             &opts("skip"),
         )
         .unwrap();
-        fs::rename(native_path(&sb.path("new.txt")), native_path(&sb.path("moved.txt"))).unwrap();
+        fs::rename(
+            native_path(&sb.path("new.txt")),
+            native_path(&sb.path("moved.txt")),
+        )
+        .unwrap();
         let batch = store.load(&outcome.batch.id).unwrap().unwrap();
         let (ok, reason) = undo_status(&batch);
         assert!(!ok);
@@ -905,8 +953,14 @@ mod tests {
         )
         .unwrap();
         assert_eq!(outcome.applied.len(), 1);
-        assert_eq!(fs::read_to_string(native_path(&sb.path("renamed.txt"))).unwrap(), "shared");
-        assert_eq!(fs::read_to_string(native_path(&original)).unwrap(), "shared");
+        assert_eq!(
+            fs::read_to_string(native_path(&sb.path("renamed.txt"))).unwrap(),
+            "shared"
+        );
+        assert_eq!(
+            fs::read_to_string(native_path(&original)).unwrap(),
+            "shared"
+        );
     }
 
     #[cfg(unix)]
@@ -979,7 +1033,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(outcome.applied.len(), 1);
-        assert!(outcome.skipped.iter().any(|s| s.reason.contains("同一目标")));
+        assert!(outcome
+            .skipped
+            .iter()
+            .any(|s| s.reason.contains("同一目标")));
     }
 
     #[cfg(windows)]
@@ -1019,7 +1076,10 @@ mod tests {
         assert_eq!(outcome.applied.len(), 1, "目录联接应作为目录项改名");
         let renamed = sb.path("renamed-junction");
         assert!(fs::metadata(native_path(&renamed)).unwrap().is_dir());
-        assert!(exists_native(&target.join("inside.txt")), "联接目标内容不应被移动");
+        assert!(
+            exists_native(&target.join("inside.txt")),
+            "联接目标内容不应被移动"
+        );
     }
 
     #[cfg(windows)]

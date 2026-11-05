@@ -107,7 +107,11 @@ impl Batch {
             created_at: self.created_at,
             finished_at: self.finished_at,
             state: self.state.clone(),
-            kind: if self.kind.is_empty() { "rename".into() } else { self.kind.clone() },
+            kind: if self.kind.is_empty() {
+                "rename".into()
+            } else {
+                self.kind.clone()
+            },
             policy: self.policy.clone(),
             roots: self.roots.clone(),
             counts: self.counts.clone(),
@@ -126,7 +130,10 @@ pub fn undo_status(batch: &Batch) -> (bool, Option<String>) {
     if batch.state == "undo-partial" {
         return (false, Some("上次撤销部分失败，请先检查残留文件".into()));
     }
-    if batch.counts.done == 0 && batch.items.iter().filter(|i| i.state == "done").count() == 0 && batch.ops.is_empty() {
+    if batch.counts.done == 0
+        && batch.items.iter().filter(|i| i.state == "done").count() == 0
+        && batch.ops.is_empty()
+    {
         return (false, Some("批次没有实际执行的条目".into()));
     }
     if batch.state == "pending" && batch.counts.done == 0 {
@@ -137,7 +144,13 @@ pub fn undo_status(batch: &Batch) -> (bool, Option<String>) {
             continue;
         }
         if !path_exists(&item.to) {
-            return (false, Some(format!("目标文件已不存在：{}（可能被外部移动或删除）", item.to)));
+            return (
+                false,
+                Some(format!(
+                    "目标文件已不存在：{}（可能被外部移动或删除）",
+                    item.to
+                )),
+            );
         }
         if let Some(backup) = &item.backup {
             if !path_exists(backup) {
@@ -151,7 +164,10 @@ pub fn undo_status(batch: &Batch) -> (bool, Option<String>) {
         }
         let current = op.target.as_deref().unwrap_or(&op.path);
         if !path_exists(current) {
-            return (false, Some(format!("文件已不存在：{current}（可能被外部移动或删除）")));
+            return (
+                false,
+                Some(format!("文件已不存在：{current}（可能被外部移动或删除）")),
+            );
         }
     }
     (true, None)
@@ -160,7 +176,6 @@ pub fn undo_status(batch: &Batch) -> (bool, Option<String>) {
 fn path_exists(path: &str) -> bool {
     fs::metadata(native_path(Path::new(path))).is_ok()
 }
-
 
 pub fn now_ms() -> i64 {
     std::time::SystemTime::now()
@@ -180,7 +195,9 @@ pub struct BatchStore {
 
 impl BatchStore {
     pub fn new(data_dir: &Path) -> Self {
-        Self { data_dir: data_dir.to_path_buf() }
+        Self {
+            data_dir: data_dir.to_path_buf(),
+        }
     }
 
     pub fn data_dir(&self) -> &Path {
@@ -211,7 +228,10 @@ impl BatchStore {
 
     pub fn save(&self, batch: &Batch) -> std::io::Result<()> {
         if !Self::valid_id(&batch.id) {
-            return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "非法批次 ID"));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "非法批次 ID",
+            ));
         }
         self.ensure_dirs()?;
         let dest = self.batches_dir().join(format!("{}.json", batch.id));
@@ -261,7 +281,11 @@ impl BatchStore {
             if path.extension().and_then(|e| e.to_str()) != Some("json") {
                 continue;
             }
-            let Some(id) = path.file_stem().and_then(|s| s.to_str()).map(str::to_string) else {
+            let Some(id) = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .map(str::to_string)
+            else {
                 continue;
             };
             match self.load(&id) {

@@ -1,0 +1,170 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  frontend:
+    name: frontend (npm ci / tsc / vite build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: npm ci
+        run: npm ci
+
+      - name: 类型检查（tsc --noEmit）
+        run: npx tsc --noEmit
+
+      - name: 生产构建（vite build）
+        run: npx vite build
+
+  backend:
+    name: backend (fmt / clippy / cargo test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # tauri-build 的 generate_context! 在编译期需要 frontendDist（app/dist）存在，
+      # 否则 cargo test 会在 build script 阶段就失败。这里只为满足编译期资源检查，
+      # 不做类型检查（类型检查由 frontend job 负责）。
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: 准备编译期前端资源
+        working-directory: app
+        run: npm ci && npx vite build
+
+      - name: 安装 Tauri v2 Linux 系统依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            build-essential \
+            pkg-config \
+            libssl-dev \
+            patchelf
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            app/src-tauri -> target
+            app/src-tauri/ffrn-core -> target
+
+      - name: cargo fmt --check
+        run: |
+          cargo fmt --manifest-path app/src-tauri/Cargo.toml --check
+          cargo fmt --manifest-path app/src-tauri/ffrn-core/Cargo.toml --check
+
+      # 只暴露 clippy 警告，不加 -D warnings，因此警告不会阻断构建；
+      # 真正的编译错误仍会让该步失败。
+      - name: cargo clippy（仅暴露警告，不阻断）
+        run: |
+          cargo clippy --manifest-path app/src-tauri/Cargo.toml --all-targets
+          cargo clippy --manifest-path app/src-tauri/ffrn-core/Cargo.toml --all-targets
+
+      - name: cargo test（ffrn-core 核心）
+        run: cargo test --manifest-path app/src-tauri/ffrn-core/Cargo.toml
+
+      - name: cargo test（Tauri 壳，含 migrate.rs 迁移单测）
+        run: cargo test --manifest-path app/src-tauri/Cargo.toml
+
+  bundle-checks:
+    name: bundle-checks (windows / 14 条打包断言)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # check-bundle.ps1 的 14 条断言全部读「已构建」的产物：
+      #   MSI（bundle/msi/*.msi）、NSIS 安装包（bundle/nsis/*-setup.exe）、
+      #   WiX 生成脚本（target/release/wix/x64/main.wxs）、
+      #   NSIS 生成脚本（target/release/nsis/x64/installer.nsi）。
+      # 这些文件只有 `npm run tauri build` 之后才存在，CI 不构建安装包（原因见 README / 下方 summary），
+      # 所以本步只做「产物是否就位」判定：就位才跑断言，否则显式跳过并写明原因，不伪造通过。
+      - name: 判定产物是否就位
+        id: artifacts
+        shell: pwsh
+        run: |
+          $release = 'app/src-tauri/target/release'
+          $need = @(
+            "$release/bundle/msi/Renomio_0.1.0_x64_en-US.msi",
+            "$release/bundle/nsis/Renomio_0.1.0_x64-setup.exe",
+            "$release/wix/x64/main.wxs",
+            "$release/nsis/x64/installer.nsi"
+          )
+          $missing = @($need | Where-Object { -not (Test-Path -LiteralPath $_) })
+          if ($missing.Count -eq 0) {
+            'present=true' >> $env:GITHUB_OUTPUT
+            Write-Host '全部产物就位，将执行 14 条断言'
+          } else {
+            'present=false' >> $env:GITHUB_OUTPUT
+            Write-Host '缺少以下产物，将跳过断言：'
+            $missing | ForEach-Object { Write-Host "  - $_" }
+          }
+
+      - name: 跳过说明（产物未构建）
+        if: steps.artifacts.outputs.present == 'false'
+        shell: pwsh
+        run: |
+          @'
+          ## bundle-checks：已跳过（0/14 条断言执行）
+
+          原因：`scripts/check-bundle.ps1` 的 **14 条断言全部依赖已构建产物**，没有一条能脱离构建离线运行：
+
+          | # | 断言 | 依赖 |
+          | --- | --- | --- |
+          | 1 | MSI 产物存在 | `target/release/bundle/msi/*.msi`（需 tauri build） |
+          | 2 | NSIS 产物存在 | `target/release/bundle/nsis/*-setup.exe`（需 tauri build） |
+          | 3 | WiX 生成脚本存在 | `target/release/wix/x64/main.wxs`（需 tauri build） |
+          | 4 | NSIS 生成脚本存在 | `target/release/nsis/x64/installer.nsi`（需 tauri build） |
+          | 5 | MSI `ALLUSERS=1` | 读取已构建 MSI 的 Property 表（WindowsInstaller COM） |
+          | 6 | MSI `ProductName=Renomio` | 同上 |
+          | 7 | WiX `InstallScope="perMachine"` | 读取生成的 main.wxs |
+          | 8 | WiX 安装根 `PlatformProgramFilesFolder` | 读取生成的 main.wxs |
+          | 9 | WiX `INSTALLDIR` 名为 Renomio | 读取生成的 main.wxs |
+          | 10 | WiX `UpgradeCode` 已换新 | 读取生成的 main.wxs |
+          | 11 | x64 分支解析为 `ProgramFiles64Folder` | 读取生成的 main.wxs |
+          | 12 | NSIS `INSTALLMODE "both"` | 读取生成的 installer.nsi |
+          | 13 | NSIS `MULTIUSER_PAGE_INSTALLMODE` | 读取生成的 installer.nsi |
+          | 14 | NSIS `MULTIUSER_USE_PROGRAMFILES64` | 读取生成的 installer.nsi |
+
+          CI 未纳入 Windows 打包（原因：GitHub 托管的 windows runner 上跑完整 Tauri release 构建 + NSIS/WiX 工具下载
+          约需 8–12 分钟，且安装包仍未代码签名；发布前在本地以 `npm run test:bundle` 逐条执行）。
+          因此本 job 在此次运行中 **只验证了产物缺失这一事实**，没有任何断言被判为 PASS。
+          '@ >> $env:GITHUB_STEP_SUMMARY
+          Write-Host '::warning title=bundle-checks skipped::14 条断言依赖构建产物，CI 未构建安装包，已跳过并在 step summary 说明原因'
+
+      - name: 执行 check-bundle.ps1（14 条断言）
+        if: steps.artifacts.outputs.present == 'true'
+        shell: pwsh
+        run: |
+          ./app/scripts/check-bundle.ps1

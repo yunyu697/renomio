@@ -162,7 +162,10 @@ fn le_u24(b: &[u8], off: usize) -> Option<u32> {
 
 fn normalize_date(value: &str) -> String {
     // EXIF: 2020:01:02 03:04:05 → 2020-01-02 03:04:05
-    if value.len() >= 10 && value.as_bytes().get(4) == Some(&b':') && value.as_bytes().get(7) == Some(&b':') {
+    if value.len() >= 10
+        && value.as_bytes().get(4) == Some(&b':')
+        && value.as_bytes().get(7) == Some(&b':')
+    {
         let mut out = value.to_string();
         out.replace_range(7..8, "-");
         out.replace_range(4..5, "-");
@@ -191,9 +194,17 @@ fn xml_unescape(s: &str) -> String {
             "&apos;" => Some("'".to_string()),
             _ => {
                 if let Some(num) = entity.strip_prefix("&#x").and_then(|e| e.strip_suffix(';')) {
-                    u32::from_str_radix(num, 16).ok().and_then(char::from_u32).map(|c| c.to_string())
-                } else if let Some(num) = entity.strip_prefix("&#").and_then(|e| e.strip_suffix(';')) {
-                    num.parse::<u32>().ok().and_then(char::from_u32).map(|c| c.to_string())
+                    u32::from_str_radix(num, 16)
+                        .ok()
+                        .and_then(char::from_u32)
+                        .map(|c| c.to_string())
+                } else if let Some(num) =
+                    entity.strip_prefix("&#").and_then(|e| e.strip_suffix(';'))
+                {
+                    num.parse::<u32>()
+                        .ok()
+                        .and_then(char::from_u32)
+                        .map(|c| c.to_string())
                 } else {
                     None
                 }
@@ -324,7 +335,10 @@ fn image_png(data: &[u8]) -> MetadataInfo {
         } else if kind == b"iTXt" && body.len() > 5 && body[1] == 0 {
             // keyword \0 compression(0) \0 language \0 translated \0 text
             let mut parts = body.splitn(6, |b| *b == 0);
-            let key = parts.next().map(|s| String::from_utf8_lossy(s).to_string()).unwrap_or_default();
+            let key = parts
+                .next()
+                .map(|s| String::from_utf8_lossy(s).to_string())
+                .unwrap_or_default();
             let _flag = parts.next();
             let _method = parts.next();
             let _language = parts.next();
@@ -389,8 +403,12 @@ fn image_webp(data: &[u8]) -> MetadataInfo {
                 dims = Some((w, h));
             }
             b"VP8 " if data.len() >= body + 10 => {
-                let w = le_u16(data, body + 6).map(|v| (v & 0x3FFF) as u32).unwrap_or(0);
-                let h = le_u16(data, body + 8).map(|v| (v & 0x3FFF) as u32).unwrap_or(0);
+                let w = le_u16(data, body + 6)
+                    .map(|v| (v & 0x3FFF) as u32)
+                    .unwrap_or(0);
+                let h = le_u16(data, body + 8)
+                    .map(|v| (v & 0x3FFF) as u32)
+                    .unwrap_or(0);
                 dims = Some((w, h));
             }
             b"VP8L" if data.len() >= body + 5 => {
@@ -430,7 +448,11 @@ fn exif_fields(tiff: &[u8]) -> Vec<MetadataField> {
     };
     let read_u16 = |off: usize| -> Option<u16> {
         let s = tiff.get(off..off + 2)?;
-        Some(if little { u16::from_le_bytes([s[0], s[1]]) } else { u16::from_be_bytes([s[0], s[1]]) })
+        Some(if little {
+            u16::from_le_bytes([s[0], s[1]])
+        } else {
+            u16::from_be_bytes([s[0], s[1]])
+        })
     };
     let read_u32 = |off: usize| -> Option<u32> {
         let s = tiff.get(off..off + 4)?;
@@ -453,7 +475,10 @@ fn exif_fields(tiff: &[u8]) -> Vec<MetadataField> {
         if value.is_empty() || fields.iter().any(|f| f.label == label) {
             return;
         }
-        fields.push(MetadataField { label: label.to_string(), value });
+        fields.push(MetadataField {
+            label: label.to_string(),
+            value,
+        });
     };
 
     let read_ifd = |offset: u32| -> Vec<ExifEntry> {
@@ -471,7 +496,12 @@ fn exif_fields(tiff: &[u8]) -> Vec<MetadataField> {
             ) else {
                 break;
             };
-            out.push(ExifEntry { tag, kind, count: cnt, value_off: val });
+            out.push(ExifEntry {
+                tag,
+                kind,
+                count: cnt,
+                value_off: val,
+            });
         }
         out
     };
@@ -639,7 +669,11 @@ fn rational(tiff: &[u8], offset: u32, count: u32, little: bool) -> Option<String
 // ---------------------------------------------------------------------------
 
 fn looks_like_mpeg(data: &[u8], start: usize) -> bool {
-    data.get(start) == Some(&0xFF) && data.get(start + 1).map(|b| b & 0xE0 == 0xE0).unwrap_or(false)
+    data.get(start) == Some(&0xFF)
+        && data
+            .get(start + 1)
+            .map(|b| b & 0xE0 == 0xE0)
+            .unwrap_or(false)
 }
 
 fn audio_mp3(data: &[u8], size: u64) -> MetadataInfo {
@@ -665,7 +699,15 @@ fn audio_mp3(data: &[u8], size: u64) -> MetadataInfo {
 
     if let Some((bitrate, sample, channels)) = mpeg_frame_info(data, start) {
         info.push("采样率", format!("{:.1} kHz", sample as f64 / 1000.0));
-        info.push("声道", if channels == 1 { "单声道" } else { "立体声" }.to_string());
+        info.push(
+            "声道",
+            if channels == 1 {
+                "单声道"
+            } else {
+                "立体声"
+            }
+            .to_string(),
+        );
         info.push("码率", format!("{bitrate} kbps"));
         if bitrate > 0 {
             let seconds = (size as f64 * 8.0) / (bitrate as f64 * 1000.0);
@@ -691,7 +733,12 @@ fn parse_id3_frames(tag: &[u8], version: u8, info: &mut MetadataInfo) {
                 | ((tag[offset + 6] as usize & 0x7F) << 7)
                 | (tag[offset + 7] as usize & 0x7F)
         } else {
-            u32::from_be_bytes([tag[offset + 4], tag[offset + 5], tag[offset + 6], tag[offset + 7]]) as usize
+            u32::from_be_bytes([
+                tag[offset + 4],
+                tag[offset + 5],
+                tag[offset + 6],
+                tag[offset + 7],
+            ]) as usize
         };
         if frame_size == 0 || offset + 10 + frame_size > tag.len() {
             break;
@@ -776,7 +823,10 @@ fn decode_utf16(raw: &[u8], with_bom: bool) -> String {
 }
 
 fn mpeg_frame_info(data: &[u8], start: usize) -> Option<(u32, u32, u8)> {
-    let limit = data.len().saturating_sub(4).min(start.saturating_add(65536));
+    let limit = data
+        .len()
+        .saturating_sub(4)
+        .min(start.saturating_add(65536));
     for i in start..limit {
         if !looks_like_mpeg(data, i) {
             continue;
@@ -789,16 +839,31 @@ fn mpeg_frame_info(data: &[u8], start: usize) -> Option<(u32, u32, u8)> {
         let bitrate_index = (b2 >> 4) & 0x0F;
         let sample_index = (b2 >> 2) & 0x03;
         let channel_mode = (b3 >> 6) & 0x03;
-        if version == 1 || layer == 0 || bitrate_index == 0 || bitrate_index == 15 || sample_index == 3 {
+        if version == 1
+            || layer == 0
+            || bitrate_index == 0
+            || bitrate_index == 15
+            || sample_index == 3
+        {
             continue;
         }
         let bitrate = match (version, layer) {
-            (3, 1) => [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320][bitrate_index as usize],
-            (3, 2) => [0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384][bitrate_index as usize],
-            (3, 3) => [0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448][bitrate_index as usize],
-            (_, 1) => [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160][bitrate_index as usize],
-            (_, 2) => [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160][bitrate_index as usize],
-            _ => [0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256][bitrate_index as usize],
+            (3, 1) => [
+                0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320,
+            ][bitrate_index as usize],
+            (3, 2) => [
+                0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384,
+            ][bitrate_index as usize],
+            (3, 3) => [
+                0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448,
+            ][bitrate_index as usize],
+            (_, 1) => [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160]
+                [bitrate_index as usize],
+            (_, 2) => [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160]
+                [bitrate_index as usize],
+            _ => [
+                0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256,
+            ][bitrate_index as usize],
         };
         let sample = match version {
             3 => [44100, 48000, 32000][sample_index as usize],
@@ -827,9 +892,8 @@ fn audio_flac(data: &[u8], size: u64) -> MetadataInfo {
         if let Some(body) = body {
             match kind {
                 0 if body.len() >= 18 => {
-                    let sample_rate = (body[10] as u32) << 12
-                        | (body[11] as u32) << 4
-                        | (body[12] as u32) >> 4;
+                    let sample_rate =
+                        (body[10] as u32) << 12 | (body[11] as u32) << 4 | (body[12] as u32) >> 4;
                     let channels = ((body[12] >> 1) & 0x07) + 1;
                     let bits = ((body[12] & 0x01) << 4) | (body[13] >> 4);
                     let total = ((body[13] as u64 & 0x0F) << 32)
@@ -930,7 +994,12 @@ fn count_pdf_pages(data: &[u8]) -> usize {
         let at = i + pos + 5;
         let rest = &data[at..];
         let rest = rest.strip_prefix(b" ").unwrap_or(rest);
-        if rest.starts_with(b"/Page") && !rest.get(5).map(|b| b.is_ascii_alphanumeric()).unwrap_or(false) {
+        if rest.starts_with(b"/Page")
+            && !rest
+                .get(5)
+                .map(|b| b.is_ascii_alphanumeric())
+                .unwrap_or(false)
+        {
             count += 1;
         }
         i = at;
@@ -944,7 +1013,10 @@ fn count_pdf_pages(data: &[u8]) -> usize {
 fn pdf_string_after(data: &[u8], key: &str) -> Option<String> {
     let bytes = key.as_bytes();
     let mut search_from = 0usize;
-    while let Some(pos) = data[search_from..].windows(bytes.len()).position(|w| w == bytes) {
+    while let Some(pos) = data[search_from..]
+        .windows(bytes.len())
+        .position(|w| w == bytes)
+    {
         let mut i = search_from + pos + bytes.len();
         search_from = i;
         while i < data.len() && data[i].is_ascii_whitespace() {
@@ -1003,7 +1075,10 @@ fn pdf_string_after(data: &[u8], key: &str) -> Option<String> {
                 let mut out = String::new();
                 for chunk in hex.as_bytes().chunks(2) {
                     if chunk.len() == 2 {
-                        if let Ok(v) = u8::from_str_radix(&format!("{}{}", chunk[0] as char, chunk[1] as char), 16) {
+                        if let Ok(v) = u8::from_str_radix(
+                            &format!("{}{}", chunk[0] as char, chunk[1] as char),
+                            16,
+                        ) {
                             out.push(v as char);
                         }
                     }
@@ -1146,7 +1221,11 @@ fn document_docx(data: &[u8], ext: &str) -> MetadataInfo {
         None => info.warn("未能读取 docProps/core.xml（文档可能损坏或不是标准 DOCX）"),
     }
     if let Some(app) = zip_entry(data, "docProps/app.xml").and_then(|b| String::from_utf8(b).ok()) {
-        for (tag, label) in [("Pages", "页数"), ("Words", "字数"), ("Application", "生成应用")] {
+        for (tag, label) in [
+            ("Pages", "页数"),
+            ("Words", "字数"),
+            ("Application", "生成应用"),
+        ] {
             if let Some(value) = extract_xml_tag(&app, tag) {
                 info.push(label, value);
             }
@@ -1243,7 +1322,7 @@ mod tests {
         png.extend_from_slice(&480u32.to_be_bytes());
         png.extend_from_slice(&[8, 2, 0, 0, 0]);
         png.extend_from_slice(&[0u8; 4]); // 占位 CRC
-        // tEXt：长度必须等于“关键字 + 0 + 文本”的字节数
+                                          // tEXt：长度必须等于“关键字 + 0 + 文本”的字节数
         let text_body = "Title\0相册封面";
         png.extend_from_slice(&(text_body.len() as u32).to_be_bytes());
         png.extend_from_slice(b"tEXt");
@@ -1306,8 +1385,22 @@ mod tests {
         let file = TempFile::new("sample.mp3", &mp3);
         let info = read_metadata(file.0.to_str().unwrap()).unwrap();
         assert_eq!(info.kind, "audio");
-        assert_eq!(info.fields.iter().find(|f| f.label == "标题").unwrap().value, title);
-        assert_eq!(info.fields.iter().find(|f| f.label == "艺术家").unwrap().value, artist);
+        assert_eq!(
+            info.fields
+                .iter()
+                .find(|f| f.label == "标题")
+                .unwrap()
+                .value,
+            title
+        );
+        assert_eq!(
+            info.fields
+                .iter()
+                .find(|f| f.label == "艺术家")
+                .unwrap()
+                .value,
+            artist
+        );
     }
 
     #[test]
@@ -1317,8 +1410,22 @@ mod tests {
         let file = TempFile::new("sample.docx", &zip);
         let info = read_metadata(file.0.to_str().unwrap()).unwrap();
         assert_eq!(info.kind, "document");
-        assert_eq!(info.fields.iter().find(|f| f.label == "标题").unwrap().value, "季度报告");
-        assert_eq!(info.fields.iter().find(|f| f.label == "作者").unwrap().value, "张三");
+        assert_eq!(
+            info.fields
+                .iter()
+                .find(|f| f.label == "标题")
+                .unwrap()
+                .value,
+            "季度报告"
+        );
+        assert_eq!(
+            info.fields
+                .iter()
+                .find(|f| f.label == "作者")
+                .unwrap()
+                .value,
+            "张三"
+        );
     }
 
     #[test]
@@ -1327,17 +1434,61 @@ mod tests {
         let file = TempFile::new("sample.txt", body);
         let info = read_metadata(file.0.to_str().unwrap()).unwrap();
         assert_eq!(info.kind, "text");
-        assert_eq!(info.fields.iter().find(|f| f.label == "编码").unwrap().value, "UTF-8");
-        assert_eq!(info.fields.iter().find(|f| f.label == "行数").unwrap().value, "2");
-        assert_eq!(info.fields.iter().find(|f| f.label == "字符数").unwrap().value, "8");
-        assert_eq!(info.fields.iter().find(|f| f.label == "内容摘要").unwrap().value, "第一行");
+        assert_eq!(
+            info.fields
+                .iter()
+                .find(|f| f.label == "编码")
+                .unwrap()
+                .value,
+            "UTF-8"
+        );
+        assert_eq!(
+            info.fields
+                .iter()
+                .find(|f| f.label == "行数")
+                .unwrap()
+                .value,
+            "2"
+        );
+        assert_eq!(
+            info.fields
+                .iter()
+                .find(|f| f.label == "字符数")
+                .unwrap()
+                .value,
+            "8"
+        );
+        assert_eq!(
+            info.fields
+                .iter()
+                .find(|f| f.label == "内容摘要")
+                .unwrap()
+                .value,
+            "第一行"
+        );
 
         let mut bom = vec![0xEF, 0xBB, 0xBF];
         bom.extend_from_slice(b"a\nb\n");
         let bom_file = TempFile::new("bom.txt", &bom);
         let bom_info = read_metadata(bom_file.0.to_str().unwrap()).unwrap();
-        assert_eq!(bom_info.fields.iter().find(|f| f.label == "编码").unwrap().value, "UTF-8（BOM）");
-        assert_eq!(bom_info.fields.iter().find(|f| f.label == "行数").unwrap().value, "2");
+        assert_eq!(
+            bom_info
+                .fields
+                .iter()
+                .find(|f| f.label == "编码")
+                .unwrap()
+                .value,
+            "UTF-8（BOM）"
+        );
+        assert_eq!(
+            bom_info
+                .fields
+                .iter()
+                .find(|f| f.label == "行数")
+                .unwrap()
+                .value,
+            "2"
+        );
     }
 
     #[test]
@@ -1372,7 +1523,11 @@ mod tests {
         assert!(out[0].info.is_some());
         assert!(out[0].error.is_none());
         assert!(out[1].info.is_none());
-        assert!(out[1].error.as_deref().unwrap_or("").contains("无法读取文件信息"));
+        assert!(out[1]
+            .error
+            .as_deref()
+            .unwrap_or("")
+            .contains("无法读取文件信息"));
     }
 
     fn build_stored_zip(entries: &[(&str, &[u8])]) -> Vec<u8> {

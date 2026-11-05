@@ -70,7 +70,10 @@ fn clear_readonly_tree(dir: &Path) {
 
 fn set_times(path: &Path, ms: i64) {
     let when = UNIX_EPOCH + Duration::from_millis(ms.max(0) as u64);
-    let file = fs::OpenOptions::new().write(true).open(native_path(path)).unwrap();
+    let file = fs::OpenOptions::new()
+        .write(true)
+        .open(native_path(path))
+        .unwrap();
     file.set_times(fs::FileTimes::new().set_modified(when).set_accessed(when))
         .unwrap();
 }
@@ -168,15 +171,19 @@ fn time_skips_unchanged_and_marks_locked_per_item() {
         fixed_ms: 0,
         fields: vec!["mtime".into()],
     };
-    let outcome = core.apply_time(vec![target(&ok), target(&busy)], &spec).unwrap();
+    let outcome = core
+        .apply_time(vec![target(&ok), target(&busy)], &spec)
+        .unwrap();
     drop(locked);
 
     assert_eq!(outcome.applied.len(), 1, "未锁定的文件应成功");
     assert_eq!(outcome.failed.len(), 1, "被占用文件应逐条失败");
-    assert!(outcome.failed[0].reason.contains("无法")
-        || outcome.failed[0].reason.contains("占用")
-        || outcome.failed[0].reason.contains("拒绝")
-        || outcome.failed[0].reason.contains("sharing"));
+    assert!(
+        outcome.failed[0].reason.contains("无法")
+            || outcome.failed[0].reason.contains("占用")
+            || outcome.failed[0].reason.contains("拒绝")
+            || outcome.failed[0].reason.contains("sharing")
+    );
     assert_eq!(mtime_ms(&core, &ok), T0 + 600_000);
     assert_eq!(mtime_ms(&core, &busy), T0, "失败条目必须保持原时间");
 }
@@ -213,11 +220,18 @@ fn time_creation_time_writes_and_undoes() {
     };
     let outcome = core.apply_time(vec![target(&file)], &spec).unwrap();
     assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
-    let after = core.read_times(&[file.to_string_lossy().to_string()])[0].creation_ms.unwrap();
-    assert!((after - (before + 86_400_000)).abs() < 1_500, "创建时间应平移一天：{before} -> {after}");
+    let after = core.read_times(&[file.to_string_lossy().to_string()])[0]
+        .creation_ms
+        .unwrap();
+    assert!(
+        (after - (before + 86_400_000)).abs() < 1_500,
+        "创建时间应平移一天：{before} -> {after}"
+    );
 
     core.undo(&outcome.batch.id).unwrap();
-    let restored = core.read_times(&[file.to_string_lossy().to_string()])[0].creation_ms.unwrap();
+    let restored = core.read_times(&[file.to_string_lossy().to_string()])[0]
+        .creation_ms
+        .unwrap();
     assert!((restored - before).abs() < 1_500, "撤销应还原创建时间");
 }
 
@@ -244,7 +258,10 @@ fn attrs_readonly_set_and_undo() {
     let t = Temp::new("attrs-readonly");
     let file = t.file("ro.txt", "r");
     let core = t.core();
-    let spec = AttrSpec { readonly: Some(true), hidden: None };
+    let spec = AttrSpec {
+        readonly: Some(true),
+        hidden: None,
+    };
     let outcome = core.apply_attrs(vec![target(&file)], &spec).unwrap();
     assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
     assert!(core.read_attrs(&[file.to_string_lossy().to_string()])[0].readonly);
@@ -260,7 +277,10 @@ fn attrs_hidden_set_and_undo() {
     let t = Temp::new("attrs-hidden");
     let file = t.file("hidden.txt", "h");
     let core = t.core();
-    let spec = AttrSpec { readonly: None, hidden: Some(true) };
+    let spec = AttrSpec {
+        readonly: None,
+        hidden: Some(true),
+    };
     let outcome = core.apply_attrs(vec![target(&file)], &spec).unwrap();
     assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
     assert!(core.read_attrs(&[file.to_string_lossy().to_string()])[0].hidden);
@@ -295,7 +315,10 @@ fn move_creates_target_dirs_and_undo_removes_them() {
     assert!(target_path.exists());
     assert!(!file.exists());
     assert!(!outcome.batch.created_dirs.is_empty(), "应记录新建目录");
-    assert_eq!(fs::read_to_string(native_path(&target_path)).unwrap(), "img");
+    assert_eq!(
+        fs::read_to_string(native_path(&target_path)).unwrap(),
+        "img"
+    );
 
     let undo = core.undo(&outcome.batch.id).unwrap();
     assert_eq!(undo.restored.len(), 1);
@@ -311,7 +334,11 @@ fn move_force_copy_verifies_before_deleting_source_then_undo() {
     let file = t.file("big.dat", &content);
     let core = t.core();
     let target_path = t.root.join("copy").join("big.dat");
-    let spec = MoveSpec { create_dirs: true, roots: vec![], force_copy: true };
+    let spec = MoveSpec {
+        create_dirs: true,
+        roots: vec![],
+        force_copy: true,
+    };
     let outcome = core
         .apply_move(
             vec![MoveItem {
@@ -325,8 +352,14 @@ fn move_force_copy_verifies_before_deleting_source_then_undo() {
         .unwrap();
     assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
     assert!(!file.exists(), "校验通过后才删除源");
-    assert_eq!(fs::read_to_string(native_path(&target_path)).unwrap(), content);
-    assert!(left_temp_files(target_path.parent().unwrap()).is_empty(), "不应残留临时副本");
+    assert_eq!(
+        fs::read_to_string(native_path(&target_path)).unwrap(),
+        content
+    );
+    assert!(
+        left_temp_files(target_path.parent().unwrap()).is_empty(),
+        "不应残留临时副本"
+    );
 
     let undo = core.undo(&outcome.batch.id).unwrap();
     assert_eq!(undo.restored.len(), 1);
@@ -342,7 +375,11 @@ fn move_copy_failure_keeps_source_and_cleans_temp() {
     let core = t.core();
     let target_dir = t.root.join("dest");
     let target_path = target_dir.join("locked.dat");
-    let spec = MoveSpec { create_dirs: true, roots: vec![], force_copy: true };
+    let spec = MoveSpec {
+        create_dirs: true,
+        roots: vec![],
+        force_copy: true,
+    };
 
     let guard = lock_file(&file);
     let outcome = core
@@ -362,7 +399,10 @@ fn move_copy_failure_keeps_source_and_cleans_temp() {
     assert_eq!(outcome.failed.len(), 1);
     assert!(file.exists(), "复制失败后源文件必须保留");
     assert!(!target_path.exists(), "不应出现半成品目标文件");
-    assert!(left_temp_files(&target_dir).is_empty(), "失败后应清理临时副本");
+    assert!(
+        left_temp_files(&target_dir).is_empty(),
+        "失败后应清理临时副本"
+    );
     assert_eq!(fs::read_to_string(native_path(&file)).unwrap(), "locked");
 }
 
@@ -377,7 +417,11 @@ fn move_capture_group_targets_into_new_dirs_and_undo() {
         .iter()
         .enumerate()
         .map(|(i, group)| {
-            let name = if i == 0 { "照片 001.jpg" } else { "照片 002.jpg" };
+            let name = if i == 0 {
+                "照片 001.jpg"
+            } else {
+                "照片 002.jpg"
+            };
             t.root.join("capture").join(group).join(name)
         })
         .collect();
@@ -395,18 +439,29 @@ fn move_capture_group_targets_into_new_dirs_and_undo() {
             is_dir: false,
         },
     ];
-    let spec = MoveSpec { create_dirs: true, roots: vec![], force_copy: false };
+    let spec = MoveSpec {
+        create_dirs: true,
+        roots: vec![],
+        force_copy: false,
+    };
     let outcome = core.apply_move(items, &spec).unwrap();
     assert_eq!(outcome.applied.len(), 2, "{:?}", outcome.failed);
     assert!(targets[0].exists() && targets[1].exists());
     assert_eq!(fs::read_to_string(native_path(&targets[0])).unwrap(), "1");
     assert!(!a.exists() && !b.exists());
-    assert_eq!(outcome.batch.created_dirs.len(), 3, "capture 根与两个捕获组目录都应记录");
+    assert_eq!(
+        outcome.batch.created_dirs.len(),
+        3,
+        "capture 根与两个捕获组目录都应记录"
+    );
 
     let undo = core.undo(&outcome.batch.id).unwrap();
     assert_eq!(undo.restored.len(), 2);
     assert!(a.exists() && b.exists());
-    assert!(!t.root.join("capture").exists(), "撤销应清理本次新建的捕获组目录");
+    assert!(
+        !t.root.join("capture").exists(),
+        "撤销应清理本次新建的捕获组目录"
+    );
 }
 
 #[test]
@@ -417,7 +472,11 @@ fn move_existing_target_is_skipped_not_overwritten() {
     fs::create_dir_all(native_path(target_path.parent().unwrap())).unwrap();
     fs::write(native_path(&target_path), b"existing").unwrap();
     let core = t.core();
-    let spec = MoveSpec { create_dirs: true, roots: vec![], force_copy: false };
+    let spec = MoveSpec {
+        create_dirs: true,
+        roots: vec![],
+        force_copy: false,
+    };
     let outcome = core
         .apply_move(
             vec![MoveItem {
@@ -432,7 +491,10 @@ fn move_existing_target_is_skipped_not_overwritten() {
     assert_eq!(outcome.applied.len(), 0);
     assert_eq!(outcome.skipped.len(), 1);
     assert!(file.exists());
-    assert_eq!(fs::read_to_string(native_path(&target_path)).unwrap(), "existing");
+    assert_eq!(
+        fs::read_to_string(native_path(&target_path)).unwrap(),
+        "existing"
+    );
 }
 
 #[test]
@@ -441,7 +503,11 @@ fn move_missing_dir_without_create_is_reported_per_item() {
     let file = t.file("a.txt", "x");
     let core = t.core();
     let target_path = t.root.join("深").join("层").join("a.txt");
-    let spec = MoveSpec { create_dirs: false, roots: vec![], force_copy: false };
+    let spec = MoveSpec {
+        create_dirs: false,
+        roots: vec![],
+        force_copy: false,
+    };
     let outcome = core
         .apply_move(
             vec![MoveItem {

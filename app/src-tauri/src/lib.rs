@@ -4,7 +4,9 @@ use std::time::Duration;
 
 use ffrn_core::journal::{Batch, BatchSummary};
 use ffrn_core::metadata::MetadataInfo;
-use ffrn_core::ops::{AttrInfo, AttrSpec, MoveItem, MoveSpec, OpTarget, OpsOutcome, TimeInfo, TimeSpec};
+use ffrn_core::ops::{
+    AttrInfo, AttrSpec, MoveItem, MoveSpec, OpTarget, OpsOutcome, TimeInfo, TimeSpec,
+};
 use ffrn_core::rename::{ApplyItem, ApplyOptions, UndoOutcome};
 use ffrn_core::scan::{ScanOptions, ScanResult};
 use ffrn_core::{Core, EnvInfo};
@@ -39,17 +41,25 @@ fn startup_log_path() -> Option<std::path::PathBuf> {
     } else {
         std::env::var_os("XDG_DATA_HOME")
             .map(std::path::PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".local/share")))
+            .or_else(|| {
+                std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".local/share"))
+            })
     }?;
     Some(base.join(APP_IDENTIFIER).join("logs").join("startup.log"))
 }
 
 fn startup_log(event: &str, message: &str) {
-    let Some(path) = startup_log_path() else { return };
+    let Some(path) = startup_log_path() else {
+        return;
+    };
     if let Some(dir) = path.parent() {
         let _ = std::fs::create_dir_all(dir);
     }
-    let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) else {
+    let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    else {
         return;
     };
     let ts = epoch_ms();
@@ -156,15 +166,22 @@ struct FailureView {
 /// 把核心原因文案归一为稳定代码（不改核心，避免改动公开结构体）。
 fn classify_failure(reason: &str) -> &'static str {
     let r = reason.to_lowercase();
-    if r.contains("os error 32") || r.contains("os error 33") || r.contains("being used by another process")
-        || r.contains("正由另一进程") || r.contains("被其他进程")
+    if r.contains("os error 32")
+        || r.contains("os error 33")
+        || r.contains("being used by another process")
+        || r.contains("正由另一进程")
+        || r.contains("被其他进程")
     {
         return "in-use";
     }
     if r.contains("os error 5") || r.contains("access is denied") || r.contains("拒绝访问") {
         return "access-denied";
     }
-    if r.contains("os error 3") || r.contains("not found") || r.contains("找不到") || r.contains("不可访问") {
+    if r.contains("os error 3")
+        || r.contains("not found")
+        || r.contains("找不到")
+        || r.contains("不可访问")
+    {
         return "not-found";
     }
     if r.contains("只读") || r.contains("read-only") || r.contains("readonly") {
@@ -173,8 +190,12 @@ fn classify_failure(reason: &str) -> &'static str {
     if r.contains("目标已存在") || r.contains("同一目标") || r.contains("冲突") {
         return "conflict";
     }
-    if r.contains("过长") || r.contains("too long") || r.contains("超长")
-        || r.contains("超过平台上限") || r.contains("超过单段上限") || r.contains("接近平台上限")
+    if r.contains("过长")
+        || r.contains("too long")
+        || r.contains("超长")
+        || r.contains("超过平台上限")
+        || r.contains("超过单段上限")
+        || r.contains("接近平台上限")
     {
         return "path-too-long";
     }
@@ -302,7 +323,11 @@ fn apply_plan(
             "apply-progress",
             ApplyProgress {
                 phase: if cancelled { "cancelled" } else { "done" }.to_string(),
-                done: if cancelled { outcome.applied.len() } else { requested },
+                done: if cancelled {
+                    outcome.applied.len()
+                } else {
+                    requested
+                },
                 total: requested,
                 current: String::new(),
             },
@@ -482,10 +507,12 @@ fn write_text_atomic(
     let seq = EXPORT_SEQ.fetch_add(1, Ordering::Relaxed);
     let temp = parent.join(format!(".ffrn-export-{}-{seq}.tmp", std::process::id()));
     {
-        let mut file = std::fs::File::create(&temp).map_err(|e| format!("创建临时文件失败：{e}"))?;
+        let mut file =
+            std::fs::File::create(&temp).map_err(|e| format!("创建临时文件失败：{e}"))?;
         file.write_all(content.as_bytes())
             .map_err(|e| format!("写入临时文件失败：{e}"))?;
-        file.sync_all().map_err(|e| format!("临时文件落盘失败：{e}"))?;
+        file.sync_all()
+            .map_err(|e| format!("临时文件落盘失败：{e}"))?;
     }
 
     let mut backup: Option<PathBuf> = None;
@@ -676,7 +703,11 @@ mod win_elevation {
             .map(|a| format!("\"{}\"", a.replace('"', "\"\"")))
             .collect::<Vec<_>>()
             .join(" ");
-        let params_wide = if params.is_empty() { None } else { Some(wide(&params)) };
+        let params_wide = if params.is_empty() {
+            None
+        } else {
+            Some(wide(&params))
+        };
         let verb = wide("runas");
         let file = wide(&exe.to_string_lossy());
         let ret = unsafe {
@@ -684,7 +715,10 @@ mod win_elevation {
                 std::ptr::null_mut(),
                 verb.as_ptr(),
                 file.as_ptr(),
-                params_wide.as_ref().map(|v| v.as_ptr()).unwrap_or(std::ptr::null()),
+                params_wide
+                    .as_ref()
+                    .map(|v| v.as_ptr())
+                    .unwrap_or(std::ptr::null()),
                 std::ptr::null(),
                 1,
             )
@@ -700,7 +734,10 @@ mod win_elevation {
     }
 
     fn wide(s: &str) -> Vec<u16> {
-        OsStr::new(s).encode_wide().chain(std::iter::once(0)).collect()
+        OsStr::new(s)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect()
     }
 }
 
@@ -730,14 +767,29 @@ mod tests {
 
     #[test]
     fn classifies_os_failures() {
-        assert_eq!(classify_failure("移动到临时名失败：拒绝访问。 (os error 5)"), "access-denied");
-        assert_eq!(classify_failure("移动到临时名失败：另一个程序正在使用此文件。 (os error 32)"), "in-use");
-        assert_eq!(classify_failure("源文件不可访问：系统找不到指定的文件。 (os error 3)"), "not-found");
+        assert_eq!(
+            classify_failure("移动到临时名失败：拒绝访问。 (os error 5)"),
+            "access-denied"
+        );
+        assert_eq!(
+            classify_failure("移动到临时名失败：另一个程序正在使用此文件。 (os error 32)"),
+            "in-use"
+        );
+        assert_eq!(
+            classify_failure("源文件不可访问：系统找不到指定的文件。 (os error 3)"),
+            "not-found"
+        );
         assert_eq!(classify_failure("只读文件，按设置跳过"), "readonly");
         assert_eq!(classify_failure("目标已存在，按策略跳过"), "conflict");
         assert_eq!(classify_failure("路径过长：超过平台上限"), "path-too-long");
-        assert_eq!(classify_failure("完整路径 300 字符，接近平台上限"), "path-too-long");
-        assert_eq!(classify_failure("名称 300 个字符，超过单段上限 255"), "path-too-long");
+        assert_eq!(
+            classify_failure("完整路径 300 字符，接近平台上限"),
+            "path-too-long"
+        );
+        assert_eq!(
+            classify_failure("名称 300 个字符，超过单段上限 255"),
+            "path-too-long"
+        );
         assert_eq!(classify_failure("新名称含非法字符"), "invalid-name");
         assert_eq!(classify_failure("未知问题"), "io-error");
     }

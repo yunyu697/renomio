@@ -49,7 +49,11 @@ pub struct OpTarget {
 
 impl Default for OpTarget {
     fn default() -> Self {
-        Self { id: String::new(), path: String::new(), is_dir: false }
+        Self {
+            id: String::new(),
+            path: String::new(),
+            is_dir: false,
+        }
     }
 }
 
@@ -67,7 +71,12 @@ pub struct TimeSpec {
 
 impl Default for TimeSpec {
     fn default() -> Self {
-        Self { mode: "shift".into(), shift_seconds: 0, fixed_ms: 0, fields: Vec::new() }
+        Self {
+            mode: "shift".into(),
+            shift_seconds: 0,
+            fixed_ms: 0,
+            fields: Vec::new(),
+        }
     }
 }
 
@@ -145,7 +154,9 @@ fn modified_ms(meta: &fs::Metadata) -> Option<i64> {
 }
 
 fn name_of(path: &Path) -> String {
-    path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()
+    path.file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default()
 }
 
 fn creation_writable() -> bool {
@@ -173,7 +184,10 @@ pub fn read_times(paths: &[String]) -> Vec<TimeInfo> {
                     creation_ms: meta.created().ok().and_then(from_system),
                     ..base
                 },
-                Err(err) => TimeInfo { error: Some(format!("无法读取文件信息：{err}")), ..base },
+                Err(err) => TimeInfo {
+                    error: Some(format!("无法读取文件信息：{err}")),
+                    ..base
+                },
             }
         })
         .collect()
@@ -198,7 +212,10 @@ pub fn read_attrs(paths: &[String]) -> Vec<AttrInfo> {
                     hidden: is_hidden(&path).unwrap_or(false),
                     ..base
                 },
-                Err(err) => AttrInfo { error: Some(format!("无法读取文件信息：{err}")), ..base },
+                Err(err) => AttrInfo {
+                    error: Some(format!("无法读取文件信息：{err}")),
+                    ..base
+                },
             }
         })
         .collect()
@@ -210,10 +227,19 @@ fn pick(value: &Value, key: &str) -> Option<i64> {
 
 fn parse_time_values(raw: &str) -> (Option<i64>, Option<i64>, Option<i64>) {
     let value: Value = serde_json::from_str(raw).unwrap_or(Value::Null);
-    (pick(&value, "atime"), pick(&value, "mtime"), pick(&value, "creation"))
+    (
+        pick(&value, "atime"),
+        pick(&value, "mtime"),
+        pick(&value, "creation"),
+    )
 }
 
-fn write_times(path: &Path, atime: Option<i64>, mtime: Option<i64>, creation: Option<i64>) -> Result<(), String> {
+fn write_times(
+    path: &Path,
+    atime: Option<i64>,
+    mtime: Option<i64>,
+    creation: Option<i64>,
+) -> Result<(), String> {
     let native = native_path(path);
     if atime.is_some() || mtime.is_some() {
         let mut times = fs::FileTimes::new();
@@ -252,7 +278,11 @@ fn time_desired(old: Option<i64>, spec: &TimeSpec) -> Option<i64> {
     }
 }
 
-pub fn apply_time(store: &BatchStore, items: Vec<OpTarget>, spec: &TimeSpec) -> Result<OpsOutcome, String> {
+pub fn apply_time(
+    store: &BatchStore,
+    items: Vec<OpTarget>,
+    spec: &TimeSpec,
+) -> Result<OpsOutcome, String> {
     let batch_id = new_batch_id();
     let fields: HashSet<String> = spec.fields.iter().cloned().collect();
     let mut ops: Vec<BatchOp> = Vec::new();
@@ -317,11 +347,24 @@ pub fn apply_time(store: &BatchStore, items: Vec<OpTarget>, spec: &TimeSpec) -> 
         let old_atime = accessed_ms(&meta);
         let old_mtime = modified_ms(&meta);
         let old_creation = meta.created().ok().and_then(from_system);
-        let before = json!({ "atime": old_atime, "mtime": old_mtime, "creation": old_creation }).to_string();
+        let before =
+            json!({ "atime": old_atime, "mtime": old_mtime, "creation": old_creation }).to_string();
 
-        let new_atime = if fields.contains("atime") { time_desired(old_atime, spec) } else { None };
-        let new_mtime = if fields.contains("mtime") { time_desired(old_mtime, spec) } else { None };
-        let new_creation = if wants_creation { time_desired(old_creation, spec) } else { None };
+        let new_atime = if fields.contains("atime") {
+            time_desired(old_atime, spec)
+        } else {
+            None
+        };
+        let new_mtime = if fields.contains("mtime") {
+            time_desired(old_mtime, spec)
+        } else {
+            None
+        };
+        let new_creation = if wants_creation {
+            time_desired(old_creation, spec)
+        } else {
+            None
+        };
 
         if (fields.contains("atime") && new_atime.is_none())
             || (fields.contains("mtime") && new_mtime.is_none())
@@ -362,7 +405,8 @@ pub fn apply_time(store: &BatchStore, items: Vec<OpTarget>, spec: &TimeSpec) -> 
             continue;
         }
 
-        let after = json!({ "atime": new_atime, "mtime": new_mtime, "creation": new_creation }).to_string();
+        let after =
+            json!({ "atime": new_atime, "mtime": new_mtime, "creation": new_creation }).to_string();
         ops.push(BatchOp {
             id: item.id.clone(),
             kind: "time".into(),
@@ -383,7 +427,12 @@ pub fn apply_time(store: &BatchStore, items: Vec<OpTarget>, spec: &TimeSpec) -> 
         kind: "time".into(),
         policy: "skip".into(),
         roots: collect_roots(&ops),
-        counts: BatchCounts { total: ops.len(), done: 0, skipped: skipped.len(), failed: failed.len() },
+        counts: BatchCounts {
+            total: ops.len(),
+            done: 0,
+            skipped: skipped.len(),
+            failed: failed.len(),
+        },
         items: Vec::new(),
         ops,
         created_dirs: Vec::new(),
@@ -392,7 +441,12 @@ pub fn apply_time(store: &BatchStore, items: Vec<OpTarget>, spec: &TimeSpec) -> 
     if batch.ops.is_empty() {
         batch.state = "completed".into();
         batch.finished_at = Some(now_ms());
-        return Ok(OpsOutcome { batch, applied: Vec::new(), skipped, failed });
+        return Ok(OpsOutcome {
+            batch,
+            applied: Vec::new(),
+            skipped,
+            failed,
+        });
     }
 
     store
@@ -419,16 +473,35 @@ pub fn apply_time(store: &BatchStore, items: Vec<OpTarget>, spec: &TimeSpec) -> 
             Err(reason) => {
                 op.state = "failed".into();
                 op.reason = Some(reason.clone());
-                failed.push(SkippedChange { id: op.id.clone(), source: op.path.clone(), reason });
+                failed.push(SkippedChange {
+                    id: op.id.clone(),
+                    source: op.path.clone(),
+                    reason,
+                });
             }
         }
     }
 
-    finish(store, &mut batch, applied.len(), skipped.len(), failed.len());
-    Ok(OpsOutcome { batch, applied, skipped, failed })
+    finish(
+        store,
+        &mut batch,
+        applied.len(),
+        skipped.len(),
+        failed.len(),
+    );
+    Ok(OpsOutcome {
+        batch,
+        applied,
+        skipped,
+        failed,
+    })
 }
 
-pub fn apply_attrs(store: &BatchStore, items: Vec<OpTarget>, spec: &AttrSpec) -> Result<OpsOutcome, String> {
+pub fn apply_attrs(
+    store: &BatchStore,
+    items: Vec<OpTarget>,
+    spec: &AttrSpec,
+) -> Result<OpsOutcome, String> {
     let batch_id = new_batch_id();
     let mut ops: Vec<BatchOp> = Vec::new();
     let mut skipped: Vec<SkippedChange> = Vec::new();
@@ -522,7 +595,12 @@ pub fn apply_attrs(store: &BatchStore, items: Vec<OpTarget>, spec: &AttrSpec) ->
         kind: "attrs".into(),
         policy: "skip".into(),
         roots: collect_roots(&ops),
-        counts: BatchCounts { total: ops.len(), done: 0, skipped: skipped.len(), failed: failed.len() },
+        counts: BatchCounts {
+            total: ops.len(),
+            done: 0,
+            skipped: skipped.len(),
+            failed: failed.len(),
+        },
         items: Vec::new(),
         ops,
         created_dirs: Vec::new(),
@@ -531,7 +609,12 @@ pub fn apply_attrs(store: &BatchStore, items: Vec<OpTarget>, spec: &AttrSpec) ->
     if batch.ops.is_empty() {
         batch.state = "completed".into();
         batch.finished_at = Some(now_ms());
-        return Ok(OpsOutcome { batch, applied: Vec::new(), skipped, failed });
+        return Ok(OpsOutcome {
+            batch,
+            applied: Vec::new(),
+            skipped,
+            failed,
+        });
     }
 
     store
@@ -546,10 +629,20 @@ pub fn apply_attrs(store: &BatchStore, items: Vec<OpTarget>, spec: &AttrSpec) ->
         let (before_readonly, before_hidden) = parse_attr_values(&op.before);
         let (want_readonly, want_hidden) = parse_attr_bool(&op.after);
         let path = PathBuf::from(&op.path);
-        if let Err(reason) = apply_attr_values(&path, want_readonly, want_hidden, before_readonly, before_hidden) {
+        if let Err(reason) = apply_attr_values(
+            &path,
+            want_readonly,
+            want_hidden,
+            before_readonly,
+            before_hidden,
+        ) {
             op.state = "failed".into();
             op.reason = Some(reason.clone());
-            failed.push(SkippedChange { id: op.id.clone(), source: op.path.clone(), reason });
+            failed.push(SkippedChange {
+                id: op.id.clone(),
+                source: op.path.clone(),
+                reason,
+            });
             continue;
         }
         op.state = "done".into();
@@ -562,15 +655,32 @@ pub fn apply_attrs(store: &BatchStore, items: Vec<OpTarget>, spec: &AttrSpec) ->
         });
     }
 
-    finish(store, &mut batch, applied.len(), skipped.len(), failed.len());
-    Ok(OpsOutcome { batch, applied, skipped, failed })
+    finish(
+        store,
+        &mut batch,
+        applied.len(),
+        skipped.len(),
+        failed.len(),
+    );
+    Ok(OpsOutcome {
+        batch,
+        applied,
+        skipped,
+        failed,
+    })
 }
 
 fn parse_attr_values(raw: &str) -> (bool, bool) {
     let value: Value = serde_json::from_str(raw).unwrap_or(Value::Null);
     (
-        value.get("readonly").and_then(Value::as_bool).unwrap_or(false),
-        value.get("hidden").and_then(Value::as_bool).unwrap_or(false),
+        value
+            .get("readonly")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        value
+            .get("hidden")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
     )
 }
 
@@ -616,7 +726,11 @@ fn apply_attr_values(
     Ok(())
 }
 
-pub fn apply_move(store: &BatchStore, items: Vec<MoveItem>, spec: &MoveSpec) -> Result<OpsOutcome, String> {
+pub fn apply_move(
+    store: &BatchStore,
+    items: Vec<MoveItem>,
+    spec: &MoveSpec,
+) -> Result<OpsOutcome, String> {
     let batch_id = new_batch_id();
     let mut ops: Vec<BatchOp> = Vec::new();
     let mut skipped: Vec<SkippedChange> = Vec::new();
@@ -701,7 +815,10 @@ pub fn apply_move(store: &BatchStore, items: Vec<MoveItem>, spec: &MoveSpec) -> 
         };
         if !exists_native(&parent) {
             if !spec.create_dirs {
-                let reason = format!("目标目录不存在且未允许自动创建：{}", parent.to_string_lossy());
+                let reason = format!(
+                    "目标目录不存在且未允许自动创建：{}",
+                    parent.to_string_lossy()
+                );
                 failed.push(change(reason.clone()));
                 ops.push(BatchOp {
                     id: item.id.clone(),
@@ -742,8 +859,17 @@ pub fn apply_move(store: &BatchStore, items: Vec<MoveItem>, spec: &MoveSpec) -> 
         state: "pending".into(),
         kind: "move".into(),
         policy: "skip".into(),
-        roots: if spec.roots.is_empty() { collect_roots(&ops) } else { spec.roots.clone() },
-        counts: BatchCounts { total: ops.len(), done: 0, skipped: skipped.len(), failed: failed.len() },
+        roots: if spec.roots.is_empty() {
+            collect_roots(&ops)
+        } else {
+            spec.roots.clone()
+        },
+        counts: BatchCounts {
+            total: ops.len(),
+            done: 0,
+            skipped: skipped.len(),
+            failed: failed.len(),
+        },
         items: Vec::new(),
         ops,
         created_dirs: created,
@@ -752,7 +878,12 @@ pub fn apply_move(store: &BatchStore, items: Vec<MoveItem>, spec: &MoveSpec) -> 
     if batch.ops.is_empty() {
         batch.state = "completed".into();
         batch.finished_at = Some(now_ms());
-        return Ok(OpsOutcome { batch, applied: Vec::new(), skipped, failed });
+        return Ok(OpsOutcome {
+            batch,
+            applied: Vec::new(),
+            skipped,
+            failed,
+        });
     }
 
     store
@@ -792,13 +923,28 @@ pub fn apply_move(store: &BatchStore, items: Vec<MoveItem>, spec: &MoveSpec) -> 
             Err(reason) => {
                 op.state = "failed".into();
                 op.reason = Some(reason.clone());
-                failed.push(SkippedChange { id: op.id.clone(), source: op.path.clone(), reason });
+                failed.push(SkippedChange {
+                    id: op.id.clone(),
+                    source: op.path.clone(),
+                    reason,
+                });
             }
         }
     }
 
-    finish(store, &mut batch, applied.len(), skipped.len(), failed.len());
-    Ok(OpsOutcome { batch, applied, skipped, failed })
+    finish(
+        store,
+        &mut batch,
+        applied.len(),
+        skipped.len(),
+        failed.len(),
+    );
+    Ok(OpsOutcome {
+        batch,
+        applied,
+        skipped,
+        failed,
+    })
 }
 
 pub fn undo_ops(store: &BatchStore, id: &str) -> Result<UndoOutcome, String> {
@@ -806,7 +952,11 @@ pub fn undo_ops(store: &BatchStore, id: &str) -> Result<UndoOutcome, String> {
         .load(id)
         .map_err(|e| format!("读取批次失败：{e}"))?
         .ok_or_else(|| "批次不存在".to_string())?;
-    if !batch.kind.is_empty() && batch.kind != "time" && batch.kind != "attrs" && batch.kind != "move" {
+    if !batch.kind.is_empty()
+        && batch.kind != "time"
+        && batch.kind != "attrs"
+        && batch.kind != "move"
+    {
         return Err("该批次不是时间/属性/移动批次".into());
     }
     if batch.ops.is_empty() {
@@ -893,9 +1043,20 @@ pub fn undo_ops(store: &BatchStore, id: &str) -> Result<UndoOutcome, String> {
             "attrs" => {
                 let (readonly, hidden) = parse_attr_values(&op.before);
                 let (cur_readonly, cur_hidden) = fs::metadata(native_path(Path::new(&op.path)))
-                    .map(|m| (is_readonly(&m), is_hidden(Path::new(&op.path)).unwrap_or(false)))
+                    .map(|m| {
+                        (
+                            is_readonly(&m),
+                            is_hidden(Path::new(&op.path)).unwrap_or(false),
+                        )
+                    })
                     .unwrap_or((readonly, hidden));
-                match apply_attr_values(Path::new(&op.path), readonly, hidden, cur_readonly, cur_hidden) {
+                match apply_attr_values(
+                    Path::new(&op.path),
+                    readonly,
+                    hidden,
+                    cur_readonly,
+                    cur_hidden,
+                ) {
                     Ok(()) => restored.push(AppliedChange {
                         id: op.id.clone(),
                         from: op.path.clone(),
@@ -926,11 +1087,21 @@ pub fn undo_ops(store: &BatchStore, id: &str) -> Result<UndoOutcome, String> {
         }
     }
 
-    batch.state = if failed.is_empty() { "undone".into() } else { "undo-partial".into() };
+    batch.state = if failed.is_empty() {
+        "undone".into()
+    } else {
+        "undo-partial".into()
+    };
     batch.finished_at = Some(now_ms());
-    store.save(&batch).map_err(|e| format!("写入撤销日志失败：{e}"))?;
+    store
+        .save(&batch)
+        .map_err(|e| format!("写入撤销日志失败：{e}"))?;
 
-    Ok(UndoOutcome { batch, restored, failed })
+    Ok(UndoOutcome {
+        batch,
+        restored,
+        failed,
+    })
 }
 
 fn finish(store: &BatchStore, batch: &mut Batch, done: usize, skipped: usize, failed: usize) {
@@ -938,7 +1109,11 @@ fn finish(store: &BatchStore, batch: &mut Batch, done: usize, skipped: usize, fa
     batch.counts.skipped = skipped;
     batch.counts.failed = failed;
     batch.finished_at = Some(now_ms());
-    batch.state = if failed == 0 { "completed".into() } else { "partial".into() };
+    batch.state = if failed == 0 {
+        "completed".into()
+    } else {
+        "partial".into()
+    };
     let _ = store.save(batch);
 }
 
@@ -972,7 +1147,10 @@ fn remove_path(path: &Path) -> std::io::Result<()> {
     if !native.exists() {
         return Ok(());
     }
-    if fs::symlink_metadata(&native).map(|m| m.is_dir()).unwrap_or(false) {
+    if fs::symlink_metadata(&native)
+        .map(|m| m.is_dir())
+        .unwrap_or(false)
+    {
         fs::remove_dir_all(&native)
     } else {
         fs::remove_file(&native)
@@ -1029,8 +1207,12 @@ fn copy_dir_all(from: &Path, to: &Path) -> std::io::Result<()> {
 fn compare_files(a: &Path, b: &Path) -> Result<(), String> {
     let na = native_path(a);
     let nb = native_path(b);
-    let len_a = fs::metadata(&na).map_err(|e| format!("读取副本信息失败：{e}"))?.len();
-    let len_b = fs::metadata(&nb).map_err(|e| format!("读取副本信息失败：{e}"))?.len();
+    let len_a = fs::metadata(&na)
+        .map_err(|e| format!("读取副本信息失败：{e}"))?
+        .len();
+    let len_b = fs::metadata(&nb)
+        .map_err(|e| format!("读取副本信息失败：{e}"))?
+        .len();
     if len_a != len_b {
         return Err(format!("大小不一致（{len_a} vs {len_b}）"));
     }
@@ -1039,8 +1221,12 @@ fn compare_files(a: &Path, b: &Path) -> Result<(), String> {
     let mut buf_a = vec![0u8; 64 * 1024];
     let mut buf_b = vec![0u8; 64 * 1024];
     loop {
-        let read_a = fa.read(&mut buf_a).map_err(|e| format!("读取源文件失败：{e}"))?;
-        let read_b = fb.read(&mut buf_b).map_err(|e| format!("读取副本失败：{e}"))?;
+        let read_a = fa
+            .read(&mut buf_a)
+            .map_err(|e| format!("读取源文件失败：{e}"))?;
+        let read_b = fb
+            .read(&mut buf_b)
+            .map_err(|e| format!("读取副本失败：{e}"))?;
         if read_a != read_b {
             return Err("读取长度不一致".into());
         }
@@ -1077,7 +1263,9 @@ fn verify_copy(from: &Path, temp: &Path, is_dir: bool) -> Result<(), String> {
         }
         count += 1;
     }
-    let copied = fs::read_dir(&dst_dir).map_err(|e| format!("读取副本目录失败：{e}"))?.count();
+    let copied = fs::read_dir(&dst_dir)
+        .map_err(|e| format!("读取副本目录失败：{e}"))?
+        .count();
     if copied != count {
         return Err(format!("目录项数量不一致（{count} vs {copied}）"));
     }
@@ -1109,7 +1297,9 @@ fn move_path(
     let copied = if is_dir {
         copy_dir_all(from, &temp).map_err(|e| format!("复制目录失败：{e}"))
     } else {
-        fs::copy(native_path(from), native_path(&temp)).map(|_| ()).map_err(|e| format!("复制文件失败：{e}"))
+        fs::copy(native_path(from), native_path(&temp))
+            .map(|_| ())
+            .map_err(|e| format!("复制文件失败：{e}"))
     };
     if let Err(err) = copied {
         let _ = remove_path(&temp);
@@ -1176,7 +1366,11 @@ fn set_hidden(path: &Path, hidden: bool) -> std::io::Result<()> {
     if old == u32::MAX {
         return Err(std::io::Error::last_os_error());
     }
-    let next = if hidden { old | FILE_ATTRIBUTE_HIDDEN } else { old & !FILE_ATTRIBUTE_HIDDEN };
+    let next = if hidden {
+        old | FILE_ATTRIBUTE_HIDDEN
+    } else {
+        old & !FILE_ATTRIBUTE_HIDDEN
+    };
     if unsafe { SetFileAttributesW(wide.as_ptr(), next) } == 0 {
         return Err(std::io::Error::last_os_error());
     }
@@ -1185,7 +1379,10 @@ fn set_hidden(path: &Path, hidden: bool) -> std::io::Result<()> {
 
 #[cfg(not(windows))]
 fn set_hidden(_path: &Path, _hidden: bool) -> std::io::Result<()> {
-    Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "当前平台不支持隐藏属性"))
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "当前平台不支持隐藏属性",
+    ))
 }
 
 #[cfg(windows)]
@@ -1209,7 +1406,12 @@ fn set_creation_time(path: &Path, when: SystemTime) -> std::io::Result<()> {
             flags: u32,
             template: Handle,
         ) -> Handle;
-        fn SetFileTime(handle: Handle, creation: *const FileTime, access: *const FileTime, written: *const FileTime) -> i32;
+        fn SetFileTime(
+            handle: Handle,
+            creation: *const FileTime,
+            access: *const FileTime,
+            written: *const FileTime,
+        ) -> i32;
         fn CloseHandle(handle: Handle) -> i32;
     }
 
@@ -1236,7 +1438,10 @@ fn set_creation_time(path: &Path, when: SystemTime) -> std::io::Result<()> {
     }
     let ms = from_system(when).unwrap_or(0) as i128;
     let ticks = ms * 10_000 + 116_444_736_000_000_000i128;
-    let ft = FileTime { low: (ticks & 0xFFFF_FFFF) as u32, high: (ticks >> 32) as u32 };
+    let ft = FileTime {
+        low: (ticks & 0xFFFF_FFFF) as u32,
+        high: (ticks >> 32) as u32,
+    };
     let ok = unsafe { SetFileTime(handle, &ft, std::ptr::null(), std::ptr::null()) };
     let err = std::io::Error::last_os_error();
     unsafe { CloseHandle(handle) };

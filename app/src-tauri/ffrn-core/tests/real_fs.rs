@@ -87,7 +87,9 @@ fn batch_undo_status_detects_external_changes() {
     let t = Temp::new("undo-status");
     let src = t.file("alpha.txt", "a");
     let core = t.core();
-    let outcome = core.apply(vec![item(&src, "beta.txt", false)], &t.opts()).unwrap();
+    let outcome = core
+        .apply(vec![item(&src, "beta.txt", false)], &t.opts())
+        .unwrap();
 
     let list = core.batches();
     let summary = list.iter().find(|b| b.id == outcome.batch.id).unwrap();
@@ -96,7 +98,11 @@ fn batch_undo_status_detects_external_changes() {
 
     // 外部把目标文件移走：撤销应被标记为不可行，并给出原因
     let target = t.dir().join("beta.txt");
-    fs::rename(native_path(&target), native_path(&t.dir().join("gamma.txt"))).unwrap();
+    fs::rename(
+        native_path(&target),
+        native_path(&t.dir().join("gamma.txt")),
+    )
+    .unwrap();
     let list = core.batches();
     let summary = list.iter().find(|b| b.id == outcome.batch.id).unwrap();
     assert!(!summary.undoable, "目标被外部移动后不应再标记可撤销");
@@ -117,14 +123,20 @@ fn batch_undo_status_after_undo_is_final() {
     let t = Temp::new("undo-final");
     let src = t.file("one.txt", "1");
     let core = t.core();
-    let outcome = core.apply(vec![item(&src, "two.txt", false)], &t.opts()).unwrap();
+    let outcome = core
+        .apply(vec![item(&src, "two.txt", false)], &t.opts())
+        .unwrap();
     let undo = core.undo(&outcome.batch.id).unwrap();
     assert_eq!(undo.failed.len(), 0);
     let list = core.batches();
     let summary = list.iter().find(|b| b.id == outcome.batch.id).unwrap();
     assert_eq!(summary.state, "undone");
     assert!(!summary.undoable);
-    assert!(summary.undo_reason.as_deref().unwrap_or("").contains("已经撤销"));
+    assert!(summary
+        .undo_reason
+        .as_deref()
+        .unwrap_or("")
+        .contains("已经撤销"));
 }
 
 #[test]
@@ -217,7 +229,10 @@ fn conflict_suffix_generates_new_name_and_undo() {
     assert_eq!(outcome.applied.len(), 1);
     let applied_to = PathBuf::from(&outcome.applied[0].to);
     assert!(applied_to.exists());
-    assert_eq!(applied_to.file_name().unwrap().to_string_lossy(), "a (1).txt");
+    assert_eq!(
+        applied_to.file_name().unwrap().to_string_lossy(),
+        "a (1).txt"
+    );
     assert!(a.exists() && !b.exists());
     assert_eq!(fs::read_to_string(&a).unwrap(), "A");
 
@@ -234,7 +249,9 @@ fn conflict_overwrite_backs_up_and_undo_restores() {
     let core = t.core();
     let mut opts = t.opts();
     opts.policy = "overwrite".into();
-    let outcome = core.apply(vec![item(&b, "keep.txt", false)], &opts).unwrap();
+    let outcome = core
+        .apply(vec![item(&b, "keep.txt", false)], &opts)
+        .unwrap();
 
     assert_eq!(outcome.applied.len(), 1);
     let backup = outcome.applied[0].backup.clone().expect("覆盖前应备份");
@@ -298,12 +315,16 @@ fn readonly_file_skip_or_rename() {
     let core = t.core();
     let mut opts = t.opts();
     opts.skip_readonly = true;
-    let skipped = core.apply(vec![item(&a, "ro-new.txt", false)], &opts).unwrap();
+    let skipped = core
+        .apply(vec![item(&a, "ro-new.txt", false)], &opts)
+        .unwrap();
     assert_eq!(skipped.skipped.len(), 1);
     assert!(a.exists());
 
     opts.skip_readonly = false;
-    let renamed = core.apply(vec![item(&a, "ro-new.txt", false)], &opts).unwrap();
+    let renamed = core
+        .apply(vec![item(&a, "ro-new.txt", false)], &opts)
+        .unwrap();
     assert_eq!(renamed.applied.len(), 1);
     assert!(t.dir().join("ro-new.txt").exists());
 
@@ -433,7 +454,10 @@ fn cancel_before_start_keeps_all_files() {
     assert_eq!(outcome.batch.state, "cancelled");
     assert!(outcome.applied.is_empty());
     assert!(a.exists() && b.exists());
-    assert_eq!(names_in(t.dir()), vec!["a.txt".to_string(), "b.txt".to_string()]);
+    assert_eq!(
+        names_in(t.dir()),
+        vec!["a.txt".to_string(), "b.txt".to_string()]
+    );
     assert!(!t.dir().join("a2.txt").exists());
 }
 

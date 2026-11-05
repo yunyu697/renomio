@@ -171,7 +171,9 @@ pub fn run(old_dir: &Path, new_dir: &Path, old_product: &str, new_product: &str)
             "migration.log",
             &format!(
                 "skip\tsource={}\ttarget={}\treason=target-exists\tat={}",
-                info.old_dir, info.new_dir, now_ms()
+                info.old_dir,
+                info.new_dir,
+                now_ms()
             ),
         );
         return info;
@@ -315,10 +317,7 @@ mod tests {
     use super::*;
 
     fn temp_dir(tag: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "renomio-migrate-test-{tag}-{}",
-            now_ms()
-        ));
+        let dir = std::env::temp_dir().join(format!("renomio-migrate-test-{tag}-{}", now_ms()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
@@ -423,13 +422,57 @@ mod tests {
         assert_eq!(report.imported, 1);
         assert_eq!(report.skipped, 1);
         let backup = PathBuf::from(&report.backup_dir);
-        assert!(backup.join("batches/b1.json").exists(), "导入前必须备份当前数据");
+        assert!(
+            backup.join("batches/b1.json").exists(),
+            "导入前必须备份当前数据"
+        );
         assert_eq!(
             fs::read_to_string(new.join("batches/b1.json")).unwrap(),
             "{\"mine\":true}",
             "已有文件不得被覆盖"
         );
         assert!(old.join("batches/b2.json").exists());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// 旧目录与新目录都有同名文件：不覆盖、两份都保留，冲突计入 skipped 并写进 migration.log。
+    #[test]
+    fn import_keeps_both_on_name_clash_and_logs_conflict() {
+        let root = temp_dir("clash");
+        let old = root.join("old");
+        let new = root.join("app.renomio.desktop");
+        fs::create_dir_all(old.join("batches")).unwrap();
+        fs::create_dir_all(new.join("batches")).unwrap();
+        fs::write(old.join("batches/b1.json"), "{\"src\":\"old\"}").unwrap();
+        fs::write(new.join("batches/b1.json"), "{\"src\":\"new\"}").unwrap();
+
+        let report = import_legacy(&new, &old).unwrap();
+        assert_eq!(report.imported, 0, "同名冲突不得导入");
+        assert_eq!(report.skipped, 1, "同名冲突应计入 skipped");
+
+        assert_eq!(
+            fs::read_to_string(new.join("batches/b1.json")).unwrap(),
+            "{\"src\":\"new\"}",
+            "新目录里的同名文件不得被覆盖"
+        );
+        assert_eq!(
+            fs::read_to_string(old.join("batches/b1.json")).unwrap(),
+            "{\"src\":\"old\"}",
+            "旧目录必须原样保留"
+        );
+
+        let backup = PathBuf::from(&report.backup_dir);
+        assert_eq!(
+            fs::read_to_string(backup.join("batches/b1.json")).unwrap(),
+            "{\"src\":\"new\"}",
+            "备份里应是导入前的新目录内容"
+        );
+
+        let log = fs::read_to_string(new.join("logs/migration.log")).unwrap();
+        assert!(
+            log.contains("import\t") && log.contains("skipped=1"),
+            "冲突应记录到 migration.log，实际内容：{log}"
+        );
         let _ = fs::remove_dir_all(&root);
     }
 }
