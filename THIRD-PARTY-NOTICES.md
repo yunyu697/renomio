@@ -13,11 +13,11 @@
 
 ## 分组口径
 
-- **运行时依赖**：从产品入口出发只沿普通依赖边（normal）可达的第三方包，其代码会编译进安装包。
+- **运行时依赖**：Rust 沿 `normal` 依赖边、npm 沿根 `dependencies` 及其传递 `dependencies` 可达的第三方包，其代码可能被打进安装包（npm 侧不含 `peerDependencies` / `devDependencies`，故 `typescript`、`@types/*` 归为构建期）。
 - **构建期依赖**：只在构建/测试期出现（`build-dependencies`、`devDependencies`，以及仅被它们拉入的包），不会进入安装包。
 - 同一个包可能因多许可同时出现在「Apache-2.0」「MIT/BSD/ISC 版权清单」「双许可」三节，这是**有意保留**的：本节按许可证特征检索，不对许可证做取舍。
 
-统计：运行时 218 个（Rust 209、npm 9）；构建期 126 个（Rust 1、npm 125）。
+统计：运行时 215 个（Rust 209、npm 6）；构建期 129 个（Rust 1、npm 128）。
 
 > 说明：`@rename/foundation` 与 `rename-studio` / `ffrn-core` 是本项目自身的包（适用根 `LICENSE` 的 MIT），不计入第三方。
 
@@ -235,18 +235,15 @@
 | zerovec-derive | 0.11.7 | Unicode-3.0 |
 | zmij | 1.0.23 | MIT |
 
-## 2. 运行时依赖 — npm（9）
+## 2. 运行时依赖 — npm（6）
 
 | 包 | 版本 | 许可证（原始字段） |
 | --- | --- | --- |
 | @tauri-apps/api | 2.12.4 | Apache-2.0 OR MIT |
 | @tauri-apps/plugin-dialog | 2.8.4 | MIT OR Apache-2.0 |
-| @types/react | 19.3.0 | MIT |
-| csstype | 3.2.3 | MIT |
 | react | 19.3.1 | MIT |
 | react-dom | 19.3.1 | MIT |
 | scheduler | 0.28.0 | MIT |
-| typescript | 5.9.3 | Apache-2.0 |
 | zustand | 5.0.16 | MIT |
 
 ## 3. 构建期依赖 — Rust（1）
@@ -255,7 +252,7 @@
 | --- | --- | --- |
 | tauri-build | 2.7.4 | Apache-2.0 OR MIT |
 
-## 4. 构建期依赖 — npm（125）
+## 4. 构建期依赖 — npm（128）
 
 | 包 | 版本 | 许可证（原始字段） |
 | --- | --- | --- |
@@ -353,12 +350,14 @@
 | @types/babel__template | 7.4.4 | MIT |
 | @types/babel__traverse | 7.28.0 | MIT |
 | @types/estree | 1.0.10 | MIT |
+| @types/react | 19.3.0 | MIT |
 | @types/react-dom | 19.3.0 | MIT |
 | @vitejs/plugin-react | 5.2.0 | MIT |
 | baseline-browser-mapping | 2.11.35 | Apache-2.0 |
 | browserslist | 4.29.5 | MIT |
 | caniuse-lite | 1.0.30001820 | CC-BY-4.0 |
 | convert-source-map | 2.0.0 | MIT |
+| csstype | 3.2.3 | MIT |
 | debug | 4.4.3 | MIT |
 | electron-to-chromium | 1.5.476 | ISC |
 | esbuild | 0.28.2 | MIT |
@@ -381,6 +380,7 @@
 | semver | 6.3.2 | ISC |
 | source-map-js | 1.2.2 | BSD-3-Clause |
 | tinyglobby | 0.2.17 | MIT |
+| typescript | 5.9.3 | Apache-2.0 |
 | update-browserslist-db | 1.3.4 | MIT |
 | vite | 7.3.7 | MIT |
 | yallist | 3.1.1 | ISC |
@@ -526,7 +526,7 @@ Apache-2.0 第 4(d) 条要求：若被分发的作品（或其衍生作品）中
 | toml_writer | 1.2.0+spec-1.1.0 | MIT OR Apache-2.0 | 运行时 |
 | typeid | 1.0.3 | MIT OR Apache-2.0 | 运行时 |
 | typenum | 1.20.1 | MIT OR Apache-2.0 | 运行时 |
-| typescript | 5.9.3 | Apache-2.0 | 运行时 |
+| typescript | 5.9.3 | Apache-2.0 | 构建期 |
 | unicode-ident | 1.0.27 | (MIT OR Apache-2.0) AND Unicode-3.0 | 运行时 |
 | unicode-segmentation | 1.13.3 | MIT OR Apache-2.0 | 运行时 |
 | url | 2.5.8 | MIT OR Apache-2.0 | 运行时 |
@@ -1096,7 +1096,7 @@ Apache-2.0 第 4(d) 条要求：若被分发的作品（或其衍生作品）中
 | option-ext | 0.2.0 | MPL-2.0 | 运行时 |
 | selectors | 0.38.0 | MPL-2.0 | 运行时 |
 
-**处置决定权在你**：如果要求「运行时不得含任何 copyleft 组件」，这 5 个包都是 Tauri 依赖树的传递依赖（分别来自 HTML/CSS 解析栈与 `dirs` 路径库），无法靠删除本项目代码消除，只能替换上游依赖。本文件只做记录，未做取舍。
+**处置决定权在你**：如果要求「运行时不得含任何 copyleft 组件」，这 5 个包来自 Tauri 的 HTML/CSS 解析栈（`selectors` / `cssparser` / `html5ever` 相关），移除需要改动 WebView 层依赖，不能靠删包解决。本文件只做记录，未做取舍。
 
 ## 11. 强 copyleft 扫描结论
 
