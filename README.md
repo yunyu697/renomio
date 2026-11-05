@@ -1,6 +1,6 @@
 # Renomio
 
-Proprietary — all rights reserved, not open source
+MIT License — 见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)
 
 跨平台（Windows / macOS / Linux）批量文件 / 文件夹更名工具，重构自《菲菲更名宝贝》（Rename Studio 的新版本，非原地升级）。当前发布版聚焦「可预览、可撤销、不丢文件」的安全更名流程。
 
@@ -127,4 +127,10 @@ npm run tauri build    # 产出 NSIS + MSI 到 src-tauri/target/release/bundle/
 
 ## 许可
 
-**许可待定** —— 本项目尚未选择开源许可证，仓库内**没有** `LICENSE` 文件，许可证由项目所有者决定。在许可证确定前按专有软件处理（Proprietary — all rights reserved, not open source）：未经授权不得复制、分发、修改或商用。许可证确定后会更新本节并补上 `LICENSE`。第三方依赖仍遵循其各自的许可证（如 `ffrn-core` 的 crate 元数据中标注的 MIT）。
+本项目以 **MIT** 许可发布，全文见 [LICENSE](LICENSE)。
+
+**覆盖范围**：根目录的 `LICENSE` 覆盖 `app/`、`app/packages/foundation` 等**全部子目录**，因此不再单独放 `app/LICENSE`（避免出现两份内容不同的许可文件）。**Release 中分发的安装包（MSI / NSIS）适用同一 MIT 许可**，其内嵌的本项目代码与本仓库源码同源。
+
+第三方依赖的许可证、版权声明与 NOTICE 要求见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)：运行时依赖与构建期依赖分组列出；含 Apache-2.0 的包单列并说明 NOTICE 保留要求（本轮扫描未发现需要随分发保留的独立 NOTICE 文件）；MIT / BSD / ISC 依赖给出合并版权清单（逐包原文）；双许可与字段缺失一律按原始字段记录，未自行取舍；弱 copyleft（MPL-2.0）单列并标注待确认。Windows 的 WebView2 由系统提供，不随安装包分发。
+
+**商标**：MIT 许可授予复制、修改、分发、再许可与销售等权利，但**不授予 Renomio 名称与图标的使用权**——名称与图标不随 MIT 许可一并授权，衍生分发不得暗示官方背书。

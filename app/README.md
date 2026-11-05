@@ -1,6 +1,6 @@
 # Renomio
 
-Proprietary — all rights reserved, not open source
+MIT License — 见仓库根目录的 [LICENSE](../LICENSE)
 
 跨平台（Windows / macOS / Linux）批量文件更名工具，重构自《菲菲更名宝贝》。**本版由 Rename Studio 改名为 Renomio**（不是原地升级，迁移方式见「改名与旧版迁移」）。内部 crate 名 `ffrn-core`、Cargo/npm 包名 `rename-studio`、本地设置键 `rename-studio.settings`、方案文件 `rename-studio.plan` 均保留不变。
 
