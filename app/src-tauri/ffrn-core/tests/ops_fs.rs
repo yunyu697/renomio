@@ -237,6 +237,7 @@ fn lock_file(path: &Path) -> std::fs::File {
     fs::File::open(native_path(path)).unwrap()
 }
 
+#[cfg(windows)]
 #[test]
 fn time_creation_time_writes_and_undoes() {
     let t = Temp::new("time-creation");
