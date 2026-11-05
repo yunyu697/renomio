@@ -2,6 +2,7 @@
 # 用法：npm run test:bundle
 # 规则：MSI 固定机器级（ALLUSERS=1 / InstallScope=perMachine / ProgramFiles64Folder）；
 #       NSIS 保留双范围选择（installMode=both + MULTIUSER_PAGE_INSTALLMODE）。
+param([switch]$Offline)
 $ErrorActionPreference = 'Stop'
 $app = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $msiPath = Join-Path $app 'src-tauri\target\release\bundle\msi\Renomio_0.1.0_x64_en-US.msi'
@@ -17,6 +18,58 @@ function Assert($name, $ok, $detail) {
     Write-Host "FAIL  $name -- $detail" -ForegroundColor Red
     $script:failures++
   }
+}
+
+# --- 离线组（11 条）：只读源码配置与安装钩子，不依赖构建产物；CI 每次真实执行 ---
+$confPath = Join-Path $app 'src-tauri\tauri.conf.json'
+$hooksPath = Join-Path $app 'src-tauri\installer-hooks.nsh'
+$offlineTotal = 11
+$conf = $null
+
+Assert 'tauri.conf.json 存在' (Test-Path -LiteralPath $confPath) $confPath
+if (Test-Path -LiteralPath $confPath) {
+  try { $conf = Get-Content -LiteralPath $confPath -Raw | ConvertFrom-Json } catch { }
+}
+Assert 'tauri.conf.json 可解析' ($null -ne $conf) 'JSON 解析失败'
+
+$targets = @()
+if ($conf) { $targets = @($conf.bundle.targets) }
+Assert 'bundle.targets 覆盖 nsis 与 msi' `
+  (($targets -contains 'all') -or (($targets -contains 'nsis') -and ($targets -contains 'msi'))) `
+  "实际值：$($targets -join ',')"
+
+$productName = if ($conf) { $conf.productName } else { '<缺失>' }
+Assert 'productName = Renomio' ($productName -eq 'Renomio') "实际值：$productName"
+
+$identifier = if ($conf) { $conf.identifier } else { '<缺失>' }
+Assert 'identifier = app.renomio.desktop' ($identifier -eq 'app.renomio.desktop') "实际值：$identifier"
+
+$version = if ($conf) { $conf.version } else { '<缺失>' }
+Assert 'version = 0.1.0' ($version -eq '0.1.0') "实际值：$version"
+
+# NSIS 双范围：源配置必须声明 installMode = both（产物里的 MULTIUSER_* 由它生成）
+$installMode = if ($conf -and $conf.bundle.windows -and $conf.bundle.windows.nsis) {
+  $conf.bundle.windows.nsis.installMode
+} else { '<缺失>' }
+Assert 'NSIS 源配置 installMode = both' ($installMode -eq 'both') "实际值：$installMode"
+
+Assert 'installer-hooks.nsh 存在' (Test-Path -LiteralPath $hooksPath) $hooksPath
+$hooks = if (Test-Path -LiteralPath $hooksPath) { Get-Content -LiteralPath $hooksPath -Raw } else { '' }
+Assert '钩子里声明旧显示名 Rename Studio' ($hooks.Contains('RENOMIO_LEGACY_NAME "Rename Studio"')) '未找到旧显示名常量'
+Assert '钩子里声明旧 MSI UpgradeCode' ($hooks.Contains('243680c53c703a6a67d59bb28307489b')) '未找到旧 UpgradeCode 常量'
+Assert '旧版检测在写文件前中止（RMDir + Abort）' `
+  ($hooks.Contains('NSIS_HOOK_PREINSTALL') -and $hooks.Contains('RMDir "$INSTDIR"') -and $hooks.Contains('Abort')) `
+  '未找到 PREINSTALL 钩子中止逻辑'
+Assert '卸载提示包含「不要勾选删除应用数据」' ($hooks.Contains('删除应用数据')) '未找到应用数据保留提示'
+
+if ($Offline) {
+  Write-Host ''
+  if ($script:failures -gt 0) {
+    Write-Host "离线断言失败：$($script:failures) 条（共 $offlineTotal 条）" -ForegroundColor Red
+    exit 1
+  }
+  Write-Host "离线断言全部通过（$offlineTotal/$offlineTotal），本次未读取任何构建产物"
+  exit 0
 }
 
 Assert 'MSI 产物存在' (Test-Path -LiteralPath $msiPath) $msiPath

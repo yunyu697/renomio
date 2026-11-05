@@ -81,6 +81,19 @@ pub struct UndoOutcome {
     pub batch: Batch,
     pub restored: Vec<AppliedChange>,
     pub failed: Vec<SkippedChange>,
+    /// 本次撤销因平台能力缺失而主动跳过的字段（不会计入 failed）
+    #[serde(default)]
+    pub skipped_fields: Vec<SkippedField>,
+}
+
+/// 撤销时被跳过的字段，例如 Linux 上无法写回的 btime（创建时间）。
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkippedField {
+    /// 字段名：creation / mtime / atime
+    pub field: String,
+    pub path: String,
+    pub reason: String,
 }
 
 fn rename_native(from: &Path, to: &Path) -> std::io::Result<()> {
@@ -709,6 +722,7 @@ pub fn undo(store: &BatchStore, id: &str) -> Result<UndoOutcome, String> {
         batch,
         restored,
         failed,
+        skipped_fields: Vec::new(),
     })
 }
 

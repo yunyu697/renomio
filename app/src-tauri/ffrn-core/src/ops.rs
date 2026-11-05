@@ -17,7 +17,7 @@ use serde_json::{json, Value};
 
 use crate::journal::{new_batch_id, now_ms, Batch, BatchCounts, BatchOp, BatchStore};
 use crate::platform::{is_readonly, native_path, Platform};
-use crate::rename::{AppliedChange, SkippedChange, UndoOutcome};
+use crate::rename::{AppliedChange, SkippedChange, SkippedField, UndoOutcome};
 
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -160,7 +160,7 @@ fn name_of(path: &Path) -> String {
 }
 
 fn creation_writable() -> bool {
-    Platform::current() == Platform::Windows
+    crate::platform::can_write_btime()
 }
 
 pub fn read_times(paths: &[String]) -> Vec<TimeInfo> {
@@ -968,6 +968,7 @@ pub fn undo_ops(store: &BatchStore, id: &str) -> Result<UndoOutcome, String> {
 
     let mut restored: Vec<AppliedChange> = Vec::new();
     let mut failed: Vec<SkippedChange> = Vec::new();
+    let mut skipped_fields: Vec<SkippedField> = Vec::new();
 
     for op in batch.ops.iter_mut().rev() {
         if op.state != "done" {
@@ -1026,7 +1027,23 @@ pub fn undo_ops(store: &BatchStore, id: &str) -> Result<UndoOutcome, String> {
             }
             "time" => {
                 let (atime, mtime, creation) = parse_time_values(&op.before);
-                match write_times(Path::new(&op.path), atime, mtime, creation) {
+                // btime 不可写的平台（Linux）在计划阶段就标注跳过，不进入失败路径：
+                // mtime / atime 照常恢复，创建时间记为「未恢复项」。
+                let creation_to_write = match creation {
+                    Some(_) if !crate::platform::can_write_btime() => {
+                        skipped_fields.push(SkippedField {
+                            field: "creation".into(),
+                            path: op.path.clone(),
+                            reason: crate::platform::btime_support()
+                                .skip_reason()
+                                .unwrap_or("当前平台不支持写回创建时间")
+                                .into(),
+                        });
+                        None
+                    }
+                    other => other,
+                };
+                match write_times(Path::new(&op.path), atime, mtime, creation_to_write) {
                     Ok(()) => restored.push(AppliedChange {
                         id: op.id.clone(),
                         from: op.path.clone(),
@@ -1096,12 +1113,44 @@ pub fn undo_ops(store: &BatchStore, id: &str) -> Result<UndoOutcome, String> {
     store
         .save(&batch)
         .map_err(|e| format!("写入撤销日志失败：{e}"))?;
+    append_undo_skip_log(store, &batch.id, &skipped_fields);
 
     Ok(UndoOutcome {
         batch,
         restored,
         failed,
+        skipped_fields,
     })
+}
+
+/// 把本次撤销中被平台能力跳过的字段追加到 `<dataDir>/logs/undo.log`，不静默。
+fn append_undo_skip_log(store: &BatchStore, batch_id: &str, skipped: &[SkippedField]) {
+    use std::io::Write as _;
+    if skipped.is_empty() {
+        return;
+    }
+    let dir = store.data_dir().join("logs");
+    if fs::create_dir_all(&dir).is_err() {
+        return;
+    }
+    let Ok(mut file) = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(dir.join("undo.log"))
+    else {
+        return;
+    };
+    for skip in skipped {
+        let _ = writeln!(
+            file,
+            "undo\t{}\tbatch={}\tfield={}\tpath={}\treason={}",
+            now_ms(),
+            batch_id,
+            skip.field,
+            skip.path,
+            skip.reason
+        );
+    }
 }
 
 fn finish(store: &BatchStore, batch: &mut Batch, done: usize, skipped: usize, failed: usize) {

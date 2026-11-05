@@ -61,6 +61,7 @@ Get-FileHash .\Renomio_0.1.0_x64-setup.exe -Algorithm SHA256
 - 安装向导界面、需要 UAC 的安装/卸载、安装后首次启动的真实窗口交互，本轮均未在自动化中执行（按项目约定不在会话里启动带 GUI 或会弹 UAC 的进程）；因此「装到 `Program Files` 的落点、卸载残留、快捷方式位置、旧版并存拦截弹窗」属于**静态核验**结论，不是真机验收。
 - 真实 Explorer 拖放、提权后的拖放（UIPI 会拦截）、真实物理跨盘移动、EXIF 拍摄时间写入（未实现，时间面板只改文件系统时间）均未完成或未验证。
 - 繁中 / 日 / 西三套译文本工具产出，**未经母语审校**。
+- **创建时间（btime）在 Linux 上不可撤销。** 平台能力按三态处理：Windows 可读可写；Linux 可读（取决于文件系统是否暴露 btime）但**不可写**（`statx` 能读 `STATX_BTIME`，没有对应写回接口）；macOS 按「不支持」处理（本轮未验证）。撤销时 btime 会在计划阶段标记为跳过，mtime / atime 照常恢复，界面会提示「已撤销 N 项；创建时间在 Linux 上不支持恢复，已跳过」，并写入 `<dataDir>/logs/undo.log`。
 
 ## 卸载
 
@@ -105,9 +106,12 @@ npm run tauri build    # 产出 NSIS + MSI 到 src-tauri/target/release/bundle/
 | --- | --- | --- |
 | `frontend` | ubuntu | `npm ci` → `tsc --noEmit` → `vite build` |
 | `backend` | ubuntu | 安装 Tauri v2 Linux 依赖 → `cargo fmt --check`（阻断）→ `cargo clippy`（只暴露警告，不加 `-D warnings`）→ `cargo test`（ffrn-core + Tauri 壳，含 `migrate.rs` 迁移单测） |
-| `bundle-checks` | windows | 判定构建产物是否就位；就位才执行 `scripts/check-bundle.ps1` 的 14 条断言 |
+| `bundle-checks` | windows | 离线组 11 条（读配置，每次都跑）+ 产物组 14 条（有构建产物时才跑） |
 
-`bundle-checks` 的 14 条断言**全部依赖 `npm run tauri build` 的产物**（MSI、NSIS 安装包、WiX/NSIS 生成的脚本），没有可离线执行的条目。CI 不构建安装包：GitHub 托管 windows runner 上完整打包约 8–12 分钟，还要下载 NSIS/WiX 工具链，且安装包尚未签名。因此无产物时该 job 会**显式跳过，并在 Job Summary 列出跳过原因与 14 条断言的逐条依赖**，不把跳过伪装成通过。发布前的打包合规仍由本地 `npm run test:bundle` 逐条执行。
+`bundle-checks` 分两组断言（`scripts/check-bundle.ps1`）：
+
+- **离线组 11 条**：只读 `tauri.conf.json` / `installer-hooks.nsh` 判定 productName、identifier、version、`bundle.targets`、NSIS `installMode=both`、旧版检测与中止逻辑。CI **每次都真实执行**（`-Offline`），任一不成立即红。
+- **产物组 14 条**：读 MSI、NSIS 安装包与 WiX/NSIS 生成的脚本，**必须 `npm run tauri build` 后才有**。CI 不构建安装包（托管 runner 上完整打包约 8–12 分钟，还要下载 NSIS/WiX 工具链，且安装包尚未签名），所以无产物时该组会**显式跳过，并在 Job Summary 列出跳过原因与逐条依赖**，不把跳过伪装成通过。发布前的产物合规仍由本地 `npm run test:bundle` 逐条执行。
 
 ## 许可
 

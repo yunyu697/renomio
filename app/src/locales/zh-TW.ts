@@ -755,6 +755,7 @@ export const zhTW: Dict = {
   'toast.demoUndone': '示範復原完成：{count} 個名稱已還原（磁碟未修改）',
   'toast.undoFailed': '復原失敗：{message}',
   'toast.undoDone': '復原完成：{restored} 個還原 · {failed} 個失敗',
+  'toast.undoDoneSkippedBtime': '已撤銷 {restored} 項；建立時間在 {platform} 上不支援還原，已略過（失敗 {failed} 項）',
   'toast.batchMissing': '找不到該批次',
   'toast.undoBlocked': '有 {count} 個批次不可復原，已停止；請先處理較新的批次',
   'toast.undoUntil': '多層復原完成：{undone}/{total} 個批次已還原',

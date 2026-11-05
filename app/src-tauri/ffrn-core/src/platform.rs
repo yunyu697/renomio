@@ -11,6 +11,68 @@ pub enum Platform {
     Linux,
 }
 
+/// btime（创建时间）的跨平台能力三态。
+///
+/// 关键事实：Linux 的 `statx` 能读 `STATX_BTIME`，但**没有任何 syscall 可以写回 btime**，
+/// 所以 Linux 的正确语义是「只读、不可撤销」，而不是「实现坏了」。
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BtimeSupport {
+    /// 可读可写（Windows：NTFS 通过 SetFileTime 写回）
+    ReadWrite,
+    /// 可读（是否真的有值取决于文件系统是否暴露 btime），但不可写
+    ReadOnly,
+    /// 读写都不支持（macOS：标准 API 没有可移植的 btime 写回，本轮尚未验证，按不支持处理）
+    Unsupported,
+}
+
+impl BtimeSupport {
+    pub fn can_read(self) -> bool {
+        !matches!(self, BtimeSupport::Unsupported)
+    }
+
+    pub fn can_write(self) -> bool {
+        matches!(self, BtimeSupport::ReadWrite)
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            BtimeSupport::ReadWrite => "read-write",
+            BtimeSupport::ReadOnly => "read-only",
+            BtimeSupport::Unsupported => "unsupported",
+        }
+    }
+
+    /// btime 无法写回时给用户/日志看的原因；可写时返回 None。
+    pub fn skip_reason(self) -> Option<&'static str> {
+        match self {
+            BtimeSupport::ReadWrite => None,
+            BtimeSupport::ReadOnly => {
+                Some("创建时间（btime）在 Linux 上不支持写回，撤销时已跳过该字段")
+            }
+            BtimeSupport::Unsupported => {
+                Some("创建时间（btime）在 macOS 上尚未实现写回，撤销时已跳过该字段")
+            }
+        }
+    }
+}
+
+pub fn btime_support() -> BtimeSupport {
+    match Platform::current() {
+        Platform::Windows => BtimeSupport::ReadWrite,
+        Platform::Linux => BtimeSupport::ReadOnly,
+        Platform::MacOs => BtimeSupport::Unsupported,
+    }
+}
+
+pub fn can_read_btime() -> bool {
+    btime_support().can_read()
+}
+
+pub fn can_write_btime() -> bool {
+    btime_support().can_write()
+}
+
 impl Platform {
     pub fn current() -> Self {
         #[cfg(target_os = "windows")]

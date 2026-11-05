@@ -755,6 +755,7 @@ export const jaJP: Dict = {
   'toast.demoUndone': 'デモ取り消し完了：{count} 件の名前を復元（ディスク未変更）',
   'toast.undoFailed': '取り消しに失敗：{message}',
   'toast.undoDone': '取り消し完了：{restored} 件復元 · {failed} 件失敗',
+  'toast.undoDoneSkippedBtime': '取り消し完了：{restored} 件復元 · {failed} 件失敗。作成日時は {platform} では復元できないためスキップしました。',
   'toast.batchMissing': 'バッチが見つかりません',
   'toast.undoBlocked': '{count} 件のバッチが取り消せないため停止しました。新しいバッチから処理してください',
   'toast.undoUntil': '多段取り消し完了：{undone}/{total} バッチを復元',

@@ -107,10 +107,6 @@ fn left_temp_files(dir: &Path) -> Vec<String> {
 
 const T0: i64 = 1_577_836_800_000; // 2020-01-01T00:00:00Z
 
-// 以下三条断言依赖 Windows 语义：撤销时要把 creation（创建时间）一并写回，write_times 的 creation
-// 分支只在 Windows 实现；Linux 上 read_times 能读到 btime，但写回失败会导致整批撤销被标记为失败。
-// 跨平台支持阶段应先修实现，再放开这三条。
-#[cfg(windows)]
 #[test]
 fn time_shift_then_undo_restores_original() {
     let t = Temp::new("time-shift");
@@ -118,6 +114,7 @@ fn time_shift_then_undo_restores_original() {
     set_times(&file, T0);
     let core = t.core();
     assert_eq!(mtime_ms(&core, &file), T0);
+    let before_creation = creation_ms(&file);
 
     let spec = TimeSpec {
         mode: "shift".into(),
@@ -132,14 +129,28 @@ fn time_shift_then_undo_restores_original() {
 
     let undo = core.undo(&outcome.batch.id).unwrap();
     assert_eq!(undo.restored.len(), 1);
-    assert!(undo.failed.is_empty(), "{:?}", undo.failed);
-    assert_eq!(mtime_ms(&core, &file), T0);
+    assert_eq!(mtime_ms(&core, &file), T0, "mtime 必须恢复");
+    if ffrn_core::platform::can_write_btime() {
+        assert!(undo.skipped_fields.is_empty(), "{:?}", undo.skipped_fields);
+        assert_eq!(creation_ms(&file), before_creation, "btime 应被恢复");
+        assert!(undo.failed.is_empty(), "{:?}", undo.failed);
+    } else {
+        assert_eq!(
+            undo.skipped_fields.len(),
+            1,
+            "btime 不可写的平台应记录一条跳过项：{:?}",
+            undo.skipped_fields
+        );
+        assert_eq!(undo.skipped_fields[0].field, "creation");
+        assert!(undo.skipped_fields[0].reason.contains("创建时间"));
+        assert!(
+            undo.failed.is_empty(),
+            "跳过 btime 不得进入失败路径：{:?}",
+            undo.failed
+        );
+    }
 }
 
-// 以下三条断言依赖 Windows 语义：撤销时要把 creation（创建时间）一并写回，write_times 的 creation
-// 分支只在 Windows 实现；Linux 上 read_times 能读到 btime，但写回失败会导致整批撤销被标记为失败。
-// 跨平台支持阶段应先修实现，再放开这三条。
-#[cfg(windows)]
 #[test]
 fn time_fixed_value_survives_restart_and_undo() {
     let t = Temp::new("time-fixed");
@@ -156,17 +167,25 @@ fn time_fixed_value_survives_restart_and_undo() {
     let outcome = core.apply_time(vec![target(&file)], &spec).unwrap();
     assert_eq!(mtime_ms(&core, &file), fixed);
 
-    // 换一个 Core 实例（模拟重启）后仍能撤销
+    // 换一个 Core 实例（模拟重启）后仍能撤销；btime 跳过与否必须与平台能力一致
     let restarted = Core::new(&t.data);
     let undo = restarted.undo(&outcome.batch.id).unwrap();
     assert_eq!(undo.restored.len(), 1);
     assert_eq!(mtime_ms(&restarted, &file), T0);
+    let creation_skipped = undo.skipped_fields.iter().any(|f| f.field == "creation");
+    assert_eq!(
+        creation_skipped,
+        !ffrn_core::platform::can_write_btime(),
+        "跳过的字段必须与平台 btime 能力一致：{:?}",
+        undo.skipped_fields
+    );
+    assert!(
+        undo.failed.is_empty(),
+        "跳过 btime 不得进入失败路径：{:?}",
+        undo.failed
+    );
 }
 
-// 以下三条断言依赖 Windows 语义：撤销时要把 creation（创建时间）一并写回，write_times 的 creation
-// 分支只在 Windows 实现；Linux 上 read_times 能读到 btime，但写回失败会导致整批撤销被标记为失败。
-// 跨平台支持阶段应先修实现，再放开这三条。
-#[cfg(windows)]
 #[test]
 fn time_skips_unchanged_and_marks_locked_per_item() {
     let t = Temp::new("time-per-item");
@@ -176,7 +195,9 @@ fn time_skips_unchanged_and_marks_locked_per_item() {
     set_times(&busy, T0);
     let core = t.core();
 
-    let locked = lock_file(&busy);
+    // 用只读属性制造「无法写入」：Windows 上同样会让写权限打开失败，
+    // 不依赖 Windows 独占锁语义（Linux 的锁与写打开并不互斥）。
+    set_readonly(&busy, true);
     let spec = TimeSpec {
         mode: "shift".into(),
         shift_seconds: 600,
@@ -186,15 +207,16 @@ fn time_skips_unchanged_and_marks_locked_per_item() {
     let outcome = core
         .apply_time(vec![target(&ok), target(&busy)], &spec)
         .unwrap();
-    drop(locked);
+    set_readonly(&busy, false);
 
-    assert_eq!(outcome.applied.len(), 1, "未锁定的文件应成功");
-    assert_eq!(outcome.failed.len(), 1, "被占用文件应逐条失败");
+    assert_eq!(outcome.applied.len(), 1, "可写文件应成功");
+    assert_eq!(outcome.failed.len(), 1, "只读文件应逐条失败");
     assert!(
         outcome.failed[0].reason.contains("无法")
             || outcome.failed[0].reason.contains("占用")
             || outcome.failed[0].reason.contains("拒绝")
             || outcome.failed[0].reason.contains("sharing")
+            || outcome.failed[0].reason.contains("权限")
     );
     assert_eq!(mtime_ms(&core, &ok), T0 + 600_000);
     assert_eq!(mtime_ms(&core, &busy), T0, "失败条目必须保持原时间");
@@ -215,7 +237,6 @@ fn lock_file(path: &Path) -> std::fs::File {
     fs::File::open(native_path(path)).unwrap()
 }
 
-#[cfg(windows)]
 #[test]
 fn time_creation_time_writes_and_undoes() {
     let t = Temp::new("time-creation");
@@ -534,4 +555,25 @@ fn move_missing_dir_without_create_is_reported_per_item() {
     assert_eq!(outcome.failed.len(), 1);
     assert!(outcome.failed[0].reason.contains("目标目录不存在"));
     assert!(file.exists());
+}
+
+/// 只读取创建时间（仅 Windows 有可写/可读的 btime 语义；其它平台分支不会调用）。
+fn creation_ms(path: &Path) -> i64 {
+    #[cfg(windows)]
+    {
+        use std::time::UNIX_EPOCH;
+        let created = fs::metadata(native_path(path)).unwrap().created().unwrap();
+        created.duration_since(UNIX_EPOCH).unwrap().as_millis() as i64
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = path;
+        0
+    }
+}
+
+fn set_readonly(path: &Path, on: bool) {
+    let mut perms = fs::metadata(native_path(path)).unwrap().permissions();
+    perms.set_readonly(on);
+    fs::set_permissions(native_path(path), perms).unwrap();
 }

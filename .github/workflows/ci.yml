@@ -104,12 +104,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # check-bundle.ps1 的 14 条断言全部读「已构建」的产物：
+      # 断言分两组：
+      #   离线组（11 条）：只读 tauri.conf.json / installer-hooks.nsh，CI 每次真实执行；
+      #   产物组（14 条）：读已构建的 MSI、NSIS、WiX/NSIS 生成脚本，需 `npm run tauri build` 之后才有。
       #   MSI（bundle/msi/*.msi）、NSIS 安装包（bundle/nsis/*-setup.exe）、
       #   WiX 生成脚本（target/release/wix/x64/main.wxs）、
       #   NSIS 生成脚本（target/release/nsis/x64/installer.nsi）。
       # 这些文件只有 `npm run tauri build` 之后才存在，CI 不构建安装包（原因见 README / 下方 summary），
       # 所以本步只做「产物是否就位」判定：就位才跑断言，否则显式跳过并写明原因，不伪造通过。
+      - name: 离线断言（11 条，不依赖构建产物）
+        shell: pwsh
+        run: ./app/scripts/check-bundle.ps1 -Offline
+
       - name: 判定产物是否就位
         id: artifacts
         shell: pwsh
@@ -136,9 +142,9 @@ jobs:
         shell: pwsh
         run: |
           @'
-          ## bundle-checks：已跳过（0/14 条断言执行）
+          ## 产物组：已跳过（0/14 条产物断言执行；离线组 11 条已在上一步真实执行）
 
-          原因：`scripts/check-bundle.ps1` 的 **14 条断言全部依赖已构建产物**，没有一条能脱离构建离线运行：
+          原因：产物组的 **14 条断言全部依赖已构建产物**（离线组 11 条已在「离线断言」步骤真实执行并通过）。
 
           | # | 断言 | 依赖 |
           | --- | --- | --- |

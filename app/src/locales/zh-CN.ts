@@ -800,6 +800,7 @@ export const zhCN: Dict = {
   'toast.demoUndone': '演示撤销完成：{count} 个名称已还原（磁盘未改动）',
   'toast.undoFailed': '撤销失败：{message}',
   'toast.undoDone': '撤销完成：{restored} 个还原 · {failed} 个失败',
+  'toast.undoDoneSkippedBtime': '已撤销 {restored} 项；创建时间在 {platform} 上不支持恢复，已跳过（失败 {failed} 项）',
   'toast.batchMissing': '找不到该批次',
   'toast.undoBlocked': '有 {count} 个批次不可撤销，已停止；请先处理较新的批次',
   'toast.undoUntil': '多级撤销完成：{undone}/{total} 个批次已还原',

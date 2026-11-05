@@ -809,9 +809,17 @@ export const useApp = create<AppState>((set, get) => ({
       if (!quiet) await get().refreshBatches();
       logger.info('undo.done', '撤销批次', { batch: id, restored: outcome.restored.length, failed: outcome.failed.length });
       if (quiet) return;
+      const skippedFields = outcome.skippedFields ?? [];
+      const skippedCreation = skippedFields.some((f) => f.field === 'creation');
       get().showToast(
         outcome.failed.length ? 'warn' : 'success',
-        translate('toast.undoDone', { restored: outcome.restored.length, failed: outcome.failed.length }),
+        skippedCreation
+          ? translate('toast.undoDoneSkippedBtime', {
+              restored: outcome.restored.length,
+              failed: outcome.failed.length,
+              platform: get().env?.os === 'macos' ? 'macOS' : 'Linux',
+            })
+          : translate('toast.undoDone', { restored: outcome.restored.length, failed: outcome.failed.length }),
       );
     } catch (err) {
       set({ undoBusy: false });

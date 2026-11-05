@@ -755,6 +755,7 @@ export const esES: Dict = {
   'toast.demoUndone': 'Deshacer demo terminado: {count} nombres restaurados (disco intacto)',
   'toast.undoFailed': 'Error al deshacer: {message}',
   'toast.undoDone': 'Deshacer terminado: {restored} restaurados · {failed} fallidos',
+  'toast.undoDoneSkippedBtime': 'Deshacer terminado: {restored} restaurados · {failed} fallidos. La fecha de creación no se puede restaurar en {platform}; se omitió.',
   'toast.batchMissing': 'Lote no encontrado',
   'toast.undoBlocked': '{count} lotes no se pueden deshacer; resuelva primero los más recientes',
   'toast.undoUntil': 'Deshacer multinivel terminado: {undone}/{total} lotes restaurados',

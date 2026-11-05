@@ -755,6 +755,7 @@ export const enUS: Dict = {
   'toast.demoUndone': 'Demo undo finished: {count} names restored (disk untouched)',
   'toast.undoFailed': 'Undo failed: {message}',
   'toast.undoDone': 'Undo finished: {restored} restored · {failed} failed',
+  'toast.undoDoneSkippedBtime': 'Undo finished: {restored} restored · {failed} failed. Creation time cannot be restored on {platform}, so it was skipped.',
   'toast.batchMissing': 'Batch not found',
   'toast.undoBlocked': '{count} batches cannot be undone; resolve newer batches first',
   'toast.undoUntil': 'Multi-level undo finished: {undone}/{total} batches restored',

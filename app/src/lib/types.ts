@@ -394,10 +394,19 @@ export interface ApplyOutcome {
   failed: SkippedChange[];
 }
 
+export interface SkippedField {
+  /** creation / mtime / atime */
+  field: string;
+  path: string;
+  reason: string;
+}
+
 export interface UndoOutcome {
   batch: Batch;
   restored: AppliedChange[];
   failed: SkippedChange[];
+  /** 平台能力缺失而主动跳过的字段（不计入 failed），例如 Linux 上的创建时间 */
+  skippedFields: SkippedField[];
 }
 
 export interface ApplyItemDto {
