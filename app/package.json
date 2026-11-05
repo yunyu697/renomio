@@ -1,0 +1,35 @@
+{
+  "name": "rename-studio",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "test:corpus": "node scripts/gen-test-corpus.mjs",
+    "test:core": "cargo test --manifest-path src-tauri/ffrn-core/Cargo.toml",
+    "test:e2e": "node e2e/run.mjs",
+    "test:bundle": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-bundle.ps1",
+    "foundation:build": "tsc -p packages/foundation/tsconfig.json"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.9.0",
+    "@tauri-apps/plugin-dialog": "^2.4.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.9.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.1.0"
+  }
+}

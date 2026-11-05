@@ -1,0 +1,12 @@
+[package]
+name = "ffrn-core"
+version = "0.1.0"
+edition = "2021"
+description = "Renomio 文件系统核心：扫描、校验、两阶段改名、批次撤销"
+license = "MIT"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# 仅用于 DOCX 内部的 deflate 解压；不引入完整 zip 依赖
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }

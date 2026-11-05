@@ -1,0 +1,26 @@
+{
+  "name": "@rename/foundation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Renomio / 格式工厂共用基础层：设计令牌、i18n、设置存储、任务队列、日志与崩溃上报、自动更新适配器",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/tokens.css"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "typescript": ">=5"
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Renomio",
+  "version": "0.1.0",
+  "identifier": "app.renomio.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Renomio",
+        "width": 1200,
+        "height": 760,
+        "minWidth": 1100,
+        "minHeight": 640,
+        "center": true,
+        "maximized": true,
+        "decorations": false,
+        "resizable": true,
+        "dragDropEnabled": true,
+        "visible": false,
+        "backgroundColor": "#EEF1F6"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "shortDescription": "跨平台批量文件更名工具",
+    "longDescription": "Renomio：可预览、可撤销的批量文件/文件夹更名工具，支持规则链与冲突策略。",
+    "copyright": "© 2026 Renomio",
+    "category": "Utility",
+    "windows": {
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com",
+      "nsis": {
+        "installMode": "both",
+        "installerHooks": "./installer-hooks.nsh",
+        "languages": ["SimpChinese", "English"],
+        "displayLanguageSelector": false
+      },
+      "wix": {
+        "upgradeCode": "3C7B1E4A-9F62-4D8B-A5E1-6D2C8F4B7A09"
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "entitlements": "entitlements.plist"
+    }
+  }
+}

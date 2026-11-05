@@ -1,0 +1,384 @@
+import type { ReactNode } from 'react';
+import { useTranslation } from '../i18n';
+import type {
+  AddRule, CaseRule, DeleteRule, ExtRule, MetaRule, MoveRule, NumberRule, ReplaceRule, Rule,
+} from '../lib/types';
+import { ruleError } from '../lib/rules';
+
+type Patch = (patch: Record<string, unknown>) => void;
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="field">
+      <label>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function Toggle({ on, label, onChange }: { on: boolean; label: string; onChange: (v: boolean) => void }) {
+  return (
+    <span className="switch-row" style={{ cursor: 'pointer' }} onClick={() => onChange(!on)}>
+      <span className={`switch ${on ? 'on' : ''}`} role="switch" aria-checked={on} />
+      <span className="lbl">{label}</span>
+    </span>
+  );
+}
+
+function Seg<T extends string>({
+  value, options, onChange,
+}: { value: T; options: Array<[T, string]>; onChange: (v: T) => void }) {
+  return (
+    <span className="seg-ctrl">
+      {options.map(([key, label]) => (
+        <span key={key} className={value === key ? 'on' : ''} onClick={() => onChange(key)}>{label}</span>
+      ))}
+    </span>
+  );
+}
+
+function TextInput({
+  value, onChange, mono, placeholder, small,
+}: { value: string; onChange: (v: string) => void; mono?: boolean; placeholder?: string; small?: boolean }) {
+  return (
+    <input
+      className={`input ${mono ? 'mono' : ''} ${small ? 'small' : ''}`}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
+
+function NumberInput({
+  value, onChange, min = 0, max = 255, testId,
+}: { value: number; onChange: (v: number) => void; min?: number; max?: number; testId?: string }) {
+  return (
+    <input
+      className="input mono small"
+      type="number"
+      data-testid={testId}
+      value={Number.isFinite(value) ? value : 0}
+      min={min}
+      max={max}
+      onChange={(e) => {
+        const next = Number(e.target.value);
+        onChange(Number.isFinite(next) ? next : 0);
+      }}
+    />
+  );
+}
+
+export function RuleEditor({ rule, patch }: { rule: Rule; patch: Patch }) {
+  const error = ruleError(rule);
+
+  return (
+    <div className="rule-body">
+      {rule.type === 'add' && <AddEditor rule={rule} patch={patch} />}
+      {rule.type === 'replace' && <ReplaceEditor rule={rule} patch={patch} />}
+      {rule.type === 'delete' && <DeleteEditor rule={rule} patch={patch} />}
+      {rule.type === 'number' && <NumberEditor rule={rule} patch={patch} />}
+      {rule.type === 'move' && <MoveEditor rule={rule} patch={patch} />}
+      {rule.type === 'case' && <CaseEditor rule={rule} patch={patch} />}
+      {rule.type === 'ext' && <ExtEditor rule={rule} patch={patch} />}
+      {rule.type === 'meta' && <MetaEditor rule={rule} patch={patch} />}
+      {error && <div className="rule-error">{error}</div>}
+    </div>
+  );
+}
+
+function AddEditor({ rule, patch }: { rule: AddRule; patch: Patch }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Field label={t('f.mode')}>
+        <Seg
+          value={rule.mode}
+          options={[['direct', t('o.direct')], ['pad', t('o.pad')]]}
+          onChange={(mode) => patch({ mode })}
+        />
+      </Field>
+      {rule.mode === 'direct' ? (
+        <>
+          <Field label={t('f.insertText')}>
+            <TextInput value={rule.text} mono onChange={(text) => patch({ text })} placeholder={t('ph.insert')} />
+          </Field>
+          <Field label={t('f.position')}>
+            <div className="field-row">
+              <Seg
+                value={rule.anchor}
+                options={[['start', t('o.start')], ['end', t('o.end')], ['at', t('o.at')]]}
+                onChange={(anchor) => patch({ anchor })}
+              />
+            </div>
+          </Field>
+          {rule.anchor === 'at' && (
+            <div className="field-row">
+              <Field label={t('f.charIndex')}>
+                <NumberInput value={rule.position} min={1} onChange={(position) => patch({ position })} />
+              </Field>
+              <div style={{ paddingTop: 16 }}>
+                <Toggle on={rule.fromEnd} label={t('f.fromEnd')} onChange={(fromEnd) => patch({ fromEnd })} />
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="field-row">
+          <Field label={t('f.padTo')}>
+            <NumberInput value={rule.padTo} min={1} onChange={(padTo) => patch({ padTo })} />
+          </Field>
+          <Field label={t('f.padChar')}>
+            <TextInput value={rule.padChar} mono small onChange={(padChar) => patch({ padChar: padChar.slice(0, 1) })} />
+          </Field>
+        </div>
+      )}
+    </>
+  );
+}
+
+function ReplaceEditor({ rule, patch }: { rule: ReplaceRule; patch: Patch }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <div className="field-row">
+        <Field label={t('f.find')}>
+          <TextInput value={rule.find} mono onChange={(find) => patch({ find })} placeholder={t('ph.find')} />
+        </Field>
+        <Field label={t('f.replaceWith')}>
+          <TextInput value={rule.replace} mono onChange={(replace) => patch({ replace })} placeholder={t('ph.replace')} />
+        </Field>
+      </div>
+      <div className="field-row" style={{ marginBottom: 9, justifyContent: 'space-between' }}>
+        <Toggle on={rule.caseSensitive} label={t('f.caseSensitive')} onChange={(caseSensitive) => patch({ caseSensitive })} />
+        <Toggle on={rule.regex} label={t('f.regex')} onChange={(regex) => patch({ regex })} />
+      </div>
+      <Field label={t('f.replaceScope')}>
+        <div className="field-row">
+          <Seg
+            value={rule.nth === 0 ? 'all' : 'nth'}
+            options={[['all', t('f.all')], ['nth', t('f.onlyNth')]]}
+            onChange={(mode) => patch({ nth: mode === 'all' ? 0 : 1 })}
+          />
+          {rule.nth > 0 && (
+            <NumberInput value={rule.nth} min={1} onChange={(nth) => patch({ nth })} />
+          )}
+        </div>
+      </Field>
+    </>
+  );
+}
+
+function DeleteEditor({ rule, patch }: { rule: DeleteRule; patch: Patch }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Field label={t('f.mode')}>
+        <Seg
+          value={rule.mode}
+          options={[['range', t('o.range')], ['between', t('o.between')], ['charset', t('o.charset')], ['trim', t('o.trim')]]}
+          onChange={(mode) => patch({ mode })}
+        />
+      </Field>
+      {rule.mode === 'range' && (
+        <div className="field-row">
+          <Field label={t('f.startPos')}>
+            <NumberInput value={rule.from} min={1} onChange={(from) => patch({ from })} />
+          </Field>
+          <Field label={t('f.deleteCount')}>
+            <NumberInput value={rule.count} min={1} onChange={(count) => patch({ count })} />
+          </Field>
+          <div style={{ paddingTop: 16 }}>
+            <Toggle on={rule.fromEnd} label={t('f.fromEnd')} onChange={(fromEnd) => patch({ fromEnd })} />
+          </div>
+        </div>
+      )}
+      {rule.mode === 'between' && (
+        <>
+          <div className="field-row">
+            <Field label={t('f.startMarker')}>
+              <TextInput value={rule.left} mono onChange={(left) => patch({ left })} placeholder={t('ph.left')} />
+            </Field>
+            <Field label={t('f.endMarker')}>
+              <TextInput value={rule.right} mono onChange={(right) => patch({ right })} placeholder={t('ph.right')} />
+            </Field>
+          </div>
+          <div className="field-row">
+            <Toggle on={rule.includeLeft} label={t('f.includeStart')} onChange={(includeLeft) => patch({ includeLeft })} />
+            <Toggle on={rule.includeRight} label={t('f.includeEnd')} onChange={(includeRight) => patch({ includeRight })} />
+          </div>
+        </>
+      )}
+      {rule.mode === 'charset' && (
+        <>
+          <Field label={t('f.charset')}>
+            <TextInput value={rule.chars} mono onChange={(chars) => patch({ chars })} placeholder={t('ph.charset')} />
+          </Field>
+          <Toggle on={rule.keep} label={t('f.keepOnly')} onChange={(keep) => patch({ keep })} />
+        </>
+      )}
+      {rule.mode === 'trim' && (
+        <div className="hint-line">{t('f.trimHint')}</div>
+      )}
+    </>
+  );
+}
+
+function NumberEditor({ rule, patch }: { rule: NumberRule; patch: Patch }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Field label={t('f.numberExpr')}>
+        <TextInput value={rule.expression} mono onChange={(expression) => patch({ expression })} placeholder={t('ph.number')} />
+      </Field>
+      <div className="field-row" style={{ marginBottom: 9 }}>
+        <Field label={t('f.start')}>
+          <NumberInput value={rule.start} min={0} max={999999} testId="number-start" onChange={(start) => patch({ start })} />
+        </Field>
+        <Field label={t('f.step')}>
+          <NumberInput value={rule.step} min={1} max={999} onChange={(step) => patch({ step })} />
+        </Field>
+        <Field label={t('f.digits')}>
+          <NumberInput value={rule.digits} min={1} max={12} onChange={(digits) => patch({ digits })} />
+        </Field>
+        <Field label={t('f.padChar')}>
+          <TextInput value={rule.padChar} mono small onChange={(padChar) => patch({ padChar: padChar.slice(0, 1) })} />
+        </Field>
+      </div>
+      <div className="field-row">
+        <Toggle on={rule.perFolder} label={t('f.perFolder')} onChange={(perFolder) => patch({ perFolder })} />
+        <Toggle on={rule.onlyChecked} label={t('f.onlyChecked')} onChange={(onlyChecked) => patch({ onlyChecked })} />
+      </div>
+    </>
+  );
+}
+
+function MoveEditor({ rule, patch }: { rule: MoveRule; patch: Patch }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <div className="field-row" style={{ marginBottom: 9 }}>
+        <Field label={t('f.moveFrom')}>
+          <NumberInput value={rule.from} min={1} onChange={(from) => patch({ from })} />
+        </Field>
+        <Field label={t('f.moveCount')}>
+          <NumberInput value={rule.count} min={1} onChange={(count) => patch({ count })} />
+        </Field>
+        <div style={{ paddingTop: 16 }}>
+          <Toggle on={rule.fromEnd} label={t('f.fromEnd')} onChange={(fromEnd) => patch({ fromEnd })} />
+        </div>
+      </div>
+      <div className="field-row">
+        <Field label={t('f.moveTo')}>
+          <NumberInput value={rule.to} min={1} onChange={(to) => patch({ to })} />
+        </Field>
+        <div style={{ paddingTop: 16 }}>
+          <Toggle on={rule.toEnd} label={t('f.fromEnd')} onChange={(toEnd) => patch({ toEnd })} />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function CaseEditor({ rule, patch }: { rule: CaseRule; patch: Patch }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Field label={t('f.caseMode')}>
+        <Seg
+          value={rule.mode}
+          options={[
+            ['lower', t('o.lower')], ['upper', t('o.upper')], ['title', t('o.title')],
+            ['sentence', t('o.sentence')], ['invert', t('o.invert')], ['random', t('o.random')],
+          ]}
+          onChange={(mode) => patch({ mode })}
+        />
+      </Field>
+      {rule.mode === 'title' && (
+        <Field label={t('f.separators')}>
+          <TextInput value={rule.separators} mono onChange={(separators) => patch({ separators })} />
+        </Field>
+      )}
+      {rule.mode === 'random' && (
+        <div className="hint-line">{t('f.randomHint')}</div>
+      )}
+    </>
+  );
+}
+
+function ExtEditor({ rule, patch }: { rule: ExtRule; patch: Patch }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Field label={t('f.mode')}>
+        <Seg
+          value={rule.mode}
+          options={[['case', t('o.case')], ['replace', t('o.replace')], ['add', t('o.add')], ['number', t('o.number')], ['remove', t('o.remove')]]}
+          onChange={(mode) => patch({ mode })}
+        />
+      </Field>
+      {rule.mode === 'case' && (
+        <Seg
+          value={rule.caseMode}
+          options={[['lower', t('o.lower')], ['upper', t('o.upper')]]}
+          onChange={(caseMode) => patch({ caseMode })}
+        />
+      )}
+      {(rule.mode === 'replace' || rule.mode === 'add' || rule.mode === 'number') && (
+        <Field label={rule.mode === 'number' ? t('f.extDigits') : t('f.extContent')}>
+          <TextInput
+            value={rule.value}
+            mono
+            onChange={(value) => patch({ value })}
+            placeholder={rule.mode === 'number' ? '2' : t('ph.ext')}
+          />
+        </Field>
+      )}
+      {rule.mode === 'add' && (
+        <Field label={t('f.addPosition')}>
+          <Seg
+            value={rule.position}
+            options={[['prefix', t('o.prefix')], ['suffix', t('o.suffix')]]}
+            onChange={(position) => patch({ position })}
+          />
+        </Field>
+      )}
+      {rule.mode === 'remove' && <div className="hint-line">{t('f.removeHint')}</div>}
+    </>
+  );
+}
+
+function MetaEditor({ rule, patch }: { rule: MetaRule; patch: Patch }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Field label={t('f.metaField')}>
+        <Seg
+          value={rule.field}
+          options={[
+            ['taken', t('o.metaTaken')],
+            ['camera', t('o.metaCamera')],
+            ['title', t('o.metaTitle')],
+            ['artist', t('o.metaArtist')],
+            ['album', t('o.metaAlbum')],
+            ['track', t('o.metaTrack')],
+          ]}
+          onChange={(field) => patch({ field })}
+        />
+      </Field>
+      <Field label={t('f.usage')}>
+        <Seg
+          value={rule.mode}
+          options={[['prefix', t('o.prefix')], ['suffix', t('o.suffix')], ['replace', t('o.replaceName')]]}
+          onChange={(mode) => patch({ mode })}
+        />
+      </Field>
+      {rule.mode !== 'replace' && (
+        <Field label={t('f.separator')}>
+          <TextInput value={rule.separator} small onChange={(separator) => patch({ separator })} placeholder={t('ph.metaSep')} />
+        </Field>
+      )}
+      <div className="hint-line">{t('f.metaHint')}</div>
+    </>
+  );
+}

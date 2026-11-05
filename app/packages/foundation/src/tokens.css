@@ -1,0 +1,105 @@
+/* =============================================================
+   @rename/foundation · 设计令牌（Design Tokens）
+   唯一来源：颜色、字阶、间距、圆角、阴影、动效。
+   业务工程通过 `import '@rename/foundation/tokens.css'` 使用，
+   不要在业务 CSS 里重复定义变量。
+   ============================================================= */
+
+:root {
+  /* 颜色 · 浅色 */
+  --bg: #eef1f6;
+  --panel: #ffffff;
+  --panel-2: #f8fafd;
+  --panel-3: #f1f4fa;
+  --ink: #131a26;
+  --ink-2: #344055;
+  --muted: #6b7688;
+  --muted-2: #8d97a8;
+  --line: #e1e6ef;
+  --line-strong: #cfd7e4;
+  --accent: #3358f4;
+  --accent-ink: #2543c9;
+  --accent-weak: #edf1ff;
+  --accent-weak-2: #dde5ff;
+  --success: #0f9d63;
+  --success-weak: #e6f7ef;
+  --warn: #b26a00;
+  --warn-weak: #fff4e2;
+  --danger: #d92d20;
+  --danger-weak: #feebea;
+  --info: #0b7c93;
+
+  /* 间距（4 的倍数） */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* 字阶 */
+  --text-xs: 10.5px;
+  --text-sm: 11.5px;
+  --text-base: 12.5px;
+  --text-md: 13px;
+  --text-lg: 15px;
+  --text-xl: 18px;
+  --leading-tight: 1.25;
+  --leading-base: 1.45;
+  --leading-loose: 1.7;
+
+  /* 控件与布局 */
+  --control-h: 32px;
+  --control-h-sm: 26px;
+  --topbar: 46px;
+  --actionbar: 58px;
+  --nav-w: 218px;
+  --rules-w: 342px;
+
+  /* 圆角与阴影 */
+  --radius-lg: 14px;
+  --radius-md: 10px;
+  --radius-sm: 7px;
+  --shadow-lg: 0 24px 60px rgba(21, 32, 56, .16), 0 2px 6px rgba(21, 32, 56, .06);
+  --shadow-md: 0 8px 24px rgba(21, 32, 56, .08);
+  --shadow-sm: 0 1px 2px rgba(21, 32, 56, .05);
+
+  /* 字体 */
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+  /* 动效 */
+  --ease: cubic-bezier(.4, 0, .2, 1);
+  --dur-fast: .15s;
+  --dur-base: .2s;
+}
+
+/* 暗色主题：html[data-theme="dark"] 或局部 .theme-dark */
+html[data-theme="dark"],
+.theme-dark {
+  --bg: #0b0f16;
+  --panel: #151a23;
+  --panel-2: #111620;
+  --panel-3: #1a202b;
+  --ink: #e8eef9;
+  --ink-2: #c2cbdb;
+  --muted: #8d99ad;
+  --muted-2: #6f7b8f;
+  --line: #242c3a;
+  --line-strong: #333d4e;
+  --accent: #7c96ff;
+  --accent-ink: #a7b8ff;
+  --accent-weak: #1b2440;
+  --accent-weak-2: #222e52;
+  --success: #35d398;
+  --success-weak: #12291f;
+  --warn: #f0b34a;
+  --warn-weak: #2b2212;
+  --danger: #ff7b72;
+  --danger-weak: #331917;
+  --info: #5ccfe6;
+  --shadow-lg: 0 30px 80px rgba(0, 0, 0, .55);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, .4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .3);
+}

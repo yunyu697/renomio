@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Renomio</title>
+    <style>
+      /* 样式表加载前就铺好底色，避免首帧白底 */
+      html { background: #eef1f6; color-scheme: light; }
+      html[data-theme="dark"] { background: #0b0f16; color-scheme: dark; }
+      body { margin: 0; background: inherit; }
+    </style>
+    <script>
+      /* 在 React / CSS 之前读取本地设置的主题，避免深色用户先看到浅色底 */
+      (function () {
+        try {
+          var forced = new URLSearchParams(location.search).get('theme');
+          var theme = forced === 'dark' || forced === 'light' ? forced : 'light';
+          var raw = localStorage.getItem('rename-studio.settings');
+          if (!forced && raw) {
+            var env = JSON.parse(raw);
+            if (env && env.data && env.data.theme === 'dark') theme = 'dark';
+          }
+          document.documentElement.dataset.theme = theme;
+          window.__STARTUP_THEME__ = theme;
+        } catch (err) {
+          window.__STARTUP_THEME__ = 'light';
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>更名工坊 · 主界面设计稿</title>
+<link rel="stylesheet" href="assets/ui.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-mark" viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h7l4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M14 4v4h4" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 15h6m0 0-2.2-2.2m2.2 2.2-2.2 2.2" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-file-plus" viewBox="0 0 24 24"><path d="M5 6a2 2 0 0 1 2-2h6l4 4v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M13 4v4h4M12 12v5m-2.5-2.5h5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-folder-plus" viewBox="0 0 24 24"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2.2 2.5H18a2.5 2.5 0 0 1 2.5 2.5v6A2.5 2.5 0 0 1 18 18.5H6A2.5 2.5 0 0 1 3.5 16z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M11.5 10.5v5m-2.5-2.5h5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2.2 2.5H18a2.5 2.5 0 0 1 2.5 2.5v6A2.5 2.5 0 0 1 18 18.5H6A2.5 2.5 0 0 1 3.5 16z" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="9" cy="10" r="1.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m6 17 4.2-4 3 2.6 3-3 5 4.4" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-pdf" viewBox="0 0 24 24"><path d="M6 3.5h7l5 5v12a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 20.5v-15A1.5 1.5 0 0 1 6 3.5z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M13 3.5v5h5M8 14h8M8 17h5" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-text" viewBox="0 0 24 24"><path d="M6 3.5h7l5 5v12A1.5 1.5 0 0 1 16.5 22H6A1.5 1.5 0 0 1 4.5 20.5v-15A1.5 1.5 0 0 1 6 3.5z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M13 3.5v5h5M8 12h8M8 15.5h8M8 19h5" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 17.5V6l9-1.5v11" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="6.8" cy="17.5" r="2.3" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="15.8" cy="15.5" r="2.3" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3.5h7l5 5v12A1.5 1.5 0 0 1 16.5 22H6A1.5 1.5 0 0 1 4.5 20.5v-15A1.5 1.5 0 0 1 6 3.5z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M13 3.5v5h5M8 13.5h8M8 17h6" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m15.2 15.2 4 4" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 6h16l-6.2 7.2v6.3l-3.6-1.8v-4.5z" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M4.5 9H14a5.5 5.5 0 0 1 0 11H8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m8 4.5-4 4.5 4 4.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.8v12.4L18.5 12z" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 6.5" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m8 12.2 2.7 2.8 5.3-5.6" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4.5 21 20H3z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 9.5v5" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="17.3" r=".9" fill="currentColor"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 11.2v5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="8.2" r=".9" fill="currentColor"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5v5l3.2 2" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 4 8 4-8 4-8-4z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m4.5 12 7.5 3.8 7.5-3.8M4.5 16l7.5 3.8 7.5-3.8" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M4.5 11.2V5.5A1 1 0 0 1 5.5 4.5h5.7L19.5 13l-6.5 6.5z" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="9" cy="9" r="1.3" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="13.5" y="4.5" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="4.5" y="13.5" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="13.5" y="13.5" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 3.8v2.2M12 18v2.2M20.2 12H18M6 12H3.8M17.8 6.2l-1.5 1.5M7.7 16.3l-1.5 1.5M17.8 17.8l-1.5-1.5M7.7 7.7l-1.5-1.5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.9.7c0 1.6-2.5 1.9-2.5 3.4" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="17" r=".9" fill="currentColor"/></symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6.5 9.5 5.5 5.5 5.5-5.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9.5 6.5 5.5 5.5-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-sort" viewBox="0 0 24 24"><path d="M8 5v14m0 0-2.5-2.5M8 19l2.5-2.5M16 19V5m0 0-2.5 2.5M16 5l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M3.5 12s3.2-5.5 8.5-5.5S20.5 12 20.5 12 17.3 17.5 12 17.5 3.5 12 3.5 12z" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M9 7V5.2A1.2 1.2 0 0 1 10.2 4h3.6A1.2 1.2 0 0 1 15 5.2V7M6.5 7l.8 12.1A1.9 1.9 0 0 0 9.2 21h5.6a1.9 1.9 0 0 0 1.9-1.9L17.5 7" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4.5h11L19.5 8v11.5h-15z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 4.5v5h7V4.5M8 19.5v-6h8v6" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-import" viewBox="0 0 24 24"><path d="M12 3.5v10m0 0 3.5-3.5M12 13.5 8.5 10" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 15v3.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V15" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.2-5.1" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M19 4.5v4.2h-4.2" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-maximize" viewBox="0 0 24 24"><rect x="5.5" y="5.5" width="13" height="13" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-grip" viewBox="0 0 24 24"><circle cx="9" cy="8" r="1" fill="currentColor"/><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="16" r="1" fill="currentColor"/><circle cx="15" cy="8" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="16" r="1" fill="currentColor"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h13m0 0-4.5-4.5M18 12l-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5.5 13.5h5l-1 8.5L18 11h-5.5z" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 5v4.5h4.5M12 8v4.5l3 1.8" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+  </defs>
+</svg>
+
+<div class="page">
+  <header class="page-head">
+    <div class="brand">
+      <span class="mark"><svg width="19" height="19" fill="none"><use href="#i-mark"/></svg></span>
+      <div>
+        <div class="brand-title">更名工坊 · 主界面设计</div>
+        <div class="brand-sub">批量更名 · 跨平台桌面端 · 1440 × 862 布局稿</div>
+      </div>
+    </div>
+    <span class="badge-design"><svg width="13" height="13" fill="none"><use href="#i-info"/></svg>静态设计稿 · 不接受真实文件操作</span>
+    <div class="spacer"></div>
+    <nav class="design-links" aria-label="设计稿页面">
+      <a href="index.html" class="active">主界面</a>
+      <a href="rules.html">规则配置</a>
+      <a href="states.html">状态与反馈</a>
+    </nav>
+    <button class="theme-toggle" data-theme-toggle type="button">
+      <span class="sun"><svg width="14" height="14" fill="none"><use href="#i-eye"/></svg></span>
+      <span class="moon">◐</span>
+      <span>明 / 暗</span>
+    </button>
+  </header>
+
+  <div class="win">
+    <!-- 标题栏 -->
+    <div class="titlebar">
+      <span class="tb-mark"><svg width="13" height="13" fill="none"><use href="#i-mark"/></svg></span>
+      <span class="tb-title">更名工坊</span>
+      <span class="tb-crumb">
+        <span>›</span>
+        <span class="pill-scheme"><svg width="11" height="11" fill="none"><use href="#i-layers"/></svg>方案：2024 旅行照片整理</span>
+        <span style="color:var(--muted-2)">未保存</span>
+      </span>
+      <div class="tb-spacer"></div>
+      <span class="chip" style="height:23px;font-size:11px"><span class="dot-live" style="width:5px;height:5px;border-radius:50%;background:var(--success)"></span>本地运行 · 离线</span>
+      <div class="win-controls" style="margin-left:8px">
+        <span><svg width="12" height="12" fill="none"><use href="#i-minus"/></svg></span>
+        <span><svg width="12" height="12" fill="none"><use href="#i-maximize"/></svg></span>
+        <span class="close"><svg width="12" height="12" fill="none"><use href="#i-x"/></svg></span>
+      </div>
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="toolbar">
+      <button class="btn btn-primary" type="button"><svg fill="none"><use href="#i-file-plus"/></svg>添加文件</button>
+      <button class="btn btn-soft" type="button"><svg fill="none"><use href="#i-folder-plus"/></svg>添加文件夹</button>
+      <span class="divider"></span>
+      <button class="btn btn-ghost" type="button" title="导入更名方案或快照"><svg fill="none"><use href="#i-import"/></svg>导入方案</button>
+      <button class="btn btn-ghost" type="button" title="保存为更名方案"><svg fill="none"><use href="#i-save"/></svg>保存方案</button>
+      <span class="divider"></span>
+      <button class="btn btn-ghost" type="button" title="撤销上一次更名"><svg fill="none"><use href="#i-undo"/></svg>撤销 <span class="kbd">Ctrl Z</span></button>
+      <button class="btn btn-icon" type="button" title="刷新文件列表"><svg fill="none"><use href="#i-refresh"/></svg></button>
+      <button class="btn btn-icon" type="button" title="导出文件列表"><svg fill="none"><use href="#i-import"/></svg></button>
+      <div style="flex:1"></div>
+      <label class="search">
+        <svg width="14" height="14" fill="none"><use href="#i-search"/></svg>
+        <input type="text" placeholder="搜索文件名、路径或新名称…" aria-label="搜索文件">
+        <span class="kbd">Ctrl K</span>
+      </label>
+      <button class="btn btn-icon" type="button" title="高级筛选"><svg fill="none"><use href="#i-filter"/></svg></button>
+      <button class="btn btn-icon" type="button" title="快捷键与帮助"><svg fill="none"><use href="#i-help"/></svg></button>
+      <button class="btn btn-icon active" type="button" title="界面设置"><svg fill="none"><use href="#i-settings"/></svg></button>
+    </div>
+
+    <!-- 路径与过滤 -->
+    <div class="pathbar">
+      <span class="path"><svg width="14" height="14" fill="none" style="color:var(--accent)"><use href="#i-folder"/></svg>E:\照片\2024 旅行</span>
+      <span class="chip chip-accent">保留 <b style="font-family:var(--mono);font-weight:500">*.jpg *.png</b> <span class="x">×</span></span>
+      <span class="chip chip-warn">排除 <b style="font-family:var(--mono);font-weight:500">*副本*</b> <span class="x">×</span></span>
+      <span class="chip chip-ghost">＋ 添加过滤条件</span>
+      <div class="right">
+        <span class="switch-row"><span class="lbl">遍历子文件夹</span><span class="switch on" role="switch" aria-checked="true"></span></span>
+        <span class="sep" style="width:1px;height:14px;background:var(--line)"></span>
+        <span>已载入 <b style="color:var(--ink);font-family:var(--mono)">120</b> 个对象 · 文件夹 6</span>
+      </div>
+    </div>
+
+    <!-- 工作区 -->
+    <div class="workspace">
+
+      <!-- 左导航 -->
+      <aside class="nav">
+        <div class="nav-group">
+          <div class="nav-label">重命名</div>
+          <div class="nav-item active"><svg fill="none"><use href="#i-bolt"/></svg>常规规则<span class="count">6</span></div>
+          <div class="nav-item"><svg fill="none"><use href="#i-layers"/></svg>高级规则<span class="count">13</span></div>
+          <div class="nav-item"><svg fill="none"><use href="#i-tag"/></svg>扩展名<span class="count">7</span></div>
+          <div class="nav-item"><svg fill="none"><use href="#i-file-plus"/></svg>特定文件类型</div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-label">元数据</div>
+          <div class="nav-item"><svg fill="none"><use href="#i-music"/></svg>音乐标签</div>
+          <div class="nav-item"><svg fill="none"><use href="#i-image"/></svg>图片信息</div>
+          <div class="nav-item"><svg fill="none"><use href="#i-doc"/></svg>Office / PDF</div>
+          <div class="nav-item"><svg fill="none"><use href="#i-text"/></svg>文本编码</div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-label">属性与整理</div>
+          <div class="nav-item"><svg fill="none"><use href="#i-grid"/></svg>文件属性</div>
+          <div class="nav-item"><svg fill="none"><use href="#i-clock"/></svg>时间属性</div>
+          <div class="nav-item"><svg fill="none"><use href="#i-folder"/></svg>文件归类</div>
+        </div>
+        <div class="nav-foot">
+          <div class="nav-item"><svg fill="none"><use href="#i-history"/></svg>操作记录<span class="count">4</span></div>
+          <div class="nav-item"><svg fill="none"><use href="#i-save"/></svg>方案与快照</div>
+          <div class="nav-item"><svg fill="none"><use href="#i-settings"/></svg>设置</div>
+          <div class="nav-hint">规则与文件只在本地处理，不上传任何内容。</div>
+        </div>
+      </aside>
+
+      <!-- 主区域 -->
+      <section class="main">
+        <div class="list-tabs" role="tablist">
+          <div class="tab active" role="tab">更名列表 <span class="num">120</span></div>
+          <div class="tab" role="tab">属性列表 <span class="num">120</span></div>
+          <div class="tab dim" role="tab">音乐 <span class="num">0</span></div>
+          <div class="tab" role="tab">图片 <span class="num">112</span></div>
+          <div class="tab dim" role="tab">文档 <span class="num">0</span></div>
+          <div class="tab" role="tab">文本 <span class="num">1</span></div>
+          <div class="tab dim" role="tab">归类 <span class="num">0</span></div>
+        </div>
+
+        <div class="list-tools">
+          <span class="mini on">全部 <svg fill="none"><use href="#i-chevron-down"/></svg></span>
+          <span class="mini">冲突 <span style="color:var(--danger);font-weight:600">3</span></span>
+          <span class="mini">未变更 1</span>
+          <span class="mini">超长 / 只读 2</span>
+          <span class="mini">已勾选 18</span>
+          <div class="right">
+            <span class="mini on"><svg fill="none"><use href="#i-bolt"/></svg>自动预览</span>
+            <span class="mini"><svg fill="none"><use href="#i-eye"/></svg>实际图标</span>
+            <span class="mini"><svg fill="none"><use href="#i-sort"/></svg>列设置</span>
+          </div>
+        </div>
+
+        <div class="table">
+          <div class="thead">
+            <div class="th"><span class="checkbox partial"><svg fill="none"><use href="#i-check"/></svg></span></div>
+            <div class="th">名称 <svg fill="none"><use href="#i-chevron-down"/></svg></div>
+            <div class="th">位置</div>
+            <div class="th" style="justify-content:flex-end">大小</div>
+            <div class="th">修改时间 <svg fill="none"><use href="#i-chevron-down"/></svg></div>
+            <div class="th">新名称（预览）</div>
+            <div class="th">状态</div>
+          </div>
+
+          <div class="trow selected">
+            <div class="cell"><span class="checkbox on"><svg fill="none"><use href="#i-check"/></svg></span></div>
+            <div class="cell"><span class="file-ico folder"><svg fill="none"><use href="#i-folder"/></svg></span><span class="txt">2024 旅行照片</span></div>
+            <div class="cell mono"><span class="txt" style="color:var(--muted)">E:\照片\2024 旅行</span></div>
+            <div class="cell right"><span class="dims">—</span></div>
+            <div class="cell"><span class="dims">11-02 09:15</span></div>
+            <div class="cell"><span class="new-name"><span class="seg"><span class="add">2024_</span>旅行照片</span></span></div>
+            <div class="cell"><span class="status s-pending"><i class="dot"></i>待更名</span></div>
+          </div>
+
+          <div class="trow selected">
+            <div class="cell"><span class="checkbox on"><svg fill="none"><use href="#i-check"/></svg></span></div>
+            <div class="cell"><span class="file-ico jpg"><svg fill="none"><use href="#i-image"/></svg></span><span class="txt">DSC_0101.JPG</span></div>
+            <div class="cell mono"><span class="txt" style="color:var(--muted)">E:\照片\2024 旅行</span></div>
+            <div class="cell right"><span class="dims">3.8 MB</span></div>
+            <div class="cell"><span class="dims">11-03 18:32</span></div>
+            <div class="cell"><span class="new-name"><span class="seg"><span class="add">旅行_</span>001.jpg</span></span></div>
+            <div class="cell"><span class="status s-pending"><i class="dot"></i>待更名</span></div>
+          </div>
+
+          <div class="trow selected">
+            <div class="cell"><span class="checkbox on"><svg fill="none"><use href="#i-check"/></svg></span></div>
+            <div class="cell"><span class="file-ico jpg"><svg fill="none"><use href="#i-image"/></svg></span><span class="txt">DSC_0102.JPG</span></div>
+            <div class="cell mono"><span class="txt" style="color:var(--muted)">E:\照片\2024 旅行</span></div>
+            <div class="cell right"><span class="dims">4.1 MB</span></div>
+            <div class="cell"><span class="dims">11-03 18:34</span></div>
+            <div class="cell"><span class="new-name"><span class="seg"><span class="add">旅行_</span>002.jpg</span></span></div>
+            <div class="cell"><span class="status s-pending"><i class="dot"></i>待更名</span></div>
+          </div>
+
+          <div class="trow selected">
+            <div class="cell"><span class="checkbox on"><svg fill="none"><use href="#i-check"/></svg></span></div>
+            <div class="cell"><span class="file-ico jpg"><svg fill="none"><use href="#i-image"/></svg></span><span class="txt">DSC_0103 - 副本.JPG</span></div>
+            <div class="cell mono"><span class="txt" style="color:var(--muted)">E:\照片\2024 旅行</span></div>
+            <div class="cell right"><span class="dims">3.6 MB</span></div>
+            <div class="cell"><span class="dims">11-03 18:35</span></div>
+            <div class="cell"><span class="new-name"><span class="seg"><span class="add">旅行_</span>003.jpg</span></span></div>
+            <div class="cell"><span class="status s-pending"><i class="dot"></i>待更名</span></div>
+          </div>
+
+          <div class="trow selected conflict">
+            <div class="cell"><span class="checkbox on"><svg fill="none"><use href="#i-check"/></svg></span></div>
+            <div class="cell"><span class="file-ico jpg"><svg fill="none"><use href="#i-image"/></svg></span><span class="txt">DSC_0103.JPG</span></div>
+            <div class="cell mono"><span class="txt" style="color:var(--muted)">E:\照片\2024 旅行</span></div>
+            <div class="cell right"><span class="dims">3.6 MB</span></div>
+            <div class="cell"><span class="dims">11-03 18:35</span></div>
+            <div class="cell stack" style="display:flex;flex-direction:column;align-items:flex-start;gap:1px">
+              <span class="new-name"><span class="seg" style="color:var(--danger)"><span class="add" style="background:transparent;text-decoration:line-through">旅行_</span>003.jpg</span></span>
+              <span class="row-sub">与上一行目标重名</span>
+            </div>
+            <div class="cell"><span class="status s-conflict"><i class="dot"></i>冲突</span></div>
+          </div>
+
+          <div class="trow warnrow">
+            <div class="cell"><span class="checkbox"></span></div>
+            <div class="cell"><span class="file-ico pdf"><svg fill="none"><use href="#i-pdf"/></svg></span><span class="txt">扫描件 001.pdf</span></div>
+            <div class="cell mono"><span class="txt" style="color:var(--muted)">E:\照片\2024 旅行\归档</span></div>
+            <div class="cell right"><span class="dims">1.2 MB</span></div>
+            <div class="cell"><span class="dims">10-29 14:08</span></div>
+            <div class="cell stack" style="display:flex;flex-direction:column;align-items:flex-start;gap:1px">
+              <span class="new-name"><span class="seg"><span class="add">2024_</span>扫描件_001.pdf</span></span>
+              <span class="row-sub warn">文件只读 · 执行时跳过</span>
+            </div>
+            <div class="cell"><span class="status s-warn"><i class="dot"></i>警告</span></div>
+          </div>
+
+          <div class="trow unchanged">
+            <div class="cell"><span class="checkbox"></span></div>
+            <div class="cell"><span class="file-ico txt"><svg fill="none"><use href="#i-text"/></svg></span><span class="txt">notes.txt</span></div>
+            <div class="cell mono"><span class="txt" style="color:var(--muted)">E:\照片\2024 旅行</span></div>
+            <div class="cell right"><span class="dims">12 KB</span></div>
+            <div class="cell"><span class="dims">09-18 11:02</span></div>
+            <div class="cell"><span class="new-name"><span class="seg">notes.txt</span></span></div>
+            <div class="cell"><span class="status s-unchanged"><i class="dot"></i>未变更</span></div>
+          </div>
+
+          <div class="trow selected">
+            <div class="cell"><span class="checkbox on"><svg fill="none"><use href="#i-check"/></svg></span></div>
+            <div class="cell"><span class="file-ico jpg"><svg fill="none"><use href="#i-image"/></svg></span><span class="txt">IMG_2024.JPG</span></div>
+            <div class="cell mono"><span class="txt" style="color:var(--muted)">E:\照片\2024 旅行</span></div>
+            <div class="cell right"><span class="dims">5.4 MB</span></div>
+            <div class="cell"><span class="dims">11-03 18:38</span></div>
+            <div class="cell"><span class="new-name"><span class="seg"><span class="add">旅行_</span>118.jpg</span></span></div>
+            <div class="cell"><span class="status s-pending"><i class="dot"></i>待更名</span></div>
+          </div>
+
+          <div class="trow selected">
+            <div class="cell"><span class="checkbox on"><svg fill="none"><use href="#i-check"/></svg></span></div>
+            <div class="cell"><span class="file-ico"><svg fill="none"><use href="#i-file-plus"/></svg></span><span class="txt">旧备份.zip</span></div>
+            <div class="cell mono"><span class="txt" style="color:var(--muted)">E:\照片\2024 旅行</span></div>
+            <div class="cell right"><span class="dims">22.6 MB</span></div>
+            <div class="cell"><span class="dims">11-02 09:20</span></div>
+            <div class="cell"><span class="new-name"><span class="seg"><span class="add">旅行_</span>119.zip</span></span></div>
+            <div class="cell"><span class="status s-pending"><i class="dot"></i>待更名</span></div>
+          </div>
+
+          <div class="trow selected conflict">
+            <div class="cell"><span class="checkbox on"><svg fill="none"><use href="#i-check"/></svg></span></div>
+            <div class="cell"><span class="file-ico jpg"><svg fill="none"><use href="#i-image"/></svg></span><span class="txt">DSC_0104 拷贝.JPG</span></div>
+            <div class="cell mono"><span class="txt" style="color:var(--muted)">E:\照片\2024 旅行\归档\原始</span></div>
+            <div class="cell right"><span class="dims">3.9 MB</span></div>
+            <div class="cell"><span class="dims">11-03 18:36</span></div>
+            <div class="cell stack" style="display:flex;flex-direction:column;align-items:flex-start;gap:1px">
+              <span class="new-name"><span class="seg" style="color:var(--danger)"><span class="add" style="background:transparent;text-decoration:line-through">旅行_</span>004.jpg</span></span>
+              <span class="row-sub">磁盘上已存在同名文件</span>
+            </div>
+            <div class="cell"><span class="status s-conflict"><i class="dot"></i>冲突</span></div>
+          </div>
+
+          <div class="trow warnrow">
+            <div class="cell"><span class="checkbox"></span></div>
+            <div class="cell"><span class="file-ico jpg"><svg fill="none"><use href="#i-image"/></svg></span><span class="txt">微信图片_20241003.jpg</span></div>
+            <div class="cell mono"><span class="txt" style="color:var(--muted)">E:\照片\2024 旅行\归档\原始\聊天导出</span></div>
+            <div class="cell right"><span class="dims">2.1 MB</span></div>
+            <div class="cell"><span class="dims">10-03 21:12</span></div>
+            <div class="cell stack" style="display:flex;flex-direction:column;align-items:flex-start;gap:1px">
+              <span class="new-name"><span class="seg"><span class="add">旅行_</span>121.jpg</span></span>
+              <span class="row-sub warn">完整路径 258 / 260 字符</span>
+            </div>
+            <div class="cell"><span class="status s-warn"><i class="dot"></i>路径接近上限</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 右侧规则栏 -->
+      <aside class="rules">
+        <div class="panel-head">
+          <div class="panel-title">规则链 <span class="n">4</span></div>
+          <div class="right">
+            <button class="btn btn-icon" type="button" title="收起规则栏"><svg fill="none"><use href="#i-chevron-right"/></svg></button>
+          </div>
+        </div>
+
+        <div class="rules-scroll">
+          <div class="rule-card on">
+            <div class="rule-head">
+              <span class="drag"><i></i><i></i><i></i></span>
+              <span class="rule-num">1</span>
+              <span class="rule-title">添加与补齐</span>
+              <span class="switch on" role="switch" aria-checked="true"></span>
+              <span class="rule-chev"><svg fill="none"><use href="#i-chevron-down"/></svg></span>
+            </div>
+            <div class="sum"><code>“旅行_”</code><span>·</span><span>文件名之前</span><span>·</span><span>直接添加</span></div>
+          </div>
+
+          <div class="rule-card on">
+            <div class="rule-head">
+              <span class="drag"><i></i><i></i><i></i></span>
+              <span class="rule-num">2</span>
+              <span class="rule-title">替换</span>
+              <span class="switch on" role="switch" aria-checked="true"></span>
+              <span class="rule-chev"><svg fill="none"><use href="#i-chevron-down"/></svg></span>
+            </div>
+            <div class="sum"><code>“副本” → “”</code><span>·</span><span>全部替换</span><span>·</span><span>区分大小写</span></div>
+          </div>
+
+          <div class="rule-card on open">
+            <div class="rule-head">
+              <span class="drag"><i></i><i></i><i></i></span>
+              <span class="rule-num">3</span>
+              <span class="rule-title">自动编号</span>
+              <span class="switch on" role="switch" aria-checked="true"></span>
+              <span class="rule-chev"><svg fill="none"><use href="#i-chevron-down"/></svg></span>
+            </div>
+            <div class="rule-body">
+              <div class="field">
+                <label>编号表达式</label>
+                <input class="input mono" value="旅行_<#>" aria-label="编号表达式">
+              </div>
+              <div class="field-row" style="margin-bottom:9px">
+                <div class="field" style="flex:1;margin:0"><label>始于</label><input class="input mono" value="1"></div>
+                <div class="field" style="flex:1;margin:0"><label>增量</label><input class="input mono" value="1"></div>
+                <div class="field" style="flex:1;margin:0"><label>位数</label><input class="input mono" value="3"></div>
+              </div>
+              <div class="field">
+                <label>补位与范围</label>
+                <div class="field-row">
+                  <div class="seg-ctrl"><span class="on">补零</span><span>自定义</span></div>
+                  <span style="font-size:10.5px;color:var(--muted)">仅对勾选行计数</span>
+                  <span class="switch on" role="switch" style="margin-left:auto"></span>
+                </div>
+              </div>
+              <div class="rule-foot">
+                <button class="btn btn-primary" type="button">应用此规则</button>
+                <button class="btn btn-ghost" type="button">取消</button>
+                <span style="margin-left:auto;font-size:10.5px;color:var(--muted)">即时预览</span>
+              </div>
+            </div>
+            <div class="sum"><code>&lt;#&gt;</code><span>·</span><span>始于 1 / 步长 1</span><span>·</span><span>3 位补零</span></div>
+          </div>
+
+          <div class="rule-card on">
+            <div class="rule-head">
+              <span class="drag"><i></i><i></i><i></i></span>
+              <span class="rule-num">4</span>
+              <span class="rule-title">扩展名</span>
+              <span class="switch on" role="switch" aria-checked="true"></span>
+              <span class="rule-chev"><svg fill="none"><use href="#i-chevron-down"/></svg></span>
+            </div>
+            <div class="sum"><span>扩展名统一为小写</span><span>·</span><span>保留原扩展名</span></div>
+          </div>
+
+          <div class="add-rule"><svg width="14" height="14" fill="none"><use href="#i-file-plus"/></svg>添加规则（删除 / 移动 / 大小写 / 时间属性…）</div>
+        </div>
+
+        <div class="rules-foot">
+          <div class="stat-line"><b>120</b> 个对象 · <span class="ok">116 可执行</span> · <span class="bad">3 冲突</span></div>
+          <div class="bar"><span class="ok" style="width:96.7%"></span><span class="bad" style="width:2.5%"></span></div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="auto-preview"><span class="dot-live"></span>自动预览已开启 · 0.8 秒前更新</span>
+            <span style="margin-left:auto;font-size:10.5px;color:var(--muted-2)">Ctrl+Enter 应用</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- 底部执行条 -->
+    <div class="actionbar">
+      <div class="selection">已勾选 <b>18</b> / 共 <b>120</b> 个对象</div>
+      <div class="conflict-chip"><svg fill="none"><use href="#i-alert"/></svg>3 处冲突待处理</div>
+      <span style="font-size:11.5px;color:var(--muted)">1 个只读文件将被跳过</span>
+      <div class="spacer"></div>
+      <div class="btns">
+        <button class="btn btn-outline" type="button"><svg fill="none"><use href="#i-eye"/></svg>预览差异</button>
+        <button class="btn btn-soft" type="button"><svg fill="none"><use href="#i-undo"/></svg>撤销上次 <span class="kbd">Ctrl Z</span></button>
+        <button class="btn btn-primary" type="button"><svg fill="none"><use href="#i-play"/></svg>应用更名 <span class="kbd" style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.25);color:#fff">Ctrl ⏎</span></button>
+      </div>
+    </div>
+
+    <div class="statusbar">
+      <span>就绪</span>
+      <span class="sep"></span>
+      <span>E:\照片\2024 旅行</span>
+      <span class="sep"></span>
+      <span>规则执行顺序：1 → 2 → 3 → 4</span>
+      <div class="right">
+        <span>本地离线 · 不上传</span>
+        <span class="sep"></span>
+        <span>v0.1 设计稿</span>
+        <span class="sep"></span>
+        <span><svg fill="none"><use href="#i-clock"/></svg> 11:42</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <h4><span class="idx">01</span>保留了什么</h4>
+      <p>原名 / 新名同列对照、命令式规则、勾选部分执行、过滤与递归、冲突与只读提示、预览 / 应用 / 撤销三件套，以及 9 类文件列表。</p>
+    </div>
+    <div class="note">
+      <h4><span class="idx">02</span>改了什么</h4>
+      <p>原版 8 个顶层功能页收纳为左侧 4 组导航；6 列并排的规则面板改为可折叠、可排序的规则链；默认窗口从 1058×642 放大到自适应，列表成为主视觉区域。</p>
+    </div>
+    <div class="note">
+      <h4><span class="idx">03</span>为什么这样改</h4>
+      <p>老用户的操作顺序（添加 → 看列表 → 配规则 → 预览 → 应用）完全不变；新用户不必先理解 20+ 个同屏控件，规则按需展开，冲突与撤销始终可见。</p>
+    </div>
+  </div>
+</div>
+
+<script src="assets/ui.js"></script>
+</body>
+</html>

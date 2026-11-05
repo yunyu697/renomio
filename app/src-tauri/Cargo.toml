@@ -1,0 +1,32 @@
+[package]
+name = "rename-studio"
+version = "0.1.0"
+edition = "2021"
+description = "Renomio · 跨平台批量文件更名工具"
+authors = ["Renomio"]
+
+[lib]
+name = "rename_studio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+# 用户可见的可执行文件名（与产品名一致）；包名保持 rename-studio（内部名）。
+[[bin]]
+name = "renomio"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+ffrn-core = { path = "ffrn-core" }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

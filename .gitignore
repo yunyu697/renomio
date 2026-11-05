@@ -1,0 +1,40 @@
+# 依赖与构建产物（可由 npm install / cargo build 重新生成）
+app/node_modules/
+app/src-tauri/target/
+app/src-tauri/ffrn-core/target/
+app/dist/
+
+# 安装包：只放进 Release，不进仓库
+*.msi
+*.exe
+*.msix
+*.appx
+
+# 日志
+*.log
+
+# 环境变量与凭据（一律不入库）
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.keystore
+*.jks
+id_rsa
+id_ed25519
+
+# 测试生成物与本地临时目录（含本机绝对路径，重新生成即可）
+app/test-corpus/
+.screenshots/
+.trae-html-share-packages/
+
+# 编辑器 / 系统杂项
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

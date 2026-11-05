@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>更名工坊 · 状态与反馈设计稿</title>
+<link rel="stylesheet" href="assets/ui.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-mark" viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h7l4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M14 4v4h4" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 15h6m0 0-2.2-2.2m2.2 2.2-2.2 2.2" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-file-plus" viewBox="0 0 24 24"><path d="M5 6a2 2 0 0 1 2-2h6l4 4v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M13 4v4h4M12 12v5m-2.5-2.5h5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2.2 2.5H18a2.5 2.5 0 0 1 2.5 2.5v6A2.5 2.5 0 0 1 18 18.5H6A2.5 2.5 0 0 1 3.5 16z" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="9" cy="10" r="1.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m6 17 4.2-4 3 2.6 3-3 5 4.4" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-pdf" viewBox="0 0 24 24"><path d="M6 3.5h7l5 5v12a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 20.5v-15A1.5 1.5 0 0 1 6 3.5z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M13 3.5v5h5M8 14h8M8 17h5" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-text" viewBox="0 0 24 24"><path d="M6 3.5h7l5 5v12A1.5 1.5 0 0 1 16.5 22H6A1.5 1.5 0 0 1 4.5 20.5v-15A1.5 1.5 0 0 1 6 3.5z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M13 3.5v5h5M8 12h8M8 15.5h8M8 19h5" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m15.2 15.2 4 4" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M4.5 9H14a5.5 5.5 0 0 1 0 11H8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m8 4.5-4 4.5 4 4.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.8v12.4L18.5 12z" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 6.5" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m8 12.2 2.7 2.8 5.3-5.6" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4.5 21 20H3z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 9.5v5" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="17.3" r=".9" fill="currentColor"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 11.2v5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="8.2" r=".9" fill="currentColor"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5v5l3.2 2" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="15.4" r="1.1" fill="currentColor"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.5 19 6v6c0 4.2-3 6.9-7 8.4-4-1.5-7-4.2-7-8.4V6z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m9 12 2.2 2.2 4-4.2" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m6.2 6.2 11.6 11.6" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M3.5 12s3.2-5.5 8.5-5.5S20.5 12 20.5 12 17.3 17.5 12 17.5 3.5 12 3.5 12z" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M9 7V5.2A1.2 1.2 0 0 1 10.2 4h3.6A1.2 1.2 0 0 1 15 5.2V7M6.5 7l.8 12.1A1.9 1.9 0 0 0 9.2 21h5.6a1.9 1.9 0 0 0 1.9-1.9L17.5 7" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.2-5.1" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M19 4.5v4.2h-4.2" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-maximize" viewBox="0 0 24 24"><rect x="5.5" y="5.5" width="13" height="13" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6.5 9.5 5.5 5.5 5.5-5.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 5v4.5h4.5M12 8v4.5l3 1.8" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+  </defs>
+</svg>
+
+<div class="page">
+  <header class="page-head">
+    <div class="brand">
+      <span class="mark"><svg width="19" height="19" fill="none"><use href="#i-mark"/></svg></span>
+      <div>
+        <div class="brand-title">更名工坊 · 状态与反馈设计</div>
+        <div class="brand-sub">冲突预览 · 执行结果 · 错误提示 · 撤销确认 · 明暗对照</div>
+      </div>
+    </div>
+    <span class="badge-design"><svg width="13" height="13" fill="none"><use href="#i-info"/></svg>静态设计稿 · 仅示意交互状态</span>
+    <div class="spacer"></div>
+    <nav class="design-links" aria-label="设计稿页面">
+      <a href="index.html">主界面</a>
+      <a href="rules.html">规则配置</a>
+      <a href="states.html" class="active">状态与反馈</a>
+    </nav>
+    <button class="theme-toggle" data-theme-toggle type="button">
+      <span class="sun"><svg width="14" height="14" fill="none"><use href="#i-eye"/></svg></span>
+      <span class="moon">◐</span>
+      <span>明 / 暗</span>
+    </button>
+  </header>
+
+  <div class="gallery">
+
+    <!-- 01 冲突预览 -->
+    <section class="state-section">
+      <div class="state-head">
+        <span class="idx">01</span>
+        <h3>应用前确认 · 冲突预览</h3>
+        <span class="desc">把原版的“出错就弹窗中断”改为一屏看全：可执行、冲突、跳过、失败各多少，先处理再执行。</span>
+        <div class="right"><span class="chip chip-danger"><svg width="12" height="12" fill="none"><use href="#i-alert"/></svg>3 处冲突</span></div>
+      </div>
+      <div class="state-body">
+        <div class="state-grid">
+          <div class="dialog">
+            <div class="dialog-head">
+              <h4><svg width="16" height="16" fill="none" style="color:var(--warn)"><use href="#i-alert"/></svg>应用前确认 · 预览结果</h4>
+              <p>120 个对象 · 规则链 4 条 · 预演耗时 38 ms · 目标目录 E:\照片\2024 旅行</p>
+            </div>
+            <div class="dialog-body">
+              <div class="metrics">
+                <div class="metric ok"><div class="v">117</div><div class="l">可执行</div></div>
+                <div class="metric bad"><div class="v">3</div><div class="l">新名冲突</div></div>
+                <div class="metric warn"><div class="v">1</div><div class="l">只读跳过</div></div>
+                <div class="metric"><div class="v">0</div><div class="l">预演失败</div></div>
+              </div>
+              <div class="mini-table">
+                <div class="mini-row head"><span>当前名</span><span>更名后</span><span>状态</span></div>
+                <div class="mini-row">
+                  <span class="n old">DSC_0101.JPG</span>
+                  <span class="n new">旅行_DSC_0101.JPG</span>
+                  <span style="color:var(--success);font-size:10.5px">可执行</span>
+                </div>
+                <div class="mini-row">
+                  <span class="n old">DSC_0102.JPG</span>
+                  <span class="n new">旅行_DSC_0102.JPG</span>
+                  <span style="color:var(--success);font-size:10.5px">可执行</span>
+                </div>
+                <div class="mini-row bad">
+                  <span class="n old">DSC_0103.JPG</span>
+                  <span class="n new">旅行_DSC_0103.JPG</span>
+                  <span style="color:var(--danger);font-size:10.5px">与磁盘同名</span>
+                </div>
+                <div class="mini-row bad">
+                  <span class="n old">IMG_20240105.jpg</span>
+                  <span class="n new">旅行_IMG_20240105.jpg</span>
+                  <span style="color:var(--danger);font-size:10.5px">规则间同名</span>
+                </div>
+                <div class="mini-row">
+                  <span class="n old">Scan_0007.pdf</span>
+                  <span class="n new">旅行_Scan_0007.pdf</span>
+                  <span style="color:var(--warn);font-size:10.5px">只读跳过</span>
+                </div>
+                <div class="mini-row">
+                  <span class="n old">说明.txt</span>
+                  <span class="n new">旅行_说明.txt</span>
+                  <span style="color:var(--muted);font-size:10.5px">未变更</span>
+                </div>
+              </div>
+            </div>
+            <div class="dialog-foot">
+              <span style="font-size:11px;color:var(--muted)">冲突项默认不执行，不会覆盖任何文件</span>
+              <div class="right">
+                <button class="btn btn-ghost" type="button">取消</button>
+                <button class="btn btn-soft" type="button">仅执行无冲突项</button>
+                <button class="btn btn-primary" type="button"><svg fill="none"><use href="#i-play"/></svg>开始更名</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="dialog">
+              <div class="dialog-head">
+                <h4><svg width="15" height="15" fill="none" style="color:var(--accent)"><use href="#i-shield"/></svg>冲突处理策略</h4>
+                <p>本次会话生效，可写入方案复用</p>
+              </div>
+              <div class="dialog-body" style="display:flex;flex-direction:column;gap:8px">
+                <div class="undo-item current">
+                  <svg width="15" height="15" fill="none" style="color:var(--accent)"><use href="#i-check-circle"/></svg>
+                  <div style="min-width:0">
+                    <b>自动追加序号</b>
+                    <div style="font-size:10.5px;color:var(--muted);margin-top:2px">旅行_DSC_0103 (2).JPG —— 保留全部文件</div>
+                  </div>
+                  <span class="cnt">推荐</span>
+                </div>
+                <div class="undo-item">
+                  <svg width="15" height="15" fill="none" style="color:var(--muted)"><use href="#i-ban"/></svg>
+                  <div style="min-width:0">
+                    <b>跳过冲突项</b>
+                    <div style="font-size:10.5px;color:var(--muted);margin-top:2px">其余 117 项正常执行，冲突项保留原名</div>
+                  </div>
+                </div>
+                <div class="undo-item">
+                  <svg width="15" height="15" fill="none" style="color:var(--muted)"><use href="#i-undo"/></svg>
+                  <div style="min-width:0">
+                    <b>停止并回到规则</b>
+                    <div style="font-size:10.5px;color:var(--muted);margin-top:2px">不改动磁盘，先修改规则链</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tip-card">
+              <svg fill="none"><use href="#i-info"/></svg>
+              <div><b>冲突的三种来源。</b>① 目标名在磁盘已存在；② 两条规则产出同一新名（如“替换”后又“添加”）；③ 仅大小写变化——在 macOS 默认 APFS 上会被视为同名，Windows 上则允许。</div>
+            </div>
+            <div class="tip-card warn">
+              <svg fill="none"><use href="#i-alert"/></svg>
+              <div>预览是纯函数计算，读取目录但不写入磁盘；正式执行才进入两阶段改名，中途失败会回滚已改项。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 执行进度 -->
+    <section class="state-section">
+      <div class="state-head">
+        <span class="idx">02</span>
+        <h3>执行进度与结果</h3>
+        <span class="desc">非阻塞进度：可继续操作、可中止；完成的每一项都写入可撤销日志。</span>
+        <div class="right"><span class="chip chip-accent"><svg width="12" height="12" fill="none"><use href="#i-refresh"/></svg>进行中 87 / 120</span></div>
+      </div>
+      <div class="state-body">
+        <div class="state-grid">
+          <div class="dialog">
+            <div class="dialog-head">
+              <h4><svg width="15" height="15" fill="none" style="color:var(--accent)"><use href="#i-play"/></svg>正在更名 · 2024 旅行</h4>
+              <p>已用时 1.5 秒 · 预计剩余不足 1 秒 · 失败 0 项</p>
+            </div>
+            <div class="dialog-body">
+              <div class="progress-wrap">
+                <div class="progress-top"><span>已完成 <b>87</b> / 120</span><span style="margin-left:auto">72%</span></div>
+                <div class="progress-bar"><span style="width:72%"></span></div>
+              </div>
+              <div class="log">
+                <div class="line"><span class="t">11:42:07</span><span>阶段 1 · 116 项改名为临时名 <span class="ok">.ffrn-tmp</span></span></div>
+                <div class="line"><span class="t">11:42:07</span><span>阶段 2 · 写入最终名 <span class="ok">旅行_DSC_0001.JPG</span> …</span></div>
+                <div class="line"><span class="t">11:42:08</span><span><span class="warn">跳过</span> Scan_0007.pdf（只读）</span></div>
+                <div class="line"><span class="t">11:42:08</span><span><span class="ok">完成</span> 87 项，等待剩余 29 项</span></div>
+                <div class="line"><span class="t">—</span><span class="warn">中止后会按日志逆序回滚已完成的 87 项</span></div>
+              </div>
+            </div>
+            <div class="dialog-foot">
+              <span style="font-size:11px;color:var(--muted)">Ctrl+Z 可在完成后整批撤销</span>
+              <div class="right">
+                <button class="btn btn-ghost" type="button">后台继续</button>
+                <button class="btn btn-outline" type="button">暂停</button>
+                <button class="btn btn-danger-soft" type="button">中止并回滚</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="toasts">
+              <div class="toast success">
+                <svg class="ic" fill="none"><use href="#i-check-circle"/></svg>
+                <div class="body"><b>已更名 116 个对象</b><br>用时 1.8 秒 · 日志 #A31F 已保存，可一键撤销。</div>
+              </div>
+              <div class="toast warn">
+                <svg class="ic" fill="none"><use href="#i-alert"/></svg>
+                <div class="body"><b>1 个文件被跳过</b><br><span style="font-family:var(--mono);font-size:10.5px">Scan_0007.pdf</span> 为只读属性，未参与更名。</div>
+              </div>
+              <div class="toast info">
+                <svg class="ic" fill="none"><use href="#i-history"/></svg>
+                <div class="body"><b>撤销窗口保持 30 分钟</b><br>关闭应用后日志仍保留在本地，可在下次启动继续回滚。</div>
+              </div>
+            </div>
+            <div class="dialog">
+              <div class="dialog-head"><h4>执行摘要</h4><p>日志 #A31F · 2024-11-04 11:42</p></div>
+              <div class="dialog-body">
+                <div class="kv">
+                  <span>规则</span><b>添加与补齐 / 替换 / 自动编号 / 扩展名</b>
+                  <span>成功</span><b style="color:var(--success)">116</b>
+                  <span>跳过</span><b style="color:var(--warn)">1</b>
+                  <span>冲突</span><b style="color:var(--danger)">3（未执行）</b>
+                  <span>可撤销</span><b>是 · 完整 116 项</b>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 错误与提示 -->
+    <section class="state-section">
+      <div class="state-head">
+        <span class="idx">03</span>
+        <h3>错误与跨平台提示</h3>
+        <span class="desc">每条错误都说清“为什么 + 怎么办”，并给出可继续的出口，而不是只有一个“确定”。</span>
+        <div class="right"><span class="chip chip-warn"><svg width="12" height="12" fill="none"><use href="#i-lock"/></svg>权限 / 长路径</span></div>
+      </div>
+      <div class="state-body">
+        <div class="state-grid">
+          <div class="dialog">
+            <div class="dialog-head">
+              <h4><svg width="16" height="16" fill="none" style="color:var(--danger)"><use href="#i-alert"/></svg>无法重命名：目标位于受保护目录</h4>
+              <p>Windows · 错误码 ERROR_ACCESS_DENIED (5)</p>
+            </div>
+            <div class="dialog-body">
+              <div class="kv" style="margin-bottom:12px">
+                <span>文件</span><b style="font-family:var(--mono);font-size:10.5px">C:\Program Files\旅行\DSC_0104.JPG</b>
+                <span>操作</span><b>Rename(temp) → Rename(final)</b>
+                <span>原因</span><b>目录需要管理员权限，当前进程为普通权限（asInvoker）</b>
+                <span>影响</span><b>仅此 1 项，其余 115 项可继续</b>
+              </div>
+              <div class="tip-card" style="margin-bottom:8px">
+                <svg fill="none"><use href="#i-info"/></svg>
+                <div><b>建议。</b>把文件复制到用户目录（如 <span style="font-family:var(--mono)">~/Pictures</span>）后更名；或以管理员权限重新启动应用处理该目录。</div>
+              </div>
+              <div class="tip-card warn" style="margin-bottom:0">
+                <svg fill="none"><use href="#i-shield"/></svg>
+                <div>提升权限会弹出系统 UAC / macOS 授权框；应用申请的最小权限仅为所选目录的读写。</div>
+              </div>
+            </div>
+            <div class="dialog-foot">
+              <span style="font-size:11px;color:var(--muted)">该错误已记录到日志，可在“历史”中复查</span>
+              <div class="right">
+                <button class="btn btn-ghost" type="button">查看日志</button>
+                <button class="btn btn-soft" type="button">跳过此项</button>
+                <button class="btn btn-primary" type="button">以管理员重启</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="toast error">
+              <svg class="ic" fill="none"><use href="#i-ban"/></svg>
+              <div class="body"><b>文件名含平台保留字符</b><br>“2024:旅行”在 macOS / Linux 中 <span style="font-family:var(--mono);font-size:10.5px">:</span> 非法；预览已标红，替换为 <span style="font-family:var(--mono);font-size:10.5px">_</span> 后可继续。</div>
+            </div>
+            <div class="toast warn">
+              <svg class="ic" fill="none"><use href="#i-alert"/></svg>
+              <div class="body"><b>路径长度 268 &gt; 260</b><br>Windows 未启用长路径支持；可缩短目标目录，或在设置中开启“长路径兼容模式”。</div>
+            </div>
+            <div class="toast error">
+              <svg class="ic" fill="none"><use href="#i-lock"/></svg>
+              <div class="body"><b>文件被其他程序占用</b><br><span style="font-family:var(--mono);font-size:10.5px">报告.docx</span> 正被 Word 打开（共享冲突），关闭后可重试。</div>
+            </div>
+            <div class="toast info">
+              <svg class="ic" fill="none"><use href="#i-info"/></svg>
+              <div class="body"><b>大小写敏感性差异</b><br>本次仅将 <span style="font-family:var(--mono);font-size:10.5px">.JPG</span> 改为 <span style="font-family:var(--mono);font-size:10.5px">.jpg</span>：Windows 视为同名，macOS 需先改成临时名再落盘。</div>
+            </div>
+            <div class="tip-card" style="margin-bottom:0">
+              <svg fill="none"><use href="#i-info"/></svg>
+              <div>兼容性提示不阻断执行：黄色可继续，红色必须修改。原版的“长文件名警告 / 属性警告 / 权限设置”窗体语义在这里合并为同一套提示。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 撤销确认 -->
+    <section class="state-section">
+      <div class="state-head">
+        <span class="idx">04</span>
+        <h3>撤销确认与操作历史</h3>
+        <span class="desc">撤销基于独立的操作日志，不依赖当前规则是否还一致；看清“改了哪些、能恢复到什么程度”。</span>
+        <div class="right"><span class="chip"><svg width="12" height="12" fill="none"><use href="#i-history"/></svg>历史 3 条</span></div>
+      </div>
+      <div class="state-body">
+        <div class="state-grid">
+          <div class="dialog">
+            <div class="dialog-head">
+              <h4><svg width="16" height="16" fill="none" style="color:var(--accent)"><use href="#i-undo"/></svg>撤销上一次更名？</h4>
+              <p>日志 #A31F · 11:42 · 116 个对象 · 全部可恢复</p>
+            </div>
+            <div class="dialog-body">
+              <div class="mini-table" style="margin-bottom:12px">
+                <div class="mini-row head"><span>当前名</span><span>恢复为</span><span>状态</span></div>
+                <div class="mini-row">
+                  <span class="n old">旅行_DSC_0001.JPG</span>
+                  <span class="n new">DSC_0001.JPG</span>
+                  <span style="color:var(--success);font-size:10.5px">可恢复</span>
+                </div>
+                <div class="mini-row">
+                  <span class="n old">旅行_DSC_0002.JPG</span>
+                  <span class="n new">DSC_0002.JPG</span>
+                  <span style="color:var(--success);font-size:10.5px">可恢复</span>
+                </div>
+                <div class="mini-row">
+                  <span class="n old">旅行_说明.txt</span>
+                  <span class="n new">说明.txt</span>
+                  <span style="color:var(--success);font-size:10.5px">可恢复</span>
+                </div>
+              </div>
+              <div class="kv">
+                <span>外部队列</span><b>检测到 1 个文件在更名后被其他程序改过名，撤销时会跳过并提示</b>
+                <span>冲突处理</span><b>若原名已被占用，则保留当前名并列出，不覆盖</b>
+              </div>
+            </div>
+            <div class="dialog-foot">
+              <span style="font-size:11px;color:var(--muted)">撤销后仍可再次查看该批次的完整记录</span>
+              <div class="right">
+                <button class="btn btn-ghost" type="button">取消</button>
+                <button class="btn btn-soft" type="button">查看日志</button>
+                <button class="btn btn-danger-soft" type="button"><svg fill="none"><use href="#i-undo"/></svg>撤销 116 项</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="dialog">
+              <div class="dialog-head"><h4>最近操作</h4><p>按批次记录，可逐条回滚</p></div>
+              <div class="dialog-body">
+                <div class="undo-list">
+                  <div class="undo-item current">
+                    <span class="when">11:42</span>
+                    <span class="what">2024 旅行 · 添加 + 编号</span>
+                    <span class="cnt">116 项</span>
+                  </div>
+                  <div class="undo-item">
+                    <span class="when">11:20</span>
+                    <span class="what">销售报表 · 替换 + 扩展名</span>
+                    <span class="cnt">8 项</span>
+                  </div>
+                  <div class="undo-item">
+                    <span class="when">10:58</span>
+                    <span class="what">图片统一命名 · 模板</span>
+                    <span class="cnt">42 项</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="tip-card warn">
+              <svg fill="none"><use href="#i-alert"/></svg>
+              <div><b>撤销不承诺“逆天改命”。</b>若文件在更名后又被外部程序移动、删除或再次改名，日志会标记为“不可恢复”，绝不覆盖现有文件。</div>
+            </div>
+            <div class="tip-card">
+              <svg fill="none"><use href="#i-info"/></svg>
+              <div>原版支持多步撤销（次数未实证）；新设计以“批次”为单位，避免逐项回滚造成中间态混乱，同时保留逐项详情。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 明暗主题 -->
+    <section class="state-section">
+      <div class="state-head">
+        <span class="idx">05</span>
+        <h3>明暗主题对照</h3>
+        <span class="desc">同一套布局与信息层级，只替换颜色令牌；默认跟随系统，也可在标题栏一键切换。</span>
+        <div class="right"><span class="chip chip-ghost">data-theme = light / dark</span></div>
+      </div>
+      <div class="state-body">
+        <div class="theme-pair">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);margin-bottom:7px">
+              <span class="sw"><i style="background:#ffffff"></i></span><b style="color:var(--ink-2)">浅色 · Light</b><span>默认（跟随系统）</span>
+            </div>
+            <div class="mini-win">
+              <div class="titlebar">
+                <span class="tb-mark"><svg width="12" height="12" fill="none"><use href="#i-mark"/></svg></span>
+                <span class="tb-title">更名工坊</span>
+                <span class="tb-crumb"><span>›</span><span class="pill-scheme">方案：2024 旅行</span></span>
+                <div class="tb-spacer"></div>
+                <div class="win-controls">
+                  <span><svg width="11" height="11" fill="none"><use href="#i-minus"/></svg></span>
+                  <span><svg width="11" height="11" fill="none"><use href="#i-maximize"/></svg></span>
+                  <span class="close"><svg width="11" height="11" fill="none"><use href="#i-x"/></svg></span>
+                </div>
+              </div>
+              <div class="mb">
+                <div class="ml">
+                  <div class="ln a" style="width:72%"></div>
+                  <div class="ln s"></div>
+                  <div class="ln" style="width:84%"></div>
+                  <div class="ln s"></div>
+                  <div class="ln b" style="width:66%"></div>
+                </div>
+                <div class="mr">
+                  <div class="ln a" style="height:14px;width:46%"></div>
+                  <div class="ln" style="height:14px"></div>
+                  <div class="ln" style="height:14px"></div>
+                  <div class="ln c" style="height:14px"></div>
+                  <div class="ln" style="height:14px"></div>
+                  <div class="ln b" style="height:22px;width:38%;margin-top:auto"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);margin-bottom:7px">
+              <span class="sw"><i style="background:#151a23"></i></span><b style="color:var(--ink-2)">深色 · Dark</b><span>低光环境 / 手动切换</span>
+            </div>
+            <div class="theme-dark">
+              <div class="mini-win">
+                <div class="titlebar">
+                  <span class="tb-mark"><svg width="12" height="12" fill="none"><use href="#i-mark"/></svg></span>
+                  <span class="tb-title">更名工坊</span>
+                  <span class="tb-crumb"><span>›</span><span class="pill-scheme">方案：2024 旅行</span></span>
+                  <div class="tb-spacer"></div>
+                  <div class="win-controls">
+                    <span><svg width="11" height="11" fill="none"><use href="#i-minus"/></svg></span>
+                    <span><svg width="11" height="11" fill="none"><use href="#i-maximize"/></svg></span>
+                    <span class="close"><svg width="11" height="11" fill="none"><use href="#i-x"/></svg></span>
+                  </div>
+                </div>
+                <div class="mb">
+                  <div class="ml">
+                    <div class="ln a" style="width:72%"></div>
+                    <div class="ln s"></div>
+                    <div class="ln" style="width:84%"></div>
+                    <div class="ln s"></div>
+                    <div class="ln b" style="width:66%"></div>
+                  </div>
+                  <div class="mr">
+                    <div class="ln a" style="height:14px;width:46%"></div>
+                    <div class="ln" style="height:14px"></div>
+                    <div class="ln" style="height:14px"></div>
+                    <div class="ln c" style="height:14px"></div>
+                    <div class="ln" style="height:14px"></div>
+                    <div class="ln b" style="height:22px;width:38%;margin-top:auto"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="swatches">
+          <span class="sw"><i style="background:var(--accent)"></i>--accent</span>
+          <span class="sw"><i style="background:var(--success)"></i>--success</span>
+          <span class="sw"><i style="background:var(--warn)"></i>--warn</span>
+          <span class="sw"><i style="background:var(--danger)"></i>--danger</span>
+          <span class="sw"><i style="background:var(--panel)"></i>--panel</span>
+          <span class="sw"><i style="background:var(--panel-2)"></i>--panel-2</span>
+          <span class="sw"><i style="background:var(--panel-3)"></i>--panel-3</span>
+          <span class="sw"><i style="background:var(--line)"></i>--line</span>
+          <span class="sw"><i style="background:var(--ink)"></i>--ink</span>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <h4><span class="idx">01</span>保留了什么</h4>
+      <p>原版的确认环节一个都没删：冲突、超长文件名、只读属性、权限不足、撤销确认。老用户仍然先看结果再落盘，风险提示仍然出现在执行之前。</p>
+    </div>
+    <div class="note">
+      <h4><span class="idx">02</span>改了什么</h4>
+      <p>模态弹窗改为“预览面板 + 非阻塞提示”：一次看清 4 类结果，错误可跳过、可重试、可继续；撤销从“一个按钮”变成可见的批次历史。</p>
+    </div>
+    <div class="note">
+      <h4><span class="idx">03</span>为什么这样改</h4>
+      <p>批量操作最怕“弹窗打断—逐条确认”；把判断前置到预览、把异常收敛到统一提示，既保留审慎，又让 100+ 文件的处理不再手忙脚乱。</p>
+    </div>
+  </div>
+</div>
+
+<script src="assets/ui.js"></script>
+</body>
+</html>
