@@ -1,8 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { formatTime } from '../lib/format';
+import { formatSize, formatTime } from '../lib/format';
 import { useTranslation } from '../i18n';
 import { PRODUCT_NAME } from '../lib/branding';
-import type { BatchSummary, ConflictPolicy, LocaleSetting } from '../lib/types';
+import {
+  checkUpdate, downloadUpdate, installSavedUpdate, onUpdateProgress, openHomepage,
+} from '../lib/bridge';
+import type {
+  BatchSummary, ConflictPolicy, LocaleSetting, SavedUpdate, UpdateInfo, UpdateProgress,
+} from '../lib/types';
 import { useApp } from '../store';
 import { Icon } from './Icon';
 
@@ -197,6 +202,246 @@ const LANG_OPTIONS: Array<{ value: LocaleSetting; label: string }> = [
   { value: 'es-ES', label: 'Español' },
 ];
 
+const UPDATE_MIRROR_KEY = 'renomio.update-mirror';
+const UPDATE_MIRRORS = [
+  { value: 'auto', key: 'update.mirrorAuto' },
+  { value: 'official', key: 'update.mirrorOfficial' },
+  { value: 'ghproxy', key: 'update.mirrorGhproxy' },
+  { value: 'gh-proxy', key: 'update.mirrorGhProxy' },
+  { value: 'ghfast', key: 'update.mirrorGhfast' },
+];
+const UPDATE_SOURCE_KEY: Record<string, string> = {
+  ghproxy: 'update.mirrorGhproxy',
+  'gh-proxy': 'update.mirrorGhProxy',
+  ghfast: 'update.mirrorGhfast',
+  GitHub: 'update.mirrorOfficial',
+  local: 'update.local',
+};
+
+function UpdateSection() {
+  const { t } = useTranslation();
+  const isDemo = useApp((s) => s.isDemo);
+  const [mirror, setMirror] = useState(() => localStorage.getItem(UPDATE_MIRROR_KEY) ?? 'auto');
+  const [info, setInfo] = useState<UpdateInfo | null>(null);
+  const [progress, setProgress] = useState<UpdateProgress | null>(null);
+  const [busy, setBusy] = useState<'check' | 'install' | 'save' | 'saved-install' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<SavedUpdate | null>(null);
+  const [confirmInstall, setConfirmInstall] = useState(false);
+  const [lastAction, setLastAction] = useState<'check' | 'install' | 'save' | null>(null);
+
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    void onUpdateProgress((next) => setProgress(next)).then((unlisten) => {
+      off = unlisten;
+    });
+    return () => off?.();
+  }, []);
+
+  const describe = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
+  const chooseMirror = (value: string) => {
+    setMirror(value);
+    localStorage.setItem(UPDATE_MIRROR_KEY, value);
+  };
+
+  const runCheck = async () => {
+    if (isDemo) {
+      setError(t('update.demo'));
+      return;
+    }
+    setBusy('check');
+    setError(null);
+    setProgress(null);
+    setSaved(null);
+    setConfirmInstall(false);
+    setLastAction('check');
+    try {
+      setInfo(await checkUpdate(mirror));
+    } catch (err) {
+      setInfo(null);
+      setError(describe(err));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const runDownload = async (mode: 'install' | 'save') => {
+    if (isDemo) return;
+    setBusy(mode);
+    setError(null);
+    setProgress(null);
+    setConfirmInstall(false);
+    setLastAction(mode);
+    try {
+      const result = await downloadUpdate(mode, mirror);
+      setSaved(result);
+    } catch (err) {
+      setError(describe(err));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const runSavedInstall = async () => {
+    if (!saved) return;
+    setBusy('saved-install');
+    setError(null);
+    try {
+      await installSavedUpdate(saved.path, mirror);
+    } catch (err) {
+      setError(describe(err));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const retry = () => {
+    if (busy) return;
+    if (lastAction === 'install' || lastAction === 'save') void runDownload(lastAction);
+    else void runCheck();
+  };
+
+  const sourceText = (source: string) => {
+    const key = UPDATE_SOURCE_KEY[source];
+    return key ? t(key) : source;
+  };
+  const locked = busy !== null;
+  const progressVisible = progress !== null && (progress.phase === 'download' || progress.phase === 'verify' || progress.phase === 'verified' || progress.phase === 'ready' || progress.phase === 'installing');
+
+  return (
+    <section className="settings-section" data-testid="update-settings">
+      <h4>{t('update.title')}</h4>
+      <Row label={t('update.current')} hint={t('update.sub')}>
+        <span className="mono" data-testid="update-current">{__APP_VERSION__}</span>
+      </Row>
+      <Row label={t('update.mirror')} hint={t('update.mirrorHint')}>
+        <select
+          className="select"
+          style={{ width: 200 }}
+          data-testid="update-mirror"
+          value={mirror}
+          disabled={locked}
+          onChange={(e) => chooseMirror(e.target.value)}
+        >
+          {UPDATE_MIRRORS.map((option) => (
+            <option key={option.value} value={option.value}>{t(option.key)}</option>
+          ))}
+        </select>
+      </Row>
+
+      <div className="update-actions">
+        <button
+          className="btn btn-primary"
+          type="button"
+          data-testid="update-check"
+          disabled={locked || isDemo}
+          onClick={() => void runCheck()}
+        >
+          <Icon name="refresh" size={13} />
+          {busy === 'check' ? t('update.checking') : t('update.check')}
+        </button>
+        <button
+          className="btn btn-outline"
+          type="button"
+          data-testid="update-action"
+          disabled={locked || isDemo || !info?.available}
+          onClick={() => setConfirmInstall(true)}
+        >
+          {t('update.installNow')}
+        </button>
+        <button
+          className="btn btn-outline"
+          type="button"
+          data-testid="update-save"
+          disabled={locked || isDemo || !info?.available}
+          onClick={() => void runDownload('save')}
+        >
+          {t('update.saveOnly')}
+        </button>
+        <button className="btn btn-outline" type="button" data-testid="update-home" onClick={() => void openHomepage()}>
+          {t('update.homepage')}
+        </button>
+      </div>
+
+      {isDemo && <div className="drawer-note">{t('update.demo')}</div>}
+
+      {info && (
+        <div className="drawer-note" data-testid="update-status">
+          {info.available
+            ? t('update.available', { version: info.version, current: info.currentVersion })
+            : t('update.upToDate', { version: info.currentVersion })}
+          {' · '}
+          {t('update.sourceLabel', { source: sourceText(info.source) })}
+        </div>
+      )}
+
+      {info?.available && (
+        <div className="update-notes" data-testid="update-notes">
+          {info.notes || t('update.notesEmpty')}
+        </div>
+      )}
+
+      {confirmInstall && info && (
+        <div className="update-confirm" data-testid="update-confirm">
+          <span>{t('update.installConfirm', { version: info.version })}</span>
+          <button className="btn btn-primary" type="button" data-testid="update-confirm-yes" onClick={() => void runDownload('install')}>
+            {t('update.confirmYes')}
+          </button>
+          <button className="btn btn-outline" type="button" data-testid="update-confirm-no" onClick={() => setConfirmInstall(false)}>
+            {t('update.confirmNo')}
+          </button>
+        </div>
+      )}
+
+      {progressVisible && progress && (
+        <div className="update-progress" data-testid="update-progress">
+          <div className="update-progress-head">
+            <span>{t(`update.phase.${progress.phase}`)}</span>
+            <span className="mono">{Math.round(progress.percent)}%</span>
+          </div>
+          <div className="update-bar">
+            <span style={{ width: `${Math.min(100, Math.max(2, progress.percent))}%` }} />
+          </div>
+          <div className="update-progress-meta">
+            {sourceText(progress.source)}
+            {progress.total > 0 ? ` · ${formatSize(progress.received)} / ${formatSize(progress.total)}` : ''}
+            {progress.attempt > 0 ? ` · ${t('update.attempt', { attempt: progress.attempt })}` : ''}
+          </div>
+        </div>
+      )}
+
+      {saved && (
+        <div className="update-saved" data-testid="update-saved">
+          <span>{t('update.saved', { path: saved.path })}</span>
+          <button
+            className="btn btn-primary"
+            type="button"
+            data-testid="update-install"
+            disabled={locked || isDemo}
+            onClick={() => void runSavedInstall()}
+          >
+            <Icon name="check" size={13} />{t('update.installSaved')}
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="update-error" data-testid="update-error">
+          <span className="update-error-text">{error.includes('DEMO') ? t('update.demo') : t('update.failed', { message: error })}</span>
+          {lastAction && (
+            <button className="btn btn-outline" type="button" data-testid="update-retry" disabled={locked || isDemo} onClick={retry}>
+              {t('update.retry')}
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="drawer-note">{t('update.integrity')}</div>
+    </section>
+  );
+}
+
 function SettingsPanel() {
   const { t } = useTranslation();
   const settings = useApp((s) => s.settings);
@@ -344,6 +589,8 @@ function SettingsPanel() {
             {t('settings.historyPath')}
           </div>
         </section>
+
+        <UpdateSection />
 
         <section className="settings-section">
           <h4>{t('settings.privilege')}</h4>

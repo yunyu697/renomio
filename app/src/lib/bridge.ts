@@ -3,7 +3,8 @@ import type {
   ApplyItemDto, ApplyOptionsDto, ApplyOutcome, ApplyProgress, AttrInfo, AttrSpecDto, BatchMetadata,
   BatchSummary, EnvInfo, Entry, LegacyImportReport, MetadataInfo, MetaFields, MigrationInfo, MoveItemDto,
   MoveSpecDto, OpTargetDto, OpsOutcome,
-  PrivilegeInfo, ScanResultDto, StartupMark, TimeInfo, TimeSpecDto, UndoOutcome,
+  PrivilegeInfo, SavedUpdate, ScanResultDto, StartupMark, TimeInfo, TimeSpecDto, UndoOutcome,
+  UpdateInfo, UpdateProgress,
 } from './types';
 import { PRODUCT_NAME } from './branding';
 import { normalizeHistory, type RuleHistory } from './history';
@@ -255,6 +256,43 @@ export async function saveRuleHistory(history: RuleHistory): Promise<void> {
     return;
   }
   await invoke('save_rule_history', { content: json });
+}
+
+/** 检查更新；mirror 为 auto / official / ghproxy / gh-proxy / ghfast。 */
+export async function checkUpdate(mirror: string): Promise<UpdateInfo> {
+  if (!isDesktop) throw new Error('DEMO');
+  return invoke<UpdateInfo>('check_update', { mirror });
+}
+
+/** 下载更新：install=下载→校验→安装→重启；save=仅下载到默认下载文件夹。 */
+export async function downloadUpdate(mode: 'install' | 'save', mirror: string): Promise<SavedUpdate> {
+  return invoke<SavedUpdate>('download_update', { mode, mirror });
+}
+
+/** 安装此前「仅下载」的包（安装前会再次做签名校验）。 */
+export async function installSavedUpdate(path: string, mirror: string): Promise<void> {
+  return invoke('install_saved_update', { path, mirror });
+}
+
+/** 订阅更新进度；返回取消订阅函数。 */
+export async function onUpdateProgress(handler: (progress: UpdateProgress) => void): Promise<() => void> {
+  if (!isDesktop) return () => undefined;
+  try {
+    const { listen } = await import('@tauri-apps/api/event');
+    const unlisten = await listen<UpdateProgress>('update-progress', (event) => handler(event.payload));
+    return unlisten;
+  } catch {
+    return () => undefined;
+  }
+}
+
+/** 打开项目主页（桌面端调系统浏览器，演示模式开新标签页）。 */
+export async function openHomepage(): Promise<void> {
+  if (!isDesktop) {
+    window.open('https://github.com/yunyu697/renomio', '_blank', 'noopener');
+    return;
+  }
+  await invoke('open_homepage');
 }
 
 export async function logToDisk(level: string, event: string, message?: string): Promise<void> {

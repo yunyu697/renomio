@@ -474,3 +474,96 @@ body { margin: 0; overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .modal-mask, .drawer { animation: none; }
 }
+
+/* 设置页：检查更新 */
+.update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 0 10px;
+}
+.update-actions .btn { flex: 1 1 auto; justify-content: center; }
+.update-notes {
+  margin: 2px 0 10px;
+  padding: 9px 11px;
+  max-height: 120px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.update-confirm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 9px 11px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(178, 106, 0, .3);
+  border-radius: 8px;
+  background: var(--warn-weak);
+  color: var(--warn);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.update-progress { margin: 4px 0 10px; }
+.update-progress-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+.update-bar {
+  height: 6px;
+  border-radius: 4px;
+  background: var(--panel-3);
+  overflow: hidden;
+}
+.update-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent);
+  transition: width .2s;
+}
+.update-progress-meta {
+  margin-top: 5px;
+  font-size: 10.5px;
+  color: var(--muted);
+  word-break: break-word;
+}
+.update-saved {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  font-size: 11px;
+  color: var(--ink-2);
+}
+.update-saved span { flex: 1 1 200px; min-width: 0; word-break: break-all; }
+.update-error {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(217, 45, 32, .3);
+  border-radius: 8px;
+  background: var(--danger-weak);
+  color: var(--danger);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.update-error-text { flex: 1 1 200px; min-width: 0; word-break: break-word; }

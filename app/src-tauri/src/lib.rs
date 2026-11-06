@@ -14,6 +14,7 @@ use tauri::window::Color;
 use tauri::{Emitter, Manager};
 
 mod migrate;
+mod update;
 
 /// 与 tauri.conf.json 的 identifier 保持一致：启动日志要在 Tauri 就绪前就能落盘。
 pub const APP_IDENTIFIER: &str = "app.renomio.desktop";
@@ -583,7 +584,8 @@ fn save_rule_history(core: tauri::State<'_, Core>, content: String) -> Result<()
     let target = dir.join("rule-history.json");
     let temp = dir.join(".rule-history.tmp");
     {
-        let mut file = std::fs::File::create(&temp).map_err(|e| format!("创建临时文件失败：{e}"))?;
+        let mut file =
+            std::fs::File::create(&temp).map_err(|e| format!("创建临时文件失败：{e}"))?;
         file.write_all(content.as_bytes())
             .map_err(|e| format!("写入临时文件失败：{e}"))?;
         file.sync_all()
@@ -860,6 +862,7 @@ pub fn run() {
                 .map_err(|e| format!("无法获取应用数据目录：{e}"))?;
             app.manage(migration);
             app.manage(Core::new(data_dir));
+            update::cleanup_stale_parts();
             startup_log("core_ready", "Core::new done");
             if let Some(window) = app.get_webview_window("main") {
                 let visible = window.is_visible().unwrap_or(false);
@@ -905,6 +908,10 @@ pub fn run() {
             write_text_atomic,
             load_rule_history,
             save_rule_history,
+            update::check_update,
+            update::download_update,
+            update::install_saved_update,
+            update::open_homepage,
             reveal_path,
             append_log,
             migration_info,

@@ -1,6 +1,6 @@
 {
   "name": "@rename/foundation",
-  "version": "1.0.0-alpha4",
+  "version": "1.0.0-alpha5",
   "private": true,
   "type": "module",
   "description": "Renomio / 格式工厂共用基础层：设计令牌、i18n、设置存储、任务队列、日志与崩溃上报、自动更新适配器",

@@ -1,6 +1,6 @@
 [package]
 name = "rename-studio"
-version = "1.0.0-alpha4"
+version = "1.0.0-alpha5"
 edition = "2021"
 description = "Renomio · 跨平台批量文件更名工具"
 authors = ["Renomio"]
@@ -23,6 +23,10 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+reqwest = { version = "0.13", features = ["blocking", "json"] }
+minisign-verify = "0.3"
+semver = "1"
+base64 = "0.23"
 
 [profile.release]
 panic = "abort"

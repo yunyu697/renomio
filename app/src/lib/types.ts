@@ -456,3 +456,36 @@ export interface PlanFile {
   rules: Rule[];
   checksum: string;
 }
+
+/** 更新清单摘要（来自滚动 release 的 latest.json）。 */
+export interface UpdateInfo {
+  available: boolean;
+  currentVersion: string;
+  version: string;
+  notes: string;
+  pubDate: string;
+  source: string;
+  installable: boolean;
+  assetName: string;
+}
+
+export type UpdatePhase = 'checking' | 'download' | 'verify' | 'verified' | 'ready' | 'installing' | 'restarting';
+
+/** 更新进度事件（Rust `update-progress`）。 */
+export interface UpdateProgress {
+  phase: UpdatePhase;
+  received: number;
+  total: number;
+  percent: number;
+  source: string;
+  attempt: number;
+  message: string;
+}
+
+/** 「仅下载」结果：落盘路径与版本。 */
+export interface SavedUpdate {
+  path: string;
+  version: string;
+  source: string;
+  size: number;
+}
