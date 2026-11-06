@@ -641,7 +641,7 @@ export const enUS: Dict = {
   'migration.importDone': 'Imported {imported} files and skipped {skipped} existing files (a backup was created before importing).',
   'migration.importFailed': 'Import failed: {message}',
   'about.title': 'About {product}',
-  'about.sub': '{product} · v0.1.0',
+  'about.sub': '{product} · v{version}',
   'about.tagline': 'Batch rename · preview first · undo anytime',
   'about.scope': 'Scope of this release (P0)',
   'about.scope1': 'Add files / folders, recursive scan, glob filters',

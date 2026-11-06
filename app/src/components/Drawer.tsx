@@ -355,7 +355,10 @@ function AboutPanel() {
   const { t } = useTranslation();
   return (
     <>
-      <DrawerHead title={t('about.title', { product: PRODUCT_NAME })} sub={t('about.sub', { product: PRODUCT_NAME })} />
+      <DrawerHead
+        title={t('about.title', { product: PRODUCT_NAME })}
+        sub={t('about.sub', { product: PRODUCT_NAME, version: __APP_VERSION__ })}
+      />
       <div className="drawer-body">
         <div className="about-brand">
           <span className="tb-mark" style={{ width: 38, height: 38, borderRadius: 10 }}>

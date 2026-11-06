@@ -5,8 +5,12 @@
 param([switch]$Offline)
 $ErrorActionPreference = 'Stop'
 $app = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$msiPath = Join-Path $app 'src-tauri\target\release\bundle\msi\Renomio_0.1.0_x64_en-US.msi'
-$nsisPath = Join-Path $app 'src-tauri\target\release\bundle\nsis\Renomio_0.1.0_x64-setup.exe'
+$repoRoot = Split-Path -Parent $app
+# 版本唯一来源：仓库根 VERSION；产物文件名随版本变化，这里不写死版本号。
+$versionFile = Join-Path $repoRoot 'VERSION'
+$appVersion = if (Test-Path -LiteralPath $versionFile) { (Get-Content -LiteralPath $versionFile -Raw).Trim() } else { '' }
+$msiPath = Join-Path $app "src-tauri\target\release\bundle\msi\Renomio_${appVersion}_x64_en-US.msi"
+$nsisPath = Join-Path $app "src-tauri\target\release\bundle\nsis\Renomio_${appVersion}_x64-setup.exe"
 $wxsPath = Join-Path $app 'src-tauri\target\release\wix\x64\main.wxs'
 $nsiPath = Join-Path $app 'src-tauri\target\release\nsis\x64\installer.nsi'
 
@@ -45,7 +49,9 @@ $identifier = if ($conf) { $conf.identifier } else { '<缺失>' }
 Assert 'identifier = app.renomio.desktop' ($identifier -eq 'app.renomio.desktop') "实际值：$identifier"
 
 $version = if ($conf) { $conf.version } else { '<缺失>' }
-Assert 'version = 0.1.0' ($version -eq '0.1.0') "实际值：$version"
+Assert 'version 与仓库根 VERSION 一致' `
+  ((-not [string]::IsNullOrWhiteSpace($appVersion)) -and ($version -eq $appVersion)) `
+  "tauri.conf.json=$version / VERSION=$appVersion"
 
 # NSIS 双范围：源配置必须声明 installMode = both（产物里的 MULTIUSER_* 由它生成）
 $installMode = if ($conf -and $conf.bundle.windows -and $conf.bundle.windows.nsis) {

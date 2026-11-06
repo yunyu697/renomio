@@ -39,7 +39,7 @@ export function StatusBar() {
         <span className="sep" />
         <span title={env.dataDir}><Icon name="shield" size={12} /> {t('status.local')}</span>
         <span className="sep" />
-        <span>v0.1.0</span>
+        <span>v{__APP_VERSION__}</span>
       </div>
     </div>
   );

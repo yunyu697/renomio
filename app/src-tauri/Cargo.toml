@@ -1,6 +1,6 @@
 [package]
 name = "rename-studio"
-version = "0.1.0"
+version = "1.0.0-alpha1"
 edition = "2021"
 description = "Renomio · 跨平台批量文件更名工具"
 authors = ["Renomio"]

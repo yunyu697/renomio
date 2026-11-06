@@ -5,7 +5,7 @@ import type { PlanFile, Rule, RuleType } from './types';
 
 export const PLAN_SCHEMA = 'rename-studio.plan';
 export const PLAN_VERSION = 1;
-export const PLAN_APP_VERSION = '0.1.0';
+export const PLAN_APP_VERSION = __APP_VERSION__;
 
 /** 文件对话框过滤器（显示名随界面语言变化）。 */
 export function planFilter(): Array<{ name: string; extensions: string[] }> {

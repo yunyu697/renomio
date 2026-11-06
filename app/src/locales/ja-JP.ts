@@ -641,7 +641,7 @@ export const jaJP: Dict = {
   'migration.importDone': '{imported} 個のファイルをインポートし、既存の {skipped} 個をスキップしました（インポート前にバックアップ済み）。',
   'migration.importFailed': 'インポートに失敗しました：{message}',
   'about.title': '{product} について',
-  'about.sub': '{product} · v0.1.0',
+  'about.sub': '{product} · v{version}',
   'about.tagline': '一括リネーム · 実行前にプレビュー · いつでも取り消し',
   'about.scope': '本リリースの範囲（P0）',
   'about.scope1': 'ファイル / フォルダー追加、再帰スキャン、ワイルドカード絞り込み',

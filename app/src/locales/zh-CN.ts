@@ -682,7 +682,7 @@ export const zhCN: Dict = {
   'migration.importDone': '已导入 {imported} 个文件，跳过 {skipped} 个已存在的文件（导入前已备份）。',
   'migration.importFailed': '导入失败：{message}',
   'about.title': '关于 {product}',
-  'about.sub': '{product} · v0.1.0',
+  'about.sub': '{product} · v{version}',
   'about.tagline': '批量更名 · 执行前先预览 · 随时可撤销',
   'about.scope': '本版范围（P0）',
   'about.scope1': '文件 / 文件夹添加、递归扫描、通配符过滤',

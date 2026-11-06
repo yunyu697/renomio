@@ -29,17 +29,19 @@ MIT License — 见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-
 
 ## 下载与安装
 
-发布包见本仓库的 Releases 页（`v0.1.0`）：
+发布包见本仓库的 Releases 页（当前预发布 `v1.0.0-alpha1`；`v0.1.0` 保留为历史）：
 
 | 包 | 文件 | 大小 | SHA-256 |
 | --- | --- | --- | --- |
-| NSIS（推荐，可选安装范围） | `Renomio_0.1.0_x64-setup.exe` | 1,469,033 字节 | `648C0A421196894B8E3768847D2AE2C79A055B52C707A7426DC81695A5B6D8CB` |
-| MSI（机器级单一包） | `Renomio_0.1.0_x64_en-US.msi` | 2,101,248 字节 | `37545D29D35210262635E56E4101A522733F16B8E04FA503DC35E9D4AB2793CD` |
+| NSIS（推荐，可选安装范围） | `Renomio_1.0.0-alpha1_x64-setup.exe` | 1,470,563 字节 | `2DDBFBC26E514C80BEBB5858CF0F459CE693D9194C281C250B6A854FC7B2C7B6` |
+| MSI（机器级单一包） | `Renomio_1.0.0-alpha1_x64_en-US.msi` | 2,105,344 字节 | `1390194880558D01303DA086599F97E7DA884FB1EC44568F6F8361BE0A6A4C60` |
+
+版本规则：唯一可改的版本号是仓库根 `VERSION`，其余（`app/package.json`、`app/packages/foundation/package.json`、`app/src-tauri/tauri.conf.json`、两个 `Cargo.toml`）由 `npm run version:sync` 注入；tag `v1.0.0-alpha1` 必须与 `VERSION` 一致，段位（第二/三段与 alpha 序号）≤ 10。MSI 的 `ProductVersion` 只能是纯数字，故 `wix.version` 由同一 VERSION 的数字核注入（alpha 阶段为 `1.0.0`），包文件名仍带 `alpha1`。
 
 校验方式（PowerShell）：
 
 ```powershell
-Get-FileHash .\Renomio_0.1.0_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\Renomio_1.0.0-alpha1_x64-setup.exe -Algorithm SHA256
 ```
 
 `SHA256SUMS` 与安装包同批上传，可用于批量比对。

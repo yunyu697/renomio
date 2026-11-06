@@ -1,7 +1,7 @@
 {
   "name": "rename-studio",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0-alpha1",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -11,10 +11,14 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "version:sync": "node scripts/version.mjs",
+    "version:check": "node scripts/check-version.mjs",
+    "version:selftest": "node scripts/check-version.mjs --self-test",
+    "tauri:build": "node scripts/version.mjs && tauri build",
     "test:corpus": "node scripts/gen-test-corpus.mjs",
     "test:core": "cargo test --manifest-path src-tauri/ffrn-core/Cargo.toml",
     "test:e2e": "node e2e/run.mjs",
-    "test:bundle": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-bundle.ps1",
+    "test:bundle": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-bundle.ps1",
     "foundation:build": "tsc -p packages/foundation/tsconfig.json"
   },
   "dependencies": {

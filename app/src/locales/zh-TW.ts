@@ -641,7 +641,7 @@ export const zhTW: Dict = {
   'migration.importDone': '已匯入 {imported} 個檔案，略過 {skipped} 個已存在的檔案（匯入前已備份）。',
   'migration.importFailed': '匯入失敗：{message}',
   'about.title': '關於 {product}',
-  'about.sub': '{product} · v0.1.0',
+  'about.sub': '{product} · v{version}',
   'about.tagline': '批次更名 · 執行前先預覽 · 隨時可撤銷',
   'about.scope': '本版範圍（P0）',
   'about.scope1': '檔案 / 資料夾加入、遞迴掃描、萬用字元篩選',

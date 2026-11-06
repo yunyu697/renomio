@@ -641,7 +641,7 @@ export const esES: Dict = {
   'migration.importDone': 'Se importaron {imported} archivos y se omitieron {skipped} archivos existentes (con copia de seguridad previa).',
   'migration.importFailed': 'Error al importar: {message}',
   'about.title': 'Acerca de {product}',
-  'about.sub': '{product} · v0.1.0',
+  'about.sub': '{product} · v{version}',
   'about.tagline': 'Renombrado por lotes · previsualiza antes · deshaz cuando quieras',
   'about.scope': 'Alcance de esta versión (P0)',
   'about.scope1': 'Añadir archivos / carpetas, escaneo recursivo, filtros comodín',
