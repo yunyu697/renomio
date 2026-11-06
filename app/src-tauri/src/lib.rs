@@ -740,27 +740,21 @@ mod win_elevation {
         }
     }
 
-    /// 以 `runas` 重新启动自身：`Ok(true)` 表示新进程已创建，`Ok(false)` 表示用户取消 UAC。
-    pub fn relaunch() -> Result<bool, String> {
-        let exe = std::env::current_exe().map_err(|e| format!("无法定位当前程序：{e}"))?;
-        let args: Vec<String> = std::env::args().skip(1).collect();
-        let params = args
-            .iter()
-            .map(|a| format!("\"{}\"", a.replace('"', "\"\"")))
-            .collect::<Vec<_>>()
-            .join(" ");
-        let params_wide = if params.is_empty() {
-            None
-        } else {
-            Some(wide(&params))
-        };
+    pub enum LaunchOutcome {
+        Started,
+        Cancelled,
+    }
+
+    /// 以 `runas` 启动任意程序（唯一提权入口）：`Err(code)` 为 ShellExecuteW 原始返回码。
+    pub fn run_elevated(file: &OsStr, params: Option<&str>) -> Result<LaunchOutcome, isize> {
         let verb = wide("runas");
-        let file = wide(&exe.to_string_lossy());
+        let file_wide: Vec<u16> = file.encode_wide().chain(std::iter::once(0)).collect();
+        let params_wide = params.map(wide);
         let ret = unsafe {
             ShellExecuteW(
                 std::ptr::null_mut(),
                 verb.as_ptr(),
-                file.as_ptr(),
+                file_wide.as_ptr(),
                 params_wide
                     .as_ref()
                     .map(|v| v.as_ptr())
@@ -771,11 +765,30 @@ mod win_elevation {
         };
         let code = ret as isize;
         if code > 32 {
-            Ok(true)
+            Ok(LaunchOutcome::Started)
         } else if code == 1223 {
-            Ok(false)
+            Ok(LaunchOutcome::Cancelled)
         } else {
-            Err(format!("提权启动失败（ShellExecuteW 返回 {code}）"))
+            Err(code)
+        }
+    }
+
+    /// 以 `runas` 重新启动自身：`Ok(true)` 表示新进程已创建，`Ok(false)` 表示用户取消 UAC。
+    pub fn relaunch() -> Result<bool, String> {
+        let exe = std::env::current_exe().map_err(|e| format!("无法定位当前程序：{e}"))?;
+        let args: Vec<String> = std::env::args().skip(1).collect();
+        let params = args
+            .iter()
+            .map(|a| format!("\"{}\"", a.replace('"', "\"\"")))
+            .collect::<Vec<_>>()
+            .join(" ");
+        match run_elevated(
+            exe.as_os_str(),
+            (params.is_empty()).then_some(params.as_str()),
+        ) {
+            Ok(LaunchOutcome::Started) => Ok(true),
+            Ok(LaunchOutcome::Cancelled) => Ok(false),
+            Err(code) => Err(format!("提权启动失败（ShellExecuteW 返回 {code}）")),
         }
     }
 

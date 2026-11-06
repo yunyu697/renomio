@@ -549,31 +549,47 @@ fn download_and_verify(
     ))
 }
 
-fn launch_installer(path: &Path) -> Result<(), String> {
+/// 安装器启动计划：程序与命令参数。msi 交给 msiexec，exe 直接以 NSIS 静默参数启动。
+#[cfg(target_os = "windows")]
+fn installer_invocation(path: &Path) -> Result<(std::ffi::OsString, String), String> {
     let ext = path
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
+    match ext.as_str() {
+        "msi" => Ok((
+            std::ffi::OsString::from("msiexec.exe"),
+            format!(
+                "/i \"{}\" /quiet AUTOLAUNCHAPP=True",
+                path.to_string_lossy().replace('"', "")
+            ),
+        )),
+        "exe" => Ok((path.as_os_str().to_owned(), "/S /UPDATE /R".to_string())),
+        _ => Err(format!("不支持自动安装的文件类型：.{ext}")),
+    }
+}
+
+/// 把 `ShellExecuteW(runas)` 的结果翻译成用户可读结果：成功、取消授权、其它原始错误码。
+#[cfg(target_os = "windows")]
+fn launch_outcome_message(
+    outcome: Result<crate::win_elevation::LaunchOutcome, isize>,
+) -> Result<(), String> {
+    match outcome {
+        Ok(crate::win_elevation::LaunchOutcome::Started) => Ok(()),
+        Ok(crate::win_elevation::LaunchOutcome::Cancelled) => {
+            Err("已取消授权：用户拒绝了 UAC，安装已中止".to_string())
+        }
+        Err(code) => Err(format!("启动安装程序失败（ShellExecuteW 返回 {code}）")),
+    }
+}
+
+/// 启动安装程序。Windows 上唯一路径是 `ShellExecuteW(runas)`，不再直接 spawn（否则 740）。
+fn launch_installer(path: &Path) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        if ext == "msi" {
-            std::process::Command::new("msiexec")
-                .arg("/i")
-                .arg(path)
-                .args(["/quiet", "AUTOLAUNCHAPP=True"])
-                .spawn()
-                .map(|_| ())
-                .map_err(|e| format!("启动安装程序失败：{e}"))
-        } else if ext == "exe" {
-            std::process::Command::new(path)
-                .args(["/S", "/UPDATE", "/R"])
-                .spawn()
-                .map(|_| ())
-                .map_err(|e| format!("启动安装程序失败：{e}"))
-        } else {
-            Err(format!("不支持自动安装的文件类型：.{ext}"))
-        }
+        let (program, params) = installer_invocation(path)?;
+        launch_outcome_message(crate::win_elevation::run_elevated(&program, Some(&params)))
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -582,9 +598,22 @@ fn launch_installer(path: &Path) -> Result<(), String> {
     }
 }
 
-fn finish_install(app: &AppHandle, path: &Path) -> Result<(), String> {
+/// 安装未启动成功时清理应用自己下载的临时包；用户主动「仅下载」的文件不删。
+fn discard_owned_install(path: &Path, owned_temp: bool) {
+    if owned_temp {
+        let _ = fs::remove_file(path);
+    }
+    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+        let _ = fs::remove_file(path.with_file_name(format!("{name}.part")));
+    }
+}
+
+fn finish_install(app: &AppHandle, path: &Path, owned_temp: bool) -> Result<(), String> {
     emit_progress(app, "installing", 0, 0, "local", 0, "正在启动安装程序");
-    launch_installer(path)?;
+    if let Err(err) = launch_installer(path) {
+        discard_owned_install(path, owned_temp);
+        return Err(err);
+    }
     emit_progress(
         app,
         "restarting",
@@ -696,7 +725,7 @@ pub async fn download_update(
     .map_err(|e| format!("下载任务异常：{e}"))??;
 
     if install {
-        finish_install(&app, Path::new(&saved.path))?;
+        finish_install(&app, Path::new(&saved.path), true)?;
     }
     Ok(saved)
 }
@@ -725,7 +754,7 @@ pub async fn install_saved_update(
     .await
     .map_err(|e| format!("校验安装包任务异常：{e}"))??;
 
-    finish_install(&app, Path::new(&path))
+    finish_install(&app, Path::new(&path), false)
 }
 
 #[tauri::command]
@@ -833,6 +862,77 @@ mod tests {
         let second = unique_target(&dir, "setup.exe");
         assert_eq!(second.file_name().unwrap(), "setup (2).exe");
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn installer_invocation_maps_nsis_and_msi() {
+        let exe = Path::new(r"C:\Temp\Renomio_1.0.0-alpha7_x64-setup.exe");
+        let (program, params) = installer_invocation(exe).unwrap();
+        assert_eq!(program, exe.as_os_str().to_owned());
+        assert_eq!(params, "/S /UPDATE /R");
+
+        let msi = Path::new(r"C:\Temp\Renomio_1.0.0-alpha7_x64_en-US.msi");
+        let (program, params) = installer_invocation(msi).unwrap();
+        assert_eq!(program, std::ffi::OsString::from("msiexec.exe"));
+        assert!(params.contains(r#""C:\Temp\Renomio_1.0.0-alpha7_x64_en-US.msi""#));
+        assert!(params.contains("/quiet AUTOLAUNCHAPP=True"));
+
+        assert!(installer_invocation(Path::new("pkg.txt")).is_err());
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn cancelled_uac_is_not_reported_as_failure() {
+        use crate::win_elevation::LaunchOutcome;
+        let cancel = launch_outcome_message(Ok(LaunchOutcome::Cancelled)).unwrap_err();
+        assert!(cancel.contains("已取消授权"), "{cancel}");
+        assert!(!cancel.contains("启动安装程序失败"), "{cancel}");
+        assert!(!cancel.contains("740"), "{cancel}");
+
+        let failed = launch_outcome_message(Err(5)).unwrap_err();
+        assert!(failed.contains("返回 5"), "{failed}");
+        assert!(!failed.contains("已取消授权"), "{failed}");
+
+        assert!(launch_outcome_message(Ok(LaunchOutcome::Started)).is_ok());
+    }
+
+    #[test]
+    fn failed_install_leaves_no_owned_package_or_part() {
+        let dir = std::env::temp_dir().join(format!("renomio-launch-{}", std::process::id()));
+        let _ = fs::create_dir_all(&dir);
+        let owned = dir.join("pkg.exe");
+        fs::write(&owned, b"x").unwrap();
+        fs::write(dir.join("pkg.exe.part"), b"x").unwrap();
+        discard_owned_install(&owned, true);
+        assert!(!owned.exists());
+        assert!(!dir.join("pkg.exe.part").exists());
+
+        // 用户主动「仅下载」的包不删，只清同名 .part。
+        let saved = dir.join("saved.exe");
+        fs::write(&saved, b"x").unwrap();
+        fs::write(dir.join("saved.exe.part"), b"x").unwrap();
+        discard_owned_install(&saved, false);
+        assert!(saved.exists());
+        assert!(!dir.join("saved.exe.part").exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// 回归护栏：安装器启动不得退回未提权的 `Command::new`，否则真机必然 740。
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn installer_launch_never_spawns_unelevated() {
+        let src = include_str!("update.rs");
+        let spawned = concat!("Command::new", "(", "path", ")");
+        assert!(
+            !src.contains(spawned),
+            "安装器启动不应再直接 spawn 未提权进程"
+        );
+        let entry = concat!("run_", "elevated");
+        assert!(
+            src.contains(entry),
+            "安装器启动应统一走 ShellExecuteW(runas)"
+        );
     }
 
     /// 真实产物反例（需手动提供路径，CI 跳过）：
