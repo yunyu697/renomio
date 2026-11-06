@@ -289,7 +289,7 @@ export async function onUpdateProgress(handler: (progress: UpdateProgress) => vo
 /** 打开项目主页（桌面端调系统浏览器，演示模式开新标签页）。 */
 export async function openHomepage(): Promise<void> {
   if (!isDesktop) {
-    window.open('https://github.com/yunyu697/renomio', '_blank', 'noopener');
+    window.open('https://github.com/yunyu697/renomio-releases', '_blank', 'noopener');
     return;
   }
   await invoke('open_homepage');

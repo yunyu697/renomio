@@ -29,19 +29,21 @@ MIT License — 见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-
 
 ## 下载与安装
 
-发布包见本仓库的 Releases 页（当前预发布 `v1.0.0-alpha1`；`v0.1.0` 保留为历史）：
+源码仓库保持私有；**安装包与更新清单公开发布在 [yunyu697/renomio-releases](https://github.com/yunyu697/renomio-releases/releases)**（当前预发布 `v1.0.0-alpha5`）：
 
 | 包 | 文件 | 大小 | SHA-256 |
 | --- | --- | --- | --- |
-| NSIS（推荐，可选安装范围） | `Renomio_1.0.0-alpha1_x64-setup.exe` | 1,470,563 字节 | `2DDBFBC26E514C80BEBB5858CF0F459CE693D9194C281C250B6A854FC7B2C7B6` |
-| MSI（机器级单一包） | `Renomio_1.0.0-alpha1_x64_en-US.msi` | 2,105,344 字节 | `1390194880558D01303DA086599F97E7DA884FB1EC44568F6F8361BE0A6A4C60` |
+| NSIS（推荐，可选安装范围） | `Renomio_1.0.0-alpha5_x64-setup.exe` | 2,211,522 字节（2.11 MiB） | `2C6C9E2D1AA159E6D799FA3C812E1BEEA284A0CEF21BE4740EBB8DE8A721447D` |
+| MSI（机器级单一包） | `Renomio_1.0.0-alpha5_x64_en-US.msi` | 3,342,336 字节（3.19 MiB） | `D2BF1E27662DD4C36482D5925E8C45BD1BFDBDF9EE6CEFB6568929E6114C6E72` |
 
-版本规则：唯一可改的版本号是仓库根 `VERSION`，其余（`app/package.json`、`app/packages/foundation/package.json`、`app/src-tauri/tauri.conf.json`、两个 `Cargo.toml`）由 `npm run version:sync` 注入；tag `v1.0.0-alpha1` 必须与 `VERSION` 一致，段位（第二/三段与 alpha 序号）≤ 10。MSI 的 `ProductVersion` 只能是纯数字，故 `wix.version` 由同一 VERSION 的数字核注入（alpha 阶段为 `1.0.0`），包文件名仍带 `alpha1`。
+应用内「设置 → 检查更新」读取公开仓库滚动 release `updates` 下的 `latest.json`，安装包也由该公开仓库下载；清单与资源的地址均不再指向私有源码仓库。
+
+版本规则：唯一可改的版本号是仓库根 `VERSION`，其余（`app/package.json`、`app/packages/foundation/package.json`、`app/src-tauri/tauri.conf.json`、两个 `Cargo.toml`）由 `npm run version:sync` 注入；tag `v1.0.0-alpha5` 必须与 `VERSION` 一致，段位（第二/三段与 alpha 序号）≤ 10。MSI 的 `ProductVersion` 只能是纯数字，故 `wix.version` 由同一 VERSION 的数字核注入（alpha 阶段为 `1.0.0`），包文件名仍带 `alpha5`。
 
 校验方式（PowerShell）：
 
 ```powershell
-Get-FileHash .\Renomio_1.0.0-alpha1_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\Renomio_1.0.0-alpha5_x64-setup.exe -Algorithm SHA256
 ```
 
 `SHA256SUMS` 与安装包同批上传，可用于批量比对。

@@ -16,8 +16,8 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
 
 const MANIFEST_URL: &str =
-    "https://github.com/yunyu697/renomio/releases/download/updates/latest.json";
-const HOMEPAGE: &str = "https://github.com/yunyu697/renomio";
+    "https://github.com/yunyu697/renomio-releases/releases/download/updates/latest.json";
+const HOMEPAGE: &str = "https://github.com/yunyu697/renomio-releases";
 
 /// base64(公钥文件全文)。私钥只在本机 `Documents\Trae-CN\renomio-signing`，不入仓库。
 const PUBKEY_B64: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZENTBCQzBCQjZFREQ4QTEKUldTaDJPMjJDN3hRL2JURjBoajFjMERSZ1dWMHNncDVqdmR1S1o4L1VzSWIvbndwUlc3SWJrWXYK";
@@ -833,5 +833,35 @@ mod tests {
         let second = unique_target(&dir, "setup.exe");
         assert_eq!(second.file_name().unwrap(), "setup (2).exe");
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// 真实产物反例（需手动提供路径，CI 跳过）：
+    /// `RENOMIO_TEST_EXE` / `RENOMIO_TEST_MSI` / `RENOMIO_TEST_SIG`。
+    /// 用 NSIS 包的签名校验 MSI 包，必须被拒。
+    #[test]
+    #[ignore]
+    fn real_packages_negative_signature() {
+        let exe = fs::read(std::env::var("RENOMIO_TEST_EXE").expect("缺少 RENOMIO_TEST_EXE"))
+            .expect("读取 exe");
+        let msi = fs::read(std::env::var("RENOMIO_TEST_MSI").expect("缺少 RENOMIO_TEST_MSI"))
+            .expect("读取 msi");
+        let sig =
+            fs::read_to_string(std::env::var("RENOMIO_TEST_SIG").expect("缺少 RENOMIO_TEST_SIG"))
+                .expect("读取 sig");
+        verify_bytes(
+            &exe,
+            &sig,
+            "1.0.0-alpha5",
+            "Renomio_1.0.0-alpha5_x64-setup.exe",
+        )
+        .expect("真实 NSIS 包应通过签名校验");
+        let err = verify_bytes(
+            &msi,
+            &sig,
+            "1.0.0-alpha5",
+            "Renomio_1.0.0-alpha5_x64-setup.exe",
+        )
+        .expect_err("把 exe 的签名套到 msi 必须失败");
+        assert!(err.contains("签名校验失败"), "{err}");
     }
 }
