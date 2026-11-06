@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { formatTime } from '../lib/format';
 import { useTranslation } from '../i18n';
 import { PRODUCT_NAME } from '../lib/branding';
@@ -210,6 +210,17 @@ function SettingsPanel() {
   const importLegacy = useApp((s) => s.importLegacy);
   const language = settings.language ?? 'system';
   const unreviewed = language === 'zh-TW' || language === 'ja-JP' || language === 'es-ES';
+  const historyLimit = useApp((s) => s.ruleHistory.limit);
+  const historyFields = useApp((s) => Object.keys(s.ruleHistory.fields).length);
+  const setHistoryLimit = useApp((s) => s.setHistoryLimit);
+  const clearRuleHistory = useApp((s) => s.clearRuleHistory);
+  const [limitDraft, setLimitDraft] = useState(String(historyLimit));
+  const [confirmClear, setConfirmClear] = useState(false);
+  useEffect(() => setLimitDraft(String(historyLimit)), [historyLimit]);
+  const commitLimit = () => {
+    const parsed = Number(limitDraft);
+    setHistoryLimit(Number.isFinite(parsed) ? parsed : historyLimit);
+  };
 
   return (
     <>
@@ -278,6 +289,60 @@ function SettingsPanel() {
               <option value="overwrite">{t('settings.policyOverwrite')}</option>
             </select>
           </Row>
+        </section>
+
+        <section className="settings-section" data-testid="history-settings">
+          <h4>{t('settings.historyGroup')}</h4>
+          <Row label={t('settings.historyLimit')} hint={t('settings.historyLimitHint')}>
+            <input
+              className="input small mono"
+              type="number"
+              min={10}
+              max={200}
+              step={10}
+              style={{ width: 76 }}
+              data-testid="input-history-limit"
+              value={limitDraft}
+              onChange={(e) => setLimitDraft(e.target.value)}
+              onBlur={commitLimit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitLimit();
+              }}
+            />
+          </Row>
+          <Row label={t('settings.historyClear')} hint={t('settings.historyClearHint', { count: historyFields })}>
+            {confirmClear ? (
+              <span style={{ display: 'flex', gap: 6 }}>
+                <button
+                  className="btn btn-danger-soft"
+                  type="button"
+                  data-testid="history-clear-confirm"
+                  onClick={() => {
+                    clearRuleHistory();
+                    setConfirmClear(false);
+                  }}
+                >
+                  {t('settings.historyClearConfirm')}
+                </button>
+                <button className="btn btn-outline" type="button" onClick={() => setConfirmClear(false)}>
+                  {t('settings.historyCancel')}
+                </button>
+              </span>
+            ) : (
+              <button
+                className="btn btn-outline"
+                type="button"
+                data-testid="history-clear"
+                disabled={historyFields === 0}
+                onClick={() => setConfirmClear(true)}
+              >
+                {t('settings.historyClearAction')}
+              </button>
+            )}
+          </Row>
+          <div className="drawer-note" style={{ marginTop: 8 }}>
+            {t('settings.historyPath')}
+          </div>
         </section>
 
         <section className="settings-section">

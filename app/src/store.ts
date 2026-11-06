@@ -1,10 +1,14 @@
 import { create } from 'zustand';
 import {
   cancelApply as cancelApplyRequest, demoEntries, demoEnv, demoExistingPaths, getEnvInfo, getMigrationInfo,
-  getPrivilegeInfo, importLegacyData,
+  getPrivilegeInfo, importLegacyData, loadRuleHistory, saveRuleHistory,
   isDesktop, listBatches, onApplyProgress, pathsExist, pickFiles, pickFolders, renameFields, scanPaths,
   startupReport,
 } from './lib/bridge';
+import {
+  applyHistoryLimit, clampHistoryLimit, emptyHistory, pushHistoryEntry,
+  removeHistoryEntry, type RuleHistory,
+} from './lib/history';
 import { baseName, parentPath } from './lib/format';
 import { matchesAny, splitPatterns } from './lib/glob';
 import { isPermissionRelated } from './lib/permission';
@@ -101,6 +105,8 @@ interface AppState {
   toast: Toast | null;
   ruleMenuOpen: boolean;
   dragging: boolean;
+  /** 规则链输入历史：按字段分组，随应用升级保留（数据目录 rule-history.json） */
+  ruleHistory: RuleHistory;
   metadata: MetadataView;
   planDialog: PlanDialogState | null;
   /** 当前进程的权限信息（浏览器演示模式为 null） */
@@ -141,6 +147,12 @@ interface AppState {
   toggleRule: (id: string) => void;
   clearRules: () => void;
   setOpenRule: (id: string | null) => void;
+  /** 记住某个输入框填过的内容（空值忽略，重复提到最前，超限淘汰最旧） */
+  rememberRuleInput: (field: string, value: string) => void;
+  deleteRuleHistoryEntry: (field: string, value: string) => void;
+  /** 不传 field 时清空全部字段的历史 */
+  clearRuleHistory: (field?: string) => void;
+  setHistoryLimit: (limit: number) => void;
 
   openPreview: () => void;
   closePreview: () => void;
@@ -339,6 +351,13 @@ let initStarted = false;
 let startupReadyReported = false;
 let envReadyReported = false;
 
+/** 落盘输入历史；失败只在控制台留痕，不影响输入。 */
+function persistHistory(history: RuleHistory): void {
+  void saveRuleHistory(history).catch((err) => {
+    logger.warn('history.persist.failed', String(err));
+  });
+}
+
 /** 把执行结果整理成逐条失败清单；没有失败或没有权限相关跳过时不弹。 */
 function buildFailureReport(outcome: ApplyOutcome, total: number): FailureReport | null {
   if (outcome.batch.state === 'cancelled') return null;
@@ -384,6 +403,7 @@ export const useApp = create<AppState>((set, get) => ({
   toast: null,
   ruleMenuOpen: false,
   dragging: false,
+  ruleHistory: emptyHistory(),
   metadata: { open: false, loading: false, path: '', name: '', info: null, error: null },
   planDialog: null,
   privilege: null,
@@ -400,6 +420,7 @@ export const useApp = create<AppState>((set, get) => ({
     const themeOverride: 'light' | 'dark' | null = forced === 'dark' || forced === 'light' ? forced : null;
     const stored = settingsStore.value;
     const settings = themeOverride ? { ...stored, theme: themeOverride } : stored;
+    const ruleHistory = (await loadRuleHistory()) ?? emptyHistory();
     applyTheme(settings.theme);
     if (settings.language && settings.language !== 'system') setUiLocale(settings.language);
     const reportMark = (name: string) => {
@@ -423,6 +444,7 @@ export const useApp = create<AppState>((set, get) => ({
           isDemo: true,
           env: demoEnv,
           settings,
+          ruleHistory,
           entries: demoEntries(),
           rules: demoRules(),
           applyPolicy: settings.conflictPolicy,
@@ -448,6 +470,7 @@ export const useApp = create<AppState>((set, get) => ({
         isDemo: false,
         env,
         settings,
+        ruleHistory,
         entries: [],
         rules: [],
         applyPolicy: settings.conflictPolicy,
@@ -623,6 +646,50 @@ export const useApp = create<AppState>((set, get) => ({
   clearRules: () => set({ rules: [], openRuleId: null }),
 
   setOpenRule: (id) => set({ openRuleId: id }),
+
+  rememberRuleInput: (field, value) => {
+    const { ruleHistory } = get();
+    const current = ruleHistory.fields[field] ?? [];
+    const next = pushHistoryEntry(current, value, ruleHistory.limit);
+    if (next === current) return;
+    const history: RuleHistory = { ...ruleHistory, fields: { ...ruleHistory.fields, [field]: next } };
+    set({ ruleHistory: history });
+    persistHistory(history);
+  },
+
+  deleteRuleHistoryEntry: (field, value) => {
+    const { ruleHistory } = get();
+    const current = ruleHistory.fields[field];
+    if (!current) return;
+    const next = removeHistoryEntry(current, value);
+    const fields = { ...ruleHistory.fields };
+    if (next.length > 0) fields[field] = next;
+    else delete fields[field];
+    const history: RuleHistory = { ...ruleHistory, fields };
+    set({ ruleHistory: history });
+    persistHistory(history);
+  },
+
+  clearRuleHistory: (field) => {
+    const { ruleHistory } = get();
+    const fields = { ...ruleHistory.fields };
+    if (field) {
+      if (!(field in fields)) return;
+      delete fields[field];
+    } else {
+      if (Object.keys(fields).length === 0) return;
+      for (const key of Object.keys(fields)) delete fields[key];
+    }
+    const history: RuleHistory = { ...ruleHistory, fields };
+    set({ ruleHistory: history });
+    persistHistory(history);
+  },
+
+  setHistoryLimit: (limit) => {
+    const history = applyHistoryLimit(get().ruleHistory, clampHistoryLimit(limit));
+    set({ ruleHistory: history });
+    persistHistory(history);
+  },
 
   openPreview: () => {
     if (!get().entries.length) {

@@ -551,6 +551,50 @@ fn write_text_atomic(
     Ok(backup.map(|b| b.to_string_lossy().to_string()))
 }
 
+/// 规则链输入历史：存放在数据目录下的 `rule-history.json`（`%APPDATA%\app.renomio.desktop`），
+/// 与安装目录无关，升级/覆盖安装后仍然保留；坏文件改名留证并按「无历史」继续启动。
+#[tauri::command]
+fn load_rule_history(core: tauri::State<'_, Core>) -> Result<String, String> {
+    let path = std::path::PathBuf::from(core.env(true).data_dir).join("rule-history.json");
+    match std::fs::read_to_string(&path) {
+        Ok(text) => {
+            if serde_json::from_str::<serde_json::Value>(&text).is_err() {
+                let _ = std::fs::rename(&path, path.with_extension("json.bad"));
+                return Ok(String::new());
+            }
+            Ok(text)
+        }
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
+        Err(err) => Err(format!("读取输入历史失败：{err}")),
+    }
+}
+
+/// 原子写入输入历史：同目录临时文件 → fsync → 改名，避免中断留下半截 JSON。
+#[tauri::command]
+fn save_rule_history(core: tauri::State<'_, Core>, content: String) -> Result<(), String> {
+    if content.len() > 512 * 1024 {
+        return Err("输入历史超过 512KB，已拒绝写入".into());
+    }
+    serde_json::from_str::<serde_json::Value>(&content)
+        .map_err(|_| "输入历史不是合法 JSON，已拒绝写入".to_string())?;
+
+    let dir = std::path::PathBuf::from(core.env(true).data_dir);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("创建数据目录失败：{e}"))?;
+    let target = dir.join("rule-history.json");
+    let temp = dir.join(".rule-history.tmp");
+    {
+        let mut file = std::fs::File::create(&temp).map_err(|e| format!("创建临时文件失败：{e}"))?;
+        file.write_all(content.as_bytes())
+            .map_err(|e| format!("写入临时文件失败：{e}"))?;
+        file.sync_all()
+            .map_err(|e| format!("临时文件落盘失败：{e}"))?;
+    }
+    std::fs::rename(&temp, &target).map_err(|e| {
+        let _ = std::fs::remove_file(&temp);
+        format!("替换历史文件失败：{e}")
+    })
+}
+
 #[tauri::command]
 fn reveal_path(path: String) -> Result<(), String> {
     let target = std::path::Path::new(&path);
@@ -859,6 +903,8 @@ pub fn run() {
             apply_move,
             read_text_file,
             write_text_atomic,
+            load_rule_history,
+            save_rule_history,
             reveal_path,
             append_log,
             migration_info,

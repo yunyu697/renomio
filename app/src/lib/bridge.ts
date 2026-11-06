@@ -6,6 +6,7 @@ import type {
   PrivilegeInfo, ScanResultDto, StartupMark, TimeInfo, TimeSpecDto, UndoOutcome,
 } from './types';
 import { PRODUCT_NAME } from './branding';
+import { normalizeHistory, type RuleHistory } from './history';
 
 export const isDesktop: boolean =
   typeof window !== 'undefined' && '__TAURI_INTERNALS__' in (window as unknown as Record<string, unknown>);
@@ -229,6 +230,31 @@ export async function installDropHandler(
 export async function revealPath(path: string): Promise<void> {
   if (!isDesktop) return;
   await invoke('reveal_path', { path });
+}
+
+const DEMO_HISTORY_KEY = 'renomio.rule-history';
+
+/** 读取规则链输入历史：桌面端读数据目录下的 rule-history.json，演示模式读 localStorage。 */
+export async function loadRuleHistory(): Promise<RuleHistory | null> {
+  try {
+    if (!isDesktop) {
+      const raw = localStorage.getItem(DEMO_HISTORY_KEY);
+      return raw ? normalizeHistory(JSON.parse(raw)) : null;
+    }
+    const raw = await invoke<string>('load_rule_history');
+    return raw ? normalizeHistory(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveRuleHistory(history: RuleHistory): Promise<void> {
+  const json = JSON.stringify(history);
+  if (!isDesktop) {
+    localStorage.setItem(DEMO_HISTORY_KEY, json);
+    return;
+  }
+  await invoke('save_rule_history', { content: json });
 }
 
 export async function logToDisk(level: string, event: string, message?: string): Promise<void> {

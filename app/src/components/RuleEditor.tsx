@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from '../i18n';
+import { useApp } from '../store';
 import type {
   AddRule, CaseRule, DeleteRule, ExtRule, MetaRule, MoveRule, NumberRule, ReplaceRule, Rule,
 } from '../lib/types';
@@ -37,16 +38,180 @@ function Seg<T extends string>({
   );
 }
 
+const EMPTY_HISTORY: string[] = [];
+
+/**
+ * 规则链输入框：historyKey 不为空时，失焦后把填过的内容按字段记入历史，
+ * 并在输入框下方提供历史列表（方向键/回车可选、单条删除、清空二次确认）。
+ */
 function TextInput({
-  value, onChange, mono, placeholder, small,
-}: { value: string; onChange: (v: string) => void; mono?: boolean; placeholder?: string; small?: boolean }) {
+  value, onChange, mono, placeholder, small, historyKey,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  mono?: boolean;
+  placeholder?: string;
+  small?: boolean;
+  historyKey?: string;
+}) {
+  const { t } = useTranslation();
+  const history = useApp((s) => (historyKey ? s.ruleHistory.fields[historyKey] ?? EMPTY_HISTORY : EMPTY_HISTORY));
+  const remember = useApp((s) => s.rememberRuleInput);
+  const removeEntry = useApp((s) => s.deleteRuleHistoryEntry);
+  const clearField = useApp((s) => s.clearRuleHistory);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const [confirming, setConfirming] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dirty = useRef(false);
+
+  const rememberCurrent = () => {
+    if (!historyKey || !dirty.current) return;
+    dirty.current = false;
+    remember(historyKey, value);
+  };
+
+  const pick = (item: string) => {
+    onChange(item);
+    if (historyKey) remember(historyKey, item);
+    dirty.current = false;
+    setOpen(false);
+    setActive(-1);
+    inputRef.current?.focus();
+  };
+
   return (
-    <input
-      className={`input ${mono ? 'mono' : ''} ${small ? 'small' : ''}`}
-      value={value}
-      placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
-    />
+    <div className="input-hist" ref={wrapRef}>
+      <input
+        ref={inputRef}
+        className={`input ${mono ? 'mono' : ''} ${small ? 'small' : ''}`}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => {
+          dirty.current = true;
+          onChange(e.target.value);
+        }}
+        onBlur={(e) => {
+          rememberCurrent();
+          const next = e.relatedTarget as Node | null;
+          if (!wrapRef.current?.contains(next)) {
+            setOpen(false);
+            setActive(-1);
+            setConfirming(false);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (!historyKey) return;
+          if (e.key === 'Escape' && open) {
+            e.stopPropagation();
+            setOpen(false);
+            setActive(-1);
+            setConfirming(false);
+            return;
+          }
+          if (e.key === 'ArrowDown' && history.length > 0) {
+            e.preventDefault();
+            setOpen(true);
+            setActive((i) => Math.min(history.length - 1, i + 1));
+            return;
+          }
+          if (e.key === 'ArrowUp' && history.length > 0) {
+            e.preventDefault();
+            setOpen(true);
+            setActive((i) => Math.max(0, i - 1));
+            return;
+          }
+          if (e.key === 'Enter' && open && active >= 0 && history[active]) {
+            e.preventDefault();
+            pick(history[active]);
+          }
+        }}
+      />
+      {historyKey && history.length > 0 && (
+        <button
+          type="button"
+          className="hist-toggle"
+          data-testid="hist-toggle"
+          title={t('hist.open')}
+          aria-label={t('hist.open')}
+          aria-expanded={open}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            setOpen((o) => !o);
+            setActive(-1);
+            setConfirming(false);
+          }}
+        >
+          ▾
+        </button>
+      )}
+      {open && historyKey && (
+        <div className="hist-panel" role="listbox" data-testid="hist-panel" aria-label={t('hist.title')}>
+          <div className="hist-head">
+            <span>{t('hist.title')} · {history.length}</span>
+            {confirming ? (
+              <span className="hist-confirm">
+                <button
+                  type="button"
+                  data-testid="hist-clear-confirm"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    if (historyKey) clearField(historyKey);
+                    setConfirming(false);
+                    setOpen(false);
+                  }}
+                >
+                  {t('hist.confirmClear')}
+                </button>
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => setConfirming(false)}>
+                  {t('hist.cancel')}
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="hist-clear"
+                data-testid="hist-clear"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setConfirming(true)}
+              >
+                {t('hist.clear')}
+              </button>
+            )}
+          </div>
+          {history.map((item, index) => (
+            <div
+              key={item}
+              role="option"
+              aria-selected={index === active}
+              className={`hist-item ${index === active ? 'active' : ''}`}
+              onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={() => setActive(index)}
+              onClick={() => pick(item)}
+            >
+              <span className="hist-value" title={item}>{item}</span>
+              <button
+                type="button"
+                className="hist-del"
+                title={t('hist.remove')}
+                aria-label={t('hist.remove')}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (historyKey) removeEntry(historyKey, item);
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -101,7 +266,7 @@ function AddEditor({ rule, patch }: { rule: AddRule; patch: Patch }) {
       {rule.mode === 'direct' ? (
         <>
           <Field label={t('f.insertText')}>
-            <TextInput value={rule.text} mono onChange={(text) => patch({ text })} placeholder={t('ph.insert')} />
+            <TextInput value={rule.text} mono onChange={(text) => patch({ text })} placeholder={t('ph.insert')} historyKey="add.text" />
           </Field>
           <Field label={t('f.position')}>
             <div className="field-row">
@@ -143,10 +308,10 @@ function ReplaceEditor({ rule, patch }: { rule: ReplaceRule; patch: Patch }) {
     <>
       <div className="field-row">
         <Field label={t('f.find')}>
-          <TextInput value={rule.find} mono onChange={(find) => patch({ find })} placeholder={t('ph.find')} />
+          <TextInput value={rule.find} mono onChange={(find) => patch({ find })} placeholder={t('ph.find')} historyKey="replace.find" />
         </Field>
         <Field label={t('f.replaceWith')}>
-          <TextInput value={rule.replace} mono onChange={(replace) => patch({ replace })} placeholder={t('ph.replace')} />
+          <TextInput value={rule.replace} mono onChange={(replace) => patch({ replace })} placeholder={t('ph.replace')} historyKey="replace.replace" />
         </Field>
       </div>
       <div className="field-row" style={{ marginBottom: 9, justifyContent: 'space-between' }}>
@@ -197,10 +362,10 @@ function DeleteEditor({ rule, patch }: { rule: DeleteRule; patch: Patch }) {
         <>
           <div className="field-row">
             <Field label={t('f.startMarker')}>
-              <TextInput value={rule.left} mono onChange={(left) => patch({ left })} placeholder={t('ph.left')} />
+              <TextInput value={rule.left} mono onChange={(left) => patch({ left })} placeholder={t('ph.left')} historyKey="delete.left" />
             </Field>
             <Field label={t('f.endMarker')}>
-              <TextInput value={rule.right} mono onChange={(right) => patch({ right })} placeholder={t('ph.right')} />
+              <TextInput value={rule.right} mono onChange={(right) => patch({ right })} placeholder={t('ph.right')} historyKey="delete.right" />
             </Field>
           </div>
           <div className="field-row">
@@ -212,7 +377,7 @@ function DeleteEditor({ rule, patch }: { rule: DeleteRule; patch: Patch }) {
       {rule.mode === 'charset' && (
         <>
           <Field label={t('f.charset')}>
-            <TextInput value={rule.chars} mono onChange={(chars) => patch({ chars })} placeholder={t('ph.charset')} />
+            <TextInput value={rule.chars} mono onChange={(chars) => patch({ chars })} placeholder={t('ph.charset')} historyKey="delete.chars" />
           </Field>
           <Toggle on={rule.keep} label={t('f.keepOnly')} onChange={(keep) => patch({ keep })} />
         </>
@@ -229,7 +394,7 @@ function NumberEditor({ rule, patch }: { rule: NumberRule; patch: Patch }) {
   return (
     <>
       <Field label={t('f.numberExpr')}>
-        <TextInput value={rule.expression} mono onChange={(expression) => patch({ expression })} placeholder={t('ph.number')} />
+        <TextInput value={rule.expression} mono onChange={(expression) => patch({ expression })} placeholder={t('ph.number')} historyKey="number.expression" />
       </Field>
       <div className="field-row" style={{ marginBottom: 9 }}>
         <Field label={t('f.start')}>
@@ -296,7 +461,7 @@ function CaseEditor({ rule, patch }: { rule: CaseRule; patch: Patch }) {
       </Field>
       {rule.mode === 'title' && (
         <Field label={t('f.separators')}>
-          <TextInput value={rule.separators} mono onChange={(separators) => patch({ separators })} />
+          <TextInput value={rule.separators} mono onChange={(separators) => patch({ separators })} historyKey="case.separators" />
         </Field>
       )}
       {rule.mode === 'random' && (
@@ -331,6 +496,7 @@ function ExtEditor({ rule, patch }: { rule: ExtRule; patch: Patch }) {
             mono
             onChange={(value) => patch({ value })}
             placeholder={rule.mode === 'number' ? '2' : t('ph.ext')}
+            historyKey={rule.mode === 'number' ? 'ext.number' : `ext.${rule.mode}`}
           />
         </Field>
       )}
@@ -375,7 +541,7 @@ function MetaEditor({ rule, patch }: { rule: MetaRule; patch: Patch }) {
       </Field>
       {rule.mode !== 'replace' && (
         <Field label={t('f.separator')}>
-          <TextInput value={rule.separator} small onChange={(separator) => patch({ separator })} placeholder={t('ph.metaSep')} />
+          <TextInput value={rule.separator} small onChange={(separator) => patch({ separator })} placeholder={t('ph.metaSep')} historyKey="meta.separator" />
         </Field>
       )}
       <div className="hint-line">{t('f.metaHint')}</div>

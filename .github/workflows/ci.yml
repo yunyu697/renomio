@@ -65,6 +65,9 @@ jobs:
       - name: 拖放状态机自测（21 条）
         run: npm run test:drop
 
+      - name: 输入历史逻辑自测（26 条）
+        run: npm run test:history
+
       - name: 生产构建（vite build）
         run: npx vite build
 
