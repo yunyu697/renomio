@@ -3,12 +3,13 @@
  * 版本规则校验（单一版本来源 = 仓库根 VERSION 文件）：
  *   1) 格式：<major>.<minor>.<patch> 或 <major>.<minor>.<patch>-alpha<N>
  *   2) 段位：除第一段外，每段数值 <= 10（minor / patch / alpha 序号）
- *   3) alpha 序号：单调递增、不复用、不带前导零、不得为 0
+ *   3) alpha 序号：单调递增、不复用、不带前导零、不得为 0（**仅 tag 推送时严格**）
  *   4) tag（v 前缀）去掉 v 后必须与 VERSION 完全一致
  *   5) 各清单文件必须与 VERSION 一致（漂移即失败）
+ *   6) 分支推送只要求 VERSION 不低于最新已发布 alpha（等于可通过，低于才拦截）
  *
  * 用法：
- *   node scripts/check-version.mjs                 # 校验 VERSION + 清单 + 本地已有 tag 单调性
+ *   node scripts/check-version.mjs                 # 校验 VERSION + 清单（分支推送上只校验下限）
  *   node scripts/check-version.mjs --tag v1.0.0-alpha1
  *   node scripts/check-version.mjs --self-test     # 反例自测（不需要仓库状态）
  */
@@ -73,6 +74,9 @@ export function validateTagPair(version, tag) {
 /**
  * 纯函数：alpha 序号必须严格大于同一 base 版本已发布的最大 alpha。
  * existingTags 为 v 开头的 tag 列表。
+ *
+ * 只用于 **tag 推送**：alpha 复用（等于）与 alpha 倒退（小于）都拦截。
+ * 分支推送不走这里，改用 `validateBranchFloor`（等于可通过）。
  */
 export function validateMonotonic(version, existingTags) {
   const parsed = parseVersion(version);
@@ -84,6 +88,39 @@ export function validateMonotonic(version, existingTags) {
     .reduce((acc, p) => Math.max(acc, p.alpha), 0);
   if (maxExisting >= parsed.alpha) {
     return [`alpha 序号必须递增：已有 alpha${maxExisting}，本次为 alpha${parsed.alpha}`];
+  }
+  return [];
+}
+
+/** 纯函数：版本比较。正式版高于同 base 的 alpha，其余按 major/minor/patch/alpha 数值。 */
+export function compareVersions(a, b) {
+  for (const key of ['major', 'minor', 'patch']) {
+    if (a[key] !== b[key]) return a[key] < b[key] ? -1 : 1;
+  }
+  if (a.alpha === null && b.alpha === null) return 0;
+  if (a.alpha === null) return 1;
+  if (b.alpha === null) return -1;
+  if (a.alpha !== b.alpha) return a.alpha < b.alpha ? -1 : 1;
+  return 0;
+}
+
+/**
+ * 纯函数：**分支推送**的版本下限。
+ * 只要求 `version` 不低于最新已发布 alpha：等于可通过，低于才拦截。
+ * 严格递增、alpha 复用、alpha 倒退由 tag 推送时的 `validateMonotonic` 负责。
+ */
+export function validateBranchFloor(version, existingTags) {
+  const parsed = parseVersion(version);
+  if (!parsed) return [`版本不合法，无法判断下限：${version}`];
+  const released = existingTags
+    .map((t) => (/^v/.test(t) ? parseVersion(t.slice(1)) : null))
+    .filter((p) => p && p.alpha !== null);
+  if (released.length === 0) return [];
+  const latest = released.reduce((acc, p) => (compareVersions(p, acc) > 0 ? p : acc));
+  if (compareVersions(parsed, latest) < 0) {
+    return [
+      `分支推送的版本 ${version} 低于最新已发布 ${latest.base}-alpha${latest.alpha}，请先推进 VERSION`,
+    ];
   }
   return [];
 }
@@ -156,6 +193,18 @@ function selfTest() {
   });
   add('接受 alpha 递增（已有 alpha1，本次 alpha2）', () =>
     validateMonotonic('1.0.0-alpha2', ['v1.0.0-alpha1']).length ? '被误拦' : null);
+  add('分支推送：已有 alpha5，main 推送 alpha5 → 允许', () =>
+    validateBranchFloor('1.0.0-alpha5', ['v1.0.0-alpha4', 'v1.0.0-alpha5']).length ? '被误拦' : null);
+  add('分支推送：已有 alpha5，main 推送 alpha4 → 拒绝', () => {
+    const errs = validateBranchFloor('1.0.0-alpha4', ['v1.0.0-alpha4', 'v1.0.0-alpha5']);
+    return errs.length ? null : '未被拦截';
+  });
+  // tag 推送仍走 validateMonotonic：已有 alpha5 时再验 alpha5 必须被拒
+  // （Git/GitHub 本身会拒绝重复 tag 引用，这里校验的是闸门自身的兜底行为）
+  add('tag 推送：已有 alpha5，alpha5 重复 → 仍拒绝', () => {
+    const errs = validateMonotonic('1.0.0-alpha5', ['v1.0.0-alpha5']);
+    return errs.length ? null : '未被拦截';
+  });
   add('拒绝正式版 0.x.y', () => validateVersionString('0.9.0').length ? null : '未被拦截');
   add('拒绝前导零 major（01.0.0）', () => validateVersionString('01.0.0').length ? null : '未被拦截');
 
@@ -196,9 +245,13 @@ function main() {
 
   const tags = gitTags();
   if (tags === null) {
-    console.log('提示：未读取到 git tag（可能不在 git 仓库中），跳过单调性检查');
-  } else if (tag || process.env.CI) {
+    console.log('提示：未读取到 git tag（可能不在 git 仓库中），跳过版本闸门');
+  } else if (tag) {
+    // tag 推送：严格递增，alpha 复用与倒退一律拦截
     errors.push(...validateMonotonic(version, tags.filter((t) => t !== tag)));
+  } else if (process.env.CI) {
+    // 分支推送：只要求不低于最新已发布 alpha（等于可通过）
+    errors.push(...validateBranchFloor(version, tags));
   }
 
   if (errors.length > 0) {
