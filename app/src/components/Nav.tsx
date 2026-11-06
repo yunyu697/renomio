@@ -12,42 +12,16 @@ interface NavEntry {
   action?: () => void;
 }
 
+/** 左侧只保留「查看/整理」导航；规则的增删改排全部在右侧规则链模块内完成，避免两套入口。 */
 export function Nav() {
   const { t } = useTranslation();
-  const rules = useApp((s) => s.rules);
   const batches = useApp((s) => s.batches);
   const openDrawer = useApp((s) => s.openDrawer);
   const openOps = useApp((s) => s.openOps);
   const setListTab = useApp((s) => s.setListTab);
-  const addRule = useApp((s) => s.addRule);
-  const updateRule = useApp((s) => s.updateRule);
-  const showToast = useApp((s) => s.showToast);
   const openPlanExport = useApp((s) => s.openPlanExport);
 
-  /** 高级规则：直接插入一条正则替换规则，并在编辑器里默认勾选正则。 */
-  const addAdvanced = () => {
-    addRule('replace');
-    const newest = useApp.getState().rules.at(-1);
-    if (newest?.type === 'replace') updateRule(newest.id, { regex: true });
-    showToast('info', t('nav.advancedToast'));
-  };
-
-  /** 特定文件类型：切到与当前列表最相关的类型页签。 */
-  const openSpecific = () => {
-    setListTab('photo');
-    showToast('info', t('nav.specificToast'));
-  };
-
   const groups: Array<{ label: string; items: NavEntry[] }> = [
-    {
-      label: t('nav.renameGroup'),
-      items: [
-        { id: 'basic', label: t('nav.basic'), icon: 'bolt', count: rules.filter((r) => r.enabled).length || undefined, action: () => setListTab('rename') },
-        { id: 'advanced', label: t('nav.advanced'), icon: 'layers', action: addAdvanced },
-        { id: 'ext', label: t('nav.ext'), icon: 'tag', action: () => addRule('ext') },
-        { id: 'specific', label: t('nav.specific'), icon: 'file-plus', action: openSpecific },
-      ],
-    },
     {
       label: t('nav.metaGroup'),
       items: [
@@ -75,7 +49,7 @@ export function Nav() {
           {group.items.map((item) => (
             <div
               key={item.id}
-              className={`nav-item ${item.id === 'basic' ? 'active' : ''}`}
+              className="nav-item"
               onClick={item.action ?? (() => undefined)}
               title={item.hint ?? item.label}
               data-testid={`nav-${item.id}`}

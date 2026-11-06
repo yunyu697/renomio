@@ -255,6 +255,7 @@ export const esES: Dict = {
   'rules.delete': 'Eliminar',
   'rules.live': 'Vista previa en vivo',
   'rules.add': 'Añadir regla',
+  'rules.selectHint': 'Selecciona una regla a la izquierda para editarla aquí; las reglas nuevas se seleccionan automáticamente.',
   'rules.stats': '{total} elementos · {ready} ejecutables · {conflict} conflictos',
   'rules.objectsUnit': 'elementos',
   'rules.autoPreview': 'Vista previa de reglas en vivo',

@@ -278,6 +278,7 @@ export const zhCN: Dict = {
   'rules.delete': '删除',
   'rules.live': '即时预览',
   'rules.add': '添加规则',
+  'rules.selectHint': '选中左侧规则后，在右侧直接编辑；新增的规则会自动选中。',
   'rules.stats': '{total} 个对象 · {ready} 可执行 · {conflict} 冲突',
   'rules.objectsUnit': '个对象',
   'rules.autoPreview': '规则即时预览',

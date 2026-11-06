@@ -255,6 +255,7 @@ export const zhTW: Dict = {
   'rules.delete': '刪除',
   'rules.live': '即時預覽',
   'rules.add': '加入規則',
+  'rules.selectHint': '選取左側規則後，在右側直接編輯；新增的規則會自動選取。',
   'rules.stats': '{total} 個物件 · {ready} 可執行 · {conflict} 衝突',
   'rules.objectsUnit': '個物件',
   'rules.autoPreview': '規則即時預覽',

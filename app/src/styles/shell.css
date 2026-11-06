@@ -13,12 +13,16 @@ body { margin: 0; overflow: hidden; }
 }
 
 .workspace:has(.rules.collapsed) {
-  grid-template-columns: 218px minmax(0, 1fr) 48px;
+  grid-template-columns: 200px minmax(0, 1fr) 48px;
 }
 
+@media (max-width: 1280px) {
+  .workspace { grid-template-columns: 188px minmax(0, 1fr) 408px; }
+  .workspace:has(.rules.collapsed) { grid-template-columns: 188px minmax(0, 1fr) 48px; }
+}
 @media (max-width: 1080px) {
-  .workspace { grid-template-columns: 196px minmax(0, 1fr) 300px; }
-  .workspace:has(.rules.collapsed) { grid-template-columns: 196px minmax(0, 1fr) 48px; }
+  .workspace { grid-template-columns: 188px minmax(0, 1fr) 392px; }
+  .workspace:has(.rules.collapsed) { grid-template-columns: 188px minmax(0, 1fr) 48px; }
 }
 
 /* 演示模式提示条 */
@@ -258,28 +262,38 @@ body { margin: 0; overflow: hidden; }
   padding-left: 8px;
 }
 
-.rule-menu {
-  position: absolute;
-  left: 0; right: 0;
-  bottom: 38px;
+/* 添加规则菜单：portal 到 body + fixed 定位，不受侧栏/滚动容器裁剪，窄窗口也完整可见 */
+.rule-menu-pop {
+  position: fixed;
+  z-index: 90;
   background: var(--panel);
   border: 1px solid var(--line-strong);
   border-radius: 10px;
   box-shadow: var(--shadow-md);
   padding: 5px;
-  z-index: 20;
+  max-height: 360px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  outline: none;
+  animation: fade-in .12s ease;
 }
 .rule-menu-item {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   padding: 7px 9px;
+  border: 0;
   border-radius: 7px;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
   cursor: pointer;
   font-size: 12px;
   color: var(--ink-2);
 }
-.rule-menu-item:hover { background: var(--accent-weak); color: var(--accent-ink); }
+.rule-menu-item:hover,
+.rule-menu-item.active { background: var(--accent-weak); color: var(--accent-ink); }
 .rule-menu-item > span:first-child { flex: 0 0 auto; }
 .rule-menu-desc { margin-left: auto; font-size: 10.5px; color: var(--muted); }
 

@@ -255,6 +255,7 @@ export const jaJP: Dict = {
   'rules.delete': '削除',
   'rules.live': 'ライブプレビュー',
   'rules.add': 'ルールを追加',
+  'rules.selectHint': '左のルールを選ぶと、右側でそのまま編集できます。追加したルールは自動選択されます。',
   'rules.stats': '{total} 件 · {ready} 実行可能 · {conflict} 競合',
   'rules.objectsUnit': '件',
   'rules.autoPreview': 'ルールのライブプレビュー',

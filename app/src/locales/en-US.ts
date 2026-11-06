@@ -255,6 +255,7 @@ export const enUS: Dict = {
   'rules.delete': 'Delete',
   'rules.live': 'Live preview',
   'rules.add': 'Add rule',
+  'rules.selectHint': 'Select a rule on the left to edit it here; new rules are selected automatically.',
   'rules.stats': '{total} items · {ready} executable · {conflict} conflicts',
   'rules.objectsUnit': 'items',
   'rules.autoPreview': 'Live rule preview',

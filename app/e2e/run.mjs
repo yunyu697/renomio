@@ -349,8 +349,8 @@ async function main() {
     await waitFor(`document.querySelector('[data-testid="rule-type-replace"]')`, '规则菜单');
     await click('[data-testid="rule-type-replace"]');
     await waitFor(`document.querySelectorAll('[data-testid="rule-card"]').length === 1`, '替换规则卡');
-    await setInput('.rule-card .input', '旧照片 ', 0);
-    await setInput('.rule-card .input', '旅行_', 1);
+    await setInput('.rule-detail .input', '旧照片 ', 0);
+    await setInput('.rule-detail .input', '旅行_', 1);
     await waitFor(`document.querySelector('.trow')?.textContent.includes('旅行_001')`, '替换规则即时预览');
     check('UI', '规则编辑 → 原名/新名实时预览', (await textOf('.trow')).includes('旅行_001'));
     await waitFor(`[...document.querySelectorAll('.trow')].some((r) => r.textContent.includes('冲突'))`, '冲突检测', 15000);
@@ -1196,8 +1196,8 @@ async function main() {
     await waitFor(`document.querySelector('[data-testid="rule-type-replace"]')`, '阶段 A 规则菜单');
     await click('[data-testid="rule-type-replace"]');
     await waitFor(`document.querySelectorAll('[data-testid="rule-card"]').length === 1`, '阶段 A 替换规则');
-    await setInput('.rule-card .input', '旧照片 ', 0);
-    await setInput('.rule-card .input', '权限_', 1);
+    await setInput('.rule-detail .input', '旧照片 ', 0);
+    await setInput('.rule-detail .input', '权限_', 1);
     await waitFor(`document.querySelector('.trow')?.textContent.includes('权限_001')`, '阶段 A 预览生效');
 
     const deniedPath = 'D:\\e2e\\旅行\\旧照片 001.jpg';
