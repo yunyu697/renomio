@@ -1,6 +1,10 @@
-import { useEffect, useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useDiskSync, usePreview } from './hooks/usePreview';
 import { installDropHandler } from './lib/bridge';
+import {
+  LEAVE_GRACE_MS, domDepthAfter, dropReduce, dropVisible,
+  type DropSignal, type DropState,
+} from './lib/dropGate';
 import { useTranslation } from './i18n';
 import { PRODUCT_NAME } from './lib/branding';
 import { useApp } from './store';
@@ -35,6 +39,8 @@ export function App() {
   const migration = useApp((s) => s.migration);
   const settings = useApp((s) => s.settings);
   const dismissMigrationNotice = useApp((s) => s.dismissMigrationNotice);
+  /** Esc 时强制复位拖放提示（窗口内按 Esc 取消拖拽时未必收到 leave）。 */
+  const dropResetRef = useRef<() => void>(() => undefined);
   useDiskSync(preview);
 
   // React 首次提交（commit）时间，供启动分段统计；并通知入口显窗（保证内容已提交再显示）
@@ -63,14 +69,46 @@ export function App() {
   useEffect(() => {
     let dispose: () => void = () => undefined;
     let alive = true;
+    let state: DropState = { status: 'idle' };
+    let leaveTimer: number | null = null;
+    let domDepth = 0;
+
+    const clearLeaveTimer = () => {
+      if (leaveTimer !== null) {
+        window.clearTimeout(leaveTimer);
+        leaveTimer = null;
+      }
+    };
+    const apply = (signal: DropSignal) => {
+      clearLeaveTimer();
+      state = dropReduce(state, signal, performance.now());
+      if (state.status === 'leaving') {
+        leaveTimer = window.setTimeout(() => {
+          leaveTimer = null;
+          state = { status: 'idle' };
+          setDragging(false);
+        }, LEAVE_GRACE_MS);
+      }
+      setDragging(dropVisible(state, performance.now()));
+    };
+    const reset = () => {
+      domDepth = 0;
+      apply({ kind: 'cancel' });
+    };
+    dropResetRef.current = reset;
+
     void installDropHandler(
       (paths) => {
-        setDragging(false);
+        apply({ kind: 'drop', files: paths.length });
         if (!paths.length) return;
         useApp.getState().showToast('info', t('app.dropReceived', { count: paths.length }));
         void addPaths(paths);
       },
-      (phase) => setDragging(phase === 'enter' || phase === 'over'),
+      (phase, files) => {
+        if (phase === 'enter') apply({ kind: 'enter', files });
+        else if (phase === 'over') apply({ kind: 'over' });
+        else if (phase === 'leave') apply({ kind: 'leave' });
+      },
     ).then((fn) => {
       if (alive) dispose = fn;
       else fn();
@@ -79,31 +117,50 @@ export function App() {
     /** 只有真正携带文件的外部拖拽才显示文件拖放遮罩；规则卡片的内部拖拽不误触发。 */
     const isFileDrag = (e: DragEvent) =>
       Array.from(e.dataTransfer?.types ?? []).some((type) => type.toLowerCase() === 'files');
-    const prevent = (e: DragEvent) => {
+    const onDragEnter = (e: DragEvent) => {
       if (!isFileDrag(e)) return;
       e.preventDefault();
-      if (e.type === 'dragover' || e.type === 'dragenter') setDragging(true);
-      if (e.type === 'dragleave' && e.relatedTarget === null) setDragging(false);
+      domDepth = domDepthAfter(domDepth, 1);
+      apply({ kind: 'enter', files: e.dataTransfer?.files?.length || 1 });
+    };
+    const onDragOver = (e: DragEvent) => {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      if (domDepth > 0) apply({ kind: 'over' });
+    };
+    const onDragLeave = (e: DragEvent) => {
+      if (!isFileDrag(e)) return;
+      domDepth = domDepthAfter(domDepth, -1);
+      if (domDepth === 0) apply({ kind: 'leave' });
     };
     const onDrop = (e: DragEvent) => {
       if (!isFileDrag(e)) return;
       e.preventDefault();
-      setDragging(false);
+      domDepth = 0;
+      apply({ kind: 'drop', files: e.dataTransfer?.files?.length || 1 });
       if (isDemo) {
         useApp.getState().showToast('info', t('app.demoDrop'));
       }
     };
-    window.addEventListener('dragover', prevent);
-    window.addEventListener('dragenter', prevent);
-    window.addEventListener('dragleave', prevent);
+    window.addEventListener('dragenter', onDragEnter);
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('dragleave', onDragLeave);
+    window.addEventListener('dragend', reset);
     window.addEventListener('drop', onDrop);
+    window.addEventListener('blur', reset);
+    document.addEventListener('visibilitychange', reset);
     return () => {
       alive = false;
       dispose();
-      window.removeEventListener('dragover', prevent);
-      window.removeEventListener('dragenter', prevent);
-      window.removeEventListener('dragleave', prevent);
+      clearLeaveTimer();
+      dropResetRef.current = () => undefined;
+      window.removeEventListener('dragenter', onDragEnter);
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('dragleave', onDragLeave);
+      window.removeEventListener('dragend', reset);
       window.removeEventListener('drop', onDrop);
+      window.removeEventListener('blur', reset);
+      document.removeEventListener('visibilitychange', reset);
     };
   }, [addPaths, isDemo, setDragging, t]);
 
@@ -117,6 +174,7 @@ export function App() {
       if (!mod) {
         if (e.key === 'Escape') {
           const state = useApp.getState();
+          dropResetRef.current();
           if (state.previewOpen) state.closePreview();
           else if (state.opsMode) state.closeOps();
           else if (state.drawer) state.closeDrawer();

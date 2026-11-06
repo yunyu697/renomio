@@ -204,7 +204,8 @@ export async function pickFolders(): Promise<string[]> {
 
 export async function installDropHandler(
   onDrop: (paths: string[]) => void,
-  onPhase?: (phase: 'enter' | 'over' | 'drop' | 'leave') => void,
+  /** files 为该阶段携带的路径数量：enter 只有在 > 0 时才是真正的文件拖入。 */
+  onPhase?: (phase: 'enter' | 'over' | 'drop' | 'leave', files: number) => void,
 ): Promise<() => void> {
   if (!isDesktop) return () => undefined;
   try {
@@ -212,10 +213,12 @@ export async function installDropHandler(
     return await getCurrentWebview().onDragDropEvent((event) => {
       const payload = event.payload;
       if (payload.type === 'drop') {
-        onPhase?.('drop');
+        onPhase?.('drop', payload.paths.length);
         onDrop(payload.paths);
+      } else if (payload.type === 'enter') {
+        onPhase?.('enter', payload.paths.length);
       } else {
-        onPhase?.(payload.type);
+        onPhase?.(payload.type, 0);
       }
     });
   } catch {

@@ -62,6 +62,9 @@ jobs:
       - name: 类型检查（tsc --noEmit）
         run: npx tsc --noEmit
 
+      - name: 拖放状态机自测（21 条）
+        run: npm run test:drop
+
       - name: 生产构建（vite build）
         run: npx vite build
 
