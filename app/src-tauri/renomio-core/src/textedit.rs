@@ -507,7 +507,19 @@ mod tests {
     fn detects_and_roundtrips_all_five() {
         let text = "第一行\n第二行 abc\n";
         for enc in [UTF8, UTF8BOM, GB18030, UTF16LE, UTF16BE] {
-            let bytes = encode(text, enc).unwrap();
+            // GB18030 依赖 Windows 系统代码页 54936；非 Windows 必须明确报「不支持」，
+            // 不得静默降级，也不跳过该编码的检查
+            let bytes = match encode(text, enc) {
+                Ok(bytes) => bytes,
+                Err(err) if enc == GB18030 && cfg!(not(windows)) => {
+                    assert!(
+                        err.contains("仅支持在 Windows"),
+                        "GB18030 在非 Windows 上应明确报不支持，实际：{err}"
+                    );
+                    continue;
+                }
+                Err(err) => panic!("{enc} 编码失败：{err}"),
+            };
             let path = temp(&format!("{enc}.txt"), &bytes);
             let d = detect(path.to_str().unwrap()).unwrap();
             assert_eq!(d.encoding, enc, "{enc} 探测失败：{}", d.encoding_label);
@@ -532,12 +544,30 @@ mod tests {
 
     #[test]
     fn non_utf8_is_not_silently_utf8() {
-        // GBK「中文」在 UTF-8 下非法，但可按 GB18030 试探解码，必须标记未确认
+        // GBK「中文」在 UTF-8 下非法：Windows 可按 GB18030 试探解码并标记未确认，
+        // 非 Windows 无该代码页，必须报「未识别」，两者都不做静默 UTF-8 猜测
         let path = temp("gbk.txt", &[0xD6, 0xBA, 0xB0, 0xCF]);
         let d = detect(path.to_str().unwrap()).unwrap();
-        assert_eq!(d.encoding, GB18030);
-        assert!(!d.confirmed);
-        assert!(d.warnings.iter().any(|w| w.contains("手动")));
+        if cfg!(windows) {
+            assert_eq!(d.encoding, GB18030);
+            assert!(!d.confirmed);
+            assert!(d.warnings.iter().any(|w| w.contains("手动")));
+        } else {
+            // 非 Windows 无系统 GB18030 代码页：不得静默当成 UTF-8，必须报「未识别」
+            assert_eq!(d.encoding, "unknown");
+            assert!(!d.confirmed);
+            assert!(d.warnings.iter().any(|w| w.contains("手动指定源编码")));
+            let decode_err = gb18030_to_string(&[0xD6, 0xBA, 0xB0, 0xCF]).unwrap_err();
+            assert!(
+                decode_err.contains("仅支持在 Windows"),
+                "非 Windows 解码应明确报不支持，实际：{decode_err}"
+            );
+            let encode_err = string_to_gb18030("中文").unwrap_err();
+            assert!(
+                encode_err.contains("仅支持在 Windows"),
+                "非 Windows 编码应明确报不支持，实际：{encode_err}"
+            );
+        }
         let _ = fs::remove_file(&path);
     }
 
