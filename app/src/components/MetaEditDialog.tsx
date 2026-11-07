@@ -11,6 +11,7 @@ import { Icon } from './Icon';
 /** 可编辑字段的固定展示顺序；是否出现由「文件格式支持」决定。 */
 const FIELD_ORDER: MetaFieldId[] = [
   'title', 'description', 'keywords', 'author', 'copyright', 'software', 'takenAt',
+  'headline', 'bylineTitle', 'credit', 'source',
   'artist', 'albumArtist', 'album', 'year', 'track', 'genre', 'comment', 'lyrics',
   'subject', 'lastModifiedBy', 'category',
 ];

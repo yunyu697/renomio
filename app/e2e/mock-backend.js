@@ -145,11 +145,11 @@
     state.files.forEach((f, i) => map.set(key(f.path), i));
     return map;
   };
-  const IMAGE_FIELDS = ['title', 'description', 'keywords', 'author', 'copyright', 'software', 'takenAt'];
+  const IMAGE_FIELDS = ['title', 'description', 'keywords', 'author', 'copyright', 'software', 'takenAt', 'headline', 'bylineTitle', 'credit', 'source'];
   const AUDIO_FIELDS = ['title', 'artist', 'album', 'year', 'track', 'genre', 'comment', 'albumArtist', 'lyrics', 'cover'];
   const DOC_FIELDS = ['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category'];
   const META_DEFAULTS = {
-    image: { title: '旧照片', description: '旅行随拍', keywords: '旅行;风景', author: '摄影师', copyright: '© 2025', software: 'Renomio', takenAt: '2024-05-01T10:20:30' },
+    image: { title: '旧照片', description: '旅行随拍', keywords: '旅行;风景', author: '摄影师', copyright: '© 2025', software: 'Renomio', takenAt: '2024-05-01T10:20:30', headline: '春游', bylineTitle: '摄影记者', credit: '某通讯社', source: '素材库' },
     audio: { title: '旧歌名', artist: '歌手', album: '专辑', year: '2024', track: '3', genre: 'Pop', comment: '备注', albumArtist: '乐队', lyrics: '第一行\n第二行' },
     document: { title: '旧文档标题', subject: '主题', author: '作者', lastModifiedBy: '最后修改者', keywords: '关键词', comment: '备注', category: '类别' },
     other: {},

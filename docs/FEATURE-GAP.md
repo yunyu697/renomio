@@ -79,21 +79,21 @@
 
 | # | 功能 | 状态 | 验证证据 | 与商业标杆的差距 |
 | --- | --- | --- | --- | --- |
-| 5.1 | 图片 JPEG / PNG / WebP / TIFF 七字段读写清空（标题/描述/关键词/作者/版权/软件/拍摄时间） | A | `verify_meta.py` 270 项断言 0 失败 | 原版 EXIF/IPTC/XMP 三套标签更细（相机参数、光圈、快门等）；我们只写文本字段，读数只读展示 |
+| 5.1 | 图片 JPEG / PNG / WebP / TIFF 十一字段读写清空（七通用字段 + IPTC Core 的 Headline / By-line Title / Credit / Source，**仅写 XMP**） | A | `verify_meta.py` 270 项 + `metaedit::image` 8 项；真实 JPEG/PNG 回读四字段一致、无 8BIM/APP13 | 原版 EXIF/IPTC/XMP 三套标签更细；我们**不写 IPTC-IIM**（PNG/WebP/TIFF 无 IIM 载体，需自写二进制编解码且有损坏风险） |
 | 5.2 | EXIF / GPS / ICC 原样保留（只改选中字段） | A | 改前改后 Pillow/ffprobe 对照；GPS/ICC 保留断言 | 原版也强调保留；持平 |
 | 5.3 | 写前备份 + 可撤销（`.bak.<ms>`） | A | 备份字节一致、restore 字节还原 | 原版有备份还原；持平 |
 | 5.4 | HEIC / HEIF | N | `bridge.ts` 明确 `writable:false`，探针拒绝并给文件与原因 | 原版支持 HEIC（推测经第三方库）；本版不做 |
 | 5.5 | GIF / BMP / AVIF | N | 明确只读/不支持写入 | 原版支持部分格式；本版不做 |
-| 5.6 | MP3 ID3v2.3 / 2.4（中文/日文、COMM+TXXX 同步、保留其它帧） | A | `verify_meta.py` 音频段；ffprobe/ffmpeg md5 不变 | 原版音乐标签支持歌词/封面/进阶；我们无歌词、无进阶字段 |
-| 5.7 | FLAC（Vorbis comment + 原生 PICTURE，兼容 ffmpeg pic_type=0） | A | 同上 | 原版有歌词/封面；我们封面/字段已覆盖，无歌词 |
-| 5.8 | M4A / MP4（iTunes ilst atoms） | A | 同上 | 原版支持多媒体标签；持平（字段更少） |
+| 5.6 | MP3 ID3v2.3 / 2.4（中文/日文、COMM/USLT 同步、保留其它帧） | A | `verify_meta.py` 音频段；Rust `USLT` 往返；ffprobe 回读 `lyrics`、ffmpeg 音频 md5 不变 | 原版音乐标签支持歌词/封面/进阶；我们已补歌词，仍无进阶字段 |
+| 5.7 | FLAC / OGG（Vorbis comment 的 `LYRICS` 键；FLAC 原生 PICTURE 兼容 ffmpeg pic_type=0） | A | Rust `LYRICS` 往返 + ffprobe 回读 `lyrics` | 原版有歌词/封面；我们封面/歌词/字段均覆盖 |
+| 5.8 | M4A / MP4（iTunes ilst atoms，含 `©lyr`） | A | 同上 | 原版支持多媒体标签；持平（字段更少） |
 | 5.9 | OGG (Vorbis) / Opus（注释头重建、framing bit、页序号重排） | A | 同上；能力表拆分为两行 | 原版支持 OGG；持平 |
 | 5.10 | 封面读写（读/换/清） | A | 音频/图片段断言 | 原版支持封面；持平 |
 | 5.11 | WMA / APE / WAV / AIFF | N | 明确拒绝，不静默跳过 | 原版支持 WMA/APE；本版不做 |
 | 5.12 | DOCX / XLSX / PPTX core properties（7 字段，只改 `docProps/core.xml`） | A | `verify_docs.py` 70 项断言 + Office COM 打开校验（无修复提示） | 原版 Office 摘要字段更全（公司/经理/模板等）；我们 7 字段 |
 | 5.13 | PDF Info + XMP（Title/Author/Subject/Keywords，增量更新，页面逐字节保留） | A | pypdf strict + 原始字节前缀保留 + 页数/文本不变 | 原版 PDF 属性；我们 Info+XMP 同步，领先 |
 | 5.14 | 旧版 OLE（.doc/.xls/.ppt）、加密 PDF、xref 流 PDF | N | 明确拒绝并给原因 | 原版支持旧版 Office；本版不做 |
-| 5.15 | IPTC 独立字段 / 文本编码与内容批量修改 | E | 无实现 | 原版 #16、#17 有 IPTC 与文本编码/内容批量；差距明确 |
+| 5.15 | IPTC Core 四字段（Headline / By-line Title / Credit / Source，仅 XMP） | A（部分） | 真实 JPEG/PNG 写入并回读一致；无 8BIM/APP13 | 原版 #16 同时写 IPTC-IIM；文本编码/内容批量（#17）仍未做 |
 
 ## 域六 方案、导出与系统能力
 
@@ -143,7 +143,7 @@
 | 脚本 / 编码转换 / 内码 / 加密 / 对照表高级规则 | 原版 Delphi 特性，重实现成本高且易出错；先保证核心规则链稳定 |
 | 「无限次」撤销 | 磁盘备份策略与清理规则未定；当前按批次保留备份，可多级撤销 |
 | macOS/Linux 实机验证 | 无 mac/linux 环境；代码分支就绪但不敢宣称通过 |
-| IPTC 独立字段、歌词、文本编码/内容批量 | 与现有元数据模型差异大，需单独设计；本版先覆盖高频文本字段 |
+| 文本编码/内容批量、IPTC-IIM 写入 | 与现有元数据模型差异大，需单独设计；本版先覆盖高频文本字段（IPTC 仅写 XMP） |
 
 ## 对账中新发现、已补入本表的缺口
 
@@ -154,11 +154,11 @@
 - ~~归类缺变量与「撤销归类」~~——已补变量模板与多级目录、撤销沿用 move 批次（域六 6.5，1.1.0-alpha1）。
 - ~~快捷键无自动化验证、无键位列表窗~~——已补键位窗与自定义绑定（域六 6.10，1.1.0-alpha1）。
 - ~~多格式导出（Excel/HTML/RTF/TSV）缺失~~——已补 TSV/HTML/`.xlsx`（域六 6.2，1.1.0-alpha1）；RTF 不做。
-- IPTC 独立字段、歌词、文本编码/内容批量缺失——域五 5.15。
+- 文本编码/内容批量与 IPTC-IIM 写入缺失——域五 5.15；IPTC Core 四字段已补（仅 XMP），歌词已补（域五 5.6/5.7/5.8）。
 
 ## 统计
 
-A 有实测：51 项；B 仅单测：6 项；C 无验证：0 项；D 部分：4 项；E 未做：4 项；N 本版不做：4 项（合计 69 项）。
+A 有实测：51 项；B 仅单测：6 项；C 无验证：0 项；D 部分：5 项；E 未做：3 项；N 本版不做：4 项（合计 69 项）。
 
 ## 版本闸门（已拍板 A，已解决）
 

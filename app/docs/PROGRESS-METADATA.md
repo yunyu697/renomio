@@ -41,7 +41,7 @@
 ## 1. 图片元数据（已验）
 
 - 支持：JPEG（APP1 EXIF IFD0 + XMP 合并）、PNG（iTXt）、WebP（RIFF/VPX EXIF+XMP）、TIFF（IFD0）。
-- 字段：title / description / keywords / author / copyright / software / takenAt。
+- 字段：title / description / keywords / author / copyright / software / takenAt / headline / bylineTitle / credit / source（后四项 IPTC Core，仅写 XMP，不写 APP13/8BIM）。
 - 保留：相机 Make/Model/GPS/ICC；只改勾选字段；先备份后原子替换；逐字段回读校验。
 - 不支持：HEIC/HEIF（明确拒绝并说明原因）、GIF/BMP/AVIF。
 - 实测：`verify_meta.py` 图片段全部通过（Pillow 13 校验尺寸/像素哈希/ICC/EXIF/GPS，备份字节一致，restore 后字节完全还原）。
@@ -49,7 +49,7 @@
 ## 2. 音乐标签（已验）
 
 - 支持：MP3（ID3v2.3 UTF-16 / v2.4 UTF-8）、FLAC（Vorbis comment + PICTURE）、M4A/MP4（ilst/covr）、OGG Vorbis（+framing bit）、Opus（OpusTags）。
-- 字段：title / artist / album / year / track / genre / comment / albumArtist / cover。
+- 字段：title / artist / album / year / track / genre / comment / albumArtist / lyrics / cover（lyrics：MP3 `USLT`、FLAC/OGG `LYRICS`、M4A `©lyr`）。
 - 本轮修复：MP3 TXXX(comment) 与 COMM 同步；Vorbis 键统一小写且 comment 兼容 DESCRIPTION；OGG Vorbis 注释头补 framing bit；FLAC 封面按读取口径（type 3 优先，否则任取首个图片块）替换/清空，兼容 ffmpeg 写的 pic_type=0。
 - 不支持：WMA(ASF) / APE / AIFF / WAV（明确拒绝，不静默跳过）。
 - 实测：`verify_meta.py` 音频段 270 项断言 0 失败（含批量逐文件回传、中文/日文标签、解码帧 md5 不变、封面换/清）。

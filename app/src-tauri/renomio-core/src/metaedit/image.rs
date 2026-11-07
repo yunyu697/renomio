@@ -44,6 +44,10 @@ fn xmp_prop(id: &str) -> Option<&'static str> {
         "copyright" => "dc:rights",
         "software" => "xmp:CreatorTool",
         "takenAt" => "photoshop:DateCreated",
+        "headline" => "photoshop:Headline",
+        "bylineTitle" => "photoshop:AuthorsPosition",
+        "credit" => "photoshop:Credit",
+        "source" => "photoshop:Source",
         _ => return None,
     })
 }
@@ -98,6 +102,10 @@ fn read_xmp(packet: &str, fields: &mut FieldMap) {
         ("copyright", "dc:rights"),
         ("software", "xmp:CreatorTool"),
         ("takenAt", "photoshop:DateCreated"),
+        ("headline", "photoshop:Headline"),
+        ("bylineTitle", "photoshop:AuthorsPosition"),
+        ("credit", "photoshop:Credit"),
+        ("source", "photoshop:Source"),
     ];
     for (id, prop) in pairs {
         if fields.contains_key(id) {
@@ -1099,6 +1107,39 @@ mod tests {
         png.extend_from_slice(&png_chunk_bytes(&PngChunk { typ: *b"IDAT", data: vec![1, 2, 3, 4] }));
         png.extend_from_slice(&png_chunk_bytes(&PngChunk { typ: *b"IEND", data: vec![] }));
         png
+    }
+
+    #[test]
+    fn iptc_core_fields_written_to_xmp_and_read_back() {
+        let mut fields = FieldMap::new();
+        fields.insert("headline".into(), "春游".into());
+        fields.insert("bylineTitle".into(), "摄影记者".into());
+        fields.insert("credit".into(), "某通讯社".into());
+        fields.insert("source".into(), "素材库".into());
+
+        let (packet, warnings) = build_xmp(None, &fields);
+        assert!(warnings.is_empty());
+        for prop in [
+            "photoshop:Headline",
+            "photoshop:AuthorsPosition",
+            "photoshop:Credit",
+            "photoshop:Source",
+        ] {
+            assert!(packet.contains(prop), "应写入 {prop}");
+        }
+
+        let mut read = FieldMap::new();
+        read_xmp(&packet, &mut read);
+        assert_eq!(read.get("headline").map(String::as_str), Some("春游"));
+        assert_eq!(read.get("bylineTitle").map(String::as_str), Some("摄影记者"));
+        assert_eq!(read.get("credit").map(String::as_str), Some("某通讯社"));
+        assert_eq!(read.get("source").map(String::as_str), Some("素材库"));
+
+        // 清空即移除对应属性
+        let mut cleared = FieldMap::new();
+        cleared.insert("credit".into(), String::new());
+        let (packet2, _) = build_xmp(Some(&packet), &cleared);
+        assert!(!packet2.contains("photoshop:Credit"));
     }
 
     fn sample_jpeg() -> Vec<u8> {

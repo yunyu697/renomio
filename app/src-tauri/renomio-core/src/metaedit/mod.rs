@@ -27,6 +27,10 @@ pub const IMAGE_FIELDS: &[&str] = &[
     "copyright",
     "software",
     "takenAt",
+    "headline",
+    "bylineTitle",
+    "credit",
+    "source",
 ];
 /// 音频可写字段（MP3/FLAC/M4A/OGG）
 pub const AUDIO_FIELDS: &[&str] = &[
