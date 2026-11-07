@@ -831,15 +831,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "renomio-core"
-version = "1.1.0-alpha2"
-dependencies = [
- "flate2",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "field-offset"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2744,8 +2735,8 @@ name = "rename-studio"
 version = "1.1.0-alpha2"
 dependencies = [
  "base64 0.23.1",
- "renomio-core",
  "minisign-verify",
+ "renomio-core",
  "reqwest",
  "semver",
  "serde",
@@ -2753,6 +2744,15 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
+]
+
+[[package]]
+name = "renomio-core"
+version = "1.1.0-alpha2"
+dependencies = [
+ "flate2",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
