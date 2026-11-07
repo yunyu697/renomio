@@ -6,8 +6,78 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use serde::{Deserialize, Serialize};
+
 use super::util::*;
 use super::{FieldMap, Rewrite};
+
+/// EXIF 清除范围（分组勾选；Orientation 与 ICC 永远不在此列）
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExifClearScopes {
+    #[serde(default)]
+    pub gps: bool,
+    #[serde(default)]
+    pub camera: bool,
+    #[serde(default)]
+    pub time: bool,
+    #[serde(default)]
+    pub thumbnail: bool,
+    /// 全部 EXIF：清掉除 Orientation 以外的所有条目（含 GPS/相机/时间/缩略图）
+    #[serde(default)]
+    pub all: bool,
+}
+
+impl ExifClearScopes {
+    pub fn any(&self) -> bool {
+        self.gps || self.camera || self.time || self.thumbnail || self.all
+    }
+    fn label(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        if self.all {
+            out.push("all".into());
+            return out;
+        }
+        if self.gps {
+            out.push("gps".into());
+        }
+        if self.camera {
+            out.push("camera".into());
+        }
+        if self.time {
+            out.push("time".into());
+        }
+        if self.thumbnail {
+            out.push("thumbnail".into());
+        }
+        out
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExifGroup {
+    pub id: String,
+    pub label: String,
+    pub items: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExifInventory {
+    pub path: String,
+    pub format: String,
+    pub groups: Vec<ExifGroup>,
+    /// Orientation 原值；不存在则为 0
+    pub orientation: u16,
+    /// Orientation 是否会在清除后保留（本实现恒为 true，界面据此提示）
+    pub orientation_kept: bool,
+    pub has_icc: bool,
+    pub has_exif: bool,
+    pub has_xmp: bool,
+    pub has_thumbnail: bool,
+    pub warnings: Vec<String>,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ImageFormat {
@@ -33,6 +103,54 @@ const NS_DC: &str = "http://purl.org/dc/elements/1.1/";
 const NS_XMP: &str = "http://ns.adobe.com/xap/1.0/";
 const NS_PHOTOSHOP: &str = "http://ns.adobe.com/photoshop/1.0/";
 const NS_RDF: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+const NS_TIFF: &str = "http://ns.adobe.com/tiff/1.0/";
+const NS_EXIF: &str = "http://ns.adobe.com/exif/1.0/";
+const NS_IPTC_CORE: &str = "http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/";
+
+/// 纬度/经度十进制 → XMP 的「度,分」写法（exiftool 可读回）
+fn gps_dms(value: &str, latitude: bool) -> Option<(String, &'static str)> {
+    let v: f64 = value.trim().parse().ok()?;
+    if !(-180.0..=180.0).contains(&v) || !v.is_finite() {
+        return None;
+    }
+    let (hemi, abs) = if v < 0.0 {
+        (if latitude { "S" } else { "W" }, -v)
+    } else {
+        (if latitude { "N" } else { "E" }, v)
+    };
+    let deg = abs.floor();
+    let minutes = (abs - deg) * 60.0;
+    Some((format!("{},{}", deg as u32, format!("{minutes:.6}").trim_end_matches('0').trim_end_matches('.').to_string()) + hemi, hemi))
+}
+
+/// XMP 的「度,分[秒]半球」→ 十进制（统一 6 位小数）
+fn gps_decimal(text: &str, ref_hemi: Option<&str>) -> Option<String> {
+    let t = text.trim();
+    let (body, hemi) = match t.chars().last() {
+        Some(c) if "NSEWnsew".contains(c) => (&t[..t.len() - 1], Some(c.to_ascii_uppercase())),
+        _ => (t, None),
+    };
+    let hemi = hemi.or_else(|| ref_hemi.and_then(|r| r.trim().chars().next()).map(|c| c.to_ascii_uppercase()));
+    let parts: Vec<f64> = body
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .filter(|s| !s.is_empty())
+        .filter_map(|s| s.parse::<f64>().ok())
+        .collect();
+    if parts.is_empty() || parts.len() > 3 {
+        return None;
+    }
+    let mut value = parts[0];
+    if let Some(m) = parts.get(1) {
+        value += m / 60.0;
+    }
+    if let Some(s) = parts.get(2) {
+        value += s / 3600.0;
+    }
+    if matches!(hemi, Some('S') | Some('W')) {
+        value = -value;
+    }
+    Some(format!("{value:.6}"))
+}
 
 /// 字段 → XMP 属性名
 fn xmp_prop(id: &str) -> Option<&'static str> {
@@ -48,6 +166,11 @@ fn xmp_prop(id: &str) -> Option<&'static str> {
         "bylineTitle" => "photoshop:AuthorsPosition",
         "credit" => "photoshop:Credit",
         "source" => "photoshop:Source",
+        "model" => "tiff:Model",
+        "city" => "photoshop:City",
+        "location" => "Iptc4xmpCore:Location",
+        "latitude" => "exif:GPSLatitude",
+        "longitude" => "exif:GPSLongitude",
         _ => return None,
     })
 }
@@ -106,6 +229,9 @@ fn read_xmp(packet: &str, fields: &mut FieldMap) {
         ("bylineTitle", "photoshop:AuthorsPosition"),
         ("credit", "photoshop:Credit"),
         ("source", "photoshop:Source"),
+        ("model", "tiff:Model"),
+        ("city", "photoshop:City"),
+        ("location", "Iptc4xmpCore:Location"),
     ];
     for (id, prop) in pairs {
         if fields.contains_key(id) {
@@ -116,6 +242,22 @@ fn read_xmp(packet: &str, fields: &mut FieldMap) {
             if !value.is_empty() {
                 fields.insert(id.to_string(), value);
             }
+        }
+    }
+    // GPS 坐标：优先读带半球后缀的值，Ref 只作兜底
+    for (id, prop, ref_prop) in [
+        ("latitude", "exif:GPSLatitude", "exif:GPSLatitudeRef"),
+        ("longitude", "exif:GPSLongitude", "exif:GPSLongitudeRef"),
+    ] {
+        if fields.contains_key(id) {
+            continue;
+        }
+        let Some(raw) = xml_simple_text(packet, prop).or_else(|| xmp_first_li(packet, prop)) else {
+            continue;
+        };
+        let ref_value = xml_simple_text(packet, ref_prop);
+        if let Some(decimal) = gps_decimal(&raw, ref_value.as_deref()) {
+            fields.insert(id.to_string(), decimal);
         }
     }
     if !fields.contains_key("keywords") {
@@ -162,6 +304,7 @@ fn read_exif(tiff: &[u8], fields: &mut FieldMap) {
         ("author", text(0x013B).or_else(|| utf16(0x9C9D))),
         ("copyright", text(0x8298)),
         ("software", text(0x0131)),
+        ("model", text(0x0110)),
         (
             "takenAt",
             text(0x9003)
@@ -943,6 +1086,27 @@ fn build_xmp(existing: Option<&str>, fields: &FieldMap) -> (String, Vec<String>)
     }
     let mut additions: Vec<String> = Vec::new();
     for (id, value) in fields {
+        // 经纬度需要同时写坐标与半球 Ref，单独处理
+        if id == "latitude" || id == "longitude" {
+            let (prop, ref_prop) = if id == "latitude" {
+                ("exif:GPSLatitude", "exif:GPSLatitudeRef")
+            } else {
+                ("exif:GPSLongitude", "exif:GPSLongitudeRef")
+            };
+            remove_element(&mut packet, prop);
+            remove_element(&mut packet, ref_prop);
+            if value.trim().is_empty() {
+                continue;
+            }
+            match gps_dms(value, id == "latitude") {
+                Some((dms, hemi)) => {
+                    additions.push(format!("<{prop}>{}</{prop}>", xml_escape(&dms)));
+                    additions.push(format!("<{ref_prop}>{hemi}</{ref_prop}>"));
+                }
+                None => warnings.push(format!("{id} 不是合法十进制坐标（范围 ±180），已跳过")),
+            }
+            continue;
+        }
         let Some(prop) = xmp_prop(id) else {
             continue;
         };
@@ -1007,6 +1171,15 @@ fn ensure_namespaces(packet: &mut String) {
     if !open_tag.contains("xmlns:photoshop=") {
         needed.push(format!("xmlns:photoshop=\"{NS_PHOTOSHOP}\""));
     }
+    if !open_tag.contains("xmlns:tiff=") {
+        needed.push(format!("xmlns:tiff=\"{NS_TIFF}\""));
+    }
+    if !open_tag.contains("xmlns:exif=") {
+        needed.push(format!("xmlns:exif=\"{NS_EXIF}\""));
+    }
+    if !open_tag.contains("xmlns:Iptc4xmpCore=") {
+        needed.push(format!("xmlns:Iptc4xmpCore=\"{NS_IPTC_CORE}\""));
+    }
     if !open_tag.contains("xmlns:rdf=") {
         needed.push(format!("xmlns:rdf=\"{NS_RDF}\""));
     }
@@ -1024,7 +1197,7 @@ fn fresh_packet() -> String {
         "<?xpacket begin=\"\u{feff}\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n\
 <x:xmpmeta xmlns:x=\"adobe:ns:meta/\" x:xmptk=\"Renomio\">\n\
  <rdf:RDF xmlns:rdf=\"{NS_RDF}\">\n\
-  <rdf:Description rdf:about=\"\" xmlns:dc=\"{NS_DC}\" xmlns:xmp=\"{NS_XMP}\" xmlns:photoshop=\"{NS_PHOTOSHOP}\">\n\
+  <rdf:Description rdf:about=\"\" xmlns:dc=\"{NS_DC}\" xmlns:xmp=\"{NS_XMP}\" xmlns:photoshop=\"{NS_PHOTOSHOP}\" xmlns:tiff=\"{NS_TIFF}\" xmlns:exif=\"{NS_EXIF}\" xmlns:Iptc4xmpCore=\"{NS_IPTC_CORE}\">\n\
   </rdf:Description>\n\
  </rdf:RDF>\n\
 </x:xmpmeta>\n\
@@ -1043,6 +1216,709 @@ fn collect_changes(fields: &FieldMap, written: &mut Vec<String>, cleared: &mut V
             written.push(id.clone());
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// EXIF 清除（分组；Orientation 与 ICC 永不清除）
+// ---------------------------------------------------------------------------
+
+const TAG_ORIENTATION: u16 = 0x0112;
+const TAG_EXIF_IFD: u16 = 0x8769;
+const TAG_GPS_IFD: u16 = 0x8825;
+const TAG_XMP: u16 = 700;
+const TAG_ICC: u16 = 34675;
+
+fn raw_u32(raw: &[u8; 12], be: bool) -> u32 {
+    if be {
+        u32::from_be_bytes([raw[8], raw[9], raw[10], raw[11]])
+    } else {
+        u32::from_le_bytes([raw[8], raw[9], raw[10], raw[11]])
+    }
+}
+
+fn raw_u16(raw: &[u8; 12], be: bool) -> u16 {
+    if be {
+        u16::from_be_bytes([raw[8], raw[9]])
+    } else {
+        u16::from_le_bytes([raw[8], raw[9]])
+    }
+}
+
+fn ifd_at(tiff: &[u8], off: usize, be: bool) -> Result<(Vec<IfdEntry>, usize), String> {
+    let count = if be { be_u16(tiff, off) } else { u16_le(tiff, off) }
+        .ok_or("EXIF 子 IFD 越界")? as usize;
+    if count > 4096 {
+        return Err("EXIF 子 IFD 条目过多，拒绝解析".into());
+    }
+    let start = off + 2;
+    let mut entries = Vec::with_capacity(count);
+    for i in 0..count {
+        let at = start + i * 12;
+        let slice = tiff.get(at..at + 12).ok_or("EXIF 子 IFD 条目越界")?;
+        let mut raw = [0u8; 12];
+        raw.copy_from_slice(slice);
+        let tag = if be { be_u16(tiff, at) } else { u16_le(tiff, at) }.ok_or("EXIF 标签越界")?;
+        let typ = if be { be_u16(tiff, at + 2) } else { u16_le(tiff, at + 2) }.ok_or("EXIF 类型越界")?;
+        let cnt = if be { be_u32(tiff, at + 4) } else { u32_le(tiff, at + 4) }.ok_or("EXIF 计数越界")?;
+        entries.push(IfdEntry { tag, typ, count: cnt, raw });
+    }
+    let next_at = start + count * 12;
+    let next = if be { be_u32(tiff, next_at) } else { u32_le(tiff, next_at) }.ok_or("EXIF next-IFD 越界")? as usize;
+    Ok((entries, next))
+}
+
+fn tag_label(tag: u16) -> Option<&'static str> {
+    Some(match tag {
+        0x010F => "Make",
+        0x0110 => "Model",
+        0x0112 => "Orientation",
+        0x011A => "XResolution",
+        0x0131 => "Software",
+        0x0132 => "DateTime",
+        0x9003 => "DateTimeOriginal",
+        0x9004 => "DateTimeDigitized",
+        0x9010 => "OffsetTime",
+        0x9011 => "OffsetTimeOriginal",
+        0x9012 => "OffsetTimeDigitized",
+        0x9291 => "SubSecTimeOriginal",
+        0x9292 => "SubSecTimeDigitized",
+        0x927C => "MakerNote",
+        0xA430 => "CameraOwnerName",
+        0xA431 => "BodySerialNumber",
+        0xA432 => "LensSpecification",
+        0xA433 => "LensMake",
+        0xA434 => "LensModel",
+        0xA435 => "LensSerialNumber",
+        0x0001 => "GPSLatitudeRef",
+        0x0002 => "GPSLatitude",
+        0x0003 => "GPSLongitudeRef",
+        0x0004 => "GPSLongitude",
+        0x0005 => "GPSAltitudeRef",
+        0x0006 => "GPSAltitude",
+        0x0007 => "GPSTimeStamp",
+        0x001D => "GPSDateStamp",
+        0x0201 => "ThumbnailOffset",
+        0x0202 => "ThumbnailLength",
+        _ => return None,
+    })
+}
+
+/// 该标签是否属于某个可清除分组（不属于任何分组的一律保留）
+fn group_of(tag: u16) -> Option<&'static str> {
+    match tag {
+        TAG_GPS_IFD | 0x0001..=0x001F => Some("gps"),
+        0x010F | 0x0110 | 0x927C | 0xA430..=0xA435 => Some("camera"),
+        0x0132 | 0x9003 | 0x9004 | 0x9010..=0x9012 | 0x9291 | 0x9292 => Some("time"),
+        0x0201 | 0x0202 => Some("thumbnail"),
+        _ => None,
+    }
+}
+
+fn tiff_inventory(tiff: &[u8], out: &mut ExifInventory) {
+    let Ok(hdr) = TiffHeader::parse(tiff) else {
+        out.warnings.push("EXIF 结构无法解析，按无 EXIF 处理".into());
+        return;
+    };
+    let Ok((entries, next)) = hdr.entries(tiff) else {
+        out.warnings.push("EXIF IFD0 无法解析，按无 EXIF 处理".into());
+        return;
+    };
+    out.has_exif = true;
+    out.has_thumbnail = next != 0;
+    let collect = |tag: u16, groups: &mut Vec<ExifGroup>| {
+        let Some(id) = group_of(tag) else { return };
+        if let Some(label) = tag_label(tag) {
+            push_item(groups, id, label);
+        }
+    };
+    for entry in &entries {
+        if entry.tag == TAG_ORIENTATION {
+            out.orientation = raw_u16(&entry.raw, hdr.be);
+            continue;
+        }
+        if entry.tag == TAG_ICC {
+            out.has_icc = true;
+            continue;
+        }
+        if entry.tag == TAG_XMP {
+            out.has_xmp = true;
+            continue;
+        }
+        if entry.tag == TAG_EXIF_IFD {
+            let off = raw_u32(&entry.raw, hdr.be) as usize;
+            if let Ok((sub, _)) = ifd_at(tiff, off, hdr.be) {
+                for e in &sub {
+                    if e.tag == TAG_ICC {
+                        out.has_icc = true;
+                    }
+                    collect(e.tag, &mut out.groups);
+                }
+            }
+            continue;
+        }
+        if entry.tag == TAG_GPS_IFD {
+            let off = raw_u32(&entry.raw, hdr.be) as usize;
+            if let Ok((sub, _)) = ifd_at(tiff, off, hdr.be) {
+                if !sub.is_empty() {
+                    // 有 GPS IFD 即视为存在定位信息
+                    push_item(&mut out.groups, "gps", "GPS IFD");
+                }
+                for e in &sub {
+                    collect(e.tag, &mut out.groups);
+                }
+            }
+            continue;
+        }
+        collect(entry.tag, &mut out.groups);
+    }
+    if out.has_thumbnail {
+        push_item(&mut out.groups, "thumbnail", "IFD1 缩略图");
+    }
+}
+
+fn push_item(groups: &mut Vec<ExifGroup>, id: &str, item: &str) {
+    let label = match id {
+        "gps" => "GPS 定位信息",
+        "camera" => "相机与镜头信息",
+        "time" => "拍摄时间",
+        "thumbnail" => "缩略图",
+        _ => id,
+    };
+    if !groups.iter().any(|g| g.id == id) {
+        groups.push(ExifGroup { id: id.into(), label: label.into(), items: Vec::new() });
+    }
+    let group = groups.iter_mut().find(|g| g.id == id).expect("刚插入");
+    if !group.items.iter().any(|i| i == item) {
+        group.items.push(item.to_string());
+    }
+}
+
+/// 清除 EXIF 时是否保留该 IFD0 条目（Orientation 永远保留）
+fn keep_ifd0(tag: u16, scopes: &ExifClearScopes) -> bool {
+    if tag == TAG_ORIENTATION {
+        return true;
+    }
+    if scopes.all {
+        return false;
+    }
+    match group_of(tag) {
+        Some("gps") => !scopes.gps,
+        Some("camera") => !scopes.camera,
+        Some("time") => !scopes.time,
+        Some("thumbnail") => !scopes.thumbnail,
+        _ => true,
+    }
+}
+
+fn keep_exif(tag: u16, scopes: &ExifClearScopes) -> bool {
+    if scopes.all {
+        return false;
+    }
+    match group_of(tag) {
+        Some("camera") => !scopes.camera,
+        Some("time") => !scopes.time,
+        _ => true,
+    }
+}
+
+/// 在 TIFF（EXIF 数据块）上按分组剥离条目：原字节保留，重建 IFD0/ExifIFD/GPS IFD 追加到末尾。
+fn tiff_strip(
+    tiff: &[u8],
+    scopes: &ExifClearScopes,
+    drop_xmp: bool,
+) -> Result<Option<Vec<u8>>, String> {
+    let hdr = TiffHeader::parse(tiff)?;
+    let (entries, next) = hdr.entries(tiff)?;
+
+    let mut exif_off: Option<usize> = None;
+    let mut gps_off: Option<usize> = None;
+    for entry in &entries {
+        if entry.tag == TAG_EXIF_IFD {
+            exif_off = Some(raw_u32(&entry.raw, hdr.be) as usize);
+        } else if entry.tag == TAG_GPS_IFD {
+            gps_off = Some(raw_u32(&entry.raw, hdr.be) as usize);
+        }
+    }
+    let exif_sub = match exif_off {
+        Some(off) => ifd_at(tiff, off, hdr.be)?.0,
+        None => Vec::new(),
+    };
+    let gps_sub = match gps_off {
+        Some(off) => ifd_at(tiff, off, hdr.be)?.0,
+        None => Vec::new(),
+    };
+
+    let mut changed = false;
+    let mut kept0: Vec<[u8; 12]> = Vec::new();
+    for entry in &entries {
+        if entry.tag == TAG_EXIF_IFD || entry.tag == TAG_GPS_IFD {
+            changed = true;
+            continue;
+        }
+        if drop_xmp && entry.tag == TAG_XMP {
+            changed = true;
+            continue;
+        }
+        if !keep_ifd0(entry.tag, scopes) {
+            changed = true;
+            continue;
+        }
+        kept0.push(entry.raw);
+    }
+
+    let clear_gps = scopes.gps || scopes.all;
+    let mut kept_exif: Vec<[u8; 12]> = Vec::new();
+    for entry in &exif_sub {
+        if keep_exif(entry.tag, scopes) {
+            kept_exif.push(entry.raw);
+        } else {
+            changed = true;
+        }
+    }
+    let mut kept_gps: Vec<[u8; 12]> = Vec::new();
+    for entry in &gps_sub {
+        if !clear_gps {
+            kept_gps.push(entry.raw);
+        } else {
+            changed = true;
+        }
+    }
+    if (scopes.thumbnail || scopes.all) && next != 0 {
+        changed = true;
+    }
+    if !changed {
+        return Ok(None);
+    }
+
+    let new_next = if scopes.thumbnail || scopes.all { 0usize } else { next };
+    let mut out = tiff.to_vec();
+    if out.len() & 1 == 1 {
+        out.push(0);
+    }
+    let ifd0_off = out.len();
+    if ifd0_off > u32::MAX as usize {
+        return Err("TIFF 过大，IFD0 偏移超出 32 位".into());
+    }
+    let mut n0 = kept0.len();
+    if !kept_exif.is_empty() {
+        n0 += 1;
+    }
+    if !kept_gps.is_empty() {
+        n0 += 1;
+    }
+    let ifd0_size = 2 + n0 * 12 + 4;
+    let exif_new_off = if kept_exif.is_empty() { None } else { Some(ifd0_off + ifd0_size) };
+    let exif_size = if kept_exif.is_empty() { 0 } else { 2 + kept_exif.len() * 12 + 4 };
+    let gps_new_off = if kept_gps.is_empty() {
+        None
+    } else {
+        Some(ifd0_off + ifd0_size + exif_size)
+    };
+
+    let pointer = |tag: u16, off: usize| -> [u8; 12] {
+        let mut raw = [0u8; 12];
+        write_u16(&mut raw[0..2], tag, hdr.be);
+        write_u16(&mut raw[2..4], 4, hdr.be);
+        write_u32(&mut raw[4..8], 1, hdr.be);
+        write_u32(&mut raw[8..12], off as u32, hdr.be);
+        raw
+    };
+    if let Some(off) = exif_new_off {
+        kept0.push(pointer(TAG_EXIF_IFD, off));
+    }
+    if let Some(off) = gps_new_off {
+        kept0.push(pointer(TAG_GPS_IFD, off));
+    }
+    kept0.sort_by_key(|raw| {
+        if hdr.be {
+            u16::from_be_bytes([raw[0], raw[1]])
+        } else {
+            u16::from_le_bytes([raw[0], raw[1]])
+        }
+    });
+
+    let mut ifd0 = Vec::with_capacity(ifd0_size);
+    ifd0.extend_from_slice(&u16_bytes(kept0.len() as u16, hdr.be));
+    for raw in &kept0 {
+        ifd0.extend_from_slice(raw);
+    }
+    ifd0.extend_from_slice(&u32_bytes(new_next as u32, hdr.be));
+    out.extend_from_slice(&ifd0);
+
+    if !kept_exif.is_empty() {
+        out.extend_from_slice(&u16_bytes(kept_exif.len() as u16, hdr.be));
+        for raw in &kept_exif {
+            out.extend_from_slice(raw);
+        }
+        out.extend_from_slice(&u32_bytes(0, hdr.be));
+    }
+    if !kept_gps.is_empty() {
+        out.extend_from_slice(&u16_bytes(kept_gps.len() as u16, hdr.be));
+        for raw in &kept_gps {
+            out.extend_from_slice(raw);
+        }
+        out.extend_from_slice(&u32_bytes(0, hdr.be));
+    }
+    out[4..8].copy_from_slice(&u32_bytes(ifd0_off as u32, hdr.be));
+    Ok(Some(out))
+}
+
+/// 只移除 XMP 中与所选分组对应的属性（不整段丢弃 XMP）
+fn strip_xmp(packet: &str, scopes: &ExifClearScopes) -> String {
+    let mut out = packet.to_string();
+    let mut props: Vec<&str> = Vec::new();
+    if scopes.gps || scopes.all {
+        props.extend([
+            "exif:GPSLatitude",
+            "exif:GPSLatitudeRef",
+            "exif:GPSLongitude",
+            "exif:GPSLongitudeRef",
+            "exif:GPSAltitude",
+            "exif:GPSAltitudeRef",
+            "exif:GPSTimeStamp",
+            "exif:GPSDateStamp",
+            "photoshop:City",
+            "Iptc4xmpCore:Location",
+        ]);
+    }
+    if scopes.camera || scopes.all {
+        props.extend([
+            "tiff:Model",
+            "tiff:Make",
+            "exif:LensModel",
+            "exif:LensMake",
+            "exif:BodySerialNumber",
+            "exif:LensSerialNumber",
+            "exif:CameraOwnerName",
+        ]);
+    }
+    if scopes.time || scopes.all {
+        props.extend([
+            "photoshop:DateCreated",
+            "exif:DateTimeOriginal",
+            "exif:DateTimeDigitized",
+            "xmp:CreateDate",
+            "xmp:ModifyDate",
+        ]);
+    }
+    for prop in props {
+        remove_element(&mut out, prop);
+    }
+    out
+}
+
+fn jpeg_has_icc(data: &[u8]) -> bool {
+    jpeg_segments(data)
+        .map(|segs| {
+            segs.iter().any(|s| {
+                s.marker == 0xE2
+                    && s.data_start < s.end
+                    && data[s.data_start..s.end].starts_with(b"ICC_PROFILE\0")
+            })
+        })
+        .unwrap_or(false)
+}
+
+fn png_has_icc(data: &[u8]) -> bool {
+    png_chunks(data)
+        .map(|chunks| chunks.iter().any(|c| c.typ == *b"iCCP"))
+        .unwrap_or(false)
+}
+
+fn webp_has_icc(data: &[u8]) -> bool {
+    webp_chunks(data)
+        .map(|chunks| chunks.iter().any(|c| &c.fourcc == b"ICCP"))
+        .unwrap_or(false)
+}
+
+fn jpeg_pixels(data: &[u8]) -> Option<Vec<u8>> {
+    let segs = jpeg_segments(data).ok()?;
+    let sos = segs.iter().find(|s| s.marker == 0xDA)?;
+    Some(data[sos.start..].to_vec())
+}
+
+fn png_pixels(data: &[u8]) -> Option<Vec<u8>> {
+    let chunks = png_chunks(data).ok()?;
+    let mut out = Vec::new();
+    for chunk in &chunks {
+        if chunk.typ == *b"IDAT" {
+            out.extend_from_slice(&chunk.data);
+        }
+    }
+    Some(out)
+}
+
+fn webp_pixels(data: &[u8]) -> Option<Vec<u8>> {
+    let chunks = webp_chunks(data).ok()?;
+    let mut out = Vec::new();
+    for chunk in &chunks {
+        if &chunk.fourcc == b"VP8 " || &chunk.fourcc == b"VP8L" || &chunk.fourcc == b"ALPH" {
+            out.extend_from_slice(&chunk.data);
+        }
+    }
+    Some(out)
+}
+
+pub fn pixel_bytes(format: ImageFormat, data: &[u8]) -> Option<Vec<u8>> {
+    match format {
+        ImageFormat::Jpeg => jpeg_pixels(data),
+        ImageFormat::Png => png_pixels(data),
+        ImageFormat::WebP => webp_pixels(data),
+        ImageFormat::Tiff => None,
+    }
+}
+
+fn jpeg_clear(data: &[u8], scopes: &ExifClearScopes, clear_xmp: bool) -> Result<Rewrite, String> {
+    let segs = jpeg_segments(data)?;
+    let mut out = Vec::with_capacity(data.len());
+    out.extend_from_slice(&data[..2]);
+    let mut warnings = Vec::new();
+    let mut changed = false;
+    let mut exif_seen = false;
+
+    for seg in &segs {
+        if seg.marker == 0xDA {
+            out.extend_from_slice(&data[seg.start..]);
+            break;
+        }
+        if seg.marker == 0xE1 && seg.data_start < seg.end {
+            let payload = &data[seg.data_start..seg.end];
+            if let Some(tiff) = payload.strip_prefix(b"Exif\0\0") {
+                exif_seen = true;
+                match tiff_strip(tiff, scopes, false) {
+                    Ok(Some(new_tiff)) => {
+                        let mut new_payload = b"Exif\0\0".to_vec();
+                        new_payload.extend_from_slice(&new_tiff);
+                        if new_payload.len() + 2 > 0xFFFF {
+                            return Err("清除后 EXIF 段超出 JPEG APP1 长度上限".into());
+                        }
+                        out.extend_from_slice(&[0xFF, 0xE1]);
+                        out.extend_from_slice(&((new_payload.len() + 2) as u16).to_be_bytes());
+                        out.extend_from_slice(&new_payload);
+                        changed = true;
+                        continue;
+                    }
+                    Ok(None) => {}
+                    Err(err) => return Err(format!("EXIF 结构无法安全重建，已中止：{err}")),
+                }
+            } else if payload.starts_with(XMP_JPEG_PREFIX) {
+                if clear_xmp {
+                    let packet = String::from_utf8_lossy(&payload[XMP_JPEG_PREFIX.len()..]).to_string();
+                    let stripped = strip_xmp(&packet, scopes);
+                    out.extend_from_slice(&xmp_app1(&stripped)?);
+                    changed = true;
+                    continue;
+                }
+            }
+        }
+        out.extend_from_slice(&data[seg.start..seg.end]);
+    }
+    if !exif_seen {
+        warnings.push("JPEG 中未发现 EXIF 段".into());
+    }
+    if !changed {
+        warnings.push("所选范围没有可清除项，文件未改动".into());
+    }
+    Ok(Rewrite {
+        bytes: out,
+        written: Vec::new(),
+        cleared: scopes.label(),
+        warnings,
+    })
+}
+
+fn png_clear(data: &[u8], scopes: &ExifClearScopes, clear_xmp: bool) -> Result<Rewrite, String> {
+    let chunks = png_chunks(data)?;
+    let mut out = Vec::with_capacity(data.len());
+    out.extend_from_slice(&data[..8]);
+    let mut warnings = Vec::new();
+    let mut changed = false;
+    let mut exif_seen = false;
+    for chunk in &chunks {
+        if chunk.typ == *b"eXIf" {
+            exif_seen = true;
+            match tiff_strip(&chunk.data, scopes, false) {
+                Ok(Some(new_tiff)) => {
+                    out.extend_from_slice(&png_chunk_bytes(&PngChunk { typ: *b"eXIf", data: new_tiff }));
+                    changed = true;
+                    continue;
+                }
+                Ok(None) => {}
+                Err(err) => return Err(format!("eXIf 结构无法安全重建，已中止：{err}")),
+            }
+        }
+        if chunk.typ == *b"iTXt" && clear_xmp {
+            if let Some((keyword, text)) = png_text_chunk(chunk, &mut Vec::new()) {
+                if keyword == "XML:com.adobe.xmp" {
+                    let stripped = strip_xmp(&text, scopes);
+                    let body = png_itxt_payload(&keyword, &stripped);
+                    out.extend_from_slice(&png_chunk_bytes(&PngChunk { typ: *b"iTXt", data: body }));
+                    changed = true;
+                    continue;
+                }
+            }
+        }
+        out.extend_from_slice(&png_chunk_bytes(chunk));
+    }
+    if !exif_seen {
+        warnings.push("PNG 中未发现 eXIf 块".into());
+    }
+    if !changed {
+        warnings.push("所选范围没有可清除项，文件未改动".into());
+    }
+    Ok(Rewrite { bytes: out, written: Vec::new(), cleared: scopes.label(), warnings })
+}
+
+fn webp_clear(data: &[u8], scopes: &ExifClearScopes, clear_xmp: bool) -> Result<Rewrite, String> {
+    let chunks = webp_chunks(data)?;
+    let mut warnings = Vec::new();
+    let mut changed = false;
+    let mut exif_seen = false;
+    let mut out_chunks: Vec<(u8, Vec<u8>)> = Vec::new();
+    for chunk in &chunks {
+        if &chunk.fourcc == b"EXIF" || &chunk.fourcc == b"Exif" {
+            exif_seen = true;
+            match tiff_strip(&chunk.data, scopes, false) {
+                Ok(Some(new_tiff)) => {
+                    out_chunks.push((2, webp_chunk_bytes(*b"EXIF", &new_tiff)));
+                    changed = true;
+                    continue;
+                }
+                Ok(None) => {}
+                Err(err) => return Err(format!("WebP EXIF 块无法安全重建，已中止：{err}")),
+            }
+        }
+        if &chunk.fourcc == b"XMP " && clear_xmp {
+            let stripped = strip_xmp(&String::from_utf8_lossy(&chunk.data), scopes);
+            out_chunks.push((2, webp_chunk_bytes(*b"XMP ", stripped.as_bytes())));
+            changed = true;
+            continue;
+        }
+        out_chunks.push((2, webp_chunk_bytes(chunk.fourcc, &chunk.data)));
+    }
+    if !exif_seen {
+        warnings.push("WebP 中未发现 EXIF 块".into());
+    }
+    if !changed {
+        warnings.push("所选范围没有可清除项，文件未改动".into());
+    }
+    let mut body = Vec::new();
+    body.extend_from_slice(b"WEBP");
+    for (_, bytes) in out_chunks {
+        body.extend_from_slice(&bytes);
+    }
+    let mut out = Vec::with_capacity(body.len() + 8);
+    out.extend_from_slice(b"RIFF");
+    out.extend_from_slice(&(body.len() as u32).to_le_bytes());
+    out.extend_from_slice(&body);
+    Ok(Rewrite { bytes: out, written: Vec::new(), cleared: scopes.label(), warnings })
+}
+
+fn tiff_clear(data: &[u8], scopes: &ExifClearScopes, clear_xmp: bool) -> Result<Rewrite, String> {
+    let mut warnings = Vec::new();
+    let new_data = tiff_strip(data, scopes, clear_xmp)?;
+    match new_data {
+        Some(bytes) => {
+            if clear_xmp {
+                warnings.push("已同时移除 TIFF IFD0 中的 XMP 标签 700".into());
+            }
+            Ok(Rewrite { bytes, written: Vec::new(), cleared: scopes.label(), warnings })
+        }
+        None => {
+            warnings.push("所选范围没有可清除项，文件未改动".into());
+            Ok(Rewrite { bytes: data.to_vec(), written: Vec::new(), cleared: scopes.label(), warnings })
+        }
+    }
+}
+
+pub fn clear_exif(
+    format: ImageFormat,
+    data: &[u8],
+    scopes: &ExifClearScopes,
+    clear_xmp: bool,
+) -> Result<Rewrite, String> {
+    if !scopes.any() {
+        return Err("没有勾选任何清除范围".into());
+    }
+    match format {
+        ImageFormat::Jpeg => jpeg_clear(data, scopes, clear_xmp),
+        ImageFormat::Png => png_clear(data, scopes, clear_xmp),
+        ImageFormat::WebP => webp_clear(data, scopes, clear_xmp),
+        ImageFormat::Tiff => tiff_clear(data, scopes, clear_xmp),
+    }
+}
+
+/// 清除前预览：按文件实际存在的条目列出，不套用固定清单。
+pub fn inventory(path: &str, format: ImageFormat, data: &[u8]) -> ExifInventory {
+    let mut out = ExifInventory {
+        path: path.to_string(),
+        format: format.name().to_string(),
+        groups: Vec::new(),
+        orientation: 0,
+        orientation_kept: true,
+        has_icc: false,
+        has_exif: false,
+        has_xmp: false,
+        has_thumbnail: false,
+        warnings: Vec::new(),
+    };
+    match format {
+        ImageFormat::Jpeg => {
+            out.has_icc = jpeg_has_icc(data);
+            out.has_xmp = jpeg_xmp(data).is_some();
+            if let Some(tiff) = jpeg_exif(data) {
+                tiff_inventory(&tiff, &mut out);
+            } else {
+                out.warnings.push("未发现 EXIF 段（可能只有 XMP/ICC）".into());
+            }
+        }
+        ImageFormat::Png => {
+            out.has_icc = png_has_icc(data);
+            out.has_xmp = png_xmp(data, &mut Vec::new()).is_some();
+            let chunks = png_chunks(data).unwrap_or_default();
+            if let Some(chunk) = chunks.iter().find(|c| c.typ == *b"eXIf") {
+                tiff_inventory(&chunk.data, &mut out);
+            } else {
+                out.warnings.push("未发现 eXIf 块".into());
+            }
+        }
+        ImageFormat::WebP => {
+            out.has_icc = webp_has_icc(data);
+            out.has_xmp = webp_xmp(data).is_some();
+            let chunks = webp_chunks(data).unwrap_or_default();
+            if let Some(chunk) = chunks.iter().find(|c| &c.fourcc == b"EXIF" || &c.fourcc == b"Exif") {
+                tiff_inventory(&chunk.data, &mut out);
+            } else {
+                out.warnings.push("未发现 EXIF 块".into());
+            }
+        }
+        ImageFormat::Tiff => {
+            out.has_xmp = tiff_xmp(data, &mut Vec::new()).is_some();
+            let hdr = TiffHeader::parse(data);
+            if let Ok(hdr) = hdr {
+                if let Ok((entries, _)) = hdr.entries(data) {
+                    out.has_icc = entries.iter().any(|e| e.tag == TAG_ICC);
+                }
+            }
+            tiff_inventory(data, &mut out);
+        }
+    }
+    // 分组顺序固定，便于界面稳定展示
+    let order = ["gps", "camera", "time", "thumbnail"];
+    out.groups.sort_by_key(|g| order.iter().position(|id| *id == g.id).unwrap_or(9));
+    // EXIF 里存在 Orientation ≠ 1 时把值保留在预览上，提示用户不会被清
+    if out.orientation > 0 {
+        out.warnings.push(format!(
+            "Orientation={} 将在清除后保留（避免照片方向躺倒）",
+            out.orientation
+        ));
+    }
+    if out.has_icc {
+        out.warnings.push("ICC 色彩配置将保留（不影响颜色）".into());
+    }
+    out.warnings
+        .push("XMP 默认保留；如需同时清除对应项，请在界面上显式勾选".into());
+    out
 }
 
 // ---------------------------------------------------------------------------

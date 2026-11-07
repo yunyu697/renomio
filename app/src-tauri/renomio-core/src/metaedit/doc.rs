@@ -404,17 +404,22 @@ fn core_apply(
                 }
             }
             None => {
-                ensure_namespace(
-                    &mut out,
-                    prefix,
-                    if *prefix == "dc" {
-                        "http://purl.org/dc/elements/1.1/"
-                    } else {
-                        "http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
-                    },
-                );
-                let insert_at = out.find("</cp:coreProperties>").unwrap_or(out.len());
-                out.insert_str(insert_at, &format!("<{qname}>{escaped}</{qname}>"));
+                let self_closed = format!("<{qname}/>");
+                if let Some(at) = out.find(&self_closed) {
+                    out.replace_range(at..at + self_closed.len(), &format!("<{qname}>{escaped}</{qname}>"));
+                } else {
+                    ensure_namespace(
+                        &mut out,
+                        prefix,
+                        if *prefix == "dc" {
+                            "http://purl.org/dc/elements/1.1/"
+                        } else {
+                            "http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
+                        },
+                    );
+                    let insert_at = out.find("</cp:coreProperties>").unwrap_or(out.len());
+                    out.insert_str(insert_at, &format!("<{qname}>{escaped}</{qname}>"));
+                }
             }
         }
         written.push((*id).to_string());

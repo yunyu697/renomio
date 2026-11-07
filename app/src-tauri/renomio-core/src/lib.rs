@@ -9,6 +9,7 @@ pub mod platform;
 pub mod rename;
 pub mod scan;
 pub mod snapshot;
+pub mod textedit;
 
 use std::path::{Path, PathBuf};
 

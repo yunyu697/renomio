@@ -5,7 +5,8 @@ use std::time::Duration;
 use renomio_core::journal::{Batch, BatchSummary};
 use renomio_core::metaedit::dedupe::DuplicateReport;
 use renomio_core::metaedit::{
-    MetaCapability, MetaEditRequest, MetaEditResult, MetaSnapshot,
+    ExifClearRequest, ExifClearResult, ExifInventory, MetaCapability, MetaEditRequest,
+    MetaEditResult, MetaSnapshot,
 };
 use renomio_core::metadata::MetadataInfo;
 use renomio_core::ops::{
@@ -611,6 +612,22 @@ async fn meta_restore_backup(backup: String, target: String) -> Result<String, S
     .map_err(|e| format!("还原线程异常：{e}"))?
 }
 
+/// EXIF 清除前预览：按文件实际存在的条目列出（不套固定清单）。
+#[tauri::command]
+async fn exif_inventory(path: String) -> Result<ExifInventory, String> {
+    tauri::async_runtime::spawn_blocking(move || renomio_core::metaedit::exif_inventory(&path))
+        .await
+        .map_err(|e| format!("EXIF 预览线程异常：{e}"))?
+}
+
+/// EXIF 分组清除：备份 → 重建 → 回读（Orientation 与 ICC 保留）。
+#[tauri::command]
+async fn exif_clear(items: Vec<ExifClearRequest>) -> Result<Vec<ExifClearResult>, String> {
+    tauri::async_runtime::spawn_blocking(move || renomio_core::metaedit::clear_exif_batch(items))
+        .await
+        .map_err(|e| format!("EXIF 清除线程异常：{e}"))
+}
+
 /// 疑似重复内容（不同路径、内容完全相同）：只读检测，不删除任何文件。
 #[tauri::command]
 async fn find_duplicates(paths: Vec<String>) -> Result<DuplicateReport, String> {
@@ -792,6 +809,22 @@ fn read_text_file(path: String) -> Result<String, String> {
         return Err("文件超过 4MB，已拒绝读取".into());
     }
     std::fs::read_to_string(&path).map_err(|e| format!("读取失败：{e}"))
+}
+
+/// 文本编码探测（只读）：BOM / 合法 UTF-8 确认；GB18030 仅试探并标记未确认。
+#[tauri::command]
+fn text_detect(path: String) -> Result<renomio_core::textedit::TextDetect, String> {
+    renomio_core::textedit::detect(&path)
+}
+
+/// 文本编码转换：原地覆盖默认备份 `.bak`；可另存；写完回读校验。
+#[tauri::command]
+async fn text_save(
+    req: renomio_core::textedit::TextSaveRequest,
+) -> Result<renomio_core::textedit::TextSaveResult, String> {
+    tauri::async_runtime::spawn_blocking(move || renomio_core::textedit::save(&req))
+        .await
+        .map_err(|e| format!("文本编码转换线程异常：{e}"))
 }
 
 static EXPORT_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -1256,6 +1289,8 @@ pub fn run() {
             meta_read,
             meta_edit,
             meta_restore_backup,
+            exif_inventory,
+            exif_clear,
             find_duplicates,
             rename_fields,
             file_hashes,
@@ -1266,6 +1301,8 @@ pub fn run() {
             apply_attrs,
             apply_move,
             read_text_file,
+            text_detect,
+            text_save,
             write_text_atomic,
             write_bytes_atomic,
             load_rule_history,

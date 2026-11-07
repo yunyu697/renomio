@@ -1,11 +1,13 @@
 /** 桌面端桥接：Tauri 命令、文件对话框、拖放与日志落盘。浏览器中自动降级为演示模式。 */
 import type {
   ApplyItemDto, ApplyOptionsDto, ApplyOutcome, ApplyProgress, AttrInfo, AttrSpecDto, BatchMetadata,
-  BatchSummary, DuplicateReportDto, EnvInfo, Entry, LegacyImportReport, MetaCapabilityDto,
+  BatchSummary, DuplicateReportDto, EnvInfo, Entry, ExifClearRequestDto, ExifClearResultDto,
+  ExifInventoryDto, LegacyImportReport, MetaCapabilityDto,
   MetaEditRequestDto, MetaEditResultDto, MetadataInfo, MetaFields, MetaSnapshotDto, MigrationInfo,
   MoveItemDto, MoveSpecDto, OpTargetDto, OpsOutcome,
   PrivilegeInfo, SavedUpdate, ScanResultDto, SnapshotDto, SnapshotPlanItemDto, SnapshotProgress,
-  SnapshotRestoreResult, SnapshotSummaryDto, StartupMark, TimeInfo, TimeSpecDto, UndoOutcome,
+  SnapshotRestoreResult, SnapshotSummaryDto, StartupMark, TextDetectDto, TextSaveRequestDto,
+  TextSaveResultDto, TimeInfo, TimeSpecDto, UndoOutcome,
   UpdateInfo, UpdateProgress,
 } from './types';
 import { PRODUCT_NAME } from './branding';
@@ -316,6 +318,30 @@ export async function metaEdit(items: MetaEditRequestDto[]): Promise<MetaEditRes
 export async function metaRestoreBackup(backup: string, target: string): Promise<string> {
   if (!isDesktop) throw new Error('浏览器演示模式：未连接桌面端');
   return invoke<string>('meta_restore_backup', { backup, target });
+}
+
+/** EXIF 清除前预览：按文件实际存在的条目列出（只读）。 */
+export async function exifInventory(path: string): Promise<ExifInventoryDto> {
+  if (!isDesktop) throw new Error('浏览器演示模式：未连接桌面端');
+  return invoke<ExifInventoryDto>('exif_inventory', { path });
+}
+
+/** EXIF 分组清除：备份 → 重建 → 回读校验（Orientation 与 ICC 保留）。 */
+export async function exifClear(items: ExifClearRequestDto[]): Promise<ExifClearResultDto[]> {
+  if (!isDesktop) throw new Error('浏览器演示模式：未连接桌面端');
+  return invoke<ExifClearResultDto[]>('exif_clear', { items });
+}
+
+/** 文本编码探测（只读；非 UTF-8 只做试探并标记未确认）。 */
+export async function textDetect(path: string): Promise<TextDetectDto> {
+  if (!isDesktop) throw new Error('浏览器演示模式：未连接桌面端');
+  return invoke<TextDetectDto>('text_detect', { path });
+}
+
+/** 文本编码转换：原地覆盖默认备份，可另存；写完回读校验。 */
+export async function textSave(req: TextSaveRequestDto): Promise<TextSaveResultDto> {
+  if (!isDesktop) throw new Error('浏览器演示模式：未连接桌面端');
+  return invoke<TextSaveResultDto>('text_save', { req });
 }
 
 /** 内容完全相同（不同路径）的疑似重复组；只读，不删除文件。 */

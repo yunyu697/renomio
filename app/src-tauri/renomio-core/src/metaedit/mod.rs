@@ -11,6 +11,8 @@ pub mod doc;
 pub mod image;
 pub mod util;
 
+pub use image::{ExifClearScopes, ExifGroup, ExifInventory};
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -31,6 +33,12 @@ pub const IMAGE_FIELDS: &[&str] = &[
     "bylineTitle",
     "credit",
     "source",
+    // 机型/地点/坐标统一写 XMP（不改 EXIF 的 0x0110 与 GPS IFD）
+    "model",
+    "city",
+    "location",
+    "latitude",
+    "longitude",
 ];
 /// 音频可写字段（MP3/FLAC/M4A/OGG）
 pub const AUDIO_FIELDS: &[&str] = &[
@@ -445,6 +453,11 @@ pub fn normalize_field(id: &str, raw: &str) -> String {
             .and_then(|v| util::exif_time_to_iso(&v))
             .unwrap_or_default(),
         "keywords" => util::join_keywords(&util::split_keywords(raw)),
+        "latitude" | "longitude" => raw
+            .trim()
+            .parse::<f64>()
+            .map(|v| format!("{v:.6}"))
+            .unwrap_or_else(|_| raw.trim().to_string()),
         _ => raw.trim().to_string(),
     }
 }
@@ -672,6 +685,178 @@ fn edit_inner(req: &MetaEditRequest, path: &Path, out: &mut MetaEditResult) -> R
 /// 批量编辑：逐文件独立结果，单个失败不影响其它文件。
 pub fn edit_batch(requests: Vec<MetaEditRequest>) -> Vec<MetaEditResult> {
     requests.iter().map(edit).collect()
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExifClearRequest {
+    pub path: String,
+    pub scopes: ExifClearScopes,
+    /// 同时清除 XMP 中对应项（默认关闭）
+    #[serde(default)]
+    pub clear_xmp: bool,
+    #[serde(default = "default_true")]
+    pub backup: bool,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExifClearResult {
+    pub path: String,
+    pub format: String,
+    pub ok: bool,
+    pub supported: bool,
+    pub backup: Option<String>,
+    pub cleared: Vec<String>,
+    pub orientation_before: u16,
+    pub orientation_after: u16,
+    pub icc_before: bool,
+    pub icc_after: bool,
+    pub xmp_cleared: bool,
+    /// None = 该格式不做像素区比对（TIFF 结构改动）
+    pub pixels_unchanged: Option<bool>,
+    pub verified: bool,
+    pub warnings: Vec<String>,
+    pub error: Option<String>,
+    pub elapsed_ms: u64,
+}
+
+/// 清除前预览：读取文件并列出实际存在的 EXIF 分组条目。
+pub fn exif_inventory(path: &str) -> Result<ExifInventory, String> {
+    let p = Path::new(path);
+    let head = util::read_head(p, 64 * 1024)?;
+    let format = detect(p, &head);
+    let Format::Image(f) = format else {
+        return Err(format!("{} 不是图片，无法预览 EXIF", format.name()));
+    };
+    let data = fs::read(p).map_err(|e| format!("读取图片失败：{e}"))?;
+    Ok(image::inventory(path, f, &data))
+}
+
+/// 单文件 EXIF 清除：预览 → 备份 → 重建 EXIF → 原子替换 → 回读校验。
+pub fn clear_exif(req: &ExifClearRequest) -> ExifClearResult {
+    let started = Instant::now();
+    let mut out = ExifClearResult {
+        path: req.path.clone(),
+        format: String::new(),
+        ok: false,
+        supported: true,
+        backup: None,
+        cleared: Vec::new(),
+        orientation_before: 0,
+        orientation_after: 0,
+        icc_before: false,
+        icc_after: false,
+        xmp_cleared: false,
+        pixels_unchanged: None,
+        verified: false,
+        warnings: Vec::new(),
+        error: None,
+        elapsed_ms: 0,
+    };
+    match clear_exif_inner(req, &mut out) {
+        Ok(()) => out.ok = true,
+        Err(err) => out.error = Some(err),
+    }
+    out.elapsed_ms = started.elapsed().as_millis() as u64;
+    out
+}
+
+fn clear_exif_inner(req: &ExifClearRequest, out: &mut ExifClearResult) -> Result<(), String> {
+    let path = PathBuf::from(&req.path);
+    let meta = fs::metadata(&path).map_err(|e| format!("无法读取文件信息：{e}"))?;
+    if meta.is_dir() {
+        return Err("文件夹没有 EXIF".into());
+    }
+    if meta.len() > MAX_WRITE_BYTES {
+        return Err(format!("文件超过 {} 的上限，已拒绝写入", MAX_WRITE_BYTES));
+    }
+    if !req.scopes.any() {
+        return Err("没有勾选任何清除范围".into());
+    }
+    let head = util::read_head(&path, 64 * 1024)?;
+    let format = detect(&path, &head);
+    out.format = format.name();
+    let Format::Image(f) = format else {
+        out.supported = false;
+        return Err(format!("{} 不支持 EXIF 清除", out.format));
+    };
+    let data = fs::read(&path).map_err(|e| format!("读取文件失败：{e}"))?;
+    let before = image::inventory(&req.path, f, &data);
+    out.orientation_before = before.orientation;
+    out.icc_before = before.has_icc;
+    if !before.has_exif && !(req.clear_xmp && before.has_xmp) {
+        out.warnings.push("文件没有 EXIF，未做改动".into());
+        return Err("文件没有 EXIF（也没有可清除的 XMP）".into());
+    }
+
+    let pixel_before = image::pixel_bytes(f, &data);
+    let rewritten = image::clear_exif(f, &data, &req.scopes, req.clear_xmp)?;
+    out.cleared = rewritten.cleared.clone();
+    out.warnings.extend(rewritten.warnings.clone());
+    out.xmp_cleared = req.clear_xmp;
+
+    if rewritten.bytes == data {
+        out.warnings.push("清除后字节与写入前一致，未做改动".into());
+    }
+
+    if req.backup {
+        let backup = create_backup(&path)?;
+        out.backup = Some(backup.to_string_lossy().to_string());
+    }
+    replace_file(&path, &rewritten.bytes)?;
+
+    let after = image::inventory(&req.path, f, &rewritten.bytes);
+    out.orientation_after = after.orientation;
+    out.icc_after = after.has_icc;
+
+    // 校验 1：所选分组必须不再存在
+    let mut leftovers = Vec::new();
+    for group in &after.groups {
+        let selected = if req.scopes.all {
+            true
+        } else {
+            match group.id.as_str() {
+                "gps" => req.scopes.gps,
+                "camera" => req.scopes.camera,
+                "time" => req.scopes.time,
+                "thumbnail" => req.scopes.thumbnail,
+                _ => false,
+            }
+        };
+        if selected {
+            leftovers.push(format!("{} 仍有 {}", group.id, group.items.join("/")));
+        }
+    }
+    if !leftovers.is_empty() {
+        return Err(format!("清除后回读仍有残留：{}", leftovers.join("；")));
+    }
+    // 校验 2：Orientation 保留
+    if before.orientation > 0 && after.orientation != before.orientation {
+        return Err(format!(
+            "Orientation 未被保留（原 {} 现 {}）",
+            before.orientation, after.orientation
+        ));
+    }
+    // 校验 3：ICC 保留
+    if before.has_icc && !after.has_icc {
+        return Err("ICC 色彩配置被误删".into());
+    }
+    // 校验 4：像素区未改动（TIFF 不比对）
+    out.pixels_unchanged = match (&pixel_before, image::pixel_bytes(f, &rewritten.bytes)) {
+        (Some(a), Some(b)) => Some(*a == b),
+        _ => None,
+    };
+    if out.pixels_unchanged == Some(false) {
+        return Err("像素数据被改动（已保留备份，可还原）".into());
+    }
+    out.verified = true;
+    Ok(())
+}
+
+/// 批量清除：逐文件独立结果。
+pub fn clear_exif_batch(requests: Vec<ExifClearRequest>) -> Vec<ExifClearResult> {
+    requests.iter().map(clear_exif).collect()
 }
 
 /// 从备份还原目标文件（覆盖前再做一次独立备份，避免还原本身破坏当前文件）。

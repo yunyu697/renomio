@@ -64,14 +64,21 @@ export interface LayoutState {
   view: LayoutView;
   /** 高级模式：允许拖动分隔条自由调整（默认关闭，使用预设比例） */
   advanced: boolean;
-  /** 并排视图下规则栏宽度（px） */
+  /** 并排视图下规则栏宽度（旧字段，保留作默认值） */
   side: number;
-  /** 上下视图下规则栏高度（px） */
+  /** 上下视图下规则栏高度（旧字段，保留作默认值） */
   stack: number;
+  /** 每个视图各自记住的尺寸（并排=宽度，上下=高度），互不串用 */
+  sizes: Partial<Record<LayoutView, number>>;
+  /** 紧凑视图：规则区底部面板是否展开（持久化） */
+  compactOpen: boolean;
 }
 
+/** 主题选择：显式浅/深，或跟随系统（运行时随系统切换）。 */
+export type ThemeSetting = 'light' | 'dark' | 'system';
+
 export interface AppSettings {
-  theme: 'light' | 'dark';
+  theme: ThemeSetting;
   /** 界面语言：跟随系统或五种受支持语言之一（默认 system） */
   language: LocaleSetting;
   strictWindowsNames: boolean;
@@ -270,6 +277,11 @@ export type MetaFieldId =
   | 'bylineTitle'
   | 'credit'
   | 'source'
+  | 'model'
+  | 'city'
+  | 'location'
+  | 'latitude'
+  | 'longitude'
   | 'artist'
   | 'album'
   | 'year'
@@ -344,6 +356,102 @@ export interface DuplicateGroupDto {
   size: number;
   hash: string;
   paths: string[];
+}
+
+/** 侧栏功能页：每个入口都打开独立的完整页面（自带选择区与空态）。 */
+export type PageId = 'music' | 'image' | 'office' | 'text' | 'attrs' | 'times' | 'organize';
+
+/** EXIF 清除前预览：按文件实际存在的条目。 */
+export interface ExifGroupDto {
+  id: string;
+  label: string;
+  items: string[];
+}
+
+export interface ExifInventoryDto {
+  path: string;
+  format: string;
+  groups: ExifGroupDto[];
+  orientation: number;
+  orientationKept: boolean;
+  hasIcc: boolean;
+  hasExif: boolean;
+  hasXmp: boolean;
+  hasThumbnail: boolean;
+  warnings: string[];
+}
+
+export interface ExifClearScopesDto {
+  gps: boolean;
+  camera: boolean;
+  time: boolean;
+  thumbnail: boolean;
+  all: boolean;
+}
+
+export interface ExifClearRequestDto {
+  path: string;
+  scopes: ExifClearScopesDto;
+  clearXmp?: boolean;
+  backup?: boolean;
+}
+
+export interface ExifClearResultDto {
+  path: string;
+  format: string;
+  ok: boolean;
+  supported: boolean;
+  backup: string | null;
+  cleared: string[];
+  orientationBefore: number;
+  orientationAfter: number;
+  iccBefore: boolean;
+  iccAfter: boolean;
+  xmpCleared: boolean;
+  pixelsUnchanged: boolean | null;
+  verified: boolean;
+  warnings: string[];
+  error: string | null;
+  elapsedMs: number;
+}
+
+/** 文本编码转换支持的编码 id。 */
+export type TextEncodingId = 'utf8' | 'utf8bom' | 'gb18030' | 'utf16le' | 'utf16be' | 'auto' | 'unknown';
+
+export interface TextDetectDto {
+  path: string;
+  encoding: string;
+  encodingLabel: string;
+  confirmed: boolean;
+  bytes: number;
+  chars: number;
+  lines: number;
+  preview: string;
+  warnings: string[];
+}
+
+export interface TextSaveRequestDto {
+  path: string;
+  targetEncoding: string;
+  sourceEncoding?: string | null;
+  saveAs?: string | null;
+  backup: boolean;
+}
+
+export interface TextSaveResultDto {
+  path: string;
+  outputPath: string;
+  sourceEncoding: string;
+  sourceEncodingLabel: string;
+  targetEncoding: string;
+  targetEncodingLabel: string;
+  backup: string | null;
+  bytesBefore: number;
+  bytesAfter: number;
+  chars: number;
+  verified: boolean;
+  ok: boolean;
+  error: string | null;
 }
 
 export interface DuplicateReportDto {
