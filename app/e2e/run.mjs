@@ -2624,7 +2624,7 @@ function renderMarkdown(report) {
 - 浏览器：\`${report.browser}\`
 - 视口：${report.viewport}
 - 结果：**${report.passed} 通过 / ${report.failed} 失败**
-- 截图目录：\`app/e2e/screenshots/\`
+- 截图目录：\`app/e2e/screenshots/\`（已加入 \`.gitignore\`，仅本机保留，不随仓库分发）
 
 ## UI 层断言（DOM / 可见性 / 截图）
 
@@ -2669,7 +2669,9 @@ ${perf.map(line).join('\n')}
 
 ## 截图
 
-${report.screenshots.map((s) => `- [${s}](screenshots/${s})`).join('\n')}
+${report.screenshots.map((s) => `- ${s}`).join('\n')}
+
+截图文件仅保存在本机 \`app/e2e/screenshots/\`（已忽略），仓库内不提供可点击链接；需要留存时请取 CI artifact 或本地文件。
 `;
 }
 

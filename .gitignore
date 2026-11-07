@@ -28,6 +28,7 @@ id_ed25519
 
 # 测试生成物与本地临时目录（含本机绝对路径，重新生成即可）
 app/test-corpus/
+app/e2e/screenshots/
 .screenshots/
 .trae-html-share-packages/
 
