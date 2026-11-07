@@ -295,7 +295,7 @@ app/
 │  ├─ run.mjs               无头浏览器 E2E（CDP 驱动 + 断言 + 截图 + 报告）
 │  ├─ mock-backend.js       注入页面的内存版 Tauri 后端
 │  ├─ report.md             最近一次运行结果
-│  └─ screenshots/          各流程截图
+│  └─ screenshots/          各流程截图（本机生成，已加入 .gitignore，不随仓库分发）
 ├─ scripts/
 │  ├─ gen-test-corpus.mjs   真实样本库生成器
 │  ├─ hold-lock.ps1         锁定文件
@@ -321,7 +321,7 @@ app/
 - 类型检查与前端构建：`npm run build` ✅（日志 `build.log` / `release.log`）
 - Rust 核心测试：`npm run test:core` → **105 passed / 1 failed（共 106 项）**（扫描/平台/整批改名/撤销现状校验/取消回滚/时间与属性/归类移动/文本编码/批量元数据、音频歌词三载体与 IPTC Core 四字段等真实文件系统用例；唯一失败为 `directory_junction_is_renamed_as_a_link`——本机目录联接权限限制，属既有环境问题）
 - 桌面壳编译与测试：`cargo test --manifest-path src-tauri/Cargo.toml` → **18 passed / 1 ignored** ✅（含失败原因归类、旧数据迁移 4 例、用真实 journal 验证迁移后仍可撤销）
-- 无头浏览器 E2E：`npm run test:e2e` → **195 通过 / 0 失败** ✅（配置层 1 项 + mock 命令层 22 项 + 其余为 UI/DOM 断言；`PERF=1` 时另加 4 项性能断言），报告与截图见 `e2e/report.md`、`e2e/screenshots/`
+- 无头浏览器 E2E：`npm run test:e2e` → **195 通过 / 0 失败** ✅（配置层 1 项 + mock 命令层 22 项 + 其余为 UI/DOM 断言；`PERF=1` 时另加 4 项性能断言），仓库只保留最新一次报告文本 `e2e/report.md` / `e2e/report.json`；截图写入本机 `e2e/screenshots/`（已 `.gitignore`），仓库内不提供截图链接，需要留存请取 CI artifact 或本地文件
 - 性能压测：`cargo run --release --example perf_10k`（真实磁盘 10k）+ `node scripts/perf-preview.mjs`（真实规则引擎 10k）+ `PERF=1 npm run test:e2e`（真实前端 10k 渲染），数据见上文「性能」表；测试语料生成在系统临时目录并在结束时删除
 - 窗口按钮：E2E 断言点击最小化/最大化/关闭确实调用 `plugin:window|*`，并校验 capability 声明；**真实窗口的关闭 / 最小化 / 最大化已在 Windows 真机由用户手工确认正常（2026-11-04）**。这是用户手工确认，不是脚本断言。
 - 拖放：E2E 用 mock 事件链路断言「drag-enter 显示高亮遮罩 → drag-drop 调用扫描命令并新增 2 行 → 松手提示计数」，并断言规则区内部拖拽（无 `Files`）不误触发遮罩；**真实 Explorer 拖放仍需用户在真机拖一次**。
