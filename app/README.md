@@ -364,14 +364,16 @@ app/
 
 数据目录：每用户的 `%APPDATA%\app.renomio.desktop`（Tauri `app_data_dir`，随 identifier 变化），不随安装目录走；**切换安装范围不会迁移配置、日志与撤销历史**（同一用户的同一数据目录，两者共享）。**自动更新（alpha5 起）**：设置页「检查更新」读取公开仓库 `yunyu697/renomio-releases` 滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；以 minisign 签名校验为准，支持镜像回退、仅下载与安装后重启。源码仓库保持私有，不承载更新资源。
 
-## 产物（上一轮构建：1.0.0-alpha5）
+## 产物（本轮构建：1.1.0-alpha1）
 
 | 安装包 | 路径 | 大小 | SHA-256 |
 | --- | --- | --- | --- |
-| NSIS | `src-tauri/target/release/bundle/nsis/Renomio_1.0.0-alpha5_x64-setup.exe` | 2,211,522 字节（2.11 MiB） | `2C6C9E2D1AA159E6D799FA3C812E1BEEA284A0CEF21BE4740EBB8DE8A721447D` |
-| MSI | `src-tauri/target/release/bundle/msi/Renomio_1.0.0-alpha5_x64_en-US.msi` | 3,342,336 字节（3.19 MiB） | `D2BF1E27662DD4C36482D5925E8C45BD1BFDBDF9EE6CEFB6568929E6114C6E72` |
+| NSIS | `src-tauri/target/release/bundle/nsis/Renomio_1.1.0-alpha1_x64-setup.exe` | 2,382,542 字节（2.27 MiB） | `741228485BDF0BDA1D00EA6C7E0F66DC42D49A729A0DDA080F9B69BEEBD10FFE` |
+| MSI | `src-tauri/target/release/bundle/msi/Renomio_1.1.0-alpha1_x64_en-US.msi` | 3,182,592 字节（3.04 MiB） | `1636AD5E1F4F14E0E4471D33552FEE1B30C9CEEC18E12F9F51C4370EF4FEC369` |
 
-两包均未代码签名；更新用 minisign 签名见同目录 `.sig`。`bundle.targets` 已显式设为 `["nsis", "msi"]`，`npm run tauri build` 一次产出两个包。安装范围：NSIS 安装时可选、默认所有用户（`Program Files\Renomio`）；MSI 只有机器级一种（固定 `Program Files\Renomio`、必须管理员、不提供用户级）。**该轮为合并包**：包含阶段 A（权限体验）、B（边界用例 / 撤销持久 / dry-run / 模板规则）、C（五语言）与 E（改名与迁移）的全部改动。主程序为 `renomio.exe`，由 `[[bin]] name = "renomio"` 产出。以上定位由 `npm run test:bundle`（14/14 断言）对实际产物把关。安装/卸载校验只做了不需要 UAC 的部分（MSI 数据库只读查询、生成脚本静态断言），不启动 GUI；「装到 `Program Files`、卸载、ARP、快捷方式落点、两范围交叉安装、旧版并存拦截」均需 UAC，尚未验证。
+两包均未代码签名；更新用 minisign 签名见同目录 `.sig`。`bundle.targets` 已显式设为 `["nsis", "msi"]`，`npm run tauri build` 一次产出两个包。安装范围：NSIS 安装时可选、默认所有用户（`Program Files\Renomio`）；MSI 只有机器级一种（固定 `Program Files\Renomio`、必须管理员、不提供用户级）。**该轮为合并包**：`1.0.0` 之后的快照、多格式导出、属性取反、时间随机化与 EXIF 写入、归类模板、键位窗、`<SUBSTR>` 系列元变量、歌词三载体、IPTC Core 四字段（仅 XMP）与 `ffrn` → `renomio` 改名全部包含在内。主程序为 `renomio.exe`，由 `[[bin]] name = "renomio"` 产出。以上定位由 `npm run test:bundle`（14/14 断言）对实际产物把关。
+
+**本轮真实升级实测**：匿名下载公开 `v1.0.0` NSIS 包并静默安装（`/S`，5.3 s，落到 `C:\Program Files\Renomio`，ARP 显示 `1.0.0`），再用 `1.1.0-alpha1` NSIS 包静默覆盖（6.5 s，ARP 与 `renomio.exe --version` 均变为 `1.1.0-alpha1`，安装路径不变；`uninstall.exe` 重写时间为升级时刻）。卸载、快捷方式落点、两范围交叉安装、旧版并存拦截仍未验证。
 
 ## 权限体验（Windows）
 

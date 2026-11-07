@@ -30,12 +30,12 @@ MIT License — 见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-
 
 ## 下载与安装
 
-源码仓库保持私有；**安装包与更新清单公开发布在 [yunyu697/renomio-releases](https://github.com/yunyu697/renomio-releases/releases)**。截至本次对账，最新公开发布是 `v1.0.0-alpha11`；源码仓库的 `VERSION` 已推进到 `1.1.0-alpha1`，该版本尚未发布。下表为 `1.0.0-alpha5` 的既有包，最新包的校验值请以 Releases 页同批上传的 `SHA256SUMS` 为准：
+源码仓库保持私有；**安装包与更新清单公开发布在 [yunyu697/renomio-releases](https://github.com/yunyu697/renomio-releases/releases)**。截至本次对账，最新公开发布是预发布 `v1.1.0-alpha1`（稳定版仍为 `v1.0.0`），源码 `VERSION` 与之一致。下表为该版本的两个包：
 
-| 包 | 文件 | 大小 | SHA-256（1.0.0-alpha5） |
+| 包 | 文件 | 大小 | SHA-256（1.1.0-alpha1） |
 | --- | --- | --- | --- |
-| NSIS（推荐，可选安装范围） | `Renomio_1.0.0-alpha5_x64-setup.exe` | 2,211,522 字节（2.11 MiB） | `2C6C9E2D1AA159E6D799FA3C812E1BEEA284A0CEF21BE4740EBB8DE8A721447D` |
-| MSI（机器级单一包） | `Renomio_1.0.0-alpha5_x64_en-US.msi` | 3,342,336 字节（3.19 MiB） | `D2BF1E27662DD4C36482D5925E8C45BD1BFDBDF9EE6CEFB6568929E6114C6E72` |
+| NSIS（推荐，可选安装范围） | `Renomio_1.1.0-alpha1_x64-setup.exe` | 2,382,542 字节（2.27 MiB） | `741228485BDF0BDA1D00EA6C7E0F66DC42D49A729A0DDA080F9B69BEEBD10FFE` |
+| MSI（机器级单一包） | `Renomio_1.1.0-alpha1_x64_en-US.msi` | 3,182,592 字节（3.04 MiB） | `1636AD5E1F4F14E0E4471D33552FEE1B30C9CEEC18E12F9F51C4370EF4FEC369` |
 
 应用内「设置 → 检查更新」读取公开仓库滚动 release `updates` 下的 `latest.json`，安装包也由该公开仓库下载；清单与资源的地址均不再指向私有源码仓库。
 
