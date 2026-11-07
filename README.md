@@ -17,7 +17,8 @@ MIT License — 见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-
 | 冲突检测与策略 | 批次内重名与磁盘已存在；跳过 / 自动后缀 `name (1).ext` / 覆盖（先备份目标） |
 | 两阶段执行 + 撤销 | 先写临时名再落目标，支持交换与环形改名；批次日志持久化，**重启后仍可撤销** |
 | 撤销历史面板 | 每批时间、类型、成功/跳过/失败、是否可撤销及原因，支持逐批与「撤销到此」多级回退 |
-| P1 扩展 | 只读元数据（图片 EXIF / ID3 / PDF / DOCX）、方案导入导出、CSV 导出、列显隐与列宽 |
+| 元数据与导出 | 图片 / 音频 / Office / PDF 文本字段读写（音频含歌词；图片仅写 XMP，不写 APP13/8BIM）、方案导入导出、多格式导出（CSV / Excel `.xlsx` / HTML / TSV）、列显隐与列宽 |
+| 快照 | 记录原路径与新路径映射（可选 SHA-256），还原只改回原名、冲突跳过、绝不覆盖；还原走追加批次日志，可再撤销 |
 | 时间 / 属性 / 归类移动 | 批量平移或固定时间、只读与隐藏属性、按扩展名 / 日期 / 首字母 / 正则捕获组移动到子目录 |
 | 五语言界面 | 简体中文、繁体中文、English、日本語、Español |
 
@@ -29,21 +30,21 @@ MIT License — 见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-
 
 ## 下载与安装
 
-源码仓库保持私有；**安装包与更新清单公开发布在 [yunyu697/renomio-releases](https://github.com/yunyu697/renomio-releases/releases)**（当前预发布 `v1.0.0-alpha5`）：
+源码仓库保持私有；**安装包与更新清单公开发布在 [yunyu697/renomio-releases](https://github.com/yunyu697/renomio-releases/releases)**。截至本次对账，最新公开发布是 `v1.0.0-alpha11`；源码仓库的 `VERSION` 已推进到 `1.1.0-alpha1`，该版本尚未发布。下表为 `1.0.0-alpha5` 的既有包，最新包的校验值请以 Releases 页同批上传的 `SHA256SUMS` 为准：
 
-| 包 | 文件 | 大小 | SHA-256 |
+| 包 | 文件 | 大小 | SHA-256（1.0.0-alpha5） |
 | --- | --- | --- | --- |
 | NSIS（推荐，可选安装范围） | `Renomio_1.0.0-alpha5_x64-setup.exe` | 2,211,522 字节（2.11 MiB） | `2C6C9E2D1AA159E6D799FA3C812E1BEEA284A0CEF21BE4740EBB8DE8A721447D` |
 | MSI（机器级单一包） | `Renomio_1.0.0-alpha5_x64_en-US.msi` | 3,342,336 字节（3.19 MiB） | `D2BF1E27662DD4C36482D5925E8C45BD1BFDBDF9EE6CEFB6568929E6114C6E72` |
 
 应用内「设置 → 检查更新」读取公开仓库滚动 release `updates` 下的 `latest.json`，安装包也由该公开仓库下载；清单与资源的地址均不再指向私有源码仓库。
 
-版本规则：唯一可改的版本号是仓库根 `VERSION`，其余（`app/package.json`、`app/packages/foundation/package.json`、`app/src-tauri/tauri.conf.json`、两个 `Cargo.toml`）由 `npm run version:sync` 注入；tag `v1.0.0-alpha5` 必须与 `VERSION` 一致，段位（第二/三段与 alpha 序号）≤ 10。版本闸门按推送类型分档：**分支推送**（含 `main`）只要求 `VERSION` 不低于最新已发布 alpha，等于可通过、低于即拦截；**tag 推送**仍要求严格递增，alpha 复用与倒退一律拦截（`version` job 的 16 条反例自测覆盖这三种情形）。MSI 的 `ProductVersion` 只能是纯数字，故 `wix.version` 由同一 VERSION 的数字核注入（alpha 阶段为 `1.0.0`），包文件名仍带 `alpha5`。
+版本规则：唯一可改的版本号是仓库根 `VERSION`，其余（`app/package.json`、`app/packages/foundation/package.json`、`app/src-tauri/tauri.conf.json`、两个 `Cargo.toml`）由 `npm run version:sync` 注入；tag（如当前 `v1.1.0-alpha1`）必须与 `VERSION` 一致，段位（第二/三段与 alpha 序号）≤ 10。版本闸门按推送类型分档：**分支推送**（含 `main`）只要求 `VERSION` 不低于最新已发布 alpha，等于可通过、低于即拦截；**tag 推送**仍要求严格递增，alpha 复用与倒退一律拦截（`version` job 的 16 条反例自测覆盖这三种情形）。MSI 的 `ProductVersion` 只能是纯数字，故 `wix.version` 由同一 VERSION 的数字核注入（alpha 阶段取 `1.1.0`），包文件名仍带 alpha 号。
 
 校验方式（PowerShell）：
 
 ```powershell
-Get-FileHash .\Renomio_1.0.0-alpha5_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\Renomio_<版本>_x64-setup.exe -Algorithm SHA256
 ```
 
 `SHA256SUMS` 与安装包同批上传，可用于批量比对。
@@ -63,7 +64,7 @@ Get-FileHash .\Renomio_1.0.0-alpha5_x64-setup.exe -Algorithm SHA256
 - **两个安装包都未做代码签名**，首次运行会触发 Windows SmartScreen（「Windows 已保护你的电脑」）。请核对上面的 SHA-256 后再选择「仍要运行」。本轮没有签名证书，签名与时间戳流程尚未执行。
 - **当前只发布 Windows x64 产物。** macOS / Linux 的打包配置尚在代码中，但本轮未构建、未验证，也没有对应安装包。
 - 安装向导界面、需要 UAC 的安装/卸载、安装后首次启动的真实窗口交互，本轮均未在自动化中执行（按项目约定不在会话里启动带 GUI 或会弹 UAC 的进程）；因此「装到 `Program Files` 的落点、卸载残留、快捷方式位置、旧版并存拦截弹窗」属于**静态核验**结论，不是真机验收。
-- 真实 Explorer 拖放、提权后的拖放（UIPI 会拦截）、真实物理跨盘移动、EXIF 拍摄时间写入（未实现，时间面板只改文件系统时间）均未完成或未验证。
+- 真实 Explorer 拖放、提权后的拖放（UIPI 会拦截）、真实物理跨盘移动、EXIF 拍摄时间写入在真实相机样张上的表现（功能已实现，本机只用自造 JPEG 结构测试）、快照窗在桌面端真实 UI 上的操作（Rust 真实文件测试与浏览器 mock 均已覆盖）均未完成或未验证。
 - 繁中 / 日 / 西三套译文本工具产出，**未经母语审校**。
 
 ### 创建时间（btime）的跨平台可见性
