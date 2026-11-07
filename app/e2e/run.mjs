@@ -179,6 +179,22 @@ function check(layer, name, ok, detail = '') {
 
 async function main() {
   fs.writeFileSync(RUN_LOG, '', 'utf8');
+
+  // 真实文件层：元变量 + 八规则端到端（独立子进程，失败不影响浏览器层继续跑）
+  for (const [script, label] of [
+    ['vars.mjs', '元变量真实文件验证'],
+    ['rules-fs.mjs', '八规则真实文件端到端（建文件→改名→校验→撤销）'],
+    ['policy.mjs', '智能更名策略（默认值对照 + 真实文件截断/跳过）'],
+  ]) {
+    const run = spawnSync(process.execPath, [path.join(HERE, script)], {
+      cwd: path.join(HERE, '..'),
+      encoding: 'utf8',
+      timeout: 180000,
+    });
+    const resultLine = (run.stdout || '').split(/\r?\n/).find((line) => line.startsWith('RESULT')) || '';
+    check('REAL-FS', label, run.status === 0 && resultLine.length > 0, resultLine || (run.stderr || '').slice(-200));
+  }
+
   const browser = findBrowser();
   dbg('browser', browser);
   if (!browser) throw new Error('未找到 Edge / Chrome，可设置 E2E_BROWSER 指向浏览器可执行文件');
@@ -692,6 +708,45 @@ async function main() {
       panelBg: getComputedStyle(document.querySelector('.win')).backgroundColor,
     })`);
     check('UI', '明暗主题切换 → data-theme=dark 且面板底色变化', theme.theme === 'dark' && theme.panelBg !== bootTheme.panelBg, JSON.stringify(theme));
+
+    // 智能更名策略面板：默认值与「空名处理」联动
+    const policyUi = await evaluate(`(() => {
+      const max = document.querySelector('[data-testid="input-name-max-length"]');
+      const long = document.querySelector('[data-testid="select-long-name-action"]');
+      const empty = document.querySelector('[data-testid="select-empty-name-action"]');
+      const fallback = document.querySelector('[data-testid="input-empty-fallback"]');
+      const skip = document.querySelector('[data-testid="switch-skip-system-hidden"]');
+      return {
+        max: max?.value, long: long?.value, empty: empty?.value,
+        fallback: fallback?.value, fallbackDisabled: fallback?.disabled ?? null,
+        skip: skip?.getAttribute('aria-checked'),
+      };
+    })()`);
+    check(
+      'UI',
+      '策略面板默认值（255 / 阻止 / 阻止 / 未命名 / 关）',
+      policyUi.max === '255' && policyUi.long === 'block' && policyUi.empty === 'block'
+        && policyUi.fallback === '未命名' && policyUi.fallbackDisabled === true && policyUi.skip === 'false',
+      JSON.stringify(policyUi),
+    );
+    await evaluate(`(() => {
+      const sel = document.querySelector('[data-testid="select-empty-name-action"]');
+      const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+      setter.call(sel, 'fallback');
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    })()`);
+    await sleep(250);
+    const fallbackEnabled = await evaluate(`document.querySelector('[data-testid="input-empty-fallback"]')?.disabled`);
+    check('UI', '空名处理切到「备用名」后备用名输入框可用', fallbackEnabled === false, String(fallbackEnabled));
+    await evaluate(`(() => {
+      const sel = document.querySelector('[data-testid="select-empty-name-action"]');
+      const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+      setter.call(sel, 'block');
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    })()`);
+    await sleep(200);
     await shot('07-dark-theme.png');
     await click('.drawer-mask');
     await sleep(200);
@@ -751,14 +806,65 @@ async function main() {
     await shot('11-plan-incompatible.png');
     await clickText('[data-testid="plan-dialog"] .btn-ghost', '取消');
 
-    // CSV 导出
-    await click('[data-testid="csv-export"]');
+    // 多格式导出：CSV / TSV / HTML / Excel(.xlsx)
+    await click('[data-testid="export-menu"]');
+    await waitFor(`document.querySelector('[data-testid="export-pop"]')`, '导出菜单');
+    const exportItems = await evaluate(`document.querySelectorAll('[data-testid="export-pop"] .layout-item').length`);
+    check('UI', '导出菜单提供 CSV / Excel / HTML / TSV 四种格式', exportItems === 4, String(exportItems));
+    await click('[data-testid="export-csv"]');
     await waitFor(`window.__E2E__.writes['D:\\\\e2e\\\\out\\\\list.csv'] !== undefined`, 'CSV 写入');
     const csvWrites = await evaluate(`window.__E2E__.writes`);
     const csv = csvWrites['D:\\e2e\\out\\list.csv'];
     const csvLines = (csv || '').split(/\r?\n/);
     check('UI', 'CSV 导出 → 表头 + 原名/新名/状态/错误原因', csvLines[0].replace('\ufeff', '') === '原文件名,新文件名,状态,原因' && csvLines.length >= 5, `${csvLines.length} 行`);
     check('UI', 'CSV 含冲突原因文本', /冲突/.test(csv) && /目标文件已存在|冲突/.test(csv));
+
+    await click('[data-testid="export-menu"]');
+    await click('[data-testid="export-tsv"]');
+    await waitFor(`window.__E2E__.writes['D:\\\\e2e\\\\out\\\\report.tsv'] !== undefined`, 'TSV 写入');
+    const textWrites = await evaluate(`window.__E2E__.writes`);
+    const tsv = textWrites['D:\\e2e\\out\\report.tsv'];
+    const tsvLines = (tsv || '').split(/\r?\n/);
+    check(
+      'UI',
+      'TSV 导出 → BOM + 制表符四列表头，行数与 CSV 一致',
+      tsvLines[0].replace('\ufeff', '').split('\t').length === 4 && tsvLines.length === csvLines.length,
+      `${tsvLines.length} 行 / ${tsvLines[0].replace('\ufeff', '')}`,
+    );
+
+    await click('[data-testid="export-menu"]');
+    await click('[data-testid="export-html"]');
+    await waitFor(`window.__E2E__.writes['D:\\\\e2e\\\\out\\\\report.html'] !== undefined`, 'HTML 写入');
+    const htmlWrites = await evaluate(`window.__E2E__.writes`);
+    const html = htmlWrites['D:\\e2e\\out\\report.html'];
+    check(
+      'UI',
+      'HTML 导出 → 完整文档 + 转义表格 + 中文表头',
+      (html || '').startsWith('<!doctype html>') && html.includes('<table>') && html.includes('原文件名') && html.includes('<th>'),
+      `${(html || '').length} 字符`,
+    );
+
+    await click('[data-testid="export-menu"]');
+    await click('[data-testid="export-xlsx"]');
+    await waitFor(`window.__E2E__.binaryWrites['D:\\\\e2e\\\\out\\\\report.xlsx'] !== undefined`, 'xlsx 写入');
+    const xlsx = await evaluate(`(() => {
+      const b64 = window.__E2E__.binaryWrites['D:\\\\e2e\\\\out\\\\report.xlsx'];
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const text = new TextDecoder('utf-8').decode(bytes);
+      return {
+        zip: bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 3 && bytes[3] === 4,
+        sheet: text.includes('xl/worksheets/sheet1.xml'),
+        workbook: text.includes('xl/workbook.xml'),
+        name: text.includes('旧照片 001.jpg'),
+        size: bytes.length,
+      };
+    })()`);
+    check(
+      'UI',
+      'xlsx 导出 → 合法 ZIP 头、含工作簿/工作表/中文单元格',
+      xlsx.zip === true && xlsx.sheet && xlsx.workbook && xlsx.name,
+      `PK制式=${xlsx.zip} · ${xlsx.size} 字节`,
+    );
 
     // 编号起始值可选：start=0 暴露在规则编辑器里，预览应得到 000
     await click('[data-testid="add-rule"]');
@@ -831,6 +937,27 @@ async function main() {
     await sleep(250);
     const timeAfter = await evaluate(`document.querySelector('[data-testid="ops-change"]')?.textContent || ''`);
     check('UI', '时间预览随偏移量实时变化', timeAfter !== timeBefore[0], `${timeBefore[0]} → ${timeAfter}`);
+
+    // 随机模式：区间内按「路径+种子」取确定值，四个文件应落在 2020-01 且互不相同
+    await click('[data-testid="ops-time-mode-random"]');
+    await setInput('[data-testid="ops-random-from"]', '2020-01-01T00:00');
+    await setInput('[data-testid="ops-random-to"]', '2020-01-31T00:00');
+    await sleep(250);
+    const randomPreview = await evaluate(
+      `[...document.querySelectorAll('[data-testid="ops-change"]')].map((n) => n.textContent)`,
+    );
+    const randomTargets = randomPreview.map((t) => t.split('→')[1] ?? '');
+    check(
+      'UI',
+      '随机预览 → 每个文件落在所选区间且取值不同',
+      randomTargets.length === 4 && randomTargets.every((t) => t.includes('2020')) && new Set(randomTargets).size >= 2,
+      randomTargets.join(' | '),
+    );
+    const exifToggle = await evaluate(`!!document.querySelector('[data-testid="ops-write-exif"]')`);
+    check('UI', '时间面板提供 EXIF 拍摄时间写入开关', exifToggle);
+    // 切回平移模式，后续写盘与撤销断言仍按「+2 天」
+    await click('[data-testid="ops-time-mode-shift"]');
+    await sleep(250);
     await shot('14-ops-time-preview.png');
 
     const mtimeBefore = await evaluate(`window.__E2E__.files.map((f) => f.modified)`);
@@ -886,6 +1013,33 @@ async function main() {
     await sleep(400);
     const readonlyRestored = await evaluate(`window.__E2E__.files.filter((f) => f.readonly).length`);
     check('UI-triggered mock', '属性撤销 → 仅原本只读的文件保持只读', readonlyRestored === 1, `readonly=${readonlyRestored}`);
+
+    // 取反模式：属性面板第三态，预览 = 原值取反
+    await clickText('.nav .nav-item', '文件属性');
+    await waitFor(`document.querySelector('[data-testid="ops-dialog"]')`, '属性面板（取反）');
+    const invertButtons = await evaluate(
+      `['ops-readonly-invert', 'ops-hidden-invert'].every((id) => !!document.querySelector('[data-testid="' + id + '"]'))`,
+    );
+    check('UI', '属性面板提供「取反」模式（只读 / 隐藏）', invertButtons);
+    await click('[data-testid="ops-readonly-invert"]');
+    await sleep(250);
+    const invertPreview = await textOf('[data-testid="ops-preview"]');
+    check(
+      'UI',
+      '取反预览 → 可写变只读、只读变可写（逐行原值→取反值）',
+      invertPreview.includes('可写 / 可见→只读 / 可见') && invertPreview.includes('只读 / 可见→可写 / 可见'),
+      invertPreview.slice(0, 160),
+    );
+    await click('[data-testid="ops-apply"]');
+    await waitFor(`document.querySelector('[data-testid="ops-result"]')`, '取反写入结果');
+    const inverted = await evaluate(`window.__E2E__.files.filter((f) => f.readonly).length`);
+    check('UI-triggered mock', '取反写入 → 3 个可写变只读、1 个只读变可写', inverted === 3, `readonly=${inverted}`);
+    await clickText('[data-testid="ops-result"] .btn-primary', '关闭');
+    await waitFor(`!document.querySelector('[data-testid="ops-dialog"]')`, '取反面板关闭');
+    await click('[data-testid="action-undo"]');
+    await sleep(400);
+    const invertRestored = await evaluate(`window.__E2E__.files.filter((f) => f.readonly).length`);
+    check('UI-triggered mock', '取反撤销 → 还原原只读属性', invertRestored === 1, `readonly=${invertRestored}`);
 
     // ---- 文件归类（正则捕获组分支；UI 层，mock 后端） ----
     await clickText('.nav .nav-item', '文件归类');
@@ -957,6 +1111,74 @@ async function main() {
       ['time', 'attrs', 'move'].every((k) => undoBatchKinds.includes(k)),
       undoBatchKinds.join(','),
     );
+
+    // ---- 归类模板（多级目录；UI 层，mock 后端） ----
+    await clickText('.nav .nav-item', '文件归类');
+    await waitFor(`document.querySelector('[data-testid="ops-dialog"]')`, '归类面板（模板）');
+    await waitFor(`document.querySelectorAll('[data-testid="ops-row"]').length === 4`, '模板预览 4 行');
+    await click('[data-testid="ops-move-kind-template"]');
+    await waitFor(`document.querySelector('[data-testid="ops-move-template"]')`, '模板输入框');
+    const templateDefault = await evaluate(`document.querySelector('[data-testid="ops-move-template"]')?.value`);
+    check('UI', '归类模板 → 默认值为 <EXT>（按扩展名归类）', templateDefault === '<EXT>', String(templateDefault));
+    await setInput('[data-testid="ops-move-template"]', '<EXT>/<DATE:yyyy>');
+    await sleep(500);
+    const templateReady = await evaluate(`document.querySelectorAll('[data-testid="ops-row"][data-status="ready"]').length`);
+    const templateTargets = await evaluate(
+      `[...document.querySelectorAll('[data-testid="ops-target"]')].map((n) => n.textContent).filter((t) => t.includes('归类结果'))`,
+    );
+    check(
+      'UI',
+      '归类模板 <EXT>/<DATE:yyyy> → 生成两级目录（jpg / png 各带年份）',
+      templateReady === 4 &&
+        templateTargets.some((t) => /归类结果\\jpg\\20\d{2}\\旧照片 001\.jpg/.test(t)) &&
+        templateTargets.some((t) => /归类结果\\png\\20\d{2}\\logo\.png/.test(t)),
+      templateTargets.join(' | '),
+    );
+    await click('[data-testid="ops-apply"]');
+    await waitFor(`document.querySelector('[data-testid="ops-result"]')`, '模板移动结果');
+    const templatePaths = await evaluate(`window.__E2E__.files.map((f) => f.path)`);
+    check(
+      'UI-triggered mock',
+      '模板移动后 → 4 个文件落入两级目录',
+      templatePaths.filter((p) => /归类结果\\jpg\\20\d{2}\\旧照片 00[123]\.jpg/.test(p)).length === 3 &&
+        templatePaths.some((p) => /归类结果\\png\\20\d{2}\\logo\.png/.test(p)),
+      templatePaths.join(' | '),
+    );
+    await clickText('[data-testid="ops-result"] .btn-primary', '关闭');
+    await waitFor(`!document.querySelector('[data-testid="ops-dialog"]')`, '模板面板关闭');
+    await click('[data-testid="action-undo"]');
+    await sleep(400);
+    const templateUndone = await evaluate(`window.__E2E__.files.map((f) => f.path)`);
+    check(
+      'UI-triggered mock',
+      '模板归类可撤销 → 路径全部回到原位置',
+      templateUndone.some((p) => p.endsWith('旧照片 001.jpg')) && templateUndone.every((p) => !p.includes('归类结果')),
+      templateUndone.join(' | '),
+    );
+
+    await clickText('.nav .nav-item', '文件归类');
+    await waitFor(`document.querySelector('[data-testid="ops-dialog"]')`, '归类面板（非法模板）');
+    await click('[data-testid="ops-move-kind-template"]');
+    await setInput('[data-testid="ops-move-template"]', '<MD5>');
+    await sleep(300);
+    const hashInvalid = await evaluate(`document.querySelectorAll('[data-testid="ops-row"][data-status="invalid"]').length`);
+    const hashPreview = await textOf('[data-testid="ops-preview"]');
+    check(
+      'UI',
+      '模板含哈希变量 <MD5> → 全部行 invalid 并说明原因',
+      hashInvalid === 4 && hashPreview.includes('哈希变量 <MD5>'),
+      hashPreview.slice(0, 180),
+    );
+    await setInput('[data-testid="ops-move-template"]', '<FOO>');
+    await sleep(300);
+    const unknownPreview = await textOf('[data-testid="ops-preview"]');
+    check('UI', '模板含未知变量 → 提示「未知变量 <FOO>」', unknownPreview.includes('未知变量 <FOO>'), unknownPreview.slice(0, 180));
+    await setInput('[data-testid="ops-move-template"]', '<#>/<EXT>');
+    await sleep(300);
+    const counterPreview = await textOf('[data-testid="ops-preview"]');
+    check('UI', '模板含 <#> → 提示不支持序号变量', counterPreview.includes('不支持 <#>'), counterPreview.slice(0, 180));
+    await clickText('[data-testid="ops-dialog"] .dialog-foot .btn-outline', '取消');
+    await waitFor(`!document.querySelector('[data-testid="ops-dialog"]')`, '非法模板面板关闭');
 
     // ---- 隐藏文件开关（开 / 关两组；UI 层，mock 后端） ----
     await evaluate(`window.__E2E__.files.push({
@@ -1130,7 +1352,7 @@ async function main() {
       const t = document.querySelector('.table');
       return t ? { clientWidth: t.clientWidth, scrollWidth: t.scrollWidth, scrollable: t.scrollWidth > t.clientWidth + 1 } : null;
     })()`);
-    check('UI', '1100×640 @150% DPI 表格内部横向滚动（列不裁切而是可滚动）', !!tableScroll && tableScroll.scrollable && tableScroll.clientWidth > 0, JSON.stringify(tableScroll));
+    check('UI', '1100×640 @150% DPI 窄窗单列不出现表格横向滚动（列按可用宽度排布）', !!tableScroll && !tableScroll.scrollable && tableScroll.clientWidth > 200, JSON.stringify(tableScroll));
     check('UI', '1100×640 @150% DPI 操作条与工具栏未被裁切', layout.actionBottom <= 641 && layout.actionRight <= 1101 && layout.toolbarBottom <= 641, JSON.stringify(layout));
     await shot('14-min-1100x640-150dpi.png');
 
@@ -1140,12 +1362,26 @@ async function main() {
     const tabLayout = await evaluate(`(() => {
       const tabs = document.querySelector('.list-tabs');
       const view = document.querySelector('[data-testid="list-view-attrs"]');
+      const main = document.querySelector('.main');
+      const rules = document.querySelector('.rules');
+      const nav = document.querySelector('.nav');
+      const tabRect = tabs?.getBoundingClientRect();
       return {
         innerWidth: window.innerWidth,
         scrollWidth: document.documentElement.scrollWidth,
         innerHeight: window.innerHeight,
         tabsClient: tabs?.clientWidth ?? 0,
         tabsScroll: tabs?.scrollWidth ?? 0,
+        tabsDir: tabs ? getComputedStyle(tabs).flexDirection : '',
+        tabsWrap: tabs ? getComputedStyle(tabs).flexWrap : '',
+        tabRect: tabRect ? { x: Math.round(tabRect.x), w: Math.round(tabRect.width) } : null,
+        mainW: main ? Math.round(main.getBoundingClientRect().width) : 0,
+        rulesW: rules ? Math.round(rules.getBoundingClientRect().width) : 0,
+        navW: nav ? Math.round(nav.getBoundingClientRect().width) : 0,
+        panesW: (() => { const p = document.querySelector('.panes'); return p ? Math.round(p.getBoundingClientRect().width) : 0; })(),
+        panesX: (() => { const p = document.querySelector('.panes'); return p ? Math.round(p.getBoundingClientRect().x) : 0; })(),
+        rulesX: rules ? Math.round(rules.getBoundingClientRect().x) : 0,
+        panesKids: [...(document.querySelector('.panes')?.children || [])].map((el) => el.className + ':' + Math.round(el.getBoundingClientRect().width) + '@' + Math.round(el.getBoundingClientRect().x)),
         viewBottom: view?.getBoundingClientRect().bottom ?? 0,
         rowHeight: view?.querySelector('.trow')?.getBoundingClientRect().height ?? 0,
       };
@@ -1192,6 +1428,13 @@ async function main() {
     await waitFor(`document.querySelector('[data-testid="add-files"]')`, '重载后应用就绪', 10000);
     await click('[data-testid="add-files"]');
     await waitFor(`document.querySelectorAll('.trow').length === 4`, '重载后添加 4 个文件');
+    // 规则链随设置持久化（重启/重载后保留），这里先清空到已知状态再添加
+    const clearBtn = await evaluate(`(() => {
+      const btn = [...document.querySelectorAll('.rules .panel-head .btn-icon')].find((el) => (el.getAttribute('title') || '').includes('清空'));
+      if (btn) { btn.click(); return true; }
+      return false;
+    })()`);
+    if (clearBtn) await sleep(200);
     await click('[data-testid="add-rule"]');
     await waitFor(`document.querySelector('[data-testid="rule-type-replace"]')`, '阶段 A 规则菜单');
     await click('[data-testid="rule-type-replace"]');
@@ -1432,9 +1675,911 @@ async function main() {
     }
     await viewport(1440, 900, 1);
 
+    // ================= alpha9：单栏规则链 / 排序持久化 / 布局视图 / 冲突 / 更新按钮显隐 =================
+    await sleep(300);
+
+    const clickAt = (selector, index) =>
+      evaluate(`(() => {
+        const el = document.querySelectorAll(${JSON.stringify(selector)})[${index}];
+        if (!el) throw new Error('找不到元素 ${selector}[' + ${index} + ']');
+        el.click();
+        return true;
+      })()`);
+    const addRuleType = async (type) => {
+      await click('[data-testid="add-rule"]');
+      await waitFor(`document.querySelector('[data-testid="rule-type-${type}"]')`, `规则菜单 ${type}`, 6000);
+      await click(`[data-testid="rule-type-${type}"]`);
+      await sleep(220);
+    };
+    const ruleOrder = () =>
+      evaluate(`[...document.querySelectorAll('[data-testid="rule-card"]')].map((c) => c.getAttribute('data-rule-type')).join(',')`);
+    const openRule = () =>
+      evaluate(`(() => { const c = document.querySelector('.rule-card.open'); return c ? c.getAttribute('data-rule-type') : ''; })()`);
+    const clearAllRules = async () => {
+      const has = await evaluate(`Boolean(document.querySelector('[data-testid="clear-rules"]'))`);
+      if (has) {
+        await click('[data-testid="clear-rules"]');
+        await sleep(250);
+      }
+    };
+    const reloadApp = async () => {
+      await evaluate('location.reload()');
+      await sleep(900);
+      await waitFor(`document.querySelector('.workspace')`, '重载后工作区', 15000);
+      await sleep(600);
+    };
+
+    if (await evaluate(`Boolean(document.querySelector('.rules.collapsed'))`)) {
+      await click('[data-testid="expand-rules"]');
+      await sleep(200);
+    }
+
+    // --- 0) 元变量：插入面板 + 实时预览 ---
+    await clearAllRules();
+    await addRuleType('number');
+    await click('[data-testid="var-toggle"]');
+    await waitFor(`document.querySelector('[data-testid="var-panel"]')`, '变量面板');
+    const varChips = await evaluate(`[...document.querySelectorAll('[data-testid^="var-"]')].map((e) => e.getAttribute('data-testid'))`);
+    check(
+      'UI',
+      '变量插入面板列出常用元变量（FILENAME/NAME/EXT/SUBSTR/DIFNSUBSTR/CRC32/USER1/#）',
+      ['var-FILENAME', 'var-NAME', 'var-EXT', 'var-DOTEXT', 'var-SUBSTR', 'var-DIFNSUBSTR', 'var-CRC32', 'var-MD5', 'var-SHA1', 'var-USER1', 'var-#'].every((k) => varChips.includes(k)),
+      varChips.join(','),
+    );
+    await click('[data-testid="var-NAME"]');
+    await sleep(150);
+    const exprAfterInsert = await evaluate(`document.querySelector('[data-testid="number-expression"]')?.value || ''`);
+    check('UI', '点击变量插入到表达式', exprAfterInsert.includes('<NAME>'), exprAfterInsert);
+    await setInput('[data-testid="number-expression"]', '<NAME>_<#><DOTEXT>');
+    await waitFor(`[...document.querySelectorAll('.trow')].some((r) => r.textContent.includes('logo_001.png'))`, '元变量实时预览', 10000);
+    const varRowText = await evaluate(`[...document.querySelectorAll('.trow')].find((r) => r.textContent.includes('logo_001.png'))?.textContent || ''`);
+    check('UI', '元变量与序号组合的实时预览（logo.png → logo_001.png）', varRowText.includes('logo_001.png'), varRowText);
+    await click('[data-testid="var-toggle"]');
+    await waitFor(`document.querySelector('[data-testid="var-panel"]')`, '变量面板（示例）');
+    const varExample = await evaluate(`document.querySelector('.var-example code')?.textContent || ''`);
+    check('UI', '变量面板实时示例', varExample.includes('IMG_2048_1.jpg'), varExample);
+    await shot('00-vars-panel.png');
+    await clearAllRules();
+
+    // --- 1) 单栏 + 折叠记忆 + 三种排序方式持久化 ---
+    await clearAllRules();
+    await addRuleType('replace');
+    await addRuleType('number');
+    await addRuleType('case');
+
+    const singleColumn = await evaluate(`(() => {
+      const body = document.querySelector('.rules-body');
+      const details = document.querySelectorAll('.rule-detail');
+      return {
+        display: getComputedStyle(body).display,
+        grid: getComputedStyle(body).gridTemplateColumns,
+        details: details.length,
+        inCard: [...details].every((d) => d.closest('[data-testid="rule-card"]')),
+        cards: document.querySelectorAll('[data-testid="rule-card"]').length,
+        twoColumnDetail: Boolean(document.querySelector('.rules-body > .rule-detail')),
+      };
+    })()`);
+    check(
+      'UI',
+      '规则链为单栏：无两栏网格、编辑器嵌在卡片内、同一时间只展开一条',
+      singleColumn.display === 'flex' && singleColumn.grid === 'none' && singleColumn.details === 1
+        && singleColumn.inCard && !singleColumn.twoColumnDetail && singleColumn.cards === 3,
+      JSON.stringify(singleColumn),
+    );
+
+    const orderAdded = await ruleOrder();
+    check('UI', '规则链初始顺序为 replace,number,case', orderAdded === 'replace,number,case', orderAdded);
+
+    // 上移按钮：case 上移一位
+    await clickAt('[data-testid="rule-up"]', 2);
+    await sleep(300);
+    const orderUp = await ruleOrder();
+    check('UI', '上移按钮改变顺序（replace,case,number）', orderUp === 'replace,case,number', orderUp);
+
+    // 键盘 Alt+↓：第一条下移
+    await evaluate(`(() => {
+      const card = document.querySelectorAll('[data-testid="rule-card"]')[0];
+      card.focus();
+      card.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, bubbles: true }));
+      return true;
+    })()`);
+    await sleep(350);
+    const orderKey = await ruleOrder();
+    check('UI', 'Alt+↓ 键盘排序改变顺序（case,replace,number）', orderKey === 'case,replace,number', orderKey);
+
+    // 拖拽：把最后一条拖到最前
+    const dragProbe = await evaluate(`(() => {
+      const log = [];
+      ['dragstart', 'dragenter', 'dragover', 'drop', 'dragend'].forEach((type) => {
+        document.addEventListener(type, (e) => log.push(type + '@' + (e.target.getAttribute && e.target.getAttribute('data-testid') ? e.target.getAttribute('data-testid') : e.target.className)), true);
+      });
+      const cards = [...document.querySelectorAll('[data-testid="rule-card"]')];
+      const handle = cards[2].querySelector('.drag');
+      const dt = new DataTransfer();
+      const fire = (type, target) => target.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt }));
+      fire('dragstart', handle);
+      fire('dragover', cards[0]);
+      fire('drop', cards[0]);
+      fire('dragend', handle);
+      return { log, types: [typeof DragEvent, typeof DataTransfer], transfer: dt ? dt.types.length : null };
+    })()`);
+    await sleep(400);
+    const orderDrag = await ruleOrder();
+    check('UI', '拖拽排序改变顺序（number,case,replace）', orderDrag === 'number,case,replace', JSON.stringify({ orderDrag, dragProbe }));
+
+    const expandedBefore = await openRule();
+    check('UI', '拖拽后展开项仍为 case（未误触折叠）', expandedBefore === 'case', expandedBefore);
+
+    await reloadApp();
+    const orderReload = await ruleOrder();
+    const openReload = await openRule();
+    check('UI', '重启后规则顺序保留（number,case,replace）', orderReload === 'number,case,replace', orderReload);
+    check('UI', '重启后展开的规则保留（case）', openReload === 'case', openReload);
+
+    await evaluate(`document.querySelector('.rule-card.open [data-testid="rule-toggle"]').click()`);
+    await sleep(300);
+    const collapsedCount = await evaluate(`document.querySelectorAll('.rule-detail').length`);
+    check('UI', '点击折叠后编辑器收起', collapsedCount === 0, String(collapsedCount));
+    await reloadApp();
+    const collapsedReload = await evaluate(`document.querySelectorAll('.rule-detail').length`);
+    check('UI', '重启后折叠状态保留（仍为 0 个展开编辑器）', collapsedReload === 0, String(collapsedReload));
+
+    // --- 1.9) 键位窗：列表 / 录制 / 冲突 / 生效 / 持久化 / 恢复默认 ---
+    const pressKey = async (key, init = {}) => {
+      await evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', ${JSON.stringify({ key, bubbles: true, ...init })}))`);
+      await sleep(250);
+    };
+    const shortcutValue = (id) => textOf(`[data-testid="shortcut-value-${id}"]`);
+    const openShortcuts = async () => {
+      await click('[data-testid="open-shortcuts"]');
+      await waitFor(`document.querySelector('[data-testid="shortcut-dialog"]')`, '键位窗打开');
+    };
+
+    await openShortcuts();
+    const shortcutRows = await evaluate(`document.querySelectorAll('.shortcut-row').length`);
+    check('UI', '键位窗列出 5 条全局快捷键', shortcutRows === 5, String(shortcutRows));
+    const shortcutDefaults = await evaluate(
+      `['search','addFiles','addFolder','preview','undo'].map((id) => document.querySelector('[data-testid="shortcut-value-' + id + '"]').textContent).join(',')`,
+    );
+    check(
+      'UI',
+      '键位窗默认绑定与旧版一致',
+      shortcutDefaults === 'Ctrl+K,Ctrl+O,Ctrl+Shift+O,Ctrl+Enter,Ctrl+Z',
+      shortcutDefaults,
+    );
+
+    await click('[data-testid="shortcut-record-search"]');
+    await pressKey('K', { ctrlKey: true, shiftKey: true });
+    const searchBinding = await shortcutValue('search');
+    check('UI', '录制 Ctrl+Shift+K 后搜索绑定即时更新', searchBinding === 'Ctrl+Shift+K', searchBinding);
+
+    await click('[data-testid="shortcut-record-undo"]');
+    await pressKey('K', { ctrlKey: true, shiftKey: true });
+    const conflictText = await textOf('[data-testid="toast-text"]');
+    const storedUndo = await evaluate(`JSON.parse(localStorage.getItem('rename-studio.settings')).data.shortcuts.undo`);
+    const searchLabel = await textOf('[data-testid="shortcut-search"] .shortcut-name');
+    check(
+      'UI',
+      '录制冲突组合键被拒绝，并提示占用的命令',
+      conflictText.includes(searchLabel) && storedUndo === 'Ctrl+Z',
+      `${conflictText} | search=${searchLabel} | 已存 undo=${storedUndo}`,
+    );
+
+    await pressKey('Escape');
+    const dialogAfterEsc = await evaluate(`Boolean(document.querySelector('[data-testid="shortcut-dialog"]'))`);
+    const undoAfterEsc = await shortcutValue('undo');
+    check(
+      'UI',
+      '录制中按 Esc 只取消录制，键位窗保留',
+      dialogAfterEsc === true && undoAfterEsc === 'Ctrl+Z',
+      `${dialogAfterEsc} | undo=${undoAfterEsc}`,
+    );
+
+    await pressKey('Escape');
+    await waitFor(`!document.querySelector('[data-testid="shortcut-dialog"]')`, 'Esc 关闭键位窗');
+
+    await reloadApp();
+    await openShortcuts();
+    const searchAfterReload = await shortcutValue('search');
+    check('UI', '重启后自定义绑定保留（搜索 = Ctrl+Shift+K）', searchAfterReload === 'Ctrl+Shift+K', searchAfterReload);
+    await pressKey('Escape');
+    await waitFor(`!document.querySelector('[data-testid="shortcut-dialog"]')`, '键位窗再次关闭');
+
+    await evaluate(`document.activeElement && document.activeElement.blur()`);
+    await pressKey('K', { ctrlKey: true });
+    const oldBindingFocus = await evaluate(`document.activeElement && document.activeElement.id`);
+    await pressKey('K', { ctrlKey: true, shiftKey: true });
+    const newBindingFocus = await evaluate(`document.activeElement && document.activeElement.id`);
+    check(
+      'UI',
+      '自定义绑定真正生效：旧 Ctrl+K 不再命中，新 Ctrl+Shift+K 聚焦搜索',
+      oldBindingFocus !== 'global-search' && newBindingFocus === 'global-search',
+      `${oldBindingFocus ?? 'none'} → ${newBindingFocus ?? 'none'}`,
+    );
+
+    await openShortcuts();
+    await click('[data-testid="shortcut-reset"]');
+    const resetSearch = await shortcutValue('search');
+    check('UI', '恢复默认后搜索绑定回到 Ctrl+K', resetSearch === 'Ctrl+K', resetSearch);
+    await pressKey('Escape');
+    await waitFor(`!document.querySelector('[data-testid="shortcut-dialog"]')`, '恢复默认后关闭键位窗');
+    await evaluate(`document.activeElement && document.activeElement.blur()`);
+    await pressKey('K', { ctrlKey: true });
+    const resetFocus = await evaluate(`document.activeElement && document.activeElement.id`);
+    check('UI', '恢复默认后 Ctrl+K 重新聚焦搜索', resetFocus === 'global-search', resetFocus ?? 'none');
+
+    // --- 2) 预设布局视图 + 窄窗收敛 + 高级拖动尺寸持久化 ---
+    const setView = async (view) => {
+      await click('[data-testid="layout-switch"]');
+      await waitFor(`document.querySelector('[data-testid="layout-option-${view}"]')`, `布局菜单 ${view}`, 6000);
+      await click(`[data-testid="layout-option-${view}"]`);
+      await sleep(500);
+    };
+    const measureLayout = () => evaluate(`(() => {
+      const root = document.documentElement;
+      const workspace = document.querySelector('.workspace');
+      const panes = document.querySelector('.panes');
+      const main = document.querySelector('.main');
+      const rules = document.querySelector('.rules');
+      const box = (el) => {
+        const r = el.getBoundingClientRect();
+        return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
+      };
+      const controls = [...document.querySelectorAll('button, input, select, textarea, [role="switch"], .switch, .tab, .nav-item, .chip')]
+        .filter((el) => el.getClientRects().length > 0);
+      let clipped = 0;
+      const clippedNames = [];
+      for (const el of controls) {
+        const r = el.getBoundingClientRect();
+        let bad = r.right > window.innerWidth + 1 || r.left < -1;
+        let node = el.parentElement;
+        let stopX = false;
+        let stopY = false;
+        while (node && node !== document.body) {
+          const style = getComputedStyle(node);
+          const ox = style.overflowX;
+          const oy = style.overflowY;
+          const nr = node.getBoundingClientRect();
+          if (!stopX) {
+            if (ox === 'auto' || ox === 'scroll') stopX = true;
+            else if (ox !== 'visible' && (r.left < nr.left - 1 || r.right > nr.right + 1)) bad = true;
+          }
+          if (!stopY) {
+            if (oy === 'auto' || oy === 'scroll') stopY = true;
+            else if (oy !== 'visible' && (r.top < nr.top - 1 || r.bottom > nr.bottom + 1)) bad = true;
+          }
+          if (stopX && stopY) break;
+          node = node.parentElement;
+        }
+        if (bad) {
+          clipped += 1;
+          clippedNames.push(el.tagName + '.' + String(el.className).replace(/\\s+/g, '.') + '#' + (el.getAttribute('title') || el.getAttribute('aria-label') || '') + '@' + Math.round(r.left) + ',' + Math.round(r.top) + ',' + Math.round(r.width) + 'x' + Math.round(r.height));
+        }
+      }
+      const scrollables = [...document.querySelectorAll('*')].filter((el) => {
+        if (el === document.documentElement || el === document.body) return false;
+        if (!el.getClientRects().length) return false;
+        const style = getComputedStyle(el);
+        return el.scrollWidth > el.clientWidth + 1 && (style.overflowX === 'auto' || style.overflowX === 'scroll');
+      }).map((el) => (el.className || el.tagName) + ':' + el.clientWidth + '/' + el.scrollWidth);
+      const truncated = [...document.querySelectorAll('button, .tab, .nav-item, .rule-title, .conflict-kind, .layout-item > span, .side-hint')]
+        .filter((el) => el.getClientRects().length > 0 && el.scrollWidth > el.clientWidth + 1)
+        .map((el) => (el.textContent || '').trim().slice(0, 22));
+      const ellipsis = [...document.querySelectorAll('*')]
+        .filter((el) => {
+          if (!el.getClientRects().length) return false;
+          if (el.closest('.table') || el.closest('.path') || el.closest('.preview')) return false;
+          const style = getComputedStyle(el);
+          return style.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1 && (el.textContent || '').trim().length > 0;
+        })
+        .map((el) => (el.className || el.tagName) + ':' + (el.textContent || '').trim().slice(0, 18));
+      return {
+        view: workspace.getAttribute('data-view'),
+        narrow: workspace.getAttribute('data-narrow'),
+        innerWidth: window.innerWidth,
+        pageOverflow: root.scrollWidth > root.clientWidth + 1,
+        page: { client: root.clientWidth, scroll: root.scrollWidth },
+        panesDir: getComputedStyle(panes).flexDirection,
+        main: box(main), rules: box(rules), panes: box(panes),
+        clipped, clippedNames, scrollables, truncated, ellipsis,
+      };
+    })()`);
+
+    const LAYOUT_VIEWS = ['files-left', 'rules-left', 'files-top', 'rules-top', 'compact'];
+    const viewportPlans = [
+      [1440, 900, 1],
+      [1100, 640, 1.5],
+      [900, 640, 1],
+      [760, 600, 1],
+    ];
+    const layoutTotals = { clipped: 0, horizontal: 0, truncated: 0, combos: 0, pageOverflow: 0 };
+    const layoutDetails = [];
+    const clippedSamples = [];
+    const horizontalSamples = [];
+    const truncatedSamples = [];
+    const orientationOk = {};
+    for (const [w, h, scale] of viewportPlans) {
+      await viewport(w, h, scale);
+      await sleep(350);
+      for (const view of LAYOUT_VIEWS) {
+        await setView(view);
+        const m = await measureLayout();
+        layoutTotals.combos += 1;
+        layoutTotals.clipped += m.clipped;
+        layoutTotals.horizontal += m.scrollables.length;
+        layoutTotals.truncated += m.truncated.length;
+        if (m.pageOverflow) layoutTotals.pageOverflow += 1;
+        if (m.clipped > 0) clippedSamples.push(`${w}x${h}@${scale}/${view}:` + m.clippedNames.join('|'));
+        if (m.scrollables.length > 0) horizontalSamples.push(`${w}x${h}@${scale}/${view}:` + m.scrollables.join('|'));
+        if (m.truncated.length > 0) truncatedSamples.push(`${w}x${h}@${scale}/${view}:` + m.truncated.join('|'));
+        layoutDetails.push({
+          at: `${w}x${h}@${scale}`, view, narrow: m.narrow, dir: m.panesDir,
+          main: m.main, rules: m.rules, clipped: m.clipped, scrollables: m.scrollables,
+          truncated: m.truncated, ellipsis: m.ellipsis.length,
+        });
+        const narrow = m.narrow === 'true';
+        let ok = true;
+        if (narrow) {
+          ok = m.panesDir === 'column' && m.main.y < m.rules.y;
+        } else if (view === 'files-left') {
+          ok = m.panesDir === 'row' && m.main.x < m.rules.x && Math.abs(m.main.y - m.rules.y) <= 2;
+        } else if (view === 'rules-left') {
+          ok = m.panesDir === 'row' && m.rules.x < m.main.x && Math.abs(m.main.y - m.rules.y) <= 2;
+        } else if (view === 'files-top') {
+          ok = m.panesDir === 'column' && m.main.y < m.rules.y;
+        } else if (view === 'rules-top') {
+          ok = m.panesDir === 'column' && m.rules.y < m.main.y;
+        } else {
+          ok = m.panesDir === 'column' && m.main.y < m.rules.y && Math.abs(m.main.w - m.rules.w) <= 2;
+        }
+        orientationOk[`${w}-${view}`] = ok;
+      }
+    }
+    check('UI', '五种预设视图、四种窗口宽度：控件裁切 = 0', layoutTotals.clipped === 0, JSON.stringify({ combos: layoutTotals.combos, clipped: layoutTotals.clipped, samples: clippedSamples.slice(0, 8) }));
+    check('UI', '五种预设视图、四种窗口宽度：横向滚动条 = 0', layoutTotals.horizontal === 0 && layoutTotals.pageOverflow === 0, JSON.stringify({ horizontal: layoutTotals.horizontal, pageOverflow: layoutTotals.pageOverflow, samples: horizontalSamples.slice(0, 8) }));
+    check('UI', '五种预设视图、四种窗口宽度：控件文字截断 = 0', layoutTotals.truncated === 0, JSON.stringify({ ...layoutTotals, samples: truncatedSamples.slice(0, 8) }));
+    check('UI', '各视图方向/顺序正确（并排左右、上下先后、紧凑整宽）', Object.values(orientationOk).every(Boolean), JSON.stringify(orientationOk));
+
+    // 窄窗自动收敛单列；恢复宽度回到用户视图
+    await viewport(760, 600, 1);
+    await setView('rules-left');
+    const narrowState = await evaluate(`(() => {
+      const ws = document.querySelector('.workspace');
+      return { narrow: ws.getAttribute('data-narrow'), view: ws.getAttribute('data-view'), dir: getComputedStyle(document.querySelector('.panes')).flexDirection };
+    })()`);
+    check('UI', '760 窄窗下并排视图自动收敛为单列（视图设置不变）', narrowState.narrow === 'true' && narrowState.view === 'rules-left' && narrowState.dir === 'column', JSON.stringify(narrowState));
+    await viewport(1440, 900, 1);
+    await sleep(500);
+    const wideState = await evaluate(`(() => {
+      const ws = document.querySelector('.workspace');
+      return { narrow: ws.getAttribute('data-narrow'), view: ws.getAttribute('data-view'), dir: getComputedStyle(document.querySelector('.panes')).flexDirection };
+    })()`);
+    check('UI', '恢复宽窗后回落到用户视图 rules-left（并排）', wideState.narrow === 'false' && wideState.view === 'rules-left' && wideState.dir === 'row', JSON.stringify(wideState));
+
+    // 高级拖动 + 尺寸持久化
+    await setView('rules-top');
+    await click('[data-testid="layout-switch"]');
+    await waitFor(`document.querySelector('[data-testid="layout-advanced"]')`, '布局高级开关', 6000);
+    await click('[data-testid="layout-advanced"]');
+    await sleep(300);
+    await click('[data-testid="layout-switch"]');
+    await sleep(300);
+    const h1 = await evaluate(`Math.round(document.querySelector('.rules').getBoundingClientRect().height)`);
+    await evaluate(`(() => {
+      const splitter = document.querySelector('[data-testid="layout-splitter"]');
+      const r = splitter.getBoundingClientRect();
+      const opts = { bubbles: true, clientX: r.x + 4, clientY: r.y + 0.5 };
+      splitter.dispatchEvent(new PointerEvent('pointerdown', opts));
+      window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 4, clientY: r.y + 60 }));
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 4, clientY: r.y + 60 }));
+      return true;
+    })()`);
+    await sleep(400);
+    const h2 = await evaluate(`Math.round(document.querySelector('.rules').getBoundingClientRect().height)`);
+    const layoutSaved = await evaluate(`JSON.parse(localStorage.getItem('rename-studio.settings')).data.layout`);
+    check('UI', '高级模式拖动分隔条改变规则栏尺寸并写入设置', Math.abs(h2 - h1 - 60) <= 6 && layoutSaved.advanced === true && layoutSaved.stack === h2, JSON.stringify({ h1, h2, layoutSaved }));
+    await reloadApp();
+    const h3 = await evaluate(`Math.round(document.querySelector('.rules').getBoundingClientRect().height)`);
+    const stateAfterReload = await evaluate(`(() => {
+      const ws = document.querySelector('.workspace');
+      return { view: ws.getAttribute('data-view'), advanced: ws.getAttribute('data-advanced'), h: Math.round(document.querySelector('.rules').getBoundingClientRect().height) };
+    })()`);
+    check('UI', '重启后保留视图 rules-top 与拖动尺寸', stateAfterReload.view === 'rules-top' && stateAfterReload.advanced === 'true' && Math.abs(h3 - h2) <= 3, JSON.stringify({ before: h2, after: h3, stateAfterReload }));
+
+    // --- 3) 规则冲突：四类命中 + 不命中 + 合并 + 跳转 ---
+    await setView('files-left');
+    await clearAllRules();
+
+    // 路径类：同路径包含+排除；前缀/子目录重叠
+    await setInput('[data-testid="include-pattern"]', 'C:\\data;C:\\data\\sub');
+    await setInput('[data-testid="exclude-pattern"]', 'C:\\data');
+    await sleep(400);
+    const pathConflicts = await evaluate(`(() => {
+      const items = [...document.querySelectorAll('[data-testid="conflict-item"]')].map((el) => el.getAttribute('data-conflict-kinds'));
+      return { count: items.length, items };
+    })()`);
+    check(
+      'UI',
+      '冲突命中：同路径包含+排除、前缀/子目录重叠（2 条独立冲突）',
+      pathConflicts.count === 2
+        && pathConflicts.items.some((k) => k.includes('include-exclude'))
+        && pathConflicts.items.some((k) => k.includes('path-overlap')),
+      JSON.stringify(pathConflicts),
+    );
+
+    await setInput('[data-testid="include-pattern"]', '');
+    await setInput('[data-testid="exclude-pattern"]', '');
+    await sleep(300);
+
+    // 动作矛盾 + 正则等价：同一对规则合并为一条
+    await addRuleType('replace');
+    await setInput('[data-testid="replace-find"]', 'x');
+    await evaluate(`document.querySelectorAll('.rule-detail [role="switch"]')[1].click()`);
+    await sleep(200);
+    await setInput('[data-testid="replace-with"]', 'a');
+    const firstRuleId = await evaluate(`document.querySelector('[data-testid="rule-card"]').getAttribute('data-rule-id')`);
+    await addRuleType('replace');
+    await setInput('[data-testid="replace-find"]', 'x');
+    await evaluate(`document.querySelectorAll('.rule-detail [role="switch"]')[1].click()`);
+    await sleep(200);
+    await setInput('[data-testid="replace-with"]', 'b');
+    await sleep(400);
+
+    const actionConflicts = await evaluate(`(() => {
+      const items = [...document.querySelectorAll('[data-testid="conflict-item"]')].map((el) => el.getAttribute('data-conflict-kinds'));
+      return {
+        count: items.length,
+        items,
+        badges: document.querySelectorAll('[data-testid="rule-conflict-badge"]').length,
+        rules: document.querySelectorAll('[data-testid="rule-card"]').length,
+        modal: Boolean(document.querySelector('.modal, [role="dialog"]')),
+      };
+    })()`);
+    check(
+      'UI',
+      '冲突命中：动作矛盾与正则等价合并为一条（同一对规则只出现一次）',
+      actionConflicts.count === 1
+        && actionConflicts.items[0].includes('action-contradiction')
+        && actionConflicts.items[0].includes('regex-overlap'),
+      JSON.stringify(actionConflicts),
+    );
+    check('UI', '冲突不阻断保存：两条规则仍在、无阻断弹窗、两条规则就地标出', actionConflicts.rules === 2 && !actionConflicts.modal && actionConflicts.badges === 2, JSON.stringify(actionConflicts));
+
+    // 跳转：点击汇总里的冲突项 → 展开对应规则
+    await click('[data-testid="conflict-item"]');
+    await sleep(400);
+    const jumpState = await evaluate(`(() => {
+      const open = document.querySelector('.rule-card.open');
+      return { openId: open ? open.getAttribute('data-rule-id') : null, detail: document.querySelectorAll('.rule-detail').length, focused: document.activeElement?.getAttribute('data-rule-id') || null };
+    })()`);
+    check(
+      'UI',
+      '点击冲突汇总可跳转到对应规则（展开并聚焦）',
+      jumpState.detail === 1 && jumpState.focused === firstRuleId && jumpState.openId === firstRuleId,
+      JSON.stringify({ firstRuleId, jumpState }),
+    );
+
+    // 被遮蔽：两条相同大小写规则 → shadowed
+    await addRuleType('case');
+    await addRuleType('case');
+    await sleep(400);
+    const shadowConflicts = await evaluate(`(() => {
+      const items = [...document.querySelectorAll('[data-testid="conflict-item"]')].map((el) => el.getAttribute('data-conflict-kinds'));
+      return { items: items.length, hasShadow: items.some((k) => k.includes('shadowed')) };
+    })()`);
+    check('UI', '冲突命中：后一条被遮蔽不可达', shadowConflicts.hasShadow, JSON.stringify(shadowConflicts));
+
+    // 不命中样例
+    await clearAllRules();
+    await setInput('[data-testid="include-pattern"]', '*.jpg');
+    await setInput('[data-testid="exclude-pattern"]', '*.png');
+    await sleep(300);
+    await addRuleType('replace');
+    await setInput('[data-testid="replace-find"]', 'aa');
+    await setInput('[data-testid="replace-with"]', 'bb');
+    await addRuleType('replace');
+    await setInput('[data-testid="replace-find"]', 'mm');
+    await setInput('[data-testid="replace-with"]', 'nn');
+    await sleep(400);
+    const noConflicts = await evaluate(`(() => ({
+      panel: Boolean(document.querySelector('[data-testid="rule-conflicts"]')),
+      items: document.querySelectorAll('[data-testid="conflict-item"]').length,
+      badges: document.querySelectorAll('[data-testid="rule-conflict-badge"]').length,
+      rules: document.querySelectorAll('[data-testid="rule-card"]').length,
+    }))()`);
+    check('UI', '冲突不命中：模式不重叠且替换互不相干时不提示', !noConflicts.panel && noConflicts.items === 0 && noConflicts.badges === 0 && noConflicts.rules === 2, JSON.stringify(noConflicts));
+
+    // --- alpha10：列表手动顺序 / 重名 / 重复添加 / 属性编辑 ---
+    await evaluate('location.reload()');
+    await waitFor(`document.querySelectorAll('.trow').length >= 3`, '重载后的文件列表', 15000);
+    await sleep(500);
+
+    const rowNames = () => evaluate(`[...document.querySelectorAll('.trow .cell.name-cell .txt')].map((e) => e.textContent)`);
+    const namesBefore = await rowNames();
+    await click('[data-testid="row-down-0"]');
+    await sleep(250);
+    const namesAfterDown = await rowNames();
+    const manualChip = await countOf('[data-testid="manual-order-chip"]');
+    check(
+      'UI',
+      '列表「下移」立即改变顺序并出现手动顺序标记',
+      namesAfterDown[0] === namesBefore[1] && namesAfterDown[1] === namesBefore[0] && manualChip === 1,
+      JSON.stringify({ namesBefore, namesAfterDown, manualChip }),
+    );
+    await sleep(400);
+    await evaluate('location.reload()');
+    await waitFor(`document.querySelectorAll('.trow').length >= 3`, '重载后的文件列表 2', 15000);
+    await sleep(500);
+    const namesReloaded = await rowNames();
+    check('UI', '手动顺序在重载后仍然保留（localStorage 会话）', JSON.stringify(namesReloaded) === JSON.stringify(namesAfterDown), JSON.stringify({ namesAfterDown, namesReloaded }));
+
+    // 合成 HTML5 拖放：row0 拖到 row2
+    await evaluate(`(() => {
+      const dt = new DataTransfer();
+      window.__E2E_DT__ = dt;
+      document.querySelector('[data-testid="row-handle-0"]').dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }));
+      return true;
+    })()`);
+    await sleep(200);
+    await evaluate(`(() => {
+      const row = document.querySelectorAll('.trow')[2];
+      row.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: window.__E2E_DT__ }));
+      return true;
+    })()`);
+    await sleep(200);
+    await evaluate(`(() => {
+      const row = document.querySelectorAll('.trow')[2];
+      row.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: window.__E2E_DT__ }));
+      document.querySelector('[data-testid="row-handle-0"]').dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: window.__E2E_DT__ }));
+      return true;
+    })()`);
+    await sleep(250);
+    const namesDragged = await rowNames();
+    check(
+      'UI',
+      '拖拽手柄把第 1 行插入到第 3 行位置（非假排序）',
+      namesDragged[0] === namesReloaded[1] && namesDragged[1] === namesReloaded[2] && namesDragged[2] === namesReloaded[0],
+      JSON.stringify({ namesReloaded, namesDragged }),
+    );
+
+    // 重复添加：同路径忽略（不新增第二条）
+    const firstPath = await evaluate(`window.__E2E__.files[0].path`);
+    const beforeDupCount = await countOf('.trow');
+    await evaluate(`window.__E2E__.emitDrag('drop', [${JSON.stringify(firstPath)}])`);
+    await sleep(400);
+    const afterDupCount = await countOf('.trow');
+    const samePathRows = await evaluate(`[...document.querySelectorAll('.trow .cell.name-cell .txt')].filter((e) => e.textContent === '旧照片 001.jpg').length`);
+    check('UI', '同一绝对路径重复添加被忽略（不产生第二条）', afterDupCount === beforeDupCount && samePathRows === 1, JSON.stringify({ beforeDupCount, afterDupCount, samePathRows }));
+
+    // 同路径但 mtime/size 变化 → 就地更新该条
+    const sizeBeforeText = await evaluate(`(() => {
+      const row = [...document.querySelectorAll('.trow')].find((r) => r.querySelector('.cell.name-cell .txt')?.textContent === '旧照片 001.jpg');
+      return row ? row.children[3].textContent.trim() : '';
+    })()`);
+    await evaluate(`window.__E2E__.files[0].size += 1048576`);
+    await evaluate(`window.__E2E__.emitDrag('drop', [${JSON.stringify(firstPath)}])`);
+    await sleep(400);
+    const sizeAfterText = await evaluate(`(() => {
+      const row = [...document.querySelectorAll('.trow')].find((r) => r.querySelector('.cell.name-cell .txt')?.textContent === '旧照片 001.jpg');
+      return row ? row.children[3].textContent.trim() : '';
+    })()`);
+    const updatedCount = await countOf('.trow');
+    check('UI', '文件已被外部修改（size 变化）时就地更新该条而非新增', sizeAfterText !== sizeBeforeText && updatedCount === beforeDupCount, JSON.stringify({ sizeBeforeText, sizeAfterText, updatedCount }));
+
+    // 同名不同路径：保留两条并标重名
+    const sameName = 'D:\\e2e\\设计\\旧照片 001.jpg';
+    await evaluate(`(() => {
+      window.__E2E__.files.push({ path: ${JSON.stringify(sameName)}, size: 777, modified: 1740000000000, readonly: false, hidden: false, creation: 1735603200000 });
+      return true;
+    })()`);
+    await evaluate(`window.__E2E__.emitDrag('drop', [${JSON.stringify(sameName)}])`);
+    await sleep(400);
+    const sameNameCount = await evaluate(`[...document.querySelectorAll('.trow .cell.name-cell .txt')].filter((e) => e.textContent === '旧照片 001.jpg').length`);
+    const dupBadges = await evaluate(`document.querySelectorAll('[data-testid^="dup-name-"]').length`);
+    check('UI', '同名不同路径保留两条并在界面标出重名', sameNameCount === 2 && dupBadges >= 2, JSON.stringify({ sameNameCount, dupBadges }));
+
+    // 内容相同（不同路径）：疑似重复分组 + 一键去重（仅移除列表，不删文件）
+    const dupA = 'D:\\e2e\\a\\dupA.jpg';
+    const dupB = 'D:\\e2e\\b\\dupB.jpg';
+    await evaluate(`(() => {
+      const stamp = { size: 4096, modified: 1740000000000, readonly: false, hidden: false, creation: 1735603200000, content: 'same-content' };
+      window.__E2E__.files.push({ ...stamp, path: ${JSON.stringify(dupA)} });
+      window.__E2E__.files.push({ ...stamp, path: ${JSON.stringify(dupB)} });
+      return true;
+    })()`);
+    await evaluate(`window.__E2E__.emitDrag('drop', [${JSON.stringify(dupA)}, ${JSON.stringify(dupB)}])`);
+    await sleep(500);
+    const dupPanelBefore = await countOf('[data-testid="dup-panel"]');
+    const dupGroups = await countOf('[data-testid^="dup-group-"]');
+    const filesOnDisk = await evaluate(`window.__E2E__.files.length`);
+    const countBeforeDedupe = await countOf('.trow');
+    check('UI', '内容相同的不同路径进入「疑似重复」分组，未静默删除', dupPanelBefore === 1 && dupGroups === 1, JSON.stringify({ dupPanelBefore, dupGroups }));
+    await click('[data-testid="dup-dedupe"]');
+    await sleep(400);
+    const countAfterDedupe = await countOf('.trow');
+    const filesAfterDedupe = await evaluate(`window.__E2E__.files.length`);
+    check('UI', '一键去重只移除列表中的一条，磁盘文件数不变', countAfterDedupe === countBeforeDedupe - 1 && filesAfterDedupe === filesOnDisk, JSON.stringify({ countBeforeDedupe, countAfterDedupe, filesOnDisk, filesAfterDedupe }));
+    if (await countOf('[data-testid="dup-close"]')) {
+      await click('[data-testid="dup-close"]');
+      await sleep(200);
+    }
+
+    // 属性编辑：支持格式 读 → 改 → 回读
+    await evaluate(`(() => {
+      [...document.querySelectorAll('.trow')].forEach((row) => {
+        const txt = row.querySelector('.cell.name-cell .txt')?.textContent;
+        if (!txt) return;
+        const on = row.querySelector('.checkbox.on');
+        if (on && txt !== '旧照片 002.jpg') on.click();
+        if (!on && txt === '旧照片 002.jpg') row.querySelector('.checkbox').click();
+      });
+      return true;
+    })()`);
+    await sleep(200);
+    await click('[data-testid="edit-meta"]');
+    await waitFor(`document.querySelector('[data-testid="meta-edit-dialog"]')`, '属性编辑弹窗', 8000);
+    await sleep(400);
+    await click('[data-testid="meta-field-title-check"]');
+    await setInput('[data-testid="meta-field-title-input"]', 'E2E 新标题');
+    await click('[data-testid="meta-apply"]');
+    await waitFor(`document.querySelector('[data-testid="meta-result-0"]')`, '属性写入结果', 8000);
+    const metaResult = await evaluate(`(() => {
+      const el = document.querySelector('[data-testid="meta-result-0"]');
+      return { text: el.textContent, ok: el.className.includes('ok'), verified: el.textContent.includes('回读') || el.textContent.includes('verified') };
+    })()`);
+    check('UI', '属性编辑：选中字段写入并回读校验通过', metaResult.ok && metaResult.verified, JSON.stringify(metaResult));
+    await click('[data-testid="meta-close"]');
+    await sleep(200);
+    await click('[data-testid="edit-meta"]');
+    await waitFor(`document.querySelector('[data-testid="meta-edit-dialog"]')`, '属性编辑弹窗 2', 8000);
+    await sleep(400);
+    const rereadTitle = await evaluate(`document.querySelector('[data-testid="meta-field-title-input"]')?.value`);
+    check('UI', '属性编辑：重新打开可见写入后的值', rereadTitle === 'E2E 新标题', JSON.stringify({ rereadTitle }));
+    await click('[data-testid="meta-close"]');
+    await sleep(200);
+
+    // 不支持格式：明确拒绝并给出文件与原因
+    const heicPath = 'D:\\e2e\\旅行\\sample.heic';
+    await evaluate(`(() => {
+      window.__E2E__.files.push({ path: ${JSON.stringify(heicPath)}, size: 2048, modified: 1740000000000, readonly: false, hidden: false, creation: 1735603200000 });
+      return true;
+    })()`);
+    await evaluate(`window.__E2E__.emitDrag('drop', [${JSON.stringify(heicPath)}])`);
+    await sleep(400);
+    await evaluate(`(() => {
+      [...document.querySelectorAll('.trow')].forEach((row) => {
+        const on = row.querySelector('.checkbox.on');
+        if (on) on.click();
+      });
+      const row = [...document.querySelectorAll('.trow')].find((r) => r.querySelector('.cell.name-cell .txt')?.textContent === 'sample.heic');
+      if (row) row.querySelector('.checkbox').click();
+      return true;
+    })()`);
+    await sleep(200);
+    await click('[data-testid="edit-meta"]');
+    await waitFor(`document.querySelector('[data-testid="meta-edit-dialog"]')`, 'HEIC 属性弹窗', 8000);
+    await sleep(300);
+    const unsupportedShown = await countOf('[data-testid="meta-unsupported"]');
+    await click('[data-testid="meta-apply"]');
+    await waitFor(`document.querySelector('[data-testid="meta-result-0"]')`, 'HEIC 拒绝结果', 8000);
+    const heicResult = await evaluate(`(() => {
+      const el = document.querySelector('[data-testid="meta-result-0"]');
+      return { bad: el.className.includes('bad'), text: el.textContent };
+    })()`);
+    check('UI', '不支持格式（HEIC）明确拒绝并附文件与原因', unsupportedShown === 1 && heicResult.bad && heicResult.text.includes('HEIC'), JSON.stringify({ unsupportedShown, heicResult }));
+    await click('[data-testid="meta-close"]');
+    await sleep(200);
+
+    // --- 4) 设置页「检查更新」按钮显隐状态机 ---
+    await click('[data-testid="nav-settings"]');
+    await waitFor(`document.querySelector('[data-testid="update-settings"]')`, '设置页更新区块', 8000);
+    await sleep(300);
+
+    const updateButtons = () => evaluate(`(() => ({
+      phase: document.querySelector('[data-testid="update-settings"]').getAttribute('data-phase'),
+      check: document.querySelectorAll('[data-testid="update-check"]').length,
+      action: document.querySelectorAll('[data-testid="update-action"]').length,
+      save: document.querySelectorAll('[data-testid="update-save"]').length,
+      home: document.querySelectorAll('[data-testid="update-home"]').length,
+      retry: document.querySelectorAll('[data-testid="update-retry"]').length,
+      latest: document.querySelectorAll('[data-testid="update-latest"]').length,
+      install: document.querySelectorAll('[data-testid="update-install"]').length,
+      size: document.querySelectorAll('[data-testid="update-size"]').length,
+      error: document.querySelectorAll('[data-testid="update-error"]').length,
+    }))()`);
+
+    const idle = await updateButtons();
+    check('UI', '未检查：只显示「检查更新」「打开主页」', idle.phase === 'idle' && idle.check === 1 && idle.home === 1 && idle.action === 0 && idle.save === 0 && idle.latest === 0, JSON.stringify(idle));
+
+    // 失败：只给错误与重试
+    await evaluate(`window.__E2E__.updateMode = 'error'`);
+    await click('[data-testid="update-check"]');
+    await sleep(500);
+    const failed = await updateButtons();
+    check('UI', '检查失败：只给错误说明与重试', failed.phase === 'error' && failed.error === 1 && failed.retry === 1 && failed.check === 0 && failed.action === 0 && failed.save === 0 && failed.home === 0, JSON.stringify(failed));
+
+    // 重试 → 已是最新
+    await evaluate(`window.__E2E__.updateMode = 'latest'`);
+    await click('[data-testid="update-retry"]');
+    await sleep(500);
+    const latest = await updateButtons();
+    check('UI', '已是最新：显示「当前已是最新版本」且无更新/仅下载', latest.phase === 'latest' && latest.latest === 1 && latest.action === 0 && latest.save === 0 && latest.check === 1, JSON.stringify(latest));
+
+    // 发现新版本：更新 + 仅下载 + 版本/大小/来源
+    await evaluate(`window.__E2E__.updateMode = 'available'`);
+    await click('[data-testid="update-check"]');
+    await sleep(500);
+    const available = await updateButtons();
+    check('UI', '发现新版本：出现「更新」「仅下载」并展示大小', available.phase === 'available' && available.action === 1 && available.save === 1 && available.size === 1 && available.install === 0, JSON.stringify(available));
+
+    // 仅下载 → 保存后出现「安装」
+    await click('[data-testid="update-save"]');
+    await sleep(600);
+    const savedState = await updateButtons();
+    check('UI', '仅下载后出现「安装」（校验通过的包）', savedState.install === 1, JSON.stringify(savedState));
+
+    // 之后检查变为已最新，安装按钮仍保留
+    await evaluate(`window.__E2E__.updateMode = 'latest'`);
+    await click('[data-testid="update-check"]');
+    await sleep(500);
+    const retained = await updateButtons();
+    check('UI', '之后显示已最新时仍保留「安装」按钮', retained.phase === 'latest' && retained.latest === 1 && retained.install === 1 && retained.action === 0, JSON.stringify(retained));
+
+    // --- 快照：生成（哈希默认关）/ 预览 / 冲突跳过不覆盖 / 还原可撤销 ---
+    await evaluate('localStorage.clear()');
+    await send('Page.navigate', { url: `http://127.0.0.1:${HTTP_PORT}/index.html?lang=zh-CN` });
+    await waitFor(`document.querySelector('.win')`, '快照测试重载', 15000);
+    await sleep(400);
+    await click('[data-testid="add-files"]');
+    await waitFor(`document.querySelectorAll('.trow').length === 4`, '快照测试：4 个文件', 10000);
+    await click('[data-testid="add-rule"]');
+    await waitFor(`document.querySelector('[data-testid="rule-type-replace"]')`, '快照规则菜单');
+    await click('[data-testid="rule-type-replace"]');
+    await waitFor(`document.querySelectorAll('[data-testid="rule-card"]').length === 1`, '快照替换规则');
+    await setInput('.rule-detail .input', '旧照片 ', 0);
+    await setInput('.rule-detail .input', '照片_', 1);
+    await waitFor(`document.querySelector('.trow')?.textContent.includes('照片_001')`, '快照预览生效');
+
+    await click('[data-testid="nav-snapshot"]');
+    await waitFor(`document.querySelector('[data-testid="snapshot-dialog"]')`, '快照窗打开');
+    const hashDefault = await evaluate(`document.querySelector('[data-testid="snapshot-hash"]')?.checked`);
+    check('UI', '快照：入口真实可用且哈希复选框默认关闭', hashDefault === false, String(hashDefault));
+    await click('[data-testid="snapshot-create"]');
+    await waitFor(`document.querySelector('[data-testid^="snapshot-item-"]')`, '快照生成完成', 15000);
+    const snap1 = await evaluate(`window.__E2E__.snapshots[0]`);
+    check(
+      'UI',
+      '快照（仅映射）→ 记录 3 条原名/新名与大小/时间，不含哈希',
+      snap1?.entryCount === 3 && snap1?.hashed === 0 && snap1?.entries?.every((e) => e.sha256 === undefined),
+      JSON.stringify({ entryCount: snap1?.entryCount, hashed: snap1?.hashed }),
+    );
+    const snapHashText = await textOf('[data-testid="snapshot-item-mock-snap-1"]');
+    check('UI', '快照列表显示「仅映射」', snapHashText.includes('仅映射'), snapHashText.slice(0, 80));
+    await shot('27-snapshot-created.png');
+
+    // 勾选哈希：重新生成一条带 SHA-256 的快照
+    await click('[data-testid="snapshot-hash"]');
+    const hashOn = await evaluate(`document.querySelector('[data-testid="snapshot-hash"]')?.checked`);
+    check('UI', '快照：勾选后开启 SHA-256', hashOn === true, String(hashOn));
+    await click('[data-testid="snapshot-create"]');
+    await waitFor(`document.querySelectorAll('[data-testid^="snapshot-item-"]').length === 2`, '带哈希快照生成', 15000);
+    const snap2 = await evaluate(`window.__E2E__.snapshots[0]`);
+    check(
+      'UI',
+      '快照（含哈希）→ 3 条 SHA-256 且逐条上报进度',
+      snap2?.hashed === 3 && snap2.entries.every((e) => typeof e.sha256 === 'string' && e.sha256.length === 64),
+      JSON.stringify({ id: snap2?.id, hashed: snap2?.hashed }),
+    );
+    const progressPhases = await evaluate(`[...new Set(window.__E2E__.snapshotProgressEvents.map((e) => e.phase))]`);
+    check('UI', '快照生成 → 进度事件可取消/可观测（hash/done）', progressPhases.includes('hash') && progressPhases.includes('done'), progressPhases.join(','));
+
+    // 预览（尚未执行改名）：应提示「文件已在原名」，不伪造还原
+    await click('[data-testid="snapshot-preview-mock-snap-2"]');
+    await waitFor(`document.querySelector('[data-testid="snapshot-plan"]')`, '未改名时的还原预览');
+    const prePlanText = await textOf('[data-testid="snapshot-plan"]');
+    check('UI', '还原预览（未改名）→ 3 条均已在原名，不误报', prePlanText.includes('将还原 0 条') && prePlanText.includes('文件已在原名'), prePlanText.slice(0, 120));
+    await shot('28-snapshot-preview-before.png');
+    await click('[data-testid="snapshot-close"]');
+    await sleep(200);
+
+    // 先执行改名，再还原
+    await click('[data-testid="action-preview"]');
+    await waitFor(`document.querySelector('[data-testid="preview-confirm"]')`, '快照场景执行预览');
+    await click('[data-testid="preview-confirm"]');
+    await waitFor(`window.__E2E__.files.some((f) => f.path.endsWith('照片_001.jpg'))`, '改名完成');
+    await waitFor(`!document.querySelector('[data-testid="apply-progress"]')`, '改名进度结束');
+    await sleep(300);
+
+    // 改名后预览：3 条将还原（含哈希校验标记）
+    await click('[data-testid="nav-snapshot"]');
+    await waitFor(`document.querySelector('[data-testid="snapshot-dialog"]')`, '改名后的快照窗');
+    await click('[data-testid="snapshot-preview-mock-snap-2"]');
+    await waitFor(`document.querySelector('[data-testid="snapshot-plan"]')`, '还原预览');
+    const snapPlanText = await textOf('[data-testid="snapshot-plan"]');
+    check('UI', '还原预览 → 3 条将还原 + 执行时校验哈希', snapPlanText.includes('将还原 3 条') && snapPlanText.includes('SHA-256'), snapPlanText.slice(0, 120));
+    await shot('29-snapshot-preview.png');
+    await click('[data-testid="snapshot-close"]');
+    await sleep(200);
+
+    // 原位置放入「诱饵」文件 → 还原必须跳过且不覆盖
+    await evaluate(`(() => {
+      window.__E2E__.files.push({ path: 'D:\\\\e2e\\\\旅行\\\\旧照片 001.jpg', size: 12345, modified: 1750000000000, readonly: false, hidden: false, creation: 1750000000000 });
+      return true;
+    })()`);
+    await click('[data-testid="nav-snapshot"]');
+    await waitFor(`document.querySelector('[data-testid="snapshot-dialog"]')`, '快照窗再次打开');
+    await click('[data-testid="snapshot-preview-mock-snap-2"]');
+    await waitFor(`document.querySelector('[data-testid="snapshot-plan"]')`, '冲突预览');
+    const conflictPlan = await textOf('[data-testid="snapshot-plan"]');
+    check(
+      'UI',
+      '还原预览 → 原位置被占用时标记跳过（2 条将还原）',
+      conflictPlan.includes('将还原 2 条') && conflictPlan.includes('原位置已被占用'),
+      conflictPlan.slice(0, 140),
+    );
+    await click('[data-testid="snapshot-restore-confirm"]');
+    await waitFor(`document.querySelector('[data-testid="snapshot-result"]')`, '还原结果面板', 15000);
+    const restoreRes = await evaluate(`window.__E2E__.batches[0]`);
+    check(
+      'UI',
+      '还原执行 → 2 条还原、1 条跳过，批次 kind=restore 且 policy=skip',
+      restoreRes?.kind === 'restore' && restoreRes?.counts?.done === 2 && restoreRes?.counts?.skipped >= 1 && restoreRes?.policy === 'skip',
+      JSON.stringify(restoreRes?.counts),
+    );
+    const afterRestoreFiles = await evaluate(`window.__E2E__.files.map((f) => f.path.split('\\\\').pop())`);
+    const decoyIntact = await evaluate(`(() => {
+      const f = window.__E2E__.files.find((x) => x.path.endsWith('旧照片 001.jpg'));
+      return f ? f.size : -1;
+    })()`);
+    check(
+      'UI',
+      '还原绝不覆盖：诱饵文件保持原样，冲突条目的新名文件仍在',
+      decoyIntact === 12345 && afterRestoreFiles.includes('照片_001.jpg') && afterRestoreFiles.includes('旧照片 002.jpg'),
+      JSON.stringify({ decoyIntact, afterRestoreFiles }),
+    );
+    const resultText = await textOf('[data-testid="snapshot-result"]');
+    check('UI', '还原结果逐条说明跳过原因', resultText.includes('原位置已被') && resultText.includes('已还原'), resultText.slice(0, 160));
+    await shot('29b-snapshot-restored.png');
+    await click('[data-testid="snapshot-close"]');
+    await sleep(200);
+
+    // 还原批次可撤销
+    await click('[data-testid="nav-history"]');
+    await waitFor(`document.querySelector('[data-testid="history-item"]')`, '还原后的操作记录');
+    const restoreHistory = await evaluate(`(() => {
+      const i = document.querySelector('[data-testid="history-item"]');
+      return { text: i?.textContent || '', undoable: i?.dataset.undoable };
+    })()`);
+    check('UI', '操作记录把还原标为「快照还原」且可撤销', restoreHistory.text.includes('快照还原') && restoreHistory.undoable === '1', restoreHistory.text.slice(0, 90));
+    await click('[data-testid="undo-batch"]');
+    await waitFor(`window.__E2E__.batches[0]?.state === 'undone'`, '撤销还原批次');
+    const afterUndoRestore = await evaluate(`window.__E2E__.files.map((f) => f.path.split('\\\\').pop())`);
+    check('UI', '撤销还原 → 2 条回到新名（冲突条目不受影响）', afterUndoRestore.includes('照片_002.jpg') && afterUndoRestore.includes('照片_003.jpg') && afterUndoRestore.includes('照片_001.jpg'), JSON.stringify(afterUndoRestore));
+    await shot('30-snapshot-undo.png');
+    await click('.drawer-mask');
+    await sleep(250);
+
+    // 删除快照
+    await click('[data-testid="nav-snapshot"]');
+    await waitFor(`document.querySelector('[data-testid="snapshot-dialog"]')`, '删除前的快照窗');
+    await click('[data-testid="snapshot-delete-mock-snap-1"]');
+    await waitFor(`window.__E2E__.snapshots.length === 1`, '删除快照');
+    const remainingSnapshots = await evaluate(`document.querySelectorAll('[data-testid^="snapshot-item-"]').length`);
+    check('UI', '删除快照 → 列表与后端同步只剩 1 条', remainingSnapshots === 1, String(remainingSnapshots));
+    await click('[data-testid="snapshot-close"]');
+    await sleep(200);
+
     cdp.close();
   } finally {
     killTree(child.pid);
+    // Edge 的浏览器主进程可能已不再挂在 child 下，按本次专用的 user-data-dir 兜底清理，
+    // 保证无头浏览器测完立即退出，不残留后台进程。
+    if (process.platform === 'win32') {
+      const marker = path.basename(userDataDir);
+      spawnSync('powershell.exe', ['-NoProfile', '-Command',
+        `Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" | Where-Object { $_.CommandLine -and $_.CommandLine.Contains('${marker}') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`,
+      ], { stdio: 'ignore' });
+    }
     server.close();
     server.closeAllConnections?.();
     fs.closeSync(browserLog);
@@ -1467,6 +2612,7 @@ async function main() {
 
 function renderMarkdown(report) {
   const ui = report.results.filter((r) => r.layer === 'UI');
+  const real = report.results.filter((r) => r.layer === 'REAL-FS');
   const mock = report.results.filter((r) => r.layer === 'UI-triggered mock');
   const config = report.results.filter((r) => r.layer === 'config');
   const perf = report.results.filter((r) => r.layer === 'PERF');
@@ -1485,6 +2631,14 @@ function renderMarkdown(report) {
 | 结果 | 断言 |
 | --- | --- |
 ${ui.map(line).join('\n')}
+
+## 真实文件层断言（临时文件 → 改名 → 校验 → 撤销）
+
+> 由 \`e2e/vars.mjs\`、\`e2e/rules-fs.mjs\` 与 \`e2e/policy.mjs\` 在真实临时目录执行，使用真实的 TypeScript 规则引擎与 \`fs\` 真改真撤销；元数据取值来自真实 MP3 的 ID3 标签；策略用例同时对照 \`src/runtime.ts\` 的默认值。
+
+| 结果 | 断言 |
+| --- | --- |
+${real.map(line).join('\n')}
 
 ## 配置层断言（capabilities / 静态配置）
 
@@ -1509,7 +2663,7 @@ ${perf.map(line).join('\n')}
 ## 层级别说明
 
 - **UI 层已验证**：无头浏览器渲染真实构建产物，交互事件、DOM 状态、主题、列设置、九类列表页签、拖放高亮/计数、弹窗与截图均来自真实前端代码。
-- **mock 后端**：\`scan_paths / apply_plan / undo_batch / read_metadata / read_metadata_batch / read_times / read_attrs / apply_time / apply_attrs / apply_move / write_text_atomic / plugin:event|listen\` 为内存实现，用于跑通交互路径；真实磁盘行为另见 \`src-tauri/ffrn-core/tests/\` 的 Rust 测试（含 \`ops_fs.rs\`）。
+- **mock 后端**：\`scan_paths / apply_plan / undo_batch / read_metadata / read_metadata_batch / read_times / read_attrs / apply_time / apply_attrs / apply_move / write_text_atomic / plugin:event|listen\` 为内存实现，用于跑通交互路径；真实磁盘行为另见 \`src-tauri/renomio-core/tests/\` 的 Rust 测试（含 \`ops_fs.rs\`）。
 - **真机已验证（用户手工确认）**：真实窗口的右上角关闭、最小化、最大化在 Windows 真机上由用户在 2026-11-04 手工确认正常；这是人工确认，**不是本脚本的自动断言**。脚本仍只验证「点击后确实调用了 \`plugin:window|*\`」。
 - **未验证（本脚本不覆盖）**：真实 Explorer 拖放（需用户从资源管理器实际拖入一次）、Tauri IPC 序列化、系统文件对话框、NSIS 安装器界面、macOS/Linux 平台差异。需要启动 GUI 或有头环境，按项目约定不在此处自动执行。
 

@@ -4,8 +4,8 @@
 
 **数据来源（逐条读取，非记忆推断）**
 
-- `app/src-tauri/Cargo.lock`（Tauri 壳的完整 Rust 依赖图，`ffrn-core` 作为路径依赖在内）
-- `app/src-tauri/ffrn-core/Cargo.lock`（核心库独立测试时的依赖图）
+- `app/src-tauri/Cargo.lock`（Tauri 壳的完整 Rust 依赖图，`renomio-core` 作为路径依赖在内）
+- `app/src-tauri/renomio-core/Cargo.lock`（核心库独立测试时的依赖图）
 - `app/package-lock.json`（lockfileVersion 3，含 workspace `packages/foundation`）
 - 许可证字段取自各包元数据；版权行取自各包随附的 `LICENSE` / `LICENCE` / `COPYING` 文件原文
 
@@ -19,7 +19,7 @@
 
 统计：运行时 215 个（Rust 209、npm 6）；构建期 129 个（Rust 1、npm 128）。
 
-> 说明：`@rename/foundation` 与 `rename-studio` / `ffrn-core` 是本项目自身的包（适用根 `LICENSE` 的 MIT），不计入第三方。
+> 说明：`@rename/foundation` 与 `rename-studio` / `renomio-core` 是本项目自身的包（适用根 `LICENSE` 的 MIT），不计入第三方。
 
 ## 1. 运行时依赖 — Rust（209）
 
@@ -1110,5 +1110,5 @@ Windows 上的 **Microsoft Edge WebView2 Runtime** 是操作系统/浏览器提�
 
 ## 13. 本项目自身
 
-- `rename-studio`（Tauri 壳 crate）与 `ffrn-core`：MIT，见根 `LICENSE`（`ffrn-core` 的 crate 元数据也标注 `MIT`）。
+- `rename-studio`（Tauri 壳 crate）与 `renomio-core`：MIT，见根 `LICENSE`（`renomio-core` 的 crate 元数据也标注 `MIT`）。
 - `@rename/foundation`（`app/packages/foundation`）：本项目 workspace 包，适用根 `LICENSE`。

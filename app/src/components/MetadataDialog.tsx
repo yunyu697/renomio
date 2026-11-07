@@ -7,6 +7,7 @@ export function MetadataDialog() {
   const { t } = useTranslation();
   const metadata = useApp((s) => s.metadata);
   const close = useApp((s) => s.closeMetadata);
+  const openMetaEditor = useApp((s) => s.openMetaEditor);
   if (!metadata.open) return null;
 
   const kindKey: Record<string, string> = {
@@ -64,6 +65,18 @@ export function MetadataDialog() {
         <div className="dialog-foot">
           <span className="foot-note">{t('meta.footer')}</span>
           <div className="right">
+            <button
+              className="btn btn-soft"
+              type="button"
+              data-testid="metadata-edit"
+              onClick={() => {
+                const path = metadata.path;
+                close();
+                openMetaEditor([path]);
+              }}
+            >
+              <Icon name="tag" size={13} />{t('meta.editAction')}
+            </button>
             <button className="btn btn-primary" type="button" onClick={close}>{t('common.close')}</button>
           </div>
         </div>

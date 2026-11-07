@@ -8,7 +8,7 @@ import esbuild from 'esbuild';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const OUT = path.join(os.tmpdir(), `ffrn-preview-perf-${Date.now()}.mjs`);
+const OUT = path.join(os.tmpdir(), `renomio-preview-perf-${Date.now()}.mjs`);
 
 await esbuild.build({
   entryPoints: [path.join(ROOT, 'src/lib/preview.ts')],

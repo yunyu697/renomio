@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { usePreview } from '../hooks/usePreview';
+import { analyzeConflicts, conflictsOfRule } from '../lib/conflicts';
 import { RULE_TYPES } from '../lib/ruleDefaults';
 import { ruleError, ruleSummary } from '../lib/rules';
 import { useTranslation } from '../i18n';
-import type { RuleType } from '../lib/types';
+import type { ConflictKind, RuleConflict, RuleType } from '../lib/types';
 import { useApp } from '../store';
 import { Icon } from './Icon';
 import { RuleEditor } from './RuleEditor';
@@ -21,24 +22,34 @@ interface AddMenuItem {
 type MenuPos = { top: number; left: number; width: number };
 
 /**
- * 规则链模块：左侧规则条目列表 + 右侧选中规则的编辑器，新增/删除/排序/启停都在同一区域内完成。
- * 「添加规则」菜单用 portal + fixed 定位渲染到 body，避免被滚动容器或侧栏裁剪。
+ * 规则链模块：单栏纵向排列，每条规则可折叠展开（状态随设置持久化）；
+ * 支持拖拽、上移/下移按钮与 Alt+方向键三种排序方式，顺序持久化；
+ * 顶部汇总规则与路径筛选模式之间的冲突，点击可跳转到对应条目。
  */
 export function RulesPanel() {
   const { t } = useTranslation();
   const rules = useApp((s) => s.rules);
   const openRuleId = useApp((s) => s.openRuleId);
+  const ruleUi = useApp((s) => s.settings.ruleUi);
+  const includePattern = useApp((s) => s.includePattern);
+  const excludePattern = useApp((s) => s.excludePattern);
   const setOpenRule = useApp((s) => s.setOpenRule);
+  const setRuleExpanded = useApp((s) => s.setRuleExpanded);
+  const setRulesCollapsed = useApp((s) => s.setRulesCollapsed);
+  const hashProgress = useApp((s) => s.hashProgress);
+  const cancelLoadFileFacts = useApp((s) => s.cancelLoadFileFacts);
   const addRule = useApp((s) => s.addRule);
   const updateRule = useApp((s) => s.updateRule);
   const deleteRule = useApp((s) => s.deleteRule);
   const moveRule = useApp((s) => s.moveRule);
+  const moveRuleTo = useApp((s) => s.moveRuleTo);
   const toggleRule = useApp((s) => s.toggleRule);
   const clearRules = useApp((s) => s.clearRules);
   const ruleMenuOpen = useApp((s) => s.ruleMenuOpen);
   const preview = usePreview();
-  const [collapsed, setCollapsed] = useState(false);
+  const collapsed = ruleUi.collapsed;
   const dragIndex = useRef<number | null>(null);
+  const dragOver = useRef<number | null>(null);
   const rowRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -46,19 +57,67 @@ export function RulesPanel() {
   const [menuPos, setMenuPos] = useState<MenuPos | null>(null);
   const [activeItem, setActiveItem] = useState(0);
 
+  const conflicts = useMemo(
+    () => analyzeConflicts(rules, includePattern, excludePattern),
+    [rules, includePattern, excludePattern],
+  );
+
+  const tryKindLabel = useCallback((kind: ConflictKind): string => {
+    switch (kind) {
+      case 'include-exclude':
+        return t('conflict.includeExclude');
+      case 'path-overlap':
+        return t('conflict.pathOverlap');
+      case 'action-contradiction':
+        return t('conflict.action');
+      case 'shadowed':
+        return t('conflict.shadowed');
+      case 'regex-overlap':
+        return t('conflict.regex');
+      default:
+        return kind;
+    }
+  }, [t]);
+
   const setMenu = useCallback((open: boolean) => {
     useApp.setState({ ruleMenuOpen: open });
     if (!open) setMenuPos(null);
   }, []);
 
-  /** 新增规则后自动选中，右侧编辑器直接可编辑。 */
   const selectedIndex = rules.findIndex((r) => r.id === openRuleId);
-  const selected = selectedIndex >= 0 ? rules[selectedIndex] : null;
+  /** 单栏下同时只展开一条：展开项记在设置里，重启后仍保留 */
+  const expandedId = ruleUi.expanded[0] ?? null;
 
   useEffect(() => {
     if (!rules.length) return;
     if (selectedIndex < 0) setOpenRule(rules[0].id);
   }, [rules, selectedIndex, setOpenRule]);
+
+  const toggleOpen = (id: string) => {
+    if (expandedId === id) {
+      setRuleExpanded(id, false);
+      return;
+    }
+    setOpenRule(id);
+    setRuleExpanded(id, true);
+  };
+
+  const jumpToConflict = (conflict: RuleConflict) => {
+    if (conflict.ruleIds.length > 0) {
+      const id = conflict.ruleIds[0];
+      setOpenRule(id);
+      setRuleExpanded(id, true);
+      requestAnimationFrame(() => {
+        const el = document.querySelector<HTMLElement>(`[data-rule-id="${id}"]`);
+        el?.scrollIntoView({ block: 'nearest' });
+        el?.focus({ preventScroll: true });
+      });
+      return;
+    }
+    const input = document.querySelector<HTMLInputElement>('[data-testid="include-pattern"]');
+    input?.focus();
+    input?.select();
+  };
 
   const addAdvanced = () => {
     addRule('replace');
@@ -169,7 +228,7 @@ export function RulesPanel() {
     return (
       <aside className="rules collapsed">
         <div className="rules-rail">
-          <button className="btn-icon" type="button" title={t('rules.expand')} onClick={() => setCollapsed(false)}>
+          <button className="btn-icon" type="button" data-testid="expand-rules" title={t('rules.expand')} onClick={() => setRulesCollapsed(false)}>
             <Icon name="chevron-right" size={14} style={{ transform: 'rotate(180deg)' }} />
           </button>
           <span className="rail-label">{t('rules.title')}</span>
@@ -204,17 +263,63 @@ export function RulesPanel() {
             {t('rules.add')}
           </button>
           {rules.length > 0 && (
-            <button className="btn-icon" type="button" title={t('rules.clear')} onClick={clearRules}>
+            <button className="btn-icon" type="button" data-testid="clear-rules" title={t('rules.clear')} onClick={clearRules}>
               <Icon name="trash" size={14} />
             </button>
           )}
-          <button className="btn-icon" type="button" title={t('rules.collapse')} onClick={() => setCollapsed(true)}>
+          <button className="btn-icon" type="button" data-testid="collapse-rules" title={t('rules.collapse')} onClick={() => setRulesCollapsed(true)}>
             <Icon name="chevron-right" size={14} />
           </button>
         </div>
       </div>
 
       <div className="rules-body">
+        {conflicts.length > 0 && (
+          <div className="conflict-panel" data-testid="rule-conflicts" role="region" aria-label={t('conflict.title')}>
+            <div className="conflict-head">
+              <Icon name="alert" size={13} />
+              <b>{t('conflict.summary', { count: conflicts.length })}</b>
+              <span className="conflict-note">{t('conflict.hint')}</span>
+            </div>
+            <div className="conflict-list">
+              {conflicts.slice(0, 4).map((conflict) => (
+                <button
+                  key={conflict.key}
+                  type="button"
+                  className="conflict-item"
+                  data-testid="conflict-item"
+                  data-conflict-kinds={conflict.kinds.join(',')}
+                  onClick={() => jumpToConflict(conflict)}
+                >
+                  <span className="conflict-kinds">
+                    {conflict.kinds.map((kind) => (
+                      <span key={kind} className={`conflict-kind ${kind}`}>{tryKindLabel(kind)}</span>
+                    ))}
+                  </span>
+                  <span className="conflict-detail" title={conflict.detail}>{conflict.detail}</span>
+                </button>
+              ))}
+              {conflicts.length > 4 && (
+                <span className="conflict-more" data-testid="conflict-more">
+                  {t('conflict.more', { count: conflicts.length - 4 })}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {hashProgress && (
+          <div className="hash-progress" data-testid="hash-progress">
+            <span>
+              {t('hash.progress', { done: hashProgress.done, total: hashProgress.total })}
+            </span>
+            <div className="hash-bar">
+              <span style={{ width: `${Math.round((hashProgress.done / Math.max(1, hashProgress.total)) * 100)}%` }} />
+            </div>
+            <button type="button" onClick={() => void cancelLoadFileFacts()}>{t('hash.cancel')}</button>
+          </div>
+        )}
+
         <div className="rule-list" data-testid="rule-list">
           {rules.length === 0 && (
             <div className="rules-empty">
@@ -225,65 +330,139 @@ export function RulesPanel() {
 
           {rules.map((rule, index) => {
             const active = openRuleId === rule.id;
+            const open = expandedId === rule.id;
             const error = ruleError(rule);
+            const hits = conflictsOfRule(conflicts, rule.id);
+            const kinds = Array.from(new Set(hits.flatMap((hit) => hit.kinds)));
             return (
               <div
                 key={rule.id}
                 ref={(el) => { rowRefs.current[index] = el; }}
-                className={`rule-card rule-row ${rule.enabled ? 'on' : ''} ${active ? 'active' : ''}`}
+                className={`rule-card ${rule.enabled ? 'on' : ''} ${active ? 'active' : ''} ${open ? 'open' : ''}`}
                 data-testid="rule-card"
+                data-rule-id={rule.id}
                 data-rule-type={rule.type}
+                data-conflict={hits.length > 0 ? kinds.join(',') : undefined}
+                data-drag-over={dragOver.current === index ? 'true' : undefined}
                 role="button"
                 tabIndex={0}
+                aria-expanded={open}
                 aria-pressed={active}
-                draggable
-                onClick={() => setOpenRule(rule.id)}
+                onClick={() => toggleOpen(rule.id)}
                 onKeyDown={(e) => {
-                  if (e.key === 'ArrowDown') { e.preventDefault(); focusRow(Math.min(rules.length - 1, index + 1)); setOpenRule(rules[Math.min(rules.length - 1, index + 1)].id); }
-                  else if (e.key === 'ArrowUp') { e.preventDefault(); focusRow(Math.max(0, index - 1)); setOpenRule(rules[Math.max(0, index - 1)].id); }
-                  else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenRule(rule.id); }
+                  const next = Math.min(rules.length - 1, index + 1);
+                  const prev = Math.max(0, index - 1);
+                  if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                    e.preventDefault();
+                    const target = e.key === 'ArrowDown' ? next : prev;
+                    moveRule(rule.id, e.key === 'ArrowDown' ? 1 : -1);
+                    requestAnimationFrame(() => focusRow(target));
+                    return;
+                  }
+                  if (e.key === 'ArrowDown') { e.preventDefault(); focusRow(next); setOpenRule(rules[next].id); }
+                  else if (e.key === 'ArrowUp') { e.preventDefault(); focusRow(prev); setOpenRule(rules[prev].id); }
+                  else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOpen(rule.id); }
                 }}
                 onDragStart={() => { dragIndex.current = index; }}
-                onDragEnd={() => { dragIndex.current = null; }}
-                onDragOver={(e) => e.preventDefault()}
+                onDragEnd={() => { dragIndex.current = null; dragOver.current = null; }}
+                onDragOver={(e) => { e.preventDefault(); dragOver.current = index; }}
+                onDragLeave={() => { if (dragOver.current === index) dragOver.current = null; }}
                 onDrop={(e) => {
                   e.preventDefault();
                   const from = dragIndex.current;
+                  dragOver.current = null;
                   if (from === null || from === index) return;
-                  moveRule(rule.id, index - from);
+                  const dragged = rules[from];
+                  if (!dragged) return;
+                  moveRuleTo(dragged.id, index);
+                  requestAnimationFrame(() => focusRow(index));
                 }}
               >
-                <span className="drag" title={t('rules.drag')}><i /><i /><i /></span>
-                <span className="rule-num">{index + 1}</span>
-                <span className="rule-title">{t(`ruleType.${rule.type}`)}</span>
-                {error && <span className="rule-badge-err" title={error}>!</span>}
-                <button
-                  className="btn-icon rule-step"
-                  type="button"
-                  data-testid="rule-up"
-                  title={t('rules.up')}
-                  disabled={index === 0}
-                  onClick={(e) => { e.stopPropagation(); moveRule(rule.id, -1); }}
-                >
-                  <Icon name="arrow-up" size={11} />
-                </button>
-                <button
-                  className="btn-icon rule-step"
-                  type="button"
-                  data-testid="rule-down"
-                  title={t('rules.down')}
-                  disabled={index === rules.length - 1}
-                  onClick={(e) => { e.stopPropagation(); moveRule(rule.id, 1); }}
-                >
-                  <Icon name="arrow-down" size={11} />
-                </button>
-                <span
-                  className={`switch ${rule.enabled ? 'on' : ''}`}
-                  role="switch"
-                  aria-checked={rule.enabled}
-                  title={rule.enabled ? t('rules.disable') : t('rules.enable')}
-                  onClick={(e) => { e.stopPropagation(); toggleRule(rule.id); }}
-                />
+                <div className="rule-row">
+                  <span
+                    className="drag"
+                    title={t('rules.drag')}
+                    draggable
+                    onDragStart={(e) => { e.dataTransfer?.setData('text/plain', rule.id); dragIndex.current = index; }}
+                    onDragEnd={() => { dragIndex.current = null; dragOver.current = null; }}
+                  >
+                    <i /><i /><i />
+                  </span>
+                  <span className="rule-num">{index + 1}</span>
+                  <span className="rule-title" title={t(`ruleType.${rule.type}`)}>{t(`ruleType.${rule.type}`)}</span>
+                  {hits.length > 0 && (
+                    <span
+                      className="rule-badge-conflict"
+                      data-testid="rule-conflict-badge"
+                      title={kinds.map((kind) => tryKindLabel(kind)).join(' / ')}
+                    >
+                      <Icon name="alert" size={11} />
+                      <span>{hits.length}</span>
+                    </span>
+                  )}
+                  {error && <span className="rule-badge-err" title={error}>!</span>}
+                  <button
+                    className="btn-icon rule-step"
+                    type="button"
+                    data-testid="rule-up"
+                    title={t('rules.up')}
+                    disabled={index === 0}
+                    onClick={(e) => { e.stopPropagation(); moveRule(rule.id, -1); }}
+                  >
+                    <Icon name="arrow-up" size={11} />
+                  </button>
+                  <button
+                    className="btn-icon rule-step"
+                    type="button"
+                    data-testid="rule-down"
+                    title={t('rules.down')}
+                    disabled={index === rules.length - 1}
+                    onClick={(e) => { e.stopPropagation(); moveRule(rule.id, 1); }}
+                  >
+                    <Icon name="arrow-down" size={11} />
+                  </button>
+                  <span
+                    className={`switch ${rule.enabled ? 'on' : ''}`}
+                    role="switch"
+                    aria-checked={rule.enabled}
+                    title={rule.enabled ? t('rules.disable') : t('rules.enable')}
+                    onClick={(e) => { e.stopPropagation(); toggleRule(rule.id); }}
+                  />
+                  <button
+                    className="btn-icon rule-chevron"
+                    type="button"
+                    data-testid="rule-toggle"
+                    title={open ? t('rules.collapseCard') : t('rules.expandCard')}
+                    aria-expanded={open}
+                    onClick={(e) => { e.stopPropagation(); toggleOpen(rule.id); }}
+                  >
+                    <Icon name="chevron-right" size={13} style={{ transform: open ? 'rotate(90deg)' : undefined }} />
+                  </button>
+                </div>
+
+                {open && (
+                  <div className="rule-detail" data-testid="rule-detail" onClick={(e) => e.stopPropagation()}>
+                    <div className="rule-detail-scroll">
+                      <div className="sum">
+                        <span>{ruleSummary(rule)}</span>
+                        {error && <span className="sum-err">{error}</span>}
+                      </div>
+                      {hits.length > 0 && (
+                        <div className="rule-conflict-note" data-testid="rule-conflict-note">
+                          <Icon name="alert" size={12} />
+                          <span>{kinds.map((kind) => tryKindLabel(kind)).join(' / ')}</span>
+                        </div>
+                      )}
+                      <RuleEditor rule={rule} patch={(patch) => updateRule(rule.id, patch)} />
+                    </div>
+                    <div className="rule-foot">
+                      <button className="btn btn-danger-soft" type="button" data-testid="rule-delete" onClick={() => deleteRule(rule.id)}>
+                        <Icon name="trash" size={12} />{t('rules.delete')}
+                      </button>
+                      <span className="rule-foot-hint">{t('rules.live')}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -296,38 +475,6 @@ export function RulesPanel() {
             <Icon name="plus" size={14} />
             {t('rules.add')}
           </div>
-        </div>
-
-        <div className="rule-detail" data-testid="rule-detail">
-          {selected ? (
-            <>
-              <div className="rule-detail-head">
-                <span className="rule-num">{selectedIndex + 1}</span>
-                <b>{t(`ruleType.${selected.type}`)}</b>
-                <span className={`switch ${selected.enabled ? 'on' : ''}`} role="switch" aria-checked={selected.enabled}
-                  title={selected.enabled ? t('rules.disable') : t('rules.enable')}
-                  onClick={() => toggleRule(selected.id)} />
-              </div>
-              <div className="rule-detail-scroll">
-                <div className="sum">
-                  <span>{ruleSummary(selected)}</span>
-                  {ruleError(selected) && <span className="sum-err">{ruleError(selected)}</span>}
-                </div>
-                <RuleEditor rule={selected} patch={(patch) => updateRule(selected.id, patch)} />
-              </div>
-              <div className="rule-foot">
-                <button className="btn btn-danger-soft" type="button" data-testid="rule-delete" onClick={() => deleteRule(selected.id)}>
-                  <Icon name="trash" size={12} />{t('rules.delete')}
-                </button>
-                <span style={{ marginLeft: 'auto', fontSize: 10.5, color: 'var(--muted-2)' }}>{t('rules.live')}</span>
-              </div>
-            </>
-          ) : (
-            <div className="rule-detail-empty">
-              <Icon name="layers" size={22} />
-              <p>{t('rules.selectHint')}</p>
-            </div>
-          )}
         </div>
       </div>
 
@@ -344,7 +491,7 @@ export function RulesPanel() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="auto-preview"><span className="dot-live" />{t('rules.autoPreview')}</span>
           <span
-            style={{ marginLeft: 'auto', fontSize: 10.5, color: 'var(--muted-2)', cursor: 'pointer' }}
+            className="rules-shortcut"
             onClick={() => useApp.getState().showToast('info', t('rules.shortcutToast'))}
           >
             {t('rules.shortcut')}

@@ -93,18 +93,28 @@ export function MainPane() {
   const columnWidths = useApp((s) => s.settings.columnWidths);
   const updateSettings = useApp((s) => s.updateSettings);
   const openMetadata = useApp((s) => s.openMetadata);
+  const openMetaEditor = useApp((s) => s.openMetaEditor);
+  const moveEntryTo = useApp((s) => s.moveEntryTo);
+  const manualOrder = useApp((s) => s.manualOrder);
+  const duplicates = useApp((s) => s.duplicates);
+  const dupBusy = useApp((s) => s.dupBusy);
+  const scanDuplicates = useApp((s) => s.scanDuplicates);
+  const dedupeDuplicates = useApp((s) => s.dedupeDuplicates);
+  const clearDuplicates = useApp((s) => s.clearDuplicates);
   const preview = usePreview();
   const [sortKey, setSortKey] = useState<SortKey>('none');
   const [sortDir, setSortDir] = useState<1 | -1>(1);
   const [colMenuOpen, setColMenuOpen] = useState(false);
   const [dragWidths, setDragWidths] = useState<Partial<Record<ColumnKey, number>>>({});
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropAt, setDropAt] = useState<number | null>(null);
 
   const visibleColumns = COLUMN_DEFS.filter((c) => columns[c.key]);
   const widthOf = (key: ColumnKey) => dragWidths[key] ?? columnWidths[key];
   const cols = `34px ${visibleColumns
     .map((c) => {
       const width = widthOf(c.key);
-      return width ? `${Math.max(60, width)}px` : c.defaultCss;
+      return width ? `minmax(60px, ${Math.max(60, width)}px)` : c.defaultCss;
     })
     .join(' ')}`;
 
@@ -154,6 +164,46 @@ export function MainPane() {
 
   const selectedCount = entries.filter((e) => e.selected).length;
   const allOn = entries.length > 0 && selectedCount === entries.length;
+
+  /** 同名（不同路径）标记：Windows 比较不区分大小写。 */
+  const duplicateNames = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const entry of entries) {
+      if (entry.isDir) continue;
+      const key = entry.name.toLocaleLowerCase();
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return counts;
+  }, [entries]);
+
+  const entryIndexOf = (id: string) => entries.findIndex((e) => e.id === id);
+
+  /** 在「当前可见行」内上移/下移：换算成 entries 下标后再调用 moveEntryTo。 */
+  const moveVisible = (id: string, delta: number) => {
+    const at = rows.findIndex((r) => r.entry.id === id);
+    const neighbor = rows[at + delta];
+    if (at < 0 || !neighbor) return;
+    moveEntryTo(id, entryIndexOf(neighbor.entry.id));
+  };
+
+  const startDrag = (id: string) => {
+    setDragId(id);
+    setDropAt(null);
+  };
+
+  const finishDrop = (targetId: string) => {
+    if (dragId && dragId !== targetId) moveEntryTo(dragId, entryIndexOf(targetId));
+    setDragId(null);
+    setDropAt(null);
+  };
+
+  const toggleManual = (id: string, delta: number) => {
+    if (sortKey !== 'none') {
+      showToast('info', t('main.execOrderHint'));
+      return;
+    }
+    moveVisible(id, delta);
+  };
 
   const virtual = rows.length > VIRTUAL_THRESHOLD;
   const tableRef = useRef<HTMLDivElement>(null);
@@ -264,6 +314,30 @@ export function MainPane() {
           >
             <Icon name="info" />{t('main.execOrder')}
           </span>
+          {manualOrder && (
+            <span className="mini on" data-testid="manual-order-chip" title={t('list.orderHint')}>
+              <Icon name="drag" />{t('list.manualOrder')}
+            </span>
+          )}
+          <span className="mini" data-testid="edit-meta" onClick={() => {
+            const targets = entries.filter((e) => !e.isDir && e.selected).map((e) => e.path);
+            if (!targets.length) {
+              showToast('info', t('toast.needChecked'));
+              return;
+            }
+            openMetaEditor(targets);
+          }} title={t('meta.editSubtitle')}>
+            <Icon name="tag" />{t('meta.editAction')}
+          </span>
+          <span className="mini" data-testid="dup-scan" onClick={() => {
+            if (dupBusy) return;
+            void scanDuplicates().then(() => {
+              const report = useApp.getState().duplicates;
+              if (!report?.groups.length) showToast('info', t('dup.none'));
+            }).catch(() => undefined);
+          }} title={t('dup.subtitle')}>
+            <Icon name="layers" />{dupBusy ? t('dup.busy') : t('dup.scan')}
+          </span>
           <span className="mini" onClick={() => window.dispatchEvent(new CustomEvent('rename:refresh'))} title={t('main.refreshHint')}>
             <Icon name="refresh" />{t('main.refresh')}
           </span>
@@ -308,6 +382,34 @@ export function MainPane() {
           </span>
         </div>
       </div>
+
+      {duplicates && duplicates.groups.length > 0 && (
+        <div className="dup-panel" data-testid="dup-panel">
+          <div className="dup-head">
+            <Icon name="layers" size={13} />
+            <strong>{t('dup.title')}</strong>
+            <span className="dup-sub">{t('dup.subtitle')}</span>
+            <button className="mini" type="button" data-testid="dup-dedupe" onClick={dedupeDuplicates}>
+              <Icon name="trash" size={12} />{t('dup.keepFirst')}
+            </button>
+            <button className="mini" type="button" data-testid="dup-close" onClick={clearDuplicates}>
+              {t('dup.close')}
+            </button>
+          </div>
+          {duplicates.groups.map((group, index) => (
+            <div className="dup-group" key={`${group.hash}-${index}`} data-testid={`dup-group-${index}`}>
+              <span className="dup-group-title">
+                {t('dup.group', { index: index + 1, size: formatSize(group.size), count: group.paths.length })}
+              </span>
+              <ul>
+                {group.paths.map((path) => (
+                  <li key={path} title={path}>{path}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div
         className="table"
@@ -379,18 +481,57 @@ export function MainPane() {
         {visibleRows.map((row) => {
           const kind = fileKind(row.entry.name, row.entry.isDir);
           const changed = row.newName !== row.entry.name;
+          const entryIdx = entryIndexOf(row.entry.id);
+          const isDupName = !row.entry.isDir
+            && (duplicateNames.get(row.entry.name.toLocaleLowerCase()) ?? 0) > 1;
+          const sorted = sortKey !== 'none';
           return (
             <div
-              className={`trow ${row.entry.selected ? 'selected' : ''} ${row.status === 'conflict' || row.status === 'invalid' ? 'conflict' : ''} ${row.status === 'warn' ? 'warnrow' : ''} ${row.status === 'unchanged' ? 'unchanged' : ''}`}
+              className={`trow ${row.entry.selected ? 'selected' : ''} ${row.status === 'conflict' || row.status === 'invalid' ? 'conflict' : ''} ${row.status === 'warn' ? 'warnrow' : ''} ${row.status === 'unchanged' ? 'unchanged' : ''} ${dragId === row.entry.id ? 'dragging-row' : ''} ${dropAt === entryIdx ? 'drop-target' : ''}`}
               key={row.entry.id}
               role="row"
               title={row.reasons.length ? row.reasons.join(' · ') : row.entry.path}
+              onDragOver={(event) => {
+                if (!dragId || sorted) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                setDropAt(entryIdx);
+              }}
+              onDragLeave={() => {
+                if (dropAt === entryIdx) setDropAt(null);
+              }}
+              onDrop={(event) => {
+                if (!dragId || sorted) return;
+                event.preventDefault();
+                finishDrop(row.entry.id);
+              }}
               onDoubleClick={() => {
                 if (isDemo) return;
                 void import('../lib/bridge').then(({ revealPath }) => revealPath(row.entry.path).catch(() => undefined));
               }}
             >
-              <div className="cell">
+              <div className="cell drag-cell">
+                <span
+                  className={`drag-handle ${sorted ? 'disabled' : ''}`}
+                  draggable={!sorted}
+                  data-testid={`row-handle-${entryIdx}`}
+                  title={sorted ? t('main.execOrderHint') : t('list.dragHint')}
+                  onDragStart={(event) => {
+                    if (sorted) {
+                      event.preventDefault();
+                      return;
+                    }
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', row.entry.id);
+                    startDrag(row.entry.id);
+                  }}
+                  onDragEnd={() => {
+                    setDragId(null);
+                    setDropAt(null);
+                  }}
+                >
+                  <Icon name="drag" size={10} />
+                </span>
                 <span
                   className={`checkbox ${row.entry.selected ? 'on' : ''}`}
                   role="checkbox"
@@ -400,9 +541,14 @@ export function MainPane() {
                   {row.entry.selected && <Icon name="check" size={10} />}
                 </span>
               </div>
-              <div className="cell">
+              <div className="cell name-cell">
                 <span className={`file-ico ${kind}`}><Icon name={ICON_BY_KIND[kind] ?? 'file'} /></span>
                 <span className="txt">{row.entry.name}</span>
+                {isDupName && (
+                  <span className="dup-name-badge" data-testid={`dup-name-${entryIdx}`} title={t('list.duplicateName')}>
+                    {t('list.duplicateName')}
+                  </span>
+                )}
                 {row.entry.readonly && <Icon name="lock" size={11} style={{ color: 'var(--muted-2)' }} />}
                 {!row.entry.isDir && (
                   <button
@@ -418,6 +564,32 @@ export function MainPane() {
                     <span>{t('main.metadata')}</span>
                   </button>
                 )}
+                <span className="row-order">
+                  <button
+                    className="row-order-btn"
+                    type="button"
+                    data-testid={`row-up-${entryIdx}`}
+                    title={t('list.moveUp')}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleManual(row.entry.id, -1);
+                    }}
+                  >
+                    <Icon name="chevron-up" size={11} />
+                  </button>
+                  <button
+                    className="row-order-btn"
+                    type="button"
+                    data-testid={`row-down-${entryIdx}`}
+                    title={t('list.moveDown')}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleManual(row.entry.id, 1);
+                    }}
+                  >
+                    <Icon name="chevron-down" size={11} />
+                  </button>
+                </span>
               </div>
               {columns.location && (
                 <div className="cell mono"><span className="txt" style={{ color: 'var(--muted)' }}>{row.entry.parent}</span></div>

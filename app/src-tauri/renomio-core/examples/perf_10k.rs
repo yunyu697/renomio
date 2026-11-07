@@ -1,15 +1,15 @@
 //! 10,000 文件性能基线：真实磁盘扫描 / 冲突查询 / 批量改名执行。
-//! 运行：cargo run --release --example perf_10k --manifest-path src-tauri/ffrn-core/Cargo.toml
+//! 运行：cargo run --release --example perf_10k --manifest-path src-tauri/renomio-core/Cargo.toml
 //! 语料建在系统临时目录，结束后清理；不写用户目录。
 
 use std::fs;
 use std::path::Path;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
-use ffrn_core::platform::native_path;
-use ffrn_core::rename::{ApplyItem, ApplyOptions};
-use ffrn_core::scan::ScanOptions;
-use ffrn_core::Core;
+use renomio_core::platform::native_path;
+use renomio_core::rename::{ApplyItem, ApplyOptions};
+use renomio_core::scan::ScanOptions;
+use renomio_core::Core;
 
 fn stamp() -> u128 {
     SystemTime::now()
@@ -19,7 +19,7 @@ fn stamp() -> u128 {
 }
 
 fn main() {
-    let base = std::env::temp_dir().join(format!("ffrn-perf-10k-{}", stamp()));
+    let base = std::env::temp_dir().join(format!("renomio-perf-10k-{}", stamp()));
     let root = base.join("files");
     let data = base.join("data");
     fs::create_dir_all(&root).unwrap();

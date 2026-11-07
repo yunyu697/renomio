@@ -1,7 +1,7 @@
 # 依赖与构建产物（可由 npm install / cargo build 重新生成）
 app/node_modules/
 app/src-tauri/target/
-app/src-tauri/ffrn-core/target/
+app/src-tauri/renomio-core/target/
 app/dist/
 
 # 安装包：只放进 Release，不进仓库

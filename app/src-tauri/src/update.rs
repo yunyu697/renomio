@@ -77,6 +77,9 @@ pub struct UpdateManifest {
 pub struct PlatformAsset {
     pub signature: String,
     pub url: String,
+    /// 安装包字节数（清单可选字段，用于「发现新版本」时展示大小）
+    #[serde(default)]
+    pub size: Option<u64>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -90,6 +93,7 @@ pub struct UpdateInfo {
     pub source: String,
     pub installable: bool,
     pub asset_name: String,
+    pub asset_size: Option<u64>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -688,6 +692,7 @@ pub async fn check_update(app: AppHandle, mirror: Option<String>) -> Result<Upda
             source,
             installable: cfg!(target_os = "windows"),
             asset_name: asset_file_name(&asset.url),
+            asset_size: asset.size,
         })
     })
     .await

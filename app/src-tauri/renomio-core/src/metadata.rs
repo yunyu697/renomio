@@ -1300,7 +1300,7 @@ mod tests {
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_nanos())
                 .unwrap_or(0);
-            let path = std::env::temp_dir().join(format!("ffrn-meta-{stamp}-{name}"));
+            let path = std::env::temp_dir().join(format!("renomio-meta-{stamp}-{name}"));
             std::fs::write(&path, bytes).unwrap();
             Self(path)
         }
@@ -1511,7 +1511,7 @@ mod tests {
     #[test]
     fn metadata_batch_isolates_failures() {
         let good = TempFile::new("batch.txt", b"hello");
-        let missing = std::env::temp_dir().join("ffrn-meta-not-exist-xyz.txt");
+        let missing = std::env::temp_dir().join("renomio-meta-not-exist-xyz.txt");
         let _ = std::fs::remove_file(&missing);
         let paths = vec![
             good.0.to_string_lossy().to_string(),

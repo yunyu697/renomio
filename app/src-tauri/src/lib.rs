@@ -2,14 +2,19 @@ use std::io::Write;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 
-use ffrn_core::journal::{Batch, BatchSummary};
-use ffrn_core::metadata::MetadataInfo;
-use ffrn_core::ops::{
+use renomio_core::journal::{Batch, BatchSummary};
+use renomio_core::metaedit::dedupe::DuplicateReport;
+use renomio_core::metaedit::{
+    MetaCapability, MetaEditRequest, MetaEditResult, MetaSnapshot,
+};
+use renomio_core::metadata::MetadataInfo;
+use renomio_core::ops::{
     AttrInfo, AttrSpec, MoveItem, MoveSpec, OpTarget, OpsOutcome, TimeInfo, TimeSpec,
 };
-use ffrn_core::rename::{ApplyItem, ApplyOptions, UndoOutcome};
-use ffrn_core::scan::{ScanOptions, ScanResult};
-use ffrn_core::{Core, EnvInfo};
+use renomio_core::rename::{AppliedChange, ApplyItem, ApplyOptions, UndoOutcome};
+use renomio_core::snapshot::{RestorePlanItem, Snapshot, SnapshotInput, SnapshotSummary};
+use renomio_core::scan::{ScanOptions, ScanResult};
+use renomio_core::{Core, EnvInfo};
 use tauri::window::Color;
 use tauri::{Emitter, Manager};
 
@@ -27,6 +32,9 @@ const LEGACY_PRODUCT_NAME: &str = "Rename Studio";
 static PROCESS_START_MS: AtomicU64 = AtomicU64::new(0);
 static APPLY_RUNNING: AtomicBool = AtomicBool::new(false);
 static APPLY_CANCELLED: AtomicBool = AtomicBool::new(false);
+static HASH_CANCELLED: AtomicBool = AtomicBool::new(false);
+static SNAPSHOT_RUNNING: AtomicBool = AtomicBool::new(false);
+static SNAPSHOT_CANCELLED: AtomicBool = AtomicBool::new(false);
 
 fn epoch_ms() -> u64 {
     std::time::SystemTime::now()
@@ -206,7 +214,7 @@ fn classify_failure(reason: &str) -> &'static str {
     "io-error"
 }
 
-fn failure_view(item: &ffrn_core::rename::SkippedChange) -> FailureView {
+fn failure_view(item: &renomio_core::rename::SkippedChange) -> FailureView {
     FailureView {
         id: item.id.clone(),
         source: item.source.clone(),
@@ -220,7 +228,7 @@ fn failure_view(item: &ffrn_core::rename::SkippedChange) -> FailureView {
 #[serde(rename_all = "camelCase")]
 struct ApplyResult {
     batch: Batch,
-    applied: Vec<ffrn_core::rename::AppliedChange>,
+    applied: Vec<renomio_core::rename::AppliedChange>,
     skipped: Vec<FailureView>,
     failed: Vec<FailureView>,
 }
@@ -353,6 +361,200 @@ fn cancel_apply() -> bool {
     }
 }
 
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SnapshotProgress {
+    phase: String,
+    done: usize,
+    total: usize,
+    current: String,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SnapshotRestoreView {
+    batch: Option<Batch>,
+    restored: Vec<AppliedChange>,
+    skipped: Vec<FailureView>,
+    failed: Vec<FailureView>,
+    hash_checked: usize,
+}
+
+/// 生成快照：默认只记名称/大小/时间；`withHash` 为真时逐条算 SHA-256，
+/// 进度经 `snapshot-progress` 事件回报（约 80ms 节流），`cancel_snapshot` 可随时中止。
+#[tauri::command]
+fn create_snapshot(
+    app: tauri::AppHandle,
+    core: tauri::State<'_, Core>,
+    entries: Vec<SnapshotInput>,
+    with_hash: bool,
+    roots: Vec<String>,
+) -> Result<Snapshot, String> {
+    SNAPSHOT_CANCELLED.store(false, Ordering::SeqCst);
+    SNAPSHOT_RUNNING.store(true, Ordering::SeqCst);
+    let mut last_emit = std::time::Instant::now() - Duration::from_millis(200);
+
+    let result = core.snapshot_create(
+        roots,
+        entries,
+        with_hash,
+        &mut |done: usize, total: usize, current: &str| {
+            if done == total || last_emit.elapsed() >= Duration::from_millis(80) {
+                last_emit = std::time::Instant::now();
+                let _ = app.emit(
+                    "snapshot-progress",
+                    SnapshotProgress {
+                        phase: "hash".into(),
+                        done,
+                        total,
+                        current: current.to_string(),
+                    },
+                );
+            }
+        },
+        &|| SNAPSHOT_CANCELLED.load(Ordering::SeqCst),
+    );
+
+    let cancelled = SNAPSHOT_CANCELLED.load(Ordering::SeqCst);
+    SNAPSHOT_RUNNING.store(false, Ordering::SeqCst);
+    SNAPSHOT_CANCELLED.store(false, Ordering::SeqCst);
+    if cancelled {
+        let _ = app.emit(
+            "snapshot-progress",
+            SnapshotProgress {
+                phase: "cancelled".into(),
+                done: 0,
+                total: 0,
+                current: String::new(),
+            },
+        );
+        return Err("已取消".into());
+    }
+    match &result {
+        Ok((snap, _)) => {
+            let _ = app.emit(
+                "snapshot-progress",
+                SnapshotProgress {
+                    phase: "done".into(),
+                    done: snap.entry_count,
+                    total: snap.entry_count,
+                    current: String::new(),
+                },
+            );
+        }
+        Err(_) => {
+            let _ = app.emit(
+                "snapshot-progress",
+                SnapshotProgress {
+                    phase: "failed".into(),
+                    done: 0,
+                    total: 0,
+                    current: String::new(),
+                },
+            );
+        }
+    }
+    result.map(|(snap, _)| snap)
+}
+
+#[tauri::command]
+fn cancel_snapshot() -> bool {
+    if SNAPSHOT_RUNNING.load(Ordering::SeqCst) {
+        SNAPSHOT_CANCELLED.store(true, Ordering::SeqCst);
+        true
+    } else {
+        false
+    }
+}
+
+#[tauri::command]
+fn list_snapshots(core: tauri::State<'_, Core>) -> Vec<SnapshotSummary> {
+    renomio_core::snapshot::list(std::path::Path::new(&core.env(true).data_dir))
+}
+
+#[tauri::command]
+fn preview_snapshot(core: tauri::State<'_, Core>, id: String) -> Result<Vec<RestorePlanItem>, String> {
+    let snap = renomio_core::snapshot::load(std::path::Path::new(&core.env(true).data_dir), &id)
+        .ok_or_else(|| "快照不存在或已损坏".to_string())?;
+    Ok(renomio_core::snapshot::plan(&snap))
+}
+
+#[tauri::command]
+fn restore_snapshot(
+    app: tauri::AppHandle,
+    core: tauri::State<'_, Core>,
+    id: String,
+) -> Result<SnapshotRestoreView, String> {
+    let dir = core.env(true).data_dir;
+    let snap = renomio_core::snapshot::load(std::path::Path::new(&dir), &id)
+        .ok_or_else(|| "快照不存在或已损坏".to_string())?;
+
+    SNAPSHOT_CANCELLED.store(false, Ordering::SeqCst);
+    SNAPSHOT_RUNNING.store(true, Ordering::SeqCst);
+    let mut last_emit = std::time::Instant::now() - Duration::from_millis(200);
+    let mut last_phase = String::new();
+
+    let result = core.snapshot_restore(
+        &snap,
+        &mut |phase: &str, done: usize, total: usize, current: &str| {
+            let phase_changed = phase != last_phase;
+            if phase_changed || done == total || last_emit.elapsed() >= Duration::from_millis(80) {
+                last_emit = std::time::Instant::now();
+                last_phase = phase.to_string();
+                let _ = app.emit(
+                    "snapshot-progress",
+                    SnapshotProgress {
+                        phase: phase.to_string(),
+                        done,
+                        total,
+                        current: current.to_string(),
+                    },
+                );
+            }
+        },
+        &|| SNAPSHOT_CANCELLED.load(Ordering::SeqCst),
+    );
+
+    let cancelled = SNAPSHOT_CANCELLED.load(Ordering::SeqCst);
+    SNAPSHOT_RUNNING.store(false, Ordering::SeqCst);
+    SNAPSHOT_CANCELLED.store(false, Ordering::SeqCst);
+    if cancelled {
+        let _ = app.emit(
+            "snapshot-progress",
+            SnapshotProgress {
+                phase: "cancelled".into(),
+                done: 0,
+                total: 0,
+                current: String::new(),
+            },
+        );
+        return Err("已取消".into());
+    }
+
+    let outcome = result?;
+    let _ = app.emit(
+        "snapshot-progress",
+        SnapshotProgress {
+            phase: "done".into(),
+            done: outcome.restored.len(),
+            total: outcome.restored.len(),
+            current: String::new(),
+        },
+    );
+    Ok(SnapshotRestoreView {
+        batch: outcome.batch,
+        restored: outcome.restored,
+        skipped: outcome.skipped.iter().map(failure_view).collect(),
+        failed: outcome.failed.iter().map(failure_view).collect(),
+        hash_checked: outcome.hash_checked,
+    })
+}
+
+#[tauri::command]
+fn delete_snapshot(core: tauri::State<'_, Core>, id: String) -> Result<(), String> {
+    renomio_core::snapshot::remove(std::path::Path::new(&core.env(true).data_dir), &id)
+}
+
 #[tauri::command]
 fn undo_batch(core: tauri::State<'_, Core>, id: String) -> Result<UndoOutcome, String> {
     core.undo(&id)
@@ -379,12 +581,50 @@ fn read_metadata(core: tauri::State<'_, Core>, path: String) -> Result<MetadataI
     core.metadata(&path)
 }
 
+/// 元数据编辑支持矩阵（哪些格式可写、哪些如实拒绝）。
+#[tauri::command]
+fn meta_capabilities() -> Vec<MetaCapability> {
+    renomio_core::metaedit::capabilities()
+}
+
+/// 读取可编辑字段（编辑对话框预填；不写文件）。
+#[tauri::command]
+fn meta_read(path: String) -> Result<MetaSnapshot, String> {
+    renomio_core::metaedit::snapshot(&path)
+}
+
+/// 批量写入字段：逐文件「备份 → 改写 → 原子替换 → 回读校验」，单条失败不影响其它文件。
+#[tauri::command]
+async fn meta_edit(items: Vec<MetaEditRequest>) -> Result<Vec<MetaEditResult>, String> {
+    tauri::async_runtime::spawn_blocking(move || renomio_core::metaedit::edit_batch(items))
+        .await
+        .map_err(|e| format!("元数据写入线程异常：{e}"))
+}
+
+/// 从备份还原文件（还原前会为当前文件再留一份保险备份）。
+#[tauri::command]
+async fn meta_restore_backup(backup: String, target: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        renomio_core::metaedit::restore_backup(&backup, &target)
+    })
+    .await
+    .map_err(|e| format!("还原线程异常：{e}"))?
+}
+
+/// 疑似重复内容（不同路径、内容完全相同）：只读检测，不删除任何文件。
+#[tauri::command]
+async fn find_duplicates(paths: Vec<String>) -> Result<DuplicateReport, String> {
+    tauri::async_runtime::spawn_blocking(move || renomio_core::metaedit::dedupe::find_duplicates(&paths))
+        .await
+        .map_err(|e| format!("重复检测线程异常：{e}"))
+}
+
 /// 批量只读元数据（九类列表页签）；单条失败逐条返回，不中断整批。
 #[tauri::command]
 fn read_metadata_batch(
     core: tauri::State<'_, Core>,
     paths: Vec<String>,
-) -> Vec<ffrn_core::metadata::BatchMetadata> {
+) -> Vec<renomio_core::metadata::BatchMetadata> {
     core.metadata_batch(&paths)
 }
 
@@ -413,7 +653,7 @@ fn rename_fields(paths: Vec<String>) -> Vec<RenameFields> {
     paths
         .iter()
         .map(|path| {
-            let info = ffrn_core::metadata::read_metadata(path).ok();
+            let info = renomio_core::metadata::read_metadata(path).ok();
             let field = |labels: &[&str]| -> String {
                 info.as_ref()
                     .and_then(|m| {
@@ -435,6 +675,77 @@ fn rename_fields(paths: Vec<String>) -> Vec<RenameFields> {
             }
         })
         .collect()
+}
+
+/// 元变量用的内容哈希结果：单文件失败只影响该文件。
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HashEntry {
+    path: String,
+    crc32: Option<String>,
+    md5: Option<String>,
+    sha1: Option<String>,
+    error: Option<String>,
+}
+
+/// 批量流式计算内容哈希（CRC32 / MD5 / SHA-1），单遍读取；不阻塞 UI。
+/// 取消通过 `cancel_hash` 置位，每个读取块都检查一次。
+#[tauri::command]
+async fn file_hashes(paths: Vec<String>, algos: Vec<String>) -> Result<Vec<HashEntry>, String> {
+    HASH_CANCELLED.store(false, Ordering::SeqCst);
+    let want_crc32 = algos.iter().any(|a| a.eq_ignore_ascii_case("crc32"));
+    let want_md5 = algos.iter().any(|a| a.eq_ignore_ascii_case("md5"));
+    let want_sha1 = algos.iter().any(|a| a.eq_ignore_ascii_case("sha1"));
+    if !(want_crc32 || want_md5 || want_sha1) {
+        return Ok(Vec::new());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut out = Vec::with_capacity(paths.len());
+        for path in paths {
+            if HASH_CANCELLED.load(Ordering::SeqCst) {
+                out.push(HashEntry {
+                    path,
+                    crc32: None,
+                    md5: None,
+                    sha1: None,
+                    error: Some("已取消".into()),
+                });
+                continue;
+            }
+            match renomio_core::hashing::file_hashes(
+                std::path::Path::new(&path),
+                want_crc32,
+                want_md5,
+                want_sha1,
+                &|| HASH_CANCELLED.load(Ordering::SeqCst),
+            ) {
+                Ok(hash) => out.push(HashEntry {
+                    path,
+                    crc32: hash.crc32,
+                    md5: hash.md5,
+                    sha1: hash.sha1,
+                    error: None,
+                }),
+                Err(err) => out.push(HashEntry {
+                    path,
+                    crc32: None,
+                    md5: None,
+                    sha1: None,
+                    error: Some(err),
+                }),
+            }
+        }
+        out
+    })
+    .await
+    .map_err(|e| format!("哈希计算线程异常：{e}"))
+}
+
+/// 请求取消正在进行的哈希计算；未在执行时返回 false。
+#[tauri::command]
+fn cancel_hash() -> bool {
+    HASH_CANCELLED.store(true, Ordering::SeqCst);
+    true
 }
 
 /// 读取基础属性（只读 / 隐藏），用于预览。
@@ -485,18 +796,17 @@ fn read_text_file(path: String) -> Result<String, String> {
 
 static EXPORT_SEQ: AtomicU64 = AtomicU64::new(0);
 
-/// 原子写入文本：同目录临时文件 → fsync → 两阶段改名。
+/// 原子写入任意字节：同目录临时文件 → fsync → 两阶段改名。
 /// 目标已存在时先移入数据目录的 exports-backup，返回备份路径；不允许覆盖时直接拒绝。
-#[tauri::command]
-fn write_text_atomic(
-    core: tauri::State<'_, Core>,
-    path: String,
-    content: String,
+fn write_atomic_bytes(
+    core: &Core,
+    path: &str,
+    bytes: &[u8],
     overwrite: Option<bool>,
 ) -> Result<Option<String>, String> {
     use std::path::PathBuf;
 
-    let target = PathBuf::from(&path);
+    let target = PathBuf::from(path);
     let parent = target
         .parent()
         .ok_or_else(|| "目标路径无效".to_string())?
@@ -506,11 +816,11 @@ fn write_text_atomic(
     }
 
     let seq = EXPORT_SEQ.fetch_add(1, Ordering::Relaxed);
-    let temp = parent.join(format!(".ffrn-export-{}-{seq}.tmp", std::process::id()));
+    let temp = parent.join(format!(".renomio-export-{}-{seq}.tmp", std::process::id()));
     {
         let mut file =
             std::fs::File::create(&temp).map_err(|e| format!("创建临时文件失败：{e}"))?;
-        file.write_all(content.as_bytes())
+        file.write_all(bytes)
             .map_err(|e| format!("写入临时文件失败：{e}"))?;
         file.sync_all()
             .map_err(|e| format!("临时文件落盘失败：{e}"))?;
@@ -550,6 +860,31 @@ fn write_text_atomic(
     }
 
     Ok(backup.map(|b| b.to_string_lossy().to_string()))
+}
+
+#[tauri::command]
+fn write_text_atomic(
+    core: tauri::State<'_, Core>,
+    path: String,
+    content: String,
+    overwrite: Option<bool>,
+) -> Result<Option<String>, String> {
+    write_atomic_bytes(&core, &path, content.as_bytes(), overwrite)
+}
+
+/// 原子写入二进制文件（导出 xlsx 等）：content 为 base64，备份/覆盖策略与文本写入一致。
+#[tauri::command]
+fn write_bytes_atomic(
+    core: tauri::State<'_, Core>,
+    path: String,
+    content: String,
+    overwrite: Option<bool>,
+) -> Result<Option<String>, String> {
+    use base64::Engine as _;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(content.as_bytes())
+        .map_err(|e| format!("内容不是合法 base64：{e}"))?;
+    write_atomic_bytes(&core, &path, &bytes, overwrite)
 }
 
 /// 规则链输入历史：存放在数据目录下的 `rule-history.json`（`%APPDATA%\app.renomio.desktop`），
@@ -905,13 +1240,26 @@ pub fn run() {
             paths_exist,
             apply_plan,
             cancel_apply,
+            create_snapshot,
+            cancel_snapshot,
+            list_snapshots,
+            preview_snapshot,
+            restore_snapshot,
+            delete_snapshot,
             undo_batch,
             list_batches,
             get_batch,
             pending_batches,
             read_metadata,
             read_metadata_batch,
+            meta_capabilities,
+            meta_read,
+            meta_edit,
+            meta_restore_backup,
+            find_duplicates,
             rename_fields,
+            file_hashes,
+            cancel_hash,
             read_times,
             read_attrs,
             apply_time,
@@ -919,6 +1267,7 @@ pub fn run() {
             apply_move,
             read_text_file,
             write_text_atomic,
+            write_bytes_atomic,
             load_rule_history,
             save_rule_history,
             update::check_update,

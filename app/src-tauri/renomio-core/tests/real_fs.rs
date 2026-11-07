@@ -4,10 +4,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use ffrn_core::platform::native_path;
-use ffrn_core::rename::{ApplyItem, ApplyOptions};
-use ffrn_core::scan::ScanOptions;
-use ffrn_core::Core;
+use renomio_core::platform::native_path;
+use renomio_core::rename::{ApplyItem, ApplyOptions};
+use renomio_core::scan::ScanOptions;
+use renomio_core::Core;
 
 fn stamp() -> u128 {
     std::time::SystemTime::now()
@@ -24,7 +24,7 @@ struct Temp {
 
 impl Temp {
     fn new(tag: &str) -> Self {
-        let base = std::env::temp_dir().join(format!("ffrn-test-{tag}-{}", stamp()));
+        let base = std::env::temp_dir().join(format!("renomio-test-{tag}-{}", stamp()));
         let root = base.join("files");
         let data = base.join("data");
         fs::create_dir_all(&root).unwrap();

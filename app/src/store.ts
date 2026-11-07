@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 import {
-  cancelApply as cancelApplyRequest, demoEntries, demoEnv, demoExistingPaths, getEnvInfo, getMigrationInfo,
-  getPrivilegeInfo, importLegacyData, loadRuleHistory, saveRuleHistory,
-  isDesktop, listBatches, onApplyProgress, pathsExist, pickFiles, pickFolders, renameFields, scanPaths,
-  startupReport,
+  cancelApply as cancelApplyRequest, cancelFileHashes, cancelSnapshot, createSnapshot, deleteSnapshot,
+  demoEntries, demoEnv, demoExistingPaths, fileHashes,
+  findDuplicates, getEnvInfo,
+  getMigrationInfo, getPrivilegeInfo, importLegacyData, isDesktop, listBatches, listSnapshots, loadRuleHistory,
+  onApplyProgress, onSnapshotProgress, pathsExist, pickFiles, pickFolders, previewSnapshot, renameFields,
+  restoreSnapshot, saveRuleHistory, scanPaths, startupReport,
 } from './lib/bridge';
 import {
   applyHistoryLimit, clampHistoryLimit, emptyHistory, pushHistoryEntry,
@@ -15,13 +17,15 @@ import { isPermissionRelated } from './lib/permission';
 import { computePreview } from './lib/preview';
 import { parsePlan, planFilter, serializePlan } from './lib/plan';
 import { detectLocale, setUiLocale, t as translate } from './i18n';
+import { conflictOf, DEFAULT_SHORTCUTS, normalizeBinding, type ShortcutId } from './lib/shortcuts';
 import { createRuleDefaults } from './lib/ruleDefaults';
 import { splitName, joinName } from './lib/rules';
 import { normalizePath, targetPath } from './lib/validate';
 import type {
-  AppSettings, ApplyItemDto, ApplyOutcome, ApplyProgress, Batch, BatchSummary, ConflictPolicy, Entry,
-  EnvInfo, ListTab, MetadataInfo, MetaFields, MigrationInfo, OpsOutcome, PreviewRow, PrivilegeInfo, Rule,
-  RuleType, ScanEntryDto, SkippedChange, StartupMark,
+  AppSettings, ApplyItemDto, ApplyOutcome, ApplyProgress, Batch, BatchSummary, ConflictPolicy,
+  DuplicateReportDto, Entry, EntryFacts, EnvInfo, LayoutState, ListTab, MetadataInfo, MetaFields, MigrationInfo,
+  OpsOutcome, PreviewRow, PrivilegeInfo, Rule, RuleType, ScanEntryDto, SessionDto, SkippedChange,
+  SnapshotPlanItemDto, SnapshotProgress, SnapshotRestoreResult, SnapshotSummaryDto, StartupMark,
 } from './lib/types';
 import { logger, queue, settingsStore } from './runtime';
 
@@ -51,6 +55,32 @@ export interface MetadataView {
   error: string | null;
 }
 
+/** 元数据编辑对话框：paths 为本次编辑目标（单文件或批量同一字段） */
+export interface MetaEditorState {
+  open: boolean;
+  paths: string[];
+}
+
+/**
+ * 文件列表顺序持久化键。
+ * 与设置分开保存，避免「规则链设置」被大量路径撑大；重启后按保存顺序恢复。
+ */
+const SESSION_KEY = 'rename-studio.session';
+
+/** 读取上次会话：顺序、勾选状态与条目快照（桌面端会按路径重新扫描刷新 size/mtime）。 */
+export function readSession(): SessionDto | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SessionDto;
+    if (!parsed || !Array.isArray(parsed.entries)) return null;
+    if (parsed.version !== 3) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 export type PlanDialogState =
   | { mode: 'export'; name: string; count: number }
   | {
@@ -71,6 +101,29 @@ const nextId = (prefix: string) => {
 };
 
 let toastSeq = 0;
+
+/** 哈希任务串行队列与取消令牌：取消后不再自动重跑，直到规则/勾选再次变化 */
+let hashQueue: Promise<void> = Promise.resolve();
+let hashAbortToken = 0;
+
+/** 演示模式没有真实文件：按路径生成稳定的示例哈希，仅用于界面演示。 */
+function demoFacts(path: string): EntryFacts {
+  let seed = 2166136261;
+  for (const ch of path) {
+    seed ^= ch.codePointAt(0) ?? 0;
+    seed = Math.imul(seed, 16777619);
+  }
+  const next = () => {
+    seed ^= seed << 13;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    return (seed >>> 0).toString(16).padStart(8, '0');
+  };
+  const crc32 = next();
+  const md5 = next() + next() + next() + next();
+  const sha1 = next() + next() + next() + next() + next();
+  return { crc32, md5, sha1 };
+}
 
 interface AppState {
   ready: boolean;
@@ -102,6 +155,8 @@ interface AppState {
   applyPolicy: ConflictPolicy;
   drawer: Drawer;
   opsMode: OpsMode | null;
+  /** 键位窗（快捷键列表与自定义）是否打开 */
+  shortcutOpen: boolean;
   toast: Toast | null;
   ruleMenuOpen: boolean;
   dragging: boolean;
@@ -109,6 +164,16 @@ interface AppState {
   ruleHistory: RuleHistory;
   metadata: MetadataView;
   planDialog: PlanDialogState | null;
+  snapshotOpen: boolean;
+  snapshots: SnapshotSummaryDto[];
+  snapshotBusy: boolean;
+  /** 生成快照时是否算 SHA-256（默认关） */
+  snapshotHash: boolean;
+  snapshotProgress: SnapshotProgress | null;
+  /** 还原预览结果；null 表示未进入预览 */
+  snapshotPlan: SnapshotPlanItemDto[] | null;
+  snapshotPlanFor: string | null;
+  snapshotResult: SnapshotRestoreResult | null;
   /** 当前进程的权限信息（浏览器演示模式为 null） */
   privilege: PrivilegeInfo | null;
   /** 已提权：显示 UIPI 会拦截 Explorer 拖放的提示 */
@@ -118,8 +183,20 @@ interface AppState {
   failureReport: FailureReport | null;
   /** 文件路径 → 只读元数据字段（「按元数据取名」规则预加载） */
   metaFields: Record<string, MetaFields>;
+  /** 文件路径 → 内容哈希（元变量 <CRC32>/<MD5>/<SHA1> 按需计算） */
+  fileFacts: Record<string, EntryFacts>;
+  /** 哈希计算进度；非计算期为空 */
+  hashProgress: { done: number; total: number; current: string } | null;
+  hashBusy: boolean;
   /** 首次启动的旧版数据迁移结果（浏览器演示模式为 null） */
   migration: MigrationInfo | null;
+  /** 用户是否手动调整过列表顺序（顺序随会话持久化；编号规则按列表顺序取号） */
+  manualOrder: boolean;
+  /** 内容完全相同的「疑似重复」组（只读检测，不删除文件） */
+  duplicates: DuplicateReportDto | null;
+  dupBusy: boolean;
+  /** 元数据编辑对话框状态 */
+  metaEditor: MetaEditorState;
 
   init: () => Promise<void>;
   addPaths: (paths: string[]) => Promise<void>;
@@ -128,6 +205,21 @@ interface AppState {
   toggleSelect: (id: string) => void;
   toggleSelectAll: () => void;
   removeSelected: () => void;
+  /** 按路径移除（用于一键去重；只从列表移除，不删除磁盘文件） */
+  removePaths: (paths: string[]) => void;
+  /** 列表内移动一项（delta=-1 上移，+1 下移）；顺序立即持久化 */
+  moveEntry: (id: string, delta: number) => void;
+  /** 拖拽排序：移动到指定下标 */
+  moveEntryTo: (id: string, index: number) => void;
+  /** 扫描「内容完全相同但路径不同」的疑似重复（只读） */
+  scanDuplicates: () => Promise<void>;
+  /** 一键去重：每组保留列表中的第一条，其余仅从列表移除 */
+  dedupeDuplicates: () => void;
+  clearDuplicates: () => void;
+  openMetaEditor: (paths: string[]) => void;
+  closeMetaEditor: () => void;
+  /** 元数据写入后刷新列表里的 size/mtime（桌面端重新扫描） */
+  refreshEntriesFromDisk: (paths: string[]) => Promise<void>;
   clearAll: () => void;
   applyCurrentFilter: () => void;
   setSearch: (value: string) => void;
@@ -144,9 +236,15 @@ interface AppState {
   updateRule: (id: string, patch: Record<string, unknown>) => void;
   deleteRule: (id: string) => void;
   moveRule: (id: string, delta: number) => void;
+  /** 拖拽排序：把规则移动到指定下标（越界自动夹取），顺序随设置持久化 */
+  moveRuleTo: (id: string, index: number) => void;
   toggleRule: (id: string) => void;
   clearRules: () => void;
   setOpenRule: (id: string | null) => void;
+  /** 展开/收起某条规则的编辑器，状态随设置持久化 */
+  setRuleExpanded: (id: string, expanded: boolean) => void;
+  setRulesCollapsed: (collapsed: boolean) => void;
+  setLayout: (patch: Partial<LayoutState>) => void;
   /** 记住某个输入框填过的内容（空值忽略，重复提到最前，超限淘汰最旧） */
   rememberRuleInput: (field: string, value: string) => void;
   deleteRuleHistoryEntry: (field: string, value: string) => void;
@@ -169,6 +267,11 @@ interface AppState {
   closeDrawer: () => void;
   openOps: (mode: OpsMode) => void;
   closeOps: () => void;
+  openShortcuts: () => void;
+  closeShortcuts: () => void;
+  /** 设置某条命令的绑定；与其他命令冲突时拒绝并提示，返回是否写入成功 */
+  setShortcut: (id: ShortcutId, binding: string) => boolean;
+  resetShortcuts: () => void;
   finishOps: (outcome: OpsOutcome, mode: OpsMode) => Promise<void>;
   showToast: (kind: Toast['kind'], text: string) => void;
   dismissToast: () => void;
@@ -182,6 +285,9 @@ interface AppState {
   closeFailureReport: () => void;
   acknowledgeFailure: (id: string) => void;
   loadMetaFields: (paths: string[]) => Promise<void>;
+  /** 按需计算元变量内容哈希（分块调用，进度可取消） */
+  loadFileFacts: (paths: string[], algos: string[]) => Promise<void>;
+  cancelLoadFileFacts: () => Promise<void>;
 
   openMetadata: (entry: Entry) => Promise<void>;
   closeMetadata: () => void;
@@ -191,6 +297,17 @@ interface AppState {
   closePlanDialog: () => void;
   confirmPlanExport: () => Promise<void>;
   confirmPlanImport: () => void;
+
+  openSnapshots: () => Promise<void>;
+  closeSnapshots: () => void;
+  /** 生成快照时是否同时算 SHA-256（默认关） */
+  setSnapshotHash: (on: boolean) => void;
+  createSnapshotNow: () => Promise<void>;
+  cancelSnapshotNow: () => Promise<void>;
+  previewSnapshotRestore: (id: string) => Promise<void>;
+  confirmSnapshotRestore: () => Promise<void>;
+  cancelSnapshotPlan: () => void;
+  deleteSnapshotItem: (id: string) => Promise<void>;
 }
 
 function applyTheme(theme: 'light' | 'dark') {
@@ -400,18 +517,34 @@ export const useApp = create<AppState>((set, get) => ({
   applyPolicy: settingsStore.value.conflictPolicy,
   drawer: null,
   opsMode: null,
+  shortcutOpen: false,
   toast: null,
   ruleMenuOpen: false,
   dragging: false,
   ruleHistory: emptyHistory(),
   metadata: { open: false, loading: false, path: '', name: '', info: null, error: null },
   planDialog: null,
+  snapshotOpen: false,
+  snapshots: [],
+  snapshotBusy: false,
+  snapshotHash: false,
+  snapshotProgress: null,
+  snapshotPlan: null,
+  snapshotPlanFor: null,
+  snapshotResult: null,
   privilege: null,
   uipiNotice: false,
   elevationMessage: null,
   failureReport: null,
   metaFields: {},
+  fileFacts: {},
+  hashProgress: null,
+  hashBusy: false,
   migration: null,
+  manualOrder: false,
+  duplicates: null,
+  dupBusy: false,
+  metaEditor: { open: false, paths: [] },
 
   init: async () => {
     if (initStarted) return;
@@ -439,19 +572,35 @@ export const useApp = create<AppState>((set, get) => ({
     };
     try {
       if (!isDesktop) {
+        const saved = readSession();
+        const restored: Entry[] | null = saved?.entries.length
+          ? saved.entries.map((e) => ({
+              id: e.path,
+              path: e.path,
+              name: e.name,
+              parent: e.parent,
+              isDir: e.isDir,
+              size: e.size,
+              modified: e.modified,
+              readonly: e.readonly,
+              selected: e.selected,
+            }))
+          : null;
         set({
           ready: true,
           isDemo: true,
           env: demoEnv,
           settings,
           ruleHistory,
-          entries: demoEntries(),
-          rules: demoRules(),
+          entries: restored ?? demoEntries(),
+          manualOrder: !!saved?.manualOrder,
+          rules: settings.rules.length ? settings.rules : demoRules(),
           applyPolicy: settings.conflictPolicy,
           diskExists: Object.fromEntries(
             demoExistingPaths.map((p) => [normalizePath(p, demoEnv), true]),
           ),
         });
+        if (restored) void get().scanDuplicates();
         reportReady('app_ready_demo');
         logger.info('app.init', '浏览器演示模式启动');
         return;
@@ -472,7 +621,7 @@ export const useApp = create<AppState>((set, get) => ({
         settings,
         ruleHistory,
         entries: [],
-        rules: [],
+        rules: settings.rules,
         applyPolicy: settings.conflictPolicy,
         batches: [],
         lastBatchId: null,
@@ -482,6 +631,44 @@ export const useApp = create<AppState>((set, get) => ({
       });
       reportReady();
       logger.info('app.init', '桌面端启动', { env: env.os, caseSensitive: env.caseSensitive });
+      // 恢复上次文件列表：按保存顺序重扫（刷新 size/mtime），文件已不存在的条目丢弃
+      void (async () => {
+        const saved = readSession();
+        if (!saved?.entries.length) return;
+        try {
+          const res = await scanPaths(
+            saved.entries.map((e) => e.path),
+            {
+              recursive: false,
+              includeFiles: true,
+              includeDirs: true,
+              includePatterns: [],
+              excludePatterns: [],
+              includeHidden: true,
+            },
+          );
+          if (get().entries.length) return; // 期间用户已手动添加文件，不覆盖
+          const byKey = new Map<string, ScanEntryDto>();
+          for (const item of res.entries) byKey.set(normalizePath(item.path, env), item);
+          const restored: Entry[] = [];
+          for (const se of saved.entries) {
+            const hit = byKey.get(normalizePath(se.path, env));
+            if (hit) restored.push({ ...hit, selected: se.selected });
+          }
+          if (restored.length) {
+            set({ entries: restored, manualOrder: !!saved.manualOrder });
+            if (restored.length < saved.entries.length) {
+              get().showToast(
+                'info',
+                translate('toast.sessionMissing', { count: saved.entries.length - restored.length }),
+              );
+            }
+            void get().scanDuplicates();
+          }
+        } catch (err) {
+          logger.warn('session.restore.failed', String(err));
+        }
+      })();
       if (privilege?.elevated) {
         logger.info('app.elevated', '已以管理员身份运行；UIPI 将拦截普通权限资源管理器的拖放', {
           installDir: privilege.installDir,
@@ -519,25 +706,56 @@ export const useApp = create<AppState>((set, get) => ({
         });
         ctx.setProgress(0.85, translate('store.sortList'));
         const incoming: Entry[] = res.entries.map((e: ScanEntryDto) => ({ ...e, selected: true }));
+        // 一次遍历完成：同路径去重（Set）、同批内重复（seen）、外部改动刷新（mtime/size）
         const merged = [...get().entries];
-        const known = new Set(merged.map((e) => normalizePath(e.path, state.env)));
+        const indexByKey = new Map<string, number>();
+        merged.forEach((e, i) => indexByKey.set(normalizePath(e.path, state.env), i));
+        const incomingSeen = new Set<string>();
         let added = 0;
+        let existed = 0;
+        let updated = 0;
         for (const entry of incoming) {
           const key = normalizePath(entry.path, state.env);
-          if (known.has(key)) continue;
-          known.add(key);
+          const at = indexByKey.get(key);
+          if (at !== undefined) {
+            // 同一绝对路径已存在：不产生第二条；文件被外部修改则就地更新
+            existed += 1;
+            const prev = merged[at];
+            if (prev.size !== entry.size || prev.modified !== entry.modified) {
+              merged[at] = { ...entry, id: prev.id, selected: prev.selected };
+              updated += 1;
+            }
+            continue;
+          }
+          if (incomingSeen.has(key)) continue;
+          incomingSeen.add(key);
+          indexByKey.set(key, merged.length);
           merged.push(entry);
           added += 1;
         }
         set({ entries: merged, scanning: false });
         if (res.truncated) {
           get().showToast('warn', translate('toast.scanTruncated', { count: res.entries.length }));
-        } else if (res.warnings.length) {
-          get().showToast('warn', res.warnings[0]);
-        } else if (added) {
-          get().showToast('success', translate('toast.added', { count: added }));
         }
-        logger.info('scan.done', `新增 ${added} 个对象`, { total: merged.length, warnings: res.warnings.length });
+        if (existed) {
+          get().showToast(
+            'info',
+            translate('toast.duplicateIgnored', { count: existed, updated }),
+          );
+        }
+        if (added) {
+          if (!res.truncated && !res.warnings.length) {
+            get().showToast('success', translate('toast.added', { count: added }));
+          }
+          void get().scanDuplicates();
+        }
+        if (res.warnings.length) {
+          get().showToast('warn', res.warnings[0]);
+        }
+        logger.info('scan.done', `新增 ${added} 个对象，已存在 ${existed}（更新 ${updated}）`, {
+          total: merged.length,
+          warnings: res.warnings.length,
+        });
       });
     } catch (err) {
       set({ scanning: false });
@@ -583,6 +801,139 @@ export const useApp = create<AppState>((set, get) => ({
     get().showToast('info', translate('toast.removed', { count: removed }));
   },
 
+  removePaths: (paths) => {
+    if (!paths.length) return;
+    const keys = new Set(paths.map((p) => normalizePath(p, get().env)));
+    const before = get().entries.length;
+    const next = get().entries.filter((e) => !keys.has(normalizePath(e.path, get().env)));
+    set({ entries: next });
+    const removed = before - next.length;
+    if (removed) get().showToast('info', translate('toast.removed', { count: removed }));
+  },
+
+  moveEntry: (id, delta) => {
+    const entries = [...get().entries];
+    const from = entries.findIndex((e) => e.id === id);
+    if (from < 0) return;
+    const to = from + delta;
+    if (to < 0 || to >= entries.length) return;
+    const [item] = entries.splice(from, 1);
+    entries.splice(to, 0, item);
+    set({ entries, manualOrder: true });
+    get().showToast('info', translate('toast.orderMoved', { name: item.name, index: to + 1 }));
+  },
+
+  moveEntryTo: (id, index) => {
+    const entries = [...get().entries];
+    const from = entries.findIndex((e) => e.id === id);
+    if (from < 0) return;
+    const to = Math.max(0, Math.min(entries.length - 1, index));
+    if (to === from) return;
+    const [item] = entries.splice(from, 1);
+    entries.splice(to, 0, item);
+    set({ entries, manualOrder: true });
+    get().showToast('info', translate('toast.orderMoved', { name: item.name, index: to + 1 }));
+  },
+
+  scanDuplicates: async () => {
+    const files = get().entries.filter((e) => !e.isDir).map((e) => e.path);
+    if (files.length < 2) {
+      set({ duplicates: null, dupBusy: false });
+      return;
+    }
+    set({ dupBusy: true });
+    try {
+      let report: DuplicateReportDto;
+      if (!isDesktop) {
+        // 演示模式：按大小分组（真实桌面端会做 SHA-256 + 逐字节确认）
+        const bySize = new Map<number, string[]>();
+        get().entries.filter((e) => !e.isDir).forEach((e) => {
+          const list = bySize.get(e.size) ?? [];
+          list.push(e.path);
+          bySize.set(e.size, list);
+        });
+        const groups = [...bySize.entries()]
+          .filter(([, list]) => list.length > 1)
+          .map(([size, paths]) => ({ size, hash: `demo-${size}`, paths: [...paths].sort() }));
+        report = { groups, scanned: files.length, warnings: [] };
+      } else {
+        report = await findDuplicates(files);
+      }
+      set({ duplicates: report, dupBusy: false });
+      if (report.groups.length) {
+        get().showToast(
+          'info',
+          translate('toast.duplicatesFound', { groups: report.groups.length }),
+        );
+      }
+    } catch (err) {
+      set({ dupBusy: false });
+      get().showToast('error', translate('toast.dupScanFailed', { message: err instanceof Error ? err.message : String(err) }));
+    }
+  },
+
+  dedupeDuplicates: () => {
+    const groups = get().duplicates?.groups ?? [];
+    if (!groups.length) {
+      get().showToast('info', translate('toast.noDuplicates'));
+      return;
+    }
+    const current = get().entries;
+    const keep = new Map<string, string>();
+    const drop = new Set<string>();
+    for (const group of groups) {
+      // 每组保留列表顺序中最靠前的一条
+      let keeper: Entry | null = null;
+      for (const e of current) {
+        if (group.paths.includes(e.path)) {
+          keeper = e;
+          break;
+        }
+      }
+      if (!keeper) continue;
+      keep.set(group.hash, keeper.path);
+      for (const p of group.paths) if (p !== keeper.path) drop.add(p);
+    }
+    if (!drop.size) return;
+    const next = current.filter((e) => !drop.has(e.path));
+    set({ entries: next, duplicates: null });
+    get().showToast('success', translate('toast.deduped', { count: drop.size, groups: keep.size }));
+  },
+
+  clearDuplicates: () => set({ duplicates: null }),
+
+  openMetaEditor: (paths) => {
+    if (!paths.length) return;
+    set({ metaEditor: { open: true, paths } });
+  },
+
+  closeMetaEditor: () => set({ metaEditor: { open: false, paths: [] } }),
+
+  refreshEntriesFromDisk: async (paths) => {
+    if (!isDesktop || !paths.length) return;
+    try {
+      const env = get().env;
+      const res = await scanPaths(paths, {
+        recursive: false,
+        includeFiles: true,
+        includeDirs: true,
+        includePatterns: [],
+        excludePatterns: [],
+        includeHidden: true,
+      });
+      const byKey = new Map<string, ScanEntryDto>();
+      for (const item of res.entries) byKey.set(normalizePath(item.path, env), item);
+      set((s) => ({
+        entries: s.entries.map((e) => {
+          const hit = byKey.get(normalizePath(e.path, env));
+          return hit ? { ...e, size: hit.size, modified: hit.modified, readonly: hit.readonly } : e;
+        }),
+      }));
+    } catch {
+      // 刷新失败不影响已完成的写入结果
+    }
+  },
+
   clearAll: () => {
     set({ entries: [], rules: get().rules, openRuleId: null });
   },
@@ -617,19 +968,39 @@ export const useApp = create<AppState>((set, get) => ({
 
   addRule: (type) => {
     const rule = createRuleDefaults(type, nextId('r'));
-    set((s) => ({ rules: [...s.rules, rule], openRuleId: rule.id, ruleMenuOpen: false }));
+    set((s) => ({
+      rules: [...s.rules, rule],
+      openRuleId: rule.id,
+      ruleMenuOpen: false,
+      settings: {
+        ...s.settings,
+        ruleUi: { ...s.settings.ruleUi, expanded: [rule.id], openId: rule.id },
+      },
+    }));
+    get().updateSettings({ rules: get().rules, ruleUi: get().settings.ruleUi });
     logger.info('rule.add', type);
   },
 
-  updateRule: (id, patch) =>
+  updateRule: (id, patch) => {
     set((s) => ({
       rules: s.rules.map((r) => (r.id === id ? ({ ...r, ...patch } as Rule) : r)),
-    })),
+    }));
+    get().updateSettings({ rules: get().rules });
+  },
 
-  deleteRule: (id) =>
-    set((s) => ({ rules: s.rules.filter((r) => r.id !== id), openRuleId: s.openRuleId === id ? null : s.openRuleId })),
+  deleteRule: (id) => {
+    set((s) => {
+      const expanded = s.settings.ruleUi.expanded.filter((x) => x !== id);
+      return {
+        rules: s.rules.filter((r) => r.id !== id),
+        openRuleId: s.openRuleId === id ? null : s.openRuleId,
+        settings: { ...s.settings, ruleUi: { ...s.settings.ruleUi, expanded, openId: s.openRuleId === id ? null : s.settings.ruleUi.openId } },
+      };
+    });
+    get().updateSettings({ rules: get().rules, ruleUi: get().settings.ruleUi });
+  },
 
-  moveRule: (id, delta) =>
+  moveRule: (id, delta) => {
     set((s) => {
       const index = s.rules.findIndex((r) => r.id === id);
       const target = index + delta;
@@ -638,14 +1009,71 @@ export const useApp = create<AppState>((set, get) => ({
       const [rule] = rules.splice(index, 1);
       rules.splice(target, 0, rule);
       return { rules };
-    }),
+    });
+    get().updateSettings({ rules: get().rules });
+  },
 
-  toggleRule: (id) =>
-    set((s) => ({ rules: s.rules.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r)) })),
+  moveRuleTo: (id, targetIndex) => {
+    set((s) => {
+      const index = s.rules.findIndex((r) => r.id === id);
+      if (index < 0) return {};
+      const target = Math.max(0, Math.min(s.rules.length - 1, targetIndex));
+      if (target === index) return {};
+      const rules = [...s.rules];
+      const [rule] = rules.splice(index, 1);
+      rules.splice(target, 0, rule);
+      return { rules };
+    });
+    get().updateSettings({ rules: get().rules });
+  },
 
-  clearRules: () => set({ rules: [], openRuleId: null }),
+  toggleRule: (id) => {
+    set((s) => ({ rules: s.rules.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r)) }));
+    get().updateSettings({ rules: get().rules });
+  },
 
-  setOpenRule: (id) => set({ openRuleId: id }),
+  clearRules: () => {
+    set((s) => ({
+      rules: [],
+      openRuleId: null,
+      settings: { ...s.settings, ruleUi: { ...s.settings.ruleUi, expanded: [], openId: null } },
+    }));
+    get().updateSettings({ rules: [], ruleUi: get().settings.ruleUi });
+  },
+
+  setOpenRule: (id) => {
+    if (get().openRuleId === id && get().settings.ruleUi.openId === id) {
+      set({ openRuleId: id });
+      return;
+    }
+    set((s) => ({
+      openRuleId: id,
+      settings: { ...s.settings, ruleUi: { ...s.settings.ruleUi, openId: id } },
+    }));
+    get().updateSettings({ ruleUi: get().settings.ruleUi });
+  },
+
+  setRuleExpanded: (id, expanded) => {
+    set((s) => {
+      const current = s.settings.ruleUi.expanded;
+      if (expanded && current.length === 1 && current[0] === id) return {};
+      if (!expanded && current.length === 0) return {};
+      // 单栏同一时间只展开一条，展开项随设置持久化
+      const next = expanded ? [id] : [];
+      return { settings: { ...s.settings, ruleUi: { ...s.settings.ruleUi, expanded: next } } };
+    });
+    get().updateSettings({ ruleUi: get().settings.ruleUi });
+  },
+
+  setRulesCollapsed: (collapsed) => {
+    set((s) => ({ settings: { ...s.settings, ruleUi: { ...s.settings.ruleUi, collapsed } } }));
+    get().updateSettings({ ruleUi: get().settings.ruleUi });
+  },
+
+  setLayout: (patch) => {
+    set((s) => ({ settings: { ...s.settings, layout: { ...s.settings.layout, ...patch } } }));
+    get().updateSettings({ layout: get().settings.layout });
+  },
 
   rememberRuleInput: (field, value) => {
     const { ruleHistory } = get();
@@ -979,6 +1407,24 @@ export const useApp = create<AppState>((set, get) => ({
   },
   closeOps: () => set({ opsMode: null }),
 
+  openShortcuts: () => set({ shortcutOpen: true }),
+  closeShortcuts: () => set({ shortcutOpen: false }),
+
+  setShortcut: (id, binding) => {
+    const normalized = normalizeBinding(binding);
+    if (!normalized) return false;
+    const shortcuts = { ...get().settings.shortcuts, [id]: normalized };
+    const conflict = conflictOf(id, normalized, shortcuts);
+    if (conflict) {
+      get().showToast('warn', translate('shortcuts.conflict', { name: translate(`shortcuts.${conflict}`) }));
+      return false;
+    }
+    get().updateSettings({ shortcuts });
+    return true;
+  },
+
+  resetShortcuts: () => get().updateSettings({ shortcuts: { ...DEFAULT_SHORTCUTS } }),
+
   finishOps: async (outcome, mode) => {
     const s = get();
     let entries = s.entries;
@@ -1121,6 +1567,79 @@ export const useApp = create<AppState>((set, get) => ({
     }
   },
 
+  loadFileFacts: async (paths, algos) => {
+    if (!paths.length || !algos.length) return;
+    const token = hashAbortToken;
+    const job = async () => {
+      if (token !== hashAbortToken) return;
+      const missing = paths.filter((p) => {
+        const fact = get().fileFacts[p];
+        // 失败过的文件不再自动重试，避免每次预览都重复 I/O
+        if (fact?.error) return false;
+        return !fact || algos.some((algo) => !fact[algo as keyof EntryFacts]);
+      });
+      if (!missing.length) return;
+      if (!isDesktop) {
+        // 演示模式没有真实文件：给出一组稳定示例值，保证变量面板与预览可演示
+        set((s) => ({
+          fileFacts: {
+            ...s.fileFacts,
+            ...Object.fromEntries(missing.map((p) => [p, demoFacts(p)])),
+          },
+        }));
+        return;
+      }
+      const chunk = 24;
+      set({ hashBusy: true, hashProgress: { done: 0, total: missing.length, current: '' } });
+      try {
+        for (let i = 0; i < missing.length; i += chunk) {
+          if (token !== hashAbortToken) break;
+          const slice = missing.slice(i, i + chunk);
+          const result = await fileHashes(slice, algos);
+          const facts: Record<string, EntryFacts> = {};
+          for (const item of result) {
+            facts[item.path] = item.error
+              ? { error: item.error }
+              : {
+                  ...(item.crc32 ? { crc32: item.crc32 } : {}),
+                  ...(item.md5 ? { md5: item.md5 } : {}),
+                  ...(item.sha1 ? { sha1: item.sha1 } : {}),
+                };
+          }
+          set((s) => ({
+            fileFacts: { ...s.fileFacts, ...facts },
+            hashProgress: {
+              done: Math.min(i + slice.length, missing.length),
+              total: missing.length,
+              current: slice[slice.length - 1] ?? '',
+            },
+          }));
+        }
+      } catch (err) {
+        logger.warn('hash.failed', err instanceof Error ? err.message : String(err));
+        get().showToast('warn', translate('toast.hashFailed', {
+          message: err instanceof Error ? err.message : String(err),
+        }));
+      } finally {
+        if (token === hashAbortToken) set({ hashBusy: false, hashProgress: null });
+      }
+    };
+    // 串行排队：规则/勾选变化可能连续触发，避免重复读取同一批文件
+    hashQueue = hashQueue.then(job, job);
+    await hashQueue;
+  },
+
+  cancelLoadFileFacts: async () => {
+    if (!get().hashBusy) return;
+    hashAbortToken += 1;
+    set({ hashBusy: false, hashProgress: null });
+    try {
+      await cancelFileHashes();
+    } catch {
+      /* 取消失败不影响已完成的文件 */
+    }
+  },
+
   openMetadata: async (entry) => {
     set({
       metadata: { open: true, loading: true, path: entry.path, name: entry.name, info: null, error: null },
@@ -1238,4 +1757,173 @@ export const useApp = create<AppState>((set, get) => ({
     );
     logger.info('plan.import.done', '导入方案', { rules: dialog.rules.length, replaced });
   },
+
+  openSnapshots: async () => {
+    set({ snapshotOpen: true, snapshotPlan: null, snapshotPlanFor: null, snapshotResult: null });
+    const snapshots = await listSnapshots();
+    set({ snapshots });
+  },
+
+  closeSnapshots: () =>
+    set({ snapshotOpen: false, snapshotPlan: null, snapshotPlanFor: null, snapshotResult: null, snapshotProgress: null }),
+
+  setSnapshotHash: (on) => set({ snapshotHash: on }),
+
+  createSnapshotNow: async () => {
+    const s = get();
+    if (s.isDemo) {
+      get().showToast('info', translate('snapshot.demoOnly'));
+      return;
+    }
+    if (s.snapshotBusy) return;
+    const rows = computePreview(s.entries, s.rules, {
+      env: s.env,
+      strictWindowsNames: s.settings.strictWindowsNames,
+      readonlySkip: s.settings.readonlySkip,
+      diskExists: s.diskExists,
+    }).rows;
+    const entries = rows
+      .filter((r) => r.entry.selected && r.newName !== r.entry.name && r.status !== 'invalid' && r.status !== 'off')
+      .map((r) => ({ from: r.entry.path, to: targetPath(r.entry.parent, r.newName, s.env) }));
+    if (!entries.length) {
+      get().showToast('info', translate('snapshot.nothing'));
+      return;
+    }
+    const roots = Array.from(new Set(rows.map((r) => r.entry.parent)));
+    set({ snapshotBusy: true, snapshotProgress: { phase: 'hash', done: 0, total: entries.length, current: '' }, snapshotResult: null, snapshotPlan: null, snapshotPlanFor: null });
+    const unlisten = await onSnapshotProgress((progress) => set({ snapshotProgress: progress }));
+    try {
+      const snap = await queue.enqueue(translate('snapshot.creating'), () =>
+        createSnapshot(entries, s.snapshotHash, roots),
+      );
+      set({ snapshots: await listSnapshots(), snapshotProgress: null, snapshotResult: null });
+      get().showToast(
+        'success',
+        translate('snapshot.created', {
+          count: snap.entryCount,
+          hashed: snap.hashed,
+          skipped: snap.skipped ? translate('snapshot.skippedCount', { count: snap.skipped }) : '',
+        }),
+      );
+      logger.info('snapshot.create.done', '生成快照', {
+        id: snap.id,
+        entries: snap.entryCount,
+        hashed: snap.hashed,
+        skipped: snap.skipped,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes('已取消')) {
+        get().showToast('info', translate('snapshot.cancelled'));
+      } else {
+        get().showToast('error', translate('snapshot.createFailed', { message }));
+      }
+    } finally {
+      unlisten();
+      set({ snapshotBusy: false, snapshotProgress: null });
+    }
+  },
+
+  cancelSnapshotNow: async () => {
+    await cancelSnapshot();
+  },
+
+  previewSnapshotRestore: async (id) => {
+    try {
+      const plan = await previewSnapshot(id);
+      set({ snapshotPlan: plan, snapshotPlanFor: id, snapshotResult: null });
+    } catch (err) {
+      get().showToast('error', translate('snapshot.previewFailed', { message: err instanceof Error ? err.message : String(err) }));
+    }
+  },
+
+  cancelSnapshotPlan: () => set({ snapshotPlan: null, snapshotPlanFor: null }),
+
+  confirmSnapshotRestore: async () => {
+    const s = get();
+    const id = s.snapshotPlanFor;
+    if (!id || s.snapshotBusy) return;
+    set({ snapshotBusy: true, snapshotProgress: { phase: 'verify', done: 0, total: 0, current: '' } });
+    const unlisten = await onSnapshotProgress((progress) => set({ snapshotProgress: progress }));
+    try {
+      const result = await queue.enqueue(translate('snapshot.restoring'), () => restoreSnapshot(id));
+      const moved = new Map(result.restored.map((c) => [c.from, c.to]));
+      const entries = get().entries.map((e) => {
+        const to = moved.get(e.path);
+        if (!to) return e;
+        return { ...e, path: to, name: baseName(to), parent: parentPath(to) };
+      });
+      set({ entries, snapshotResult: result, snapshotPlan: null, snapshotPlanFor: null });
+      await get().refreshBatches();
+      const movedCount = result.restored.length;
+      get().showToast(
+        result.skipped.length || result.failed.length ? 'warn' : 'success',
+        translate('snapshot.restored', {
+          count: movedCount,
+          skipped: result.skipped.length,
+          failed: result.failed.length,
+        }),
+      );
+      logger.info('snapshot.restore.done', '还原快照', {
+        snapshot: id,
+        restored: movedCount,
+        skipped: result.skipped.length,
+        failed: result.failed.length,
+        batch: result.batch?.id ?? null,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes('已取消')) {
+        get().showToast('info', translate('snapshot.cancelled'));
+      } else {
+        get().showToast('error', translate('snapshot.restoreFailed', { message }));
+      }
+    } finally {
+      unlisten();
+      set({ snapshotBusy: false, snapshotProgress: null });
+    }
+  },
+
+  deleteSnapshotItem: async (id) => {
+    try {
+      await deleteSnapshot(id);
+      set({
+        snapshots: get().snapshots.filter((s) => s.id !== id),
+        snapshotPlan: get().snapshotPlanFor === id ? null : get().snapshotPlan,
+        snapshotPlanFor: get().snapshotPlanFor === id ? null : get().snapshotPlanFor,
+      });
+      get().showToast('success', translate('snapshot.deleted'));
+    } catch (err) {
+      get().showToast('error', translate('snapshot.deleteFailed', { message: err instanceof Error ? err.message : String(err) }));
+    }
+  },
 }));
+
+// 列表顺序持久化：entries 变化即写回（防抖 150ms），重启后按保存顺序恢复。
+let sessionTimer: ReturnType<typeof setTimeout> | null = null;
+function persistSession(entries: Entry[], manualOrder: boolean) {
+  try {
+    const payload: SessionDto = {
+      version: 3,
+      manualOrder,
+      entries: entries.slice(0, 20000).map((e) => ({
+        path: e.path,
+        name: e.name,
+        parent: e.parent,
+        isDir: e.isDir,
+        size: e.size,
+        modified: e.modified,
+        readonly: e.readonly,
+        selected: e.selected,
+      })),
+    };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+  } catch {
+    // 隐私模式/配额不足时忽略：顺序持久化失败不影响主流程
+  }
+}
+useApp.subscribe((state, prev) => {
+  if (!state.ready || state.entries === prev.entries) return;
+  if (sessionTimer) clearTimeout(sessionTimer);
+  sessionTimer = setTimeout(() => persistSession(state.entries, state.manualOrder), 150);
+});

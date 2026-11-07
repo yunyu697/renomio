@@ -1,11 +1,14 @@
 //! Renomio 核心：只做文件系统与事务，不依赖 Tauri / 前端。
 
+pub mod hashing;
 pub mod journal;
+pub mod metaedit;
 pub mod metadata;
 pub mod ops;
 pub mod platform;
 pub mod rename;
 pub mod scan;
+pub mod snapshot;
 
 use std::path::{Path, PathBuf};
 
@@ -128,9 +131,49 @@ impl Core {
         ops::read_attrs(paths)
     }
 
+    /// 快照目录（与批次日志同在数据目录下）。
+    pub fn snapshot_dir(&self) -> PathBuf {
+        self.store.data_dir().join("snapshots")
+    }
+
+    pub fn snapshot_create(
+        &self,
+        roots: Vec<String>,
+        entries: Vec<snapshot::SnapshotInput>,
+        with_hash: bool,
+        on_progress: &mut dyn FnMut(usize, usize, &str),
+        is_cancelled: &dyn Fn() -> bool,
+    ) -> Result<(snapshot::Snapshot, usize), String> {
+        snapshot::create(
+            self.store.data_dir(),
+            roots,
+            entries,
+            with_hash,
+            on_progress,
+            is_cancelled,
+        )
+    }
+
+    pub fn snapshot_restore(
+        &self,
+        snap: &snapshot::Snapshot,
+        on_progress: &mut dyn FnMut(&str, usize, usize, &str),
+        is_cancelled: &dyn Fn() -> bool,
+    ) -> Result<snapshot::RestoreOutcome, String> {
+        snapshot::restore(
+            &self.store,
+            self.platform,
+            snap,
+            on_progress,
+            is_cancelled,
+        )
+    }
+
     pub fn undo(&self, batch_id: &str) -> Result<UndoOutcome, String> {
         let ops_batch = match self.store.load(batch_id) {
-            Ok(Some(batch)) => !batch.kind.is_empty() && batch.kind != "rename",
+            Ok(Some(batch)) => {
+                !batch.kind.is_empty() && batch.kind != "rename" && batch.kind != "restore"
+            }
             _ => false,
         };
         if ops_batch {

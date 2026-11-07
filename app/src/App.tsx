@@ -1,5 +1,8 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { useDiskSync, usePreview } from './hooks/usePreview';
+import { rulesRequireHashes } from './lib/vars';
+import { matchesShortcut } from './lib/shortcuts';
 import { installDropHandler } from './lib/bridge';
 import {
   LEAVE_GRACE_MS, domDepthAfter, dropReduce, dropVisible,
@@ -14,11 +17,14 @@ import { ElevationNotice } from './components/ElevationNotice';
 import { FailureDialog } from './components/FailureDialog';
 import { MainPane } from './components/MainPane';
 import { MetadataDialog } from './components/MetadataDialog';
+import { MetaEditDialog } from './components/MetaEditDialog';
 import { Nav } from './components/Nav';
 import { OpsDialog } from './components/OpsDialog';
 import { PlanDialog } from './components/PlanDialog';
 import { PathBar } from './components/PathBar';
 import { PreviewDialog } from './components/PreviewDialog';
+import { ShortcutDialog } from './components/ShortcutDialog';
+import { SnapshotDialog } from './components/SnapshotDialog';
 import { RulesPanel } from './components/RulesPanel';
 import { StatusBar } from './components/StatusBar';
 import { Toast } from './components/Toast';
@@ -38,6 +44,94 @@ export function App() {
   const preview = usePreview();
   const migration = useApp((s) => s.migration);
   const settings = useApp((s) => s.settings);
+  const setLayout = useApp((s) => s.setLayout);
+  const panesRef = useRef<HTMLDivElement | null>(null);
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const [dragSize, setDragSize] = useState<number | null>(null);
+  const [narrow, setNarrow] = useState(false);
+  const layout = settings.layout;
+  const sideView = layout.view === 'files-left' || layout.view === 'rules-left';
+  const rulesFirst = layout.view === 'rules-left' || layout.view === 'rules-top';
+  const compact = layout.view === 'compact';
+  const presetSize = sideView ? layout.side : layout.stack;
+
+  /** 窄窗自动收敛为单列（按工作区真实宽度判断，宽窗恢复后回落到用户选择的视图）。 */
+  useEffect(() => {
+    const el = workspaceRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => {
+      const width = entry.contentRect.width;
+      setNarrow((prev) => {
+        // 回滞：收窄 <1280、放宽 >1360 才切回，避免在阈值附近抖动
+        if (prev) return width < 1360;
+        return width < 1280;
+      });
+    });
+    observer.observe(el);
+    setNarrow(el.getBoundingClientRect().width < 1280);
+    return () => observer.disconnect();
+  }, [ready]);
+
+  /** 高级模式下拖动分隔条；松手时把尺寸写进设置（重启后保留）。 */
+  const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!layout.advanced) return;
+    const panes = panesRef.current;
+    if (!panes) return;
+    const rect = panes.getBoundingClientRect();
+    const horizontal = sideView;
+    let last = presetSize;
+    const move = (e: PointerEvent) => {
+      if (horizontal) {
+        const raw = rulesFirst ? e.clientX - rect.left : rect.right - e.clientX;
+        last = clamp(raw, 300, Math.max(300, Math.min(rect.width - 320, rect.width * 0.62)));
+      } else {
+        const raw = rulesFirst ? e.clientY - rect.top : rect.bottom - e.clientY;
+        last = clamp(raw, 180, Math.max(180, Math.min(rect.height - 240, rect.height * 0.7)));
+      }
+      setDragSize(last);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      setDragSize(null);
+      setLayout(horizontal ? { side: Math.round(last) } : { stack: Math.round(last) });
+    };
+    event.preventDefault();
+    setDragSize(presetSize);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  const splitter = (
+    <div
+      className={`splitter ${layout.advanced ? 'active' : ''}`}
+      role="separator"
+      aria-orientation={sideView ? 'vertical' : 'horizontal'}
+      aria-label={t('layout.resize')}
+      data-testid="layout-splitter"
+      data-enabled={layout.advanced}
+      onPointerDown={startResize}
+    />
+  );
+
+  const panes = compact ? (
+    <>
+      <MainPane />
+      <RulesPanel />
+    </>
+  ) : rulesFirst ? (
+    <>
+      <RulesPanel />
+      {splitter}
+      <MainPane />
+    </>
+  ) : (
+    <>
+      <MainPane />
+      {splitter}
+      <RulesPanel />
+    </>
+  );
   const dismissMigrationNotice = useApp((s) => s.dismissMigrationNotice);
   /** Esc 时强制复位拖放提示（窗口内按 Esc 取消拖拽时未必收到 leave）。 */
   const dropResetRef = useRef<() => void>(() => undefined);
@@ -65,6 +159,16 @@ export function App() {
     const paths = entries.map((e) => e.path);
     if (paths.length) void loadMetaFields(paths);
   }, [rules, entries, loadMetaFields]);
+
+  // 名称模板引用了 <CRC32>/<MD5>/<SHA1> 时按需流式计算；进度与取消由 store 统一维护
+  const loadFileFacts = useApp((s) => s.loadFileFacts);
+  useEffect(() => {
+    const algos = rulesRequireHashes(rules);
+    if (!algos.length) return;
+    // 只计算会参与执行的行；取消勾选/重新勾选会因 entries 变化重新触发
+    const paths = entries.filter((e) => e.selected).map((e) => e.path);
+    if (paths.length) void loadFileFacts(paths, algos);
+  }, [rules, entries, loadFileFacts]);
 
   useEffect(() => {
     let dispose: () => void = () => undefined;
@@ -170,10 +274,13 @@ export function App() {
       return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
     };
     const onKey = (e: KeyboardEvent) => {
+      const state = useApp.getState();
+      // 键位窗打开时由其自行处理 Esc 与录制，避免误触全局命令
+      if (state.shortcutOpen) return;
       const mod = e.ctrlKey || e.metaKey;
-      if (!mod) {
+      const maps = state.settings.shortcuts;
+      if (!mod && !e.altKey) {
         if (e.key === 'Escape') {
-          const state = useApp.getState();
           dropResetRef.current();
           if (state.previewOpen) state.closePreview();
           else if (state.opsMode) state.closeOps();
@@ -182,25 +289,29 @@ export function App() {
         }
         return;
       }
-      const key = e.key.toLowerCase();
-      if (key === 'k') {
+      if (matchesShortcut(e, maps.search)) {
         e.preventDefault();
         document.getElementById('global-search')?.focus();
         return;
       }
-      if (key === 'o') {
+      if (matchesShortcut(e, maps.addFiles)) {
         e.preventDefault();
-        void (e.shiftKey ? useApp.getState().chooseFolder() : useApp.getState().chooseFiles());
+        void state.chooseFiles();
         return;
       }
-      if (key === 'enter') {
+      if (matchesShortcut(e, maps.addFolder)) {
         e.preventDefault();
-        useApp.getState().openPreview();
+        void state.chooseFolder();
         return;
       }
-      if (key === 'z' && !isTyping(e.target)) {
+      if (matchesShortcut(e, maps.preview)) {
         e.preventDefault();
-        void useApp.getState().undoLast();
+        state.openPreview();
+        return;
+      }
+      if (matchesShortcut(e, maps.undo) && !isTyping(e.target)) {
+        e.preventDefault();
+        void state.undoLast();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -249,10 +360,25 @@ export function App() {
           </button>
         </div>
       )}
-      <div className="workspace">
+      <div
+        className="workspace"
+        ref={workspaceRef}
+        data-view={settings.layout.view}
+        data-advanced={settings.layout.advanced}
+        data-narrow={narrow ? 'true' : 'false'}
+      >
         <Nav />
-        <MainPane />
-        <RulesPanel />
+        <div
+          className="panes"
+          ref={panesRef}
+          data-view={settings.layout.view}
+          style={{
+            '--rules-side': `${dragSize ?? layout.side}px`,
+            '--rules-stack': `${dragSize ?? layout.stack}px`,
+          } as CSSProperties}
+        >
+          {panes}
+        </div>
       </div>
       <ActionBar />
       <StatusBar />
@@ -268,8 +394,11 @@ export function App() {
       <PreviewDialog />
       <FailureDialog />
       <MetadataDialog />
+      <MetaEditDialog />
       <OpsDialog />
       <PlanDialog />
+      <SnapshotDialog />
+      <ShortcutDialog />
       <Drawer />
       <Toast />
 
@@ -284,4 +413,8 @@ export function App() {
       )}
     </div>
   );
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }

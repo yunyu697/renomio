@@ -364,8 +364,8 @@ mod tests {
 
     #[test]
     fn migrated_journal_still_undoes() {
-        use ffrn_core::rename::{ApplyItem, ApplyOptions};
-        use ffrn_core::Core;
+        use renomio_core::rename::{ApplyItem, ApplyOptions};
+        use renomio_core::Core;
 
         let root = temp_dir("journal");
         let old = root.join("old");

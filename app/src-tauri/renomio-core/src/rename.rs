@@ -135,12 +135,12 @@ fn split_name(name: &str) -> (String, String) {
 fn free_temp_path(dir: &Path, batch_id: &str, index: usize, is_dir: bool) -> PathBuf {
     let suffix = if is_dir { "" } else { ".tmp" };
     for attempt in 0..1000u32 {
-        let candidate = dir.join(format!(".ffrn-{batch_id}-{index}-{attempt}{suffix}"));
+        let candidate = dir.join(format!(".renomio-{batch_id}-{index}-{attempt}{suffix}"));
         if !exists_native(&candidate) {
             return candidate;
         }
     }
-    dir.join(format!(".ffrn-{batch_id}-{index}-fallback.tmp"))
+    dir.join(format!(".renomio-{batch_id}-{index}-fallback.tmp"))
 }
 
 fn suffix_candidate(name: &str, attempt: usize, is_dir: bool) -> String {
@@ -576,7 +576,7 @@ pub fn undo(store: &BatchStore, id: &str) -> Result<UndoOutcome, String> {
         .map_err(|e| format!("读取批次失败：{e}"))?
         .ok_or_else(|| "批次不存在".to_string())?;
 
-    if !batch.kind.is_empty() && batch.kind != "rename" {
+    if !batch.kind.is_empty() && batch.kind != "rename" && batch.kind != "restore" {
         return Err("该批次不是改名批次，请使用对应的撤销入口".into());
     }
 
@@ -754,7 +754,7 @@ mod tests {
         fn new(label: &str) -> Self {
             let seq = SEQ.fetch_add(1, Ordering::Relaxed);
             let root =
-                std::env::temp_dir().join(format!("ffrn-{label}-{}-{seq}", std::process::id()));
+                std::env::temp_dir().join(format!("renomio-{label}-{}-{seq}", std::process::id()));
             let _ = fs::remove_dir_all(native_path(&root));
             fs::create_dir_all(native_path(&root)).unwrap();
             let data = root.join(".data");

@@ -3,6 +3,7 @@ import { t } from '../i18n';
 import type {
   AddRule, CaseRule, DeleteRule, ExtRule, MetaFields, MoveRule, NumberRule, ReplaceRule, Rule,
 } from './types';
+import { expandTemplate, scanTemplate, type VarContext } from './vars';
 
 export function splitName(name: string, isDir: boolean): { stem: string; ext: string } {
   if (isDir) return { stem: name, ext: '' };
@@ -32,16 +33,33 @@ function separatorRegex(seps: string, flags = ''): RegExp {
   return new RegExp(`[${chars.map(regexEscape).join('')}]`, flags);
 }
 
+/** 模板字段的变量校验：未知变量名与非法参数必须显式报错，不能原样输出。 */
+function templateError(text: string, allowCounter: boolean): string | null {
+  const scan = scanTemplate(text);
+  if (scan.unknown) return t('ruleErr.unknownVar', { name: scan.unknown });
+  if (scan.badArgs) return t('ruleErr.badVarArgs', { name: scan.badArgs });
+  if (scan.counter && !allowCounter) return t('ruleErr.counterOnlyNumber');
+  return null;
+}
+
 /** 规则配置是否可用；返回本地化错误说明 */
 export function ruleError(rule: Rule): string | null {
   switch (rule.type) {
     case 'add':
       if (rule.mode === 'direct' && rule.text === '') return t('ruleErr.emptyInsert');
+      if (rule.mode === 'direct') {
+        const bad = templateError(rule.text, false);
+        if (bad) return bad;
+      }
       if (rule.mode === 'pad' && (rule.padTo < 1 || rule.padTo > 255)) return t('ruleErr.padRange');
       if (rule.anchor === 'at' && (rule.position < 1 || rule.position > 255)) return t('ruleErr.positionRange');
       return null;
     case 'replace':
       if (rule.find === '') return t('ruleErr.emptyFind');
+      {
+        const bad = templateError(rule.replace, false);
+        if (bad) return bad;
+      }
       if (rule.regex) {
         try {
           new RegExp(rule.find);
@@ -57,6 +75,10 @@ export function ruleError(rule: Rule): string | null {
       return null;
     case 'number':
       if (!rule.expression.includes('<#>')) return t('ruleErr.needPlaceholder');
+      {
+        const bad = templateError(rule.expression, true);
+        if (bad) return bad;
+      }
       if (rule.digits < 1 || rule.digits > 12) return t('ruleErr.digitsRange');
       if (rule.step < 1) return t('ruleErr.stepPositive');
       return null;
@@ -68,6 +90,10 @@ export function ruleError(rule: Rule): string | null {
     case 'ext':
       if ((rule.mode === 'replace' || rule.mode === 'fixed') && rule.value.trim() === '') return t('ruleErr.emptyExt');
       if (rule.mode === 'number' && (rule.value === '' || Number.isNaN(Number(rule.value)))) return t('ruleErr.badExtStep');
+      if (rule.mode === 'replace' || rule.mode === 'fixed' || rule.mode === 'add') {
+        const bad = templateError(rule.value, false);
+        if (bad) return bad;
+      }
       return null;
     case 'meta':
       return null;
@@ -76,7 +102,7 @@ export function ruleError(rule: Rule): string | null {
   }
 }
 
-function applyAdd(stem: string, rule: AddRule): string {
+function applyAdd(stem: string, rule: AddRule, vars: VarContext): string {
   if (rule.mode === 'pad') {
     const chars = toChars(stem);
     const padChar = rule.padChar || '0';
@@ -90,11 +116,11 @@ function applyAdd(stem: string, rule: AddRule): string {
     index = rule.fromEnd ? chars.length - (rule.position - 1) : rule.position - 1;
   }
   index = clamp(index, 0, chars.length);
-  chars.splice(index, 0, ...toChars(rule.text));
+  chars.splice(index, 0, ...toChars(expandTemplate(rule.text, vars)));
   return fromChars(chars);
 }
 
-function applyReplace(stem: string, rule: ReplaceRule): string {
+function applyReplace(stem: string, rule: ReplaceRule, vars: VarContext): string {
   if (!rule.find) return stem;
   const source = rule.regex ? rule.find : regexEscape(rule.find);
   const flags = `g${rule.caseSensitive ? '' : 'i'}`;
@@ -104,11 +130,12 @@ function applyReplace(stem: string, rule: ReplaceRule): string {
   } catch {
     return stem;
   }
-  if (rule.nth === 0) return stem.replace(re, rule.replace);
+  const replacement = expandTemplate(rule.replace, vars);
+  if (rule.nth === 0) return stem.replace(re, replacement);
   let count = 0;
   return stem.replace(re, (match) => {
     count += 1;
-    return count === rule.nth ? rule.replace : match;
+    return count === rule.nth ? replacement : match;
   });
 }
 
@@ -251,13 +278,13 @@ function formatNumber(value: number, digits: number, padChar: string): string {
   return raw.length >= digits ? raw : pad.repeat(digits - raw.length) + raw;
 }
 
-function applyNumber(rule: NumberRule, counter: number): string {
+function applyNumber(rule: NumberRule, counter: number, vars: VarContext): string {
   const formatted = formatNumber(counter, rule.digits, rule.padChar);
-  return rule.expression.split('<#>').join(formatted);
+  return expandTemplate(rule.expression, { ...vars, counter: formatted });
 }
 
-function applyExt(ext: string, rule: ExtRule, counter: number): string {
-  const value = rule.value.replace(/^\.+/, '').replace(/\.+$/, '');
+function applyExt(ext: string, rule: ExtRule, counter: number, vars: VarContext): string {
+  const value = expandTemplate(rule.value, vars).replace(/^\.+/, '').replace(/\.+$/, '');
   switch (rule.mode) {
     case 'add':
       return rule.position === 'prefix' ? `${value}${ext}` : `${ext}${value}`;
@@ -283,6 +310,8 @@ export interface ApplyContext {
   peekNumber: (rule: NumberRule, parent: string) => number;
   /** 当前文件的只读元数据字段（供「按元数据取名」规则使用；缺失则跳过该规则） */
   meta?: MetaFields;
+  /** 当前文件的元变量取值（原文件名、扩展名、目录、时间、大小、哈希、用户文本） */
+  vars: VarContext;
 }
 
 export function applyRules(
@@ -301,10 +330,10 @@ export function applyRules(
     if (!rule.enabled || ruleError(rule)) continue;
     switch (rule.type) {
       case 'add':
-        stem = applyAdd(stem, rule);
+        stem = applyAdd(stem, rule, ctx.vars);
         break;
       case 'replace':
-        stem = applyReplace(stem, rule);
+        stem = applyReplace(stem, rule, ctx.vars);
         break;
       case 'delete':
         stem = applyDelete(stem, rule);
@@ -313,7 +342,7 @@ export function applyRules(
         const value = rule.onlyChecked && !entrySelected
           ? ctx.peekNumber(rule, rule.perFolder ? parent : '')
           : ctx.nextNumber(rule, rule.perFolder ? parent : '');
-        stem = applyNumber(rule, value);
+        stem = applyNumber(rule, value, ctx.vars);
         numbers.push(formatNumber(value, rule.digits, rule.padChar));
         break;
       }
@@ -332,9 +361,9 @@ export function applyRules(
             perFolder: false, onlyChecked: false,
           };
           const value = ctx.nextNumber(probe, '');
-          ext = applyExt(ext, rule, value);
+          ext = applyExt(ext, rule, value, ctx.vars);
         } else {
-          ext = applyExt(ext, rule, 1);
+          ext = applyExt(ext, rule, 1, ctx.vars);
         }
         break;
       case 'meta': {

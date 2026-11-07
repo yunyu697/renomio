@@ -315,8 +315,8 @@ pub fn probe_case_sensitivity(dir: &Path) -> bool {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let upper = dir.join(format!("FFRN-CASE-PROBE-{stamp}.tmp"));
-    let lower = dir.join(format!("ffrn-case-probe-{stamp}.tmp"));
+    let upper = dir.join(format!("RENOMIO-CASE-PROBE-{stamp}.tmp"));
+    let lower = dir.join(format!("renomio-case-probe-{stamp}.tmp"));
     if std::fs::write(&upper, b"probe").is_err() {
         return Platform::current().default_case_sensitive();
     }

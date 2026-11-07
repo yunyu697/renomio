@@ -111,22 +111,22 @@ jobs:
         with:
           workspaces: |
             app/src-tauri -> target
-            app/src-tauri/ffrn-core -> target
+            app/src-tauri/renomio-core -> target
 
       - name: cargo fmt --check
         run: |
           cargo fmt --manifest-path app/src-tauri/Cargo.toml --check
-          cargo fmt --manifest-path app/src-tauri/ffrn-core/Cargo.toml --check
+          cargo fmt --manifest-path app/src-tauri/renomio-core/Cargo.toml --check
 
       # 只暴露 clippy 警告，不加 -D warnings，因此警告不会阻断构建；
       # 真正的编译错误仍会让该步失败。
       - name: cargo clippy（仅暴露警告，不阻断）
         run: |
           cargo clippy --manifest-path app/src-tauri/Cargo.toml --all-targets
-          cargo clippy --manifest-path app/src-tauri/ffrn-core/Cargo.toml --all-targets
+          cargo clippy --manifest-path app/src-tauri/renomio-core/Cargo.toml --all-targets
 
-      - name: cargo test（ffrn-core 核心）
-        run: cargo test --manifest-path app/src-tauri/ffrn-core/Cargo.toml
+      - name: cargo test（renomio-core 核心）
+        run: cargo test --manifest-path app/src-tauri/renomio-core/Cargo.toml
 
       - name: cargo test（Tauri 壳，含 migrate.rs 迁移单测）
         run: cargo test --manifest-path app/src-tauri/Cargo.toml

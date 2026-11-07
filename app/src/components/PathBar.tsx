@@ -3,6 +3,7 @@ import { parentPath } from '../lib/format';
 import { useTranslation } from '../i18n';
 import { useApp } from '../store';
 import { Icon } from './Icon';
+import { LayoutSwitch } from './LayoutSwitch';
 
 export function PathBar() {
   const { t } = useTranslation();
@@ -45,6 +46,7 @@ export function PathBar() {
           value={includePattern}
           placeholder="*.jpg *.png"
           aria-label={t('path.keepAria')}
+          data-testid="include-pattern"
           onChange={(e) => setIncludePattern(e.target.value)}
         />
         {includePattern && (
@@ -58,6 +60,7 @@ export function PathBar() {
           value={excludePattern}
           placeholder="*副本*"
           aria-label={t('path.excludeAria')}
+          data-testid="exclude-pattern"
           onChange={(e) => setExcludePattern(e.target.value)}
         />
         {excludePattern && (
@@ -65,6 +68,7 @@ export function PathBar() {
         )}
       </span>
       <div className="right">
+        <LayoutSwitch />
         <span className="switch-row" title={t('path.recursiveHint')}>
           <span className="lbl">{t('path.recursive')}</span>
           <span

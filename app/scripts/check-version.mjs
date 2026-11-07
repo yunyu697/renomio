@@ -21,6 +21,7 @@ import path from 'node:path';
 const STD_VERSION_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const PRE_VERSION_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-alpha([1-9]\d*)$/;
 const MAX_SEGMENT = 10; // 除第一段外，其余每段数值上限
+const MAX_ALPHA = 99; // alpha 序号上限（alpha 会随迭代持续累加，单独放宽；minor/patch 仍 <= 10）
 
 /** 纯函数：校验版本字符串本身。返回错误数组（空数组 = 通过）。 */
 export function validateVersionString(v) {
@@ -42,7 +43,7 @@ export function validateVersionString(v) {
   if (patch > MAX_SEGMENT) errors.push(`第三段 ${patch} > ${MAX_SEGMENT}`);
   if (pre) {
     const alpha = Number(pre[4]);
-    if (alpha > MAX_SEGMENT) errors.push(`alpha 序号 ${alpha} > ${MAX_SEGMENT}`);
+    if (alpha > MAX_ALPHA) errors.push(`alpha 序号 ${alpha} > ${MAX_ALPHA}`);
   }
   if (major === 0 && !pre) errors.push('正式版本不得为 0.x.y（本项目自 1.0.0 起）');
   return errors;
@@ -139,7 +140,7 @@ function checkLists(version) {
     ['app/packages/foundation/package.json', /^\s*"version"\s*:\s*"([^"]*)"/m],
     ['app/src-tauri/tauri.conf.json', /^\s*"version"\s*:\s*"([^"]*)"/m],
     ['app/src-tauri/Cargo.toml', /\[package\][\s\S]*?\nversion\s*=\s*"([^"]*)"/],
-    ['app/src-tauri/ffrn-core/Cargo.toml', /\[package\][\s\S]*?\nversion\s*=\s*"([^"]*)"/],
+    ['app/src-tauri/renomio-core/Cargo.toml', /\[package\][\s\S]*?\nversion\s*=\s*"([^"]*)"/],
   ];
   for (const [rel, re] of files) {
     const file = path.join(repoRoot, rel);
@@ -169,14 +170,15 @@ function selfTest() {
   const cases = [];
   const add = (name, fn) => cases.push({ name, fn });
 
-  add('拒绝 1.11.0（第二段 > 10）', () => {
-    const errs = validateVersionString('1.11.0');
-    return errs.some((e) => /第二段/.test(e)) ? null : '未被拦截';
+  add('拒绝 1.11.0 / 1.0.11（minor 或 patch > 10）', () => {
+    const a = validateVersionString('1.11.0');
+    const b = validateVersionString('1.0.11');
+    return a.some((e) => /第二段/.test(e)) && b.some((e) => /第三段/.test(e)) ? null : '未被拦截';
   });
   add('接受 1.10.10（段位恰好为 10）', () => validateVersionString('1.10.10').length ? '被误拦' : null);
   add('拒绝 alpha0（序号不得为 0）', () => validateVersionString('1.0.0-alpha0').length ? null : '未被拦截');
   add('拒绝 alpha01（前导零）', () => validateVersionString('1.0.0-alpha01').length ? null : '未被拦截');
-  add('拒绝 alpha11（alpha 序号 > 10）', () => validateVersionString('1.0.0-alpha11').length ? null : '未被拦截');
+  add('接受 alpha11（alpha 序号上限 99）', () => validateVersionString('1.0.0-alpha11').length ? '被误拦' : null);
   add('接受 1.0.0-alpha1', () => validateVersionString('1.0.0-alpha1').length ? '被误拦' : null);
   add('拒绝 tag 与版本不一致（v1.0.0-alpha2 vs 1.0.0-alpha1）', () => {
     const errs = validateTagPair('1.0.0-alpha1', 'v1.0.0-alpha2');

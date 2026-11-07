@@ -1,9 +1,11 @@
 /** 桌面端桥接：Tauri 命令、文件对话框、拖放与日志落盘。浏览器中自动降级为演示模式。 */
 import type {
   ApplyItemDto, ApplyOptionsDto, ApplyOutcome, ApplyProgress, AttrInfo, AttrSpecDto, BatchMetadata,
-  BatchSummary, EnvInfo, Entry, LegacyImportReport, MetadataInfo, MetaFields, MigrationInfo, MoveItemDto,
-  MoveSpecDto, OpTargetDto, OpsOutcome,
-  PrivilegeInfo, SavedUpdate, ScanResultDto, StartupMark, TimeInfo, TimeSpecDto, UndoOutcome,
+  BatchSummary, DuplicateReportDto, EnvInfo, Entry, LegacyImportReport, MetaCapabilityDto,
+  MetaEditRequestDto, MetaEditResultDto, MetadataInfo, MetaFields, MetaSnapshotDto, MigrationInfo,
+  MoveItemDto, MoveSpecDto, OpTargetDto, OpsOutcome,
+  PrivilegeInfo, SavedUpdate, ScanResultDto, SnapshotDto, SnapshotPlanItemDto, SnapshotProgress,
+  SnapshotRestoreResult, SnapshotSummaryDto, StartupMark, TimeInfo, TimeSpecDto, UndoOutcome,
   UpdateInfo, UpdateProgress,
 } from './types';
 import { PRODUCT_NAME } from './branding';
@@ -58,6 +60,25 @@ export async function relaunchAsAdmin(): Promise<boolean> {
 export async function renameFields(paths: string[]): Promise<MetaFields[]> {
   if (!isDesktop) return [];
   return invoke<MetaFields[]>('rename_fields', { paths });
+}
+
+export interface FileHashResult {
+  path: string;
+  crc32?: string | null;
+  md5?: string | null;
+  sha1?: string | null;
+  error?: string | null;
+}
+
+/** 元变量内容哈希：单遍流式读取，仅计算请求的算法；取消用 cancelFileHashes。 */
+export async function fileHashes(paths: string[], algos: string[]): Promise<FileHashResult[]> {
+  if (!isDesktop) return [];
+  return invoke<FileHashResult[]>('file_hashes', { paths, algos });
+}
+
+export async function cancelFileHashes(): Promise<boolean> {
+  if (!isDesktop) return false;
+  return invoke<boolean>('cancel_hash');
 }
 
 /** 旧版数据迁移结果；浏览器演示模式返回 null。 */
@@ -134,6 +155,57 @@ export async function onApplyProgress(handler: (progress: ApplyProgress) => void
   }
 }
 
+/** 订阅快照生成/还原进度；返回取消订阅函数。 */
+export async function onSnapshotProgress(handler: (progress: SnapshotProgress) => void): Promise<() => void> {
+  if (!isDesktop) return () => undefined;
+  try {
+    const { listen } = await import('@tauri-apps/api/event');
+    const unlisten = await listen<SnapshotProgress>('snapshot-progress', (event) => handler(event.payload));
+    return unlisten;
+  } catch {
+    return () => undefined;
+  }
+}
+
+export async function createSnapshot(
+  entries: Array<{ from: string; to: string }>,
+  withHash: boolean,
+  roots: string[],
+): Promise<SnapshotDto> {
+  return invoke<SnapshotDto>('create_snapshot', { entries, withHash, roots });
+}
+
+export async function cancelSnapshot(): Promise<boolean> {
+  if (!isDesktop) return false;
+  try {
+    return await invoke<boolean>('cancel_snapshot');
+  } catch {
+    return false;
+  }
+}
+
+export async function listSnapshots(): Promise<SnapshotSummaryDto[]> {
+  if (!isDesktop) return [];
+  try {
+    return await invoke<SnapshotSummaryDto[]>('list_snapshots');
+  } catch {
+    return [];
+  }
+}
+
+export async function previewSnapshot(id: string): Promise<SnapshotPlanItemDto[]> {
+  return invoke<SnapshotPlanItemDto[]>('preview_snapshot', { id });
+}
+
+export async function restoreSnapshot(id: string): Promise<SnapshotRestoreResult> {
+  return invoke<SnapshotRestoreResult>('restore_snapshot', { id });
+}
+
+export async function deleteSnapshot(id: string): Promise<void> {
+  if (!isDesktop) return;
+  await invoke('delete_snapshot', { id });
+}
+
 /** 启动分段计时上报：写 startup.log；`reveal` 时同时显示主窗口。 */
 export async function startupReport(
   marks: StartupMark[],
@@ -202,6 +274,226 @@ export async function pickFolders(): Promise<string[]> {
   const result = await open({ multiple: true, directory: true, title: `添加文件夹到 ${PRODUCT_NAME}` });
   if (!result) return [];
   return Array.isArray(result) ? result : [result];
+}
+
+/** 选择一张封面图片（仅 JPEG/PNG；同时限制 5 MB 上限由 Rust 侧再校验一次）。 */
+export async function pickCoverImage(): Promise<string | null> {
+  if (!isDesktop) return null;
+  const { open } = await import('@tauri-apps/plugin-dialog');
+  const result = await open({
+    multiple: false,
+    directory: false,
+    title: '选择封面图片（JPEG/PNG，≤ 5 MB）',
+    filters: [{ name: '图片', extensions: ['jpg', 'jpeg', 'png'] }],
+  });
+  if (!result) return null;
+  return Array.isArray(result) ? result[0] ?? null : result;
+}
+
+// ---------------------------------------------------------------------------
+// 可编辑元数据（图片 / 音乐 / 文档）
+// ---------------------------------------------------------------------------
+
+/** 元数据写入支持矩阵：不支持的格式会明确列出，界面据此提示。 */
+export async function metaCapabilities(): Promise<MetaCapabilityDto[]> {
+  if (!isDesktop) return demoCapabilities();
+  return invoke<MetaCapabilityDto[]>('meta_capabilities');
+}
+
+/** 读取某文件的现有属性（编辑对话框预填；只读）。 */
+export async function metaRead(path: string): Promise<MetaSnapshotDto> {
+  if (!isDesktop) return demoMetaSnapshot(path);
+  return invoke<MetaSnapshotDto>('meta_read', { path });
+}
+
+/** 批量写入：逐文件返回成功/失败、备份路径与回读校验结果。 */
+export async function metaEdit(items: MetaEditRequestDto[]): Promise<MetaEditResultDto[]> {
+  if (!isDesktop) return items.map(demoMetaEdit);
+  return invoke<MetaEditResultDto[]>('meta_edit', { items });
+}
+
+/** 从备份还原（还原前自动为当前文件再留一份保险备份）。 */
+export async function metaRestoreBackup(backup: string, target: string): Promise<string> {
+  if (!isDesktop) throw new Error('浏览器演示模式：未连接桌面端');
+  return invoke<string>('meta_restore_backup', { backup, target });
+}
+
+/** 内容完全相同（不同路径）的疑似重复组；只读，不删除文件。 */
+export async function findDuplicates(paths: string[]): Promise<DuplicateReportDto> {
+  if (!isDesktop) {
+    const bySize = new Map<number, string[]>();
+    for (const path of new Set(paths)) {
+      const entry = demoEntries().find((e) => e.path === path);
+      if (!entry || entry.isDir) continue;
+      const list = bySize.get(entry.size) ?? [];
+      list.push(path);
+      bySize.set(entry.size, list);
+    }
+    const groups = [...bySize.entries()]
+      .filter(([, list]) => list.length > 1)
+      .map(([size, list]) => ({ size, hash: `demo-${size}`, paths: [...list].sort() }));
+    return { groups, scanned: paths.length, warnings: [] };
+  }
+  return invoke<DuplicateReportDto>('find_duplicates', { paths });
+}
+
+const DEMO_META_KEY = 'rename-studio.demo.meta';
+
+function demoKindOf(path: string): { kind: string; format: string; writable: boolean } {
+  const ext = path.split('.').pop()?.toLowerCase() ?? '';
+  if (['jpg', 'jpeg'].includes(ext)) return { kind: 'image', format: 'JPEG', writable: true };
+  if (ext === 'png') return { kind: 'image', format: 'PNG', writable: true };
+  if (ext === 'webp') return { kind: 'image', format: 'WebP', writable: true };
+  if (['tif', 'tiff'].includes(ext)) return { kind: 'image', format: 'TIFF', writable: true };
+  if (['heic', 'heif'].includes(ext)) return { kind: 'image', format: 'HEIC/HEIF', writable: false };
+  if (['gif', 'bmp', 'avif'].includes(ext)) return { kind: 'image', format: ext.toUpperCase(), writable: false };
+  if (ext === 'mp3') return { kind: 'audio', format: 'MP3', writable: true };
+  if (ext === 'flac') return { kind: 'audio', format: 'FLAC', writable: true };
+  if (['m4a', 'mp4'].includes(ext)) return { kind: 'audio', format: 'M4A/MP4', writable: true };
+  if (['ogg', 'opus'].includes(ext)) return { kind: 'audio', format: 'OGG (Vorbis/Opus)', writable: true };
+  if (['wma', 'ape', 'wav', 'aiff'].includes(ext)) return { kind: 'audio', format: ext.toUpperCase(), writable: false };
+  if (ext === 'docx') return { kind: 'document', format: 'DOCX', writable: true };
+  if (ext === 'xlsx') return { kind: 'document', format: 'XLSX', writable: true };
+  if (ext === 'pptx') return { kind: 'document', format: 'PPTX', writable: true };
+  if (ext === 'pdf') return { kind: 'document', format: 'PDF', writable: true };
+  if (['doc', 'xls', 'ppt', 'odt', 'ods', 'odp'].includes(ext)) {
+    return { kind: 'document', format: ext.toUpperCase(), writable: false };
+  }
+  return { kind: 'other', format: ext.toUpperCase() || '未知', writable: false };
+}
+
+function demoDefaults(path: string): Record<string, string> {
+  const { kind } = demoKindOf(path);
+  if (kind === 'image') {
+    return { title: '旅行随拍', description: '海边日落', keywords: '旅行; 海边', author: '张三', copyright: '© 2026 张三', software: 'Renomio', takenAt: '2024-05-01T08:30:00' };
+  }
+  if (kind === 'audio') {
+    return { title: '夜曲', artist: '周杰伦', album: '十一月的萧邦', year: '2005', track: '1', genre: '流行', comment: '', albumArtist: '周杰伦' };
+  }
+  if (kind === 'document') {
+    return { title: '会议记录', subject: '周会', author: '张三', lastModifiedBy: '张三', keywords: '会议; 纪要', comment: '内部资料', category: '文档' };
+  }
+  return {};
+}
+
+function demoMetaStore(): Record<string, Record<string, string>> {
+  try {
+    const raw = localStorage.getItem(DEMO_META_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, Record<string, string>>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function demoMetaSave(store: Record<string, Record<string, string>>) {
+  try {
+    localStorage.setItem(DEMO_META_KEY, JSON.stringify(store));
+  } catch {
+    // 忽略
+  }
+}
+
+function demoMetaSnapshot(path: string): MetaSnapshotDto {
+  const { kind, format, writable } = demoKindOf(path);
+  const store = demoMetaStore();
+  const fields = store[path] ?? demoDefaults(path);
+  const supportedFields =
+    kind === 'image'
+      ? ['title', 'description', 'keywords', 'author', 'copyright', 'software', 'takenAt']
+      : kind === 'audio'
+        ? ['title', 'artist', 'album', 'year', 'track', 'genre', 'comment', 'albumArtist', 'cover']
+        : kind === 'document'
+          ? ['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category']
+          : [];
+  return {
+    path,
+    kind,
+    format,
+    writable,
+    supportedFields,
+    fields,
+    cover: kind === 'audio' ? null : null,
+    warnings: [],
+    unsupportedReason: writable ? null : `${format} 本版本不支持写入（如实拒绝，不做假支持）`,
+  };
+}
+
+function demoMetaEdit(req: MetaEditRequestDto): MetaEditResultDto {
+  const snap = demoMetaSnapshot(req.path);
+  const started = Date.now();
+  const base = {
+    path: req.path,
+    kind: snap.kind,
+    format: snap.format,
+    backup: null as string | null,
+    written: [] as string[],
+    cleared: [] as string[],
+    ignored: [] as string[],
+    verified: false,
+    error: null as string | null,
+    warnings: [] as string[],
+    elapsedMs: 0,
+  };
+  if (!snap.writable) {
+    return {
+      ...base,
+      supported: false,
+      ok: false,
+      error: `${snap.format} 不支持写入：${snap.unsupportedReason ?? '未知原因'}`,
+      elapsedMs: Date.now() - started,
+    };
+  }
+  const store = demoMetaStore();
+  const current = { ...(store[req.path] ?? demoDefaults(req.path)) };
+  for (const [id, value] of Object.entries(req.fields)) {
+    if (!snap.supportedFields.includes(id)) {
+      return { ...base, supported: true, ok: false, error: `字段 ${id} 不适用于 ${snap.format}`, elapsedMs: Date.now() - started };
+    }
+    if (value === '') {
+      delete current[id];
+      base.cleared.push(id);
+    } else {
+      current[id] = value;
+      base.written.push(id);
+    }
+  }
+  if (req.clearCover) base.cleared.push('cover');
+  store[req.path] = current;
+  demoMetaSave(store);
+  const after = demoMetaSnapshot(req.path);
+  const mismatch = base.written.filter((id) => after.fields[id] !== req.fields[id]);
+  if (mismatch.length) {
+    return { ...base, supported: true, ok: false, error: `写入后回读不一致：${mismatch.join(', ')}`, elapsedMs: Date.now() - started };
+  }
+  return {
+    ...base,
+    supported: true,
+    ok: true,
+    backup: req.backup === false ? null : `${req.path}.${Date.now()}.bak`,
+    verified: true,
+    elapsedMs: Date.now() - started,
+  };
+}
+
+function demoCapabilities(): MetaCapabilityDto[] {
+  const f = (list: string[]) => list;
+  return [
+    { kind: 'image', format: 'JPEG', read: true, write: true, fields: f(['title', 'description', 'keywords', 'author', 'copyright', 'software', 'takenAt']), notes: 'XMP + EXIF 文本字段；相机参数/GPS/ICC 原样保留' },
+    { kind: 'image', format: 'PNG', read: true, write: true, fields: f(['title', 'description', 'keywords', 'author', 'copyright', 'software', 'takenAt']), notes: 'XMP（iTXt）；其余块原样保留' },
+    { kind: 'image', format: 'WebP', read: true, write: true, fields: f(['title', 'description', 'keywords', 'author', 'copyright', 'software', 'takenAt']), notes: 'XMP 块；无 VP8X 时自动补建（不重编码像素）' },
+    { kind: 'image', format: 'TIFF', read: true, write: true, fields: f(['title', 'description', 'keywords', 'author', 'copyright', 'software', 'takenAt']), notes: 'IFD0 文本字段 + XMP 标签 700' },
+    { kind: 'image', format: 'HEIC/HEIF', read: false, write: false, fields: [], notes: '本版本不支持写入，也不假装能读' },
+    { kind: 'image', format: 'GIF/BMP/AVIF', read: false, write: false, fields: [], notes: '不支持写入' },
+    { kind: 'audio', format: 'MP3 (ID3v2.3/2.4)', read: true, write: true, fields: f(['title', 'artist', 'album', 'year', 'track', 'genre', 'comment', 'albumArtist', 'cover']), notes: 'v2.3 写 UTF-16，v2.4 写 UTF-8；保留其它帧' },
+    { kind: 'audio', format: 'FLAC', read: true, write: true, fields: f(['title', 'artist', 'album', 'year', 'track', 'genre', 'comment', 'albumArtist', 'cover']), notes: 'Vorbis comment；保留音频帧' },
+    { kind: 'audio', format: 'M4A/MP4', read: true, write: true, fields: f(['title', 'artist', 'album', 'year', 'track', 'genre', 'comment', 'albumArtist', 'cover']), notes: 'iTunes ilst atoms' },
+    { kind: 'audio', format: 'OGG (Vorbis)', read: true, write: true, fields: f(['title', 'artist', 'album', 'year', 'track', 'genre', 'comment', 'albumArtist', 'cover']), notes: 'Vorbis comment；重建头部页并重排页序号，补 framing bit' },
+    { kind: 'audio', format: 'Opus (Ogg)', read: true, write: true, fields: f(['title', 'artist', 'album', 'year', 'track', 'genre', 'comment', 'albumArtist', 'cover']), notes: 'OpusTags 注释包；重建头部页并重排页序号（无 framing bit）' },
+    { kind: 'audio', format: 'WMA/APE/AIFF/WAV', read: false, write: false, fields: [], notes: '如实标注不支持，未静默跳过' },
+    { kind: 'document', format: 'DOCX/XLSX/PPTX', read: true, write: true, fields: f(['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category']), notes: 'docProps/core.xml；不触碰正文' },
+    { kind: 'document', format: 'PDF', read: true, write: true, fields: f(['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category']), notes: 'Info + XMP 增量更新；原页面逐字节保留' },
+    { kind: 'document', format: 'DOC/XLS/PPT (OLE)', read: false, write: false, fields: [], notes: '旧版二进制 Office 不支持写入' },
+  ];
 }
 
 export async function installDropHandler(
@@ -359,6 +651,47 @@ export async function saveTextFile(
     const backup = await invoke<string | null>('write_text_atomic', {
       path: target,
       content,
+      overwrite: true,
+    });
+    return { ok: true, path: target, backup };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** 选择并保存二进制文件（xlsx 等）：浏览器走下载，桌面端 base64 传给原子写入命令。 */
+export async function saveBinaryFile(
+  defaultName: string,
+  content: Uint8Array,
+  filters: TextFileFilter[],
+  mime = 'application/octet-stream',
+): Promise<SaveTextResult> {
+  if (!isDesktop) {
+    const blob = new Blob([content as BlobPart], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = defaultName;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+    return { ok: true, path: `浏览器下载/${defaultName}`, backup: null };
+  }
+  const { save } = await import('@tauri-apps/plugin-dialog');
+  const target = await save({
+    title: '保存到',
+    defaultPath: defaultName,
+    filters,
+  });
+  if (!target) return { ok: false, canceled: true };
+  try {
+    let binary = '';
+    const step = 0x8000;
+    for (let i = 0; i < content.length; i += step) {
+      binary += String.fromCharCode(...content.subarray(i, i + step));
+    }
+    const backup = await invoke<string | null>('write_bytes_atomic', {
+      path: target,
+      content: btoa(binary),
       overwrite: true,
     });
     return { ok: true, path: target, backup };

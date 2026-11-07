@@ -6,4 +6,4 @@
 export const PRODUCT_NAME = 'Renomio';
 
 /** 不变更的内部 crate / 包名，仅供诊断展示。 */
-export const INTERNAL_NAME = 'ffrn-core';
+export const INTERNAL_NAME = 'renomio-core';

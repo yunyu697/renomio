@@ -1,6 +1,6 @@
 /* 静态设计稿交互：仅用于演示主题与控件状态，不涉及业务逻辑 */
 (function () {
-  var KEY = 'ffrn-design-theme';
+  var KEY = 'renomio-design-theme';
 
   function getStored() {
     try { return localStorage.getItem(KEY); } catch (e) { return null; }

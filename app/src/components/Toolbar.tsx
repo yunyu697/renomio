@@ -1,7 +1,7 @@
-import { usePreview } from '../hooks/usePreview';
-import { buildCsv, csvFileName } from '../lib/csv';
+import { displayBinding } from '../lib/shortcuts';
 import { useTranslation } from '../i18n';
 import { useApp } from '../store';
+import { ExportMenu } from './ExportMenu';
 import { Icon } from './Icon';
 
 export function Toolbar() {
@@ -17,33 +17,8 @@ export function Toolbar() {
   const setSearch = useApp((s) => s.setSearch);
   const openPlanExport = useApp((s) => s.openPlanExport);
   const openPlanImport = useApp((s) => s.openPlanImport);
-  const preview = usePreview();
-
-  const exportCsv = async () => {
-    if (!preview.rows.length) {
-      showToast('info', t('toolbar.emptyCsv'));
-      return;
-    }
-    try {
-      const { saveTextFile } = await import('../lib/bridge');
-      const res = await saveTextFile(csvFileName(), buildCsv(preview.rows, t), [
-        { name: t('toolbar.csvFilter'), extensions: ['csv'] },
-      ]);
-      if (res.canceled) return;
-      if (!res.ok) {
-        showToast('error', t('toolbar.csvFailed', { message: res.error ?? t('common.unknownError') }));
-        return;
-      }
-      showToast(
-        'success',
-        res.backup
-          ? t('toolbar.csvExportedBackup', { count: preview.rows.length, path: res.backup })
-          : t('toolbar.csvExported', { count: preview.rows.length, path: res.path ?? '' }),
-      );
-    } catch (err) {
-      showToast('error', t('toolbar.csvFailed', { message: err instanceof Error ? err.message : String(err) }));
-    }
-  };
+  const openShortcuts = useApp((s) => s.openShortcuts);
+  const shortcuts = useApp((s) => s.settings.shortcuts);
 
   return (
     <div className="toolbar">
@@ -81,7 +56,7 @@ export function Toolbar() {
         disabled={undoBusy || applying}
         onClick={() => void undoLast()}
       >
-        <Icon name="undo" />{t('toolbar.undo')} <span className="kbd">Ctrl Z</span>
+        <Icon name="undo" />{t('toolbar.undo')} <span className="kbd">{displayBinding(shortcuts.undo)}</span>
       </button>
       <button
         className="btn btn-icon"
@@ -94,15 +69,7 @@ export function Toolbar() {
       >
         <Icon name="refresh" />
       </button>
-      <button
-        className="btn btn-icon"
-        type="button"
-        title={t('toolbar.csvHint')}
-        data-testid="csv-export"
-        onClick={() => void exportCsv()}
-      >
-        <Icon name="save" />
-      </button>
+      <ExportMenu />
       <div style={{ flex: 1 }} />
       <label className="search">
         <Icon name="search" size={14} />
@@ -114,7 +81,7 @@ export function Toolbar() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <span className="kbd">Ctrl K</span>
+        <span className="kbd">{displayBinding(shortcuts.search)}</span>
       </label>
       <button
         className="btn btn-icon"
@@ -131,7 +98,8 @@ export function Toolbar() {
         className="btn btn-icon"
         type="button"
         title={t('toolbar.helpHint')}
-        onClick={() => showToast('info', t('toolbar.helpToast'))}
+        data-testid="open-shortcuts"
+        onClick={openShortcuts}
       >
         <Icon name="help" />
       </button>

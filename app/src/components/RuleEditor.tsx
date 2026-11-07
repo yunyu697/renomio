@@ -5,6 +5,7 @@ import type {
   AddRule, CaseRule, DeleteRule, ExtRule, MetaRule, MoveRule, NumberRule, ReplaceRule, Rule,
 } from '../lib/types';
 import { ruleError } from '../lib/rules';
+import { SAMPLE_VARS, expandTemplate } from '../lib/vars';
 
 type Patch = (patch: Record<string, unknown>) => void;
 
@@ -40,12 +41,14 @@ function Seg<T extends string>({
 
 const EMPTY_HISTORY: string[] = [];
 
+const VAR_TOKENS = ['<FILENAME>', '<NAME>', '<EXT>', '<DOTEXT>', '<SUBSTR>', '<DIFNSUBSTR>', '<DIR>', '<DATE>', '<TIME>', '<SIZE>', '<CRC32>', '<MD5>', '<SHA1>', '<USER1>'];
+
 /**
  * 规则链输入框：historyKey 不为空时，失焦后把填过的内容按字段记入历史，
  * 并在输入框下方提供历史列表（方向键/回车可选、单条删除、清空二次确认）。
  */
 function TextInput({
-  value, onChange, mono, placeholder, small, historyKey,
+  value, onChange, mono, placeholder, small, historyKey, testId, vars, counterVar,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -53,6 +56,11 @@ function TextInput({
   placeholder?: string;
   small?: boolean;
   historyKey?: string;
+  testId?: string;
+  /** 是否显示元变量插入面板 */
+  vars?: boolean;
+  /** 面板里是否提供 <#>（仅编号规则表达式） */
+  counterVar?: boolean;
 }) {
   const { t } = useTranslation();
   const history = useApp((s) => (historyKey ? s.ruleHistory.fields[historyKey] ?? EMPTY_HISTORY : EMPTY_HISTORY));
@@ -62,6 +70,7 @@ function TextInput({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const [confirming, setConfirming] = useState(false);
+  const [varsOpen, setVarsOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const dirty = useRef(false);
@@ -81,11 +90,28 @@ function TextInput({
     inputRef.current?.focus();
   };
 
+  /** 在光标处插入变量占位符，并把光标移到插入内容之后 */
+  const insertVar = (token: string) => {
+    const input = inputRef.current;
+    const start = input?.selectionStart ?? value.length;
+    const end = input?.selectionEnd ?? value.length;
+    const next = value.slice(0, start) + token + value.slice(end);
+    dirty.current = true;
+    onChange(next);
+    setVarsOpen(false);
+    requestAnimationFrame(() => {
+      input?.focus();
+      const at = start + token.length;
+      input?.setSelectionRange(at, at);
+    });
+  };
+
   return (
     <div className="input-hist" ref={wrapRef}>
       <input
         ref={inputRef}
-        className={`input ${mono ? 'mono' : ''} ${small ? 'small' : ''}`}
+        data-testid={testId}
+        className={`input ${mono ? 'mono' : ''} ${small ? 'small' : ''} ${vars ? 'has-vars' : ''}`}
         value={value}
         placeholder={placeholder}
         onChange={(e) => {
@@ -128,6 +154,47 @@ function TextInput({
           }
         }}
       />
+      {vars && (
+        <button
+          type="button"
+          className={`hist-toggle var-toggle ${historyKey ? 'with-hist' : ''}`}
+          data-testid="var-toggle"
+          title={t('vars.open')}
+          aria-label={t('vars.open')}
+          aria-expanded={varsOpen}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setVarsOpen((o) => !o)}
+        >
+          {'<>'}
+        </button>
+      )}
+      {vars && varsOpen && (
+        <div className="hist-panel var-panel" data-testid="var-panel">
+          <div className="hist-head">
+            <span>{t('vars.title')}</span>
+            <span className="var-hint">{t('vars.hint')}</span>
+          </div>
+          <div className="var-grid">
+            {[...VAR_TOKENS, ...(counterVar ? ['<#>'] : [])].map((token) => (
+              <button
+                key={token}
+                type="button"
+                className="var-chip"
+                data-testid={`var-${token.slice(1, -1)}`}
+                title={t(`vars.desc.${token === '<#>' ? 'counter' : token.slice(1, -1).toLowerCase()}`)}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => insertVar(token)}
+              >
+                {token}
+              </button>
+            ))}
+          </div>
+          <div className="var-example">
+            <span>{t('vars.example')}</span>
+            <code>{expandTemplate(value || '<NAME>_<#><DOTEXT>', { ...SAMPLE_VARS, counter: '1' })}</code>
+          </div>
+        </div>
+      )}
       {historyKey && history.length > 0 && (
         <button
           type="button"
@@ -266,7 +333,7 @@ function AddEditor({ rule, patch }: { rule: AddRule; patch: Patch }) {
       {rule.mode === 'direct' ? (
         <>
           <Field label={t('f.insertText')}>
-            <TextInput value={rule.text} mono onChange={(text) => patch({ text })} placeholder={t('ph.insert')} historyKey="add.text" />
+            <TextInput value={rule.text} mono onChange={(text) => patch({ text })} placeholder={t('ph.insert')} historyKey="add.text" vars />
           </Field>
           <Field label={t('f.position')}>
             <div className="field-row">
@@ -308,10 +375,10 @@ function ReplaceEditor({ rule, patch }: { rule: ReplaceRule; patch: Patch }) {
     <>
       <div className="field-row">
         <Field label={t('f.find')}>
-          <TextInput value={rule.find} mono onChange={(find) => patch({ find })} placeholder={t('ph.find')} historyKey="replace.find" />
+          <TextInput value={rule.find} mono onChange={(find) => patch({ find })} placeholder={t('ph.find')} historyKey="replace.find" testId="replace-find" />
         </Field>
         <Field label={t('f.replaceWith')}>
-          <TextInput value={rule.replace} mono onChange={(replace) => patch({ replace })} placeholder={t('ph.replace')} historyKey="replace.replace" />
+          <TextInput value={rule.replace} mono onChange={(replace) => patch({ replace })} placeholder={t('ph.replace')} historyKey="replace.replace" testId="replace-with" vars />
         </Field>
       </div>
       <div className="field-row" style={{ marginBottom: 9, justifyContent: 'space-between' }}>
@@ -394,7 +461,7 @@ function NumberEditor({ rule, patch }: { rule: NumberRule; patch: Patch }) {
   return (
     <>
       <Field label={t('f.numberExpr')}>
-        <TextInput value={rule.expression} mono onChange={(expression) => patch({ expression })} placeholder={t('ph.number')} historyKey="number.expression" />
+        <TextInput value={rule.expression} mono onChange={(expression) => patch({ expression })} placeholder={t('ph.number')} historyKey="number.expression" testId="number-expression" vars counterVar />
       </Field>
       <div className="field-row" style={{ marginBottom: 9 }}>
         <Field label={t('f.start')}>
@@ -497,6 +564,7 @@ function ExtEditor({ rule, patch }: { rule: ExtRule; patch: Patch }) {
             onChange={(value) => patch({ value })}
             placeholder={rule.mode === 'number' ? '2' : t('ph.ext')}
             historyKey={rule.mode === 'number' ? 'ext.number' : `ext.${rule.mode}`}
+            vars={rule.mode !== 'number'}
           />
         </Field>
       )}

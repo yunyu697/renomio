@@ -36,8 +36,8 @@ export function isReservedWindowsName(name: string): boolean {
   return WINDOWS_RESERVED.has(stem.trim().toUpperCase());
 }
 
-/** 校验单个名称；strict = Windows 安全字符集（跨平台方案默认开启） */
-export function validateName(name: string, env: EnvInfo, strict: boolean): NameCheck {
+/** 校验单个名称；strict = Windows 安全字符集（跨平台方案默认开启）；limit 只能收紧平台上限 */
+export function validateName(name: string, env: EnvInfo, strict: boolean, limit = 0): NameCheck {
   const block: string[] = [];
   const warn: string[] = [];
 
@@ -64,11 +64,12 @@ export function validateName(name: string, env: EnvInfo, strict: boolean): NameC
     block.push(t('v.separator'));
   }
 
+  const max = limit > 0 ? Math.min(limit, env.componentLimit) : env.componentLimit;
   if (env.os === 'linux') {
     const bytes = new TextEncoder().encode(name).length;
-    if (bytes > env.componentLimit) block.push(t('v.byteLimit', { bytes, limit: env.componentLimit }));
-  } else if (name.length > env.componentLimit) {
-    block.push(t('v.charLimit', { length: name.length, limit: env.componentLimit }));
+    if (bytes > max) block.push(t('v.byteLimit', { bytes, limit: max }));
+  } else if (name.length > max) {
+    block.push(t('v.charLimit', { length: name.length, limit: max }));
   }
 
   return { block, warn };

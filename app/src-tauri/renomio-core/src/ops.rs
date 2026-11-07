@@ -60,11 +60,17 @@ impl Default for OpTarget {
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct TimeSpec {
-    /// shift = 按偏移平移；fixed = 设为固定时间
+    /// shift = 按当前值平移（可重复执行累加）；fixed = 设为固定时间；random = 区间内随机
     pub mode: String,
     pub shift_seconds: i64,
     /// 固定值（毫秒时间戳）
     pub fixed_ms: i64,
+    /// 随机区间（毫秒时间戳），按「路径 + 种子」哈希取确定值，预览与执行一致
+    pub random_min_ms: i64,
+    pub random_max_ms: i64,
+    pub random_seed: String,
+    /// 同时把图片 EXIF 拍摄时间写成新的修改时间
+    pub write_exif: bool,
     /// mtime / atime / creation 的子集
     pub fields: Vec<String>,
 }
@@ -75,7 +81,30 @@ impl Default for TimeSpec {
             mode: "shift".into(),
             shift_seconds: 0,
             fixed_ms: 0,
+            random_min_ms: 0,
+            random_max_ms: 0,
+            random_seed: String::new(),
+            write_exif: false,
             fields: Vec::new(),
+        }
+    }
+}
+
+/// 单个属性的处理方式：设置 / 清除 / 取反；None 表示保持原状。
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AttrAction {
+    Set,
+    Clear,
+    Invert,
+}
+
+impl AttrAction {
+    fn resolve(self, old: bool) -> bool {
+        match self {
+            Self::Set => true,
+            Self::Clear => false,
+            Self::Invert => !old,
         }
     }
 }
@@ -84,8 +113,12 @@ impl Default for TimeSpec {
 #[serde(rename_all = "camelCase", default)]
 pub struct AttrSpec {
     /// None = 保持原状
-    pub readonly: Option<bool>,
-    pub hidden: Option<bool>,
+    pub readonly: Option<AttrAction>,
+    pub hidden: Option<AttrAction>,
+}
+
+fn resolve_attr(action: Option<AttrAction>, old: bool) -> bool {
+    action.map_or(old, |a| a.resolve(old))
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
@@ -271,9 +304,107 @@ fn write_times(
     Ok(())
 }
 
-fn time_desired(old: Option<i64>, spec: &TimeSpec) -> Option<i64> {
+/// 32 位 FNV-1a；前端 `randomMsOf` 用同一算法，保证预览与落盘一致。
+fn fnv1a(raw: &str) -> u32 {
+    let mut hash: u32 = 0x811c_9dc5;
+    for byte in raw.as_bytes() {
+        hash ^= *byte as u32;
+        hash = hash.wrapping_mul(0x0100_0193);
+    }
+    hash
+}
+
+fn random_ms_for(path: &str, spec: &TimeSpec) -> i64 {
+    let (low, high) = if spec.random_min_ms <= spec.random_max_ms {
+        (spec.random_min_ms, spec.random_max_ms)
+    } else {
+        (spec.random_max_ms, spec.random_min_ms)
+    };
+    let span = high.saturating_sub(low).saturating_add(1) as u64;
+    if span == 0 {
+        return low;
+    }
+    let key = format!("{}\u{1}{}", path, spec.random_seed);
+    low + (fnv1a(&key) as u64 % span) as i64
+}
+
+/// UTC 分解（Howard Hinnant civil_from_days）。
+fn utc_parts(ms: i64) -> (i64, i64, i64, i64, i64, i64) {
+    let secs = ms.div_euclid(1000);
+    let days = secs.div_euclid(86_400);
+    let rem = secs.rem_euclid(86_400);
+    let z = days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let mut year = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    if month <= 2 {
+        year += 1;
+    }
+    (year, month, day, rem / 3600, (rem % 3600) / 60, rem % 60)
+}
+
+fn utc_iso(ms: i64) -> String {
+    let (y, m, d, hh, mm, ss) = utc_parts(ms);
+    format!("{y:04}-{m:02}-{d:02}T{hh:02}:{mm:02}:{ss:02}")
+}
+
+#[cfg(windows)]
+fn local_iso(ms: i64) -> String {
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct SystemTime {
+        year: u16,
+        month: u16,
+        day_of_week: u16,
+        day: u16,
+        hour: u16,
+        minute: u16,
+        second: u16,
+        milliseconds: u16,
+    }
+
+    extern "system" {
+        fn SystemTimeToTzSpecificLocalTime(
+            tz: *const core::ffi::c_void,
+            utc: *const SystemTime,
+            local: *mut SystemTime,
+        ) -> i32;
+    }
+
+    let (y, m, d, hh, mm, ss) = utc_parts(ms);
+    let utc = SystemTime {
+        year: y as u16,
+        month: m as u16,
+        day_of_week: 0,
+        day: d as u16,
+        hour: hh as u16,
+        minute: mm as u16,
+        second: ss as u16,
+        milliseconds: 0,
+    };
+    let mut local = utc;
+    let ok = unsafe { SystemTimeToTzSpecificLocalTime(core::ptr::null(), &utc, &mut local) };
+    let stamp = if ok != 0 { local } else { utc };
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
+        stamp.year, stamp.month, stamp.day, stamp.hour, stamp.minute, stamp.second
+    )
+}
+
+#[cfg(not(windows))]
+fn local_iso(ms: i64) -> String {
+    utc_iso(ms)
+}
+
+fn time_desired(old: Option<i64>, spec: &TimeSpec, path: &str) -> Option<i64> {
     match spec.mode.as_str() {
         "fixed" => Some(spec.fixed_ms),
+        "random" => Some(random_ms_for(path, spec)),
         _ => old.map(|v| v.saturating_add(spec.shift_seconds.saturating_mul(1000))),
     }
 }
@@ -292,7 +423,7 @@ pub fn apply_time(
     if fields.is_empty() {
         return Err("未选择任何时间字段".into());
     }
-    if spec.mode != "shift" && spec.mode != "fixed" {
+    if !matches!(spec.mode.as_str(), "shift" | "fixed" | "random") {
         return Err(format!("未知的时间模式：{}", spec.mode));
     }
     let wants_creation = fields.contains("creation");
@@ -351,17 +482,17 @@ pub fn apply_time(
             json!({ "atime": old_atime, "mtime": old_mtime, "creation": old_creation }).to_string();
 
         let new_atime = if fields.contains("atime") {
-            time_desired(old_atime, spec)
+            time_desired(old_atime, spec, &item.path)
         } else {
             None
         };
         let new_mtime = if fields.contains("mtime") {
-            time_desired(old_mtime, spec)
+            time_desired(old_mtime, spec, &item.path)
         } else {
             None
         };
         let new_creation = if wants_creation {
-            time_desired(old_creation, spec)
+            time_desired(old_creation, spec, &item.path)
         } else {
             None
         };
@@ -459,6 +590,19 @@ pub fn apply_time(
             continue;
         }
         let (atime, mtime, creation) = parse_time_values(&op.after);
+        if spec.write_exif {
+            if let Some(ms) = mtime.or(atime) {
+                // 先写元数据再写文件时间：元数据改写会刷新 mtime
+                let request = crate::metaedit::MetaEditRequest {
+                    path: op.path.clone(),
+                    fields: [("takenAt".to_string(), local_iso(ms))].into_iter().collect(),
+                    cover_path: None,
+                    clear_cover: false,
+                    backup: false,
+                };
+                let _ = crate::metaedit::edit(&request);
+            }
+        }
         match write_times(Path::new(&op.path), atime, mtime, creation) {
             Ok(()) => {
                 op.state = "done".into();
@@ -538,8 +682,8 @@ pub fn apply_attrs(
         };
         let old_readonly = is_readonly(&meta);
         let old_hidden = is_hidden(&path).unwrap_or(false);
-        let new_readonly = spec.readonly.unwrap_or(old_readonly);
-        let new_hidden = spec.hidden.unwrap_or(old_hidden);
+        let new_readonly = resolve_attr(spec.readonly, old_readonly);
+        let new_hidden = resolve_attr(spec.hidden, old_hidden);
         let before = json!({ "readonly": old_readonly, "hidden": old_hidden }).to_string();
 
         if spec.hidden.is_some() && !cfg!(windows) {
@@ -1222,12 +1366,12 @@ fn missing_ancestors(dir: &Path) -> Vec<PathBuf> {
 
 fn free_temp(parent: &Path, tag: &str, index: usize) -> PathBuf {
     for attempt in 0..1000u32 {
-        let candidate = parent.join(format!(".ffrn-move-{tag}-{index}-{attempt}.tmp"));
+        let candidate = parent.join(format!(".renomio-move-{tag}-{index}-{attempt}.tmp"));
         if !exists_native(&candidate) {
             return candidate;
         }
     }
-    parent.join(format!(".ffrn-move-{tag}-{index}-fallback.tmp"))
+    parent.join(format!(".renomio-move-{tag}-{index}-fallback.tmp"))
 }
 
 fn copy_dir_all(from: &Path, to: &Path) -> std::io::Result<()> {
@@ -1507,7 +1651,7 @@ mod undo_log_tests {
     /// 撤销跳过日志的写入语义：两平台都跑（Windows 上 btime 可写，端到端不会产生跳过项，这里直接验证写入器）。
     #[test]
     fn undo_skip_log_appends_with_parseable_ts() {
-        let dir = std::env::temp_dir().join("ffrn-core-undo-log-unit");
+        let dir = std::env::temp_dir().join("renomio-core-undo-log-unit");
         let _ = fs::remove_dir_all(&dir);
         let _ = fs::create_dir_all(&dir);
 
@@ -1542,5 +1686,23 @@ mod undo_log_tests {
         }
         assert!(lines[0].contains("batch=b-001"), "{}", lines[0]);
         assert!(lines[1].contains("batch=b-002"), "{}", lines[1]);
+    }
+
+    #[test]
+    fn random_ms_matches_frontend_vector() {
+        let spec = TimeSpec {
+            mode: "random".into(),
+            random_min_ms: 1_600_000_000_000,
+            random_max_ms: 1_600_086_400_000,
+            ..Default::default()
+        };
+        // 由前端 src/lib/time.ts 的 fnv1a 算出的同一向量
+        assert_eq!(random_ms_for("C:/tmp/a.txt", &spec), 1_600_066_541_469);
+        let reversed = TimeSpec {
+            random_min_ms: spec.random_max_ms,
+            random_max_ms: spec.random_min_ms,
+            ..spec
+        };
+        assert_eq!(random_ms_for("C:/tmp/a.txt", &reversed), 1_600_066_541_469);
     }
 }

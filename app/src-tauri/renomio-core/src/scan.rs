@@ -48,6 +48,8 @@ pub struct ScannedEntry {
     pub size: u64,
     pub modified: i64,
     pub readonly: bool,
+    pub hidden: bool,
+    pub system: bool,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize)]
@@ -136,6 +138,18 @@ fn hidden_by_attr(_meta: &fs::Metadata) -> bool {
     false
 }
 
+#[cfg(windows)]
+fn system_by_attr(meta: &fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    meta.file_attributes() & 0x4 != 0
+}
+
+#[cfg(not(windows))]
+fn system_by_attr(_meta: &fs::Metadata) -> bool {
+    // 非 Windows 没有独立的「系统文件」属性，系统目录由调用方决定是否扫描
+    false
+}
+
 /// 隐藏 = 平台隐藏属性，或以 `.` 开头的名称（各平台一致，避免 macOS/Linux 行为漂移）。
 fn is_hidden(meta: &fs::Metadata, name: &str) -> bool {
     name.starts_with('.') || hidden_by_attr(meta)
@@ -158,6 +172,8 @@ fn make_entry(path: &Path, is_dir: bool, meta: &fs::Metadata) -> ScannedEntry {
         .parent()
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_default();
+    let hidden = is_hidden(meta, &name);
+    let system = system_by_attr(meta);
     ScannedEntry {
         id: path.to_string_lossy().to_string(),
         path: path.to_string_lossy().to_string(),
@@ -167,6 +183,8 @@ fn make_entry(path: &Path, is_dir: bool, meta: &fs::Metadata) -> ScannedEntry {
         size: if is_dir { 0 } else { meta.len() },
         modified: now_ms(meta),
         readonly: is_readonly(meta),
+        hidden,
+        system,
     }
 }
 
@@ -349,7 +367,7 @@ mod tests {
 
     fn temp_scan_dir(tag: &str) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!(
-            "ffrn-scan-{tag}-{}",
+            "renomio-scan-{tag}-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_nanos())

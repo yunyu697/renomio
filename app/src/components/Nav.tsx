@@ -20,6 +20,7 @@ export function Nav() {
   const openOps = useApp((s) => s.openOps);
   const setListTab = useApp((s) => s.setListTab);
   const openPlanExport = useApp((s) => s.openPlanExport);
+  const openSnapshots = useApp((s) => s.openSnapshots);
 
   const groups: Array<{ label: string; items: NavEntry[] }> = [
     {
@@ -75,6 +76,15 @@ export function Nav() {
         >
           <Icon name="save" />
           {t('nav.plan')}
+        </div>
+        <div
+          className="nav-item"
+          onClick={() => void openSnapshots()}
+          title={t('nav.snapshotHint')}
+          data-testid="nav-snapshot"
+        >
+          <Icon name="history" />
+          {t('nav.snapshot')}
         </div>
         <div className="nav-item" onClick={() => openDrawer('settings')} data-testid="nav-settings">
           <Icon name="settings" />

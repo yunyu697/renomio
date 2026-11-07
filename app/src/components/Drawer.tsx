@@ -22,6 +22,7 @@ const STATE_KEY: Record<BatchSummary['state'], string> = {
 
 const KIND_KEY: Record<string, string> = {
   rename: 'history.kindRename',
+  restore: 'history.kindRestore',
   time: 'history.kindTime',
   attrs: 'history.kindAttrs',
   move: 'history.kindMove',
@@ -253,10 +254,10 @@ function UpdateSection() {
     setBusy('check');
     setError(null);
     setProgress(null);
-    setSaved(null);
     setConfirmInstall(false);
     setLastAction('check');
     try {
+      // 注意：已下载且校验通过的包不因「已是最新」而被清掉，安装按钮继续保留
       setInfo(await checkUpdate(mirror));
     } catch (err) {
       setInfo(null);
@@ -308,9 +309,17 @@ function UpdateSection() {
   };
   const locked = busy !== null;
   const progressVisible = progress !== null && (progress.phase === 'download' || progress.phase === 'verify' || progress.phase === 'verified' || progress.phase === 'ready' || progress.phase === 'installing');
+  /** 「检查更新」按钮显隐状态机：未检查 / 检查中 / 有新版本 / 已最新 / 失败 */
+  const phase: 'idle' | 'checking' | 'available' | 'latest' | 'error' = busy === 'check'
+    ? 'checking'
+    : error
+      ? 'error'
+      : info
+        ? (info.available ? 'available' : 'latest')
+        : 'idle';
 
   return (
-    <section className="settings-section" data-testid="update-settings">
+    <section className="settings-section" data-testid="update-settings" data-phase={phase}>
       <h4>{t('update.title')}</h4>
       <Row label={t('update.current')} hint={t('update.sub')}>
         <span className="mono" data-testid="update-current">{__APP_VERSION__}</span>
@@ -330,49 +339,58 @@ function UpdateSection() {
         </select>
       </Row>
 
-      <div className="update-actions">
-        <button
-          className="btn btn-primary"
-          type="button"
-          data-testid="update-check"
-          disabled={locked || isDemo}
-          onClick={() => void runCheck()}
-        >
-          <Icon name="refresh" size={13} />
-          {busy === 'check' ? t('update.checking') : t('update.check')}
-        </button>
-        <button
-          className="btn btn-outline"
-          type="button"
-          data-testid="update-action"
-          disabled={locked || isDemo || !info?.available}
-          onClick={() => setConfirmInstall(true)}
-        >
-          {t('update.installNow')}
-        </button>
-        <button
-          className="btn btn-outline"
-          type="button"
-          data-testid="update-save"
-          disabled={locked || isDemo || !info?.available}
-          onClick={() => void runDownload('save')}
-        >
-          {t('update.saveOnly')}
-        </button>
-        <button className="btn btn-outline" type="button" data-testid="update-home" onClick={() => void openHomepage()}>
-          {t('update.homepage')}
-        </button>
-      </div>
+      {phase !== 'error' && (
+        <div className="update-actions">
+          <button
+            className="btn btn-primary"
+            type="button"
+            data-testid="update-check"
+            disabled={locked || isDemo}
+            onClick={() => void runCheck()}
+          >
+            <Icon name="refresh" size={13} />
+            {busy === 'check' ? t('update.checking') : t('update.check')}
+          </button>
+          {/* 「更新」「仅下载」只在发现新版本时出现 */}
+          {info?.available && (
+            <>
+              <button
+                className="btn btn-outline"
+                type="button"
+                data-testid="update-action"
+                disabled={locked || isDemo}
+                onClick={() => setConfirmInstall(true)}
+              >
+                {t('update.installNow')}
+              </button>
+              <button
+                className="btn btn-outline"
+                type="button"
+                data-testid="update-save"
+                disabled={locked || isDemo}
+                onClick={() => void runDownload('save')}
+              >
+                {t('update.saveOnly')}
+              </button>
+            </>
+          )}
+          <button className="btn btn-outline" type="button" data-testid="update-home" onClick={() => void openHomepage()}>
+            {t('update.homepage')}
+          </button>
+        </div>
+      )}
 
       {isDemo && <div className="drawer-note">{t('update.demo')}</div>}
 
       {info && (
         <div className="drawer-note" data-testid="update-status">
           {info.available
-            ? t('update.available', { version: info.version, current: info.currentVersion })
-            : t('update.upToDate', { version: info.currentVersion })}
-          {' · '}
-          {t('update.sourceLabel', { source: sourceText(info.source) })}
+            ? <>
+                {t('update.available', { version: info.version, current: info.currentVersion })}
+                {typeof info.assetSize === 'number' && info.assetSize > 0 && <span data-testid="update-size"> · {formatSize(info.assetSize)}</span>}
+                {' · '}{t('update.sourceLabel', { source: sourceText(info.source) })}
+              </>
+            : <span data-testid="update-latest">{t('update.latestNow', { version: info.currentVersion })}</span>}
         </div>
       )}
 
@@ -522,6 +540,66 @@ function SettingsPanel() {
               />
             </div>
           </Row>
+          <Row label={t('settings.nameMaxLength')} hint={t('settings.nameMaxLengthHint')}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                className="input small mono"
+                style={{ width: 64 }}
+                type="number"
+                min={0}
+                max={255}
+                data-testid="input-name-max-length"
+                value={settings.nameMaxLength ?? 255}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  updateSettings({
+                    nameMaxLength: Number.isFinite(v) ? Math.max(0, Math.min(255, Math.trunc(v))) : 255,
+                  });
+                }}
+              />
+              <select
+                className="select"
+                style={{ width: 128 }}
+                data-testid="select-long-name-action"
+                value={settings.longNameAction ?? 'block'}
+                onChange={(e) => updateSettings({ longNameAction: e.target.value as 'block' | 'truncate' })}
+              >
+                <option value="block">{t('settings.longBlock')}</option>
+                <option value="truncate">{t('settings.longTruncate')}</option>
+              </select>
+            </div>
+          </Row>
+          <Row label={t('settings.emptyName')} hint={t('settings.emptyNameHint')}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <select
+                className="select"
+                style={{ width: 128 }}
+                data-testid="select-empty-name-action"
+                value={settings.emptyNameAction ?? 'block'}
+                onChange={(e) => updateSettings({ emptyNameAction: e.target.value as 'block' | 'fallback' })}
+              >
+                <option value="block">{t('settings.emptyBlock')}</option>
+                <option value="fallback">{t('settings.emptyFallback')}</option>
+              </select>
+              <input
+                className="input small"
+                style={{ width: 96 }}
+                maxLength={32}
+                data-testid="input-empty-fallback"
+                disabled={(settings.emptyNameAction ?? 'block') !== 'fallback'}
+                value={settings.emptyNameFallback ?? ''}
+                placeholder={t('settings.emptyFallbackPlaceholder')}
+                onChange={(e) => updateSettings({ emptyNameFallback: e.target.value })}
+              />
+            </div>
+          </Row>
+          <Row label={t('settings.skipSystemHidden')} hint={t('settings.skipSystemHiddenHint')}>
+            <Switch
+              testId="switch-skip-system-hidden"
+              on={settings.skipSystemHidden ?? false}
+              onChange={(v) => updateSettings({ skipSystemHidden: v })}
+            />
+          </Row>
           <Row label={t('settings.defaultPolicy')} hint={t('settings.defaultPolicyHint')}>
             <select
               className="select"
@@ -534,6 +612,30 @@ function SettingsPanel() {
               <option value="overwrite">{t('settings.policyOverwrite')}</option>
             </select>
           </Row>
+        </section>
+
+        <section className="settings-section" data-testid="user-vars-settings">
+          <h4>{t('settings.userVars')}</h4>
+          <div className="drawer-note">{t('settings.userVarsHint')}</div>
+          <div className="user-vars-grid">
+            {(settings.userVars ?? []).concat(Array(9).fill('')).slice(0, 9).map((text, index) => (
+              <label key={index} className="user-var-cell">
+                <span>{`USER${index + 1}`}</span>
+                <input
+                  className="input small"
+                  data-testid={`input-user-var-${index + 1}`}
+                  value={text}
+                  maxLength={64}
+                  placeholder={t('settings.userVarEmpty')}
+                  onChange={(e) => {
+                    const next = (settings.userVars ?? []).concat(Array(9).fill('')).slice(0, 9);
+                    next[index] = e.target.value;
+                    updateSettings({ userVars: next });
+                  }}
+                />
+              </label>
+            ))}
+          </div>
         </section>
 
         <section className="settings-section" data-testid="history-settings">
@@ -694,7 +796,7 @@ function AboutPanel() {
           </ul>
         </section>
         <div className="drawer-note">{t('about.note')}</div>
-        <div className="drawer-note">{t('about.internalName', { name: 'ffrn-core' })}</div>
+        <div className="drawer-note">{t('about.internalName', { name: 'renomio-core' })}</div>
       </div>
     </>
   );

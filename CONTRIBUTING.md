@@ -51,7 +51,7 @@
 npm run build > build.log 2>&1
 
 # Rust 核心真实文件测试
-cargo test --manifest-path src-tauri/ffrn-core/Cargo.toml > test.log 2>&1
+cargo test --manifest-path src-tauri/renomio-core/Cargo.toml > test.log 2>&1
 
 # Windows 发布包
 npm run tauri build -- --bundles nsis > release.log 2>&1

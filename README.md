@@ -2,11 +2,11 @@
 
 MIT License — 见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)
 
-跨平台（Windows / macOS / Linux）批量文件 / 文件夹更名工具，重构自《菲菲更名宝贝》（Rename Studio 的新版本，非原地升级）。当前发布版聚焦「可预览、可撤销、不丢文件」的安全更名流程。
+跨平台（Windows / macOS / Linux）批量文件 / 文件夹更名工具，重构自一款商业批量改名软件（Rename Studio 的新版本，非原地升级）。当前发布版聚焦「可预览、可撤销、不丢文件」的安全更名流程。
 
 - 前端：React 19 + TypeScript + Vite 7
 - 桌面壳：Tauri 2（Rust）
-- 核心：`app/src-tauri/ffrn-core`（无 Tauri 依赖，可单独 `cargo test`）
+- 核心：`app/src-tauri/renomio-core`（无 Tauri 依赖，可单独 `cargo test`）
 - 基础层：`app/packages/foundation`
 
 ## 主要能力
@@ -91,7 +91,7 @@ Get-FileHash .\Renomio_1.0.0-alpha5_x64-setup.exe -Algorithm SHA256
 app/                  Tauri 2 + React 应用源码
   src/                前端（React + TypeScript）
   src-tauri/          Rust 桌面壳、打包配置、NSIS 安装钩子
-  src-tauri/ffrn-core/ 更名核心（可独立测试）
+  src-tauri/renomio-core/ 更名核心（可独立测试）
   packages/foundation/ 共享基础层
   e2e/                无头 E2E 与截图
   scripts/            打包与校验脚本
@@ -119,7 +119,7 @@ npm run tauri build    # 产出 NSIS + MSI 到 src-tauri/target/release/bundle/
 | job | runner | 内容 |
 | --- | --- | --- |
 | `frontend` | ubuntu | `npm ci` → `tsc --noEmit` → `vite build` |
-| `backend` | ubuntu | 安装 Tauri v2 Linux 依赖 → `cargo fmt --check`（阻断）→ `cargo clippy`（只暴露警告，不加 `-D warnings`）→ `cargo test`（ffrn-core + Tauri 壳，含 `migrate.rs` 迁移单测） |
+| `backend` | ubuntu | 安装 Tauri v2 Linux 依赖 → `cargo fmt --check`（阻断）→ `cargo clippy`（只暴露警告，不加 `-D warnings`）→ `cargo test`（renomio-core + Tauri 壳，含 `migrate.rs` 迁移单测） |
 | `bundle-checks` | windows | 离线组 11 条（读配置，每次都跑）+ 产物组 14 条（有构建产物时才跑） |
 
 `bundle-checks` 分两组断言（`scripts/check-bundle.ps1`）：

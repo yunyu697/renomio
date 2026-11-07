@@ -1,10 +1,11 @@
-/** 归类移动的规则求值：扩展名 / 日期 / 首字母 / 正则捕获组。 */
+/** 归类移动的规则求值：扩展名 / 日期 / 首字母 / 正则捕获组 / 变量模板。 */
 import { t } from '../i18n';
 import { baseName, extName, removeExt } from './format';
 import type { Entry, EnvInfo } from './types';
 import { normalizePath, targetPath } from './validate';
+import { expandTemplate, scanTemplate, type VarContext } from './vars';
 
-export type MoveRuleKind = 'ext' | 'date' | 'initial' | 'regex';
+export type MoveRuleKind = 'ext' | 'date' | 'initial' | 'regex' | 'template';
 export type DateGranularity = 'year' | 'month' | 'day';
 
 export interface MoveConfig {
@@ -18,6 +19,10 @@ export interface MoveConfig {
   pattern: string;
   /** 捕获组序号；0 = 整个匹配 */
   capture: number;
+  /** 变量模板（可用 `<EXT>/<DATE:yyyy>`，结果中的 / 会拆成多级目录；仅 template 规则使用） */
+  template?: string;
+  /** USER1–USER9 的取值 */
+  users?: string[];
 }
 
 export interface MovePreviewRow {
@@ -99,9 +104,43 @@ function bucketFor(entry: Entry, cfg: MoveConfig): { ok: true; value: string } |
       if (!captured.trim()) return { ok: false, reason: t('move.emptyGroup', { index: cfg.capture }) };
       return { ok: true, value: captured };
     }
+    case 'template': {
+      const raw = (cfg.template ?? '').trim();
+      if (!raw) return { ok: false, reason: t('move.emptyTemplate') };
+      const scan = scanTemplate(raw);
+      if (scan.unknown) return { ok: false, reason: t('move.unknownVar', { name: scan.unknown }) };
+      if (scan.badArgs) return { ok: false, reason: t('move.badVarArgs', { name: scan.badArgs }) };
+      if (scan.hashes.length) {
+        return { ok: false, reason: t('move.hashVar', { name: scan.hashes[0].toUpperCase() }) };
+      }
+      if (scan.counter) return { ok: false, reason: t('move.counterVar') };
+      const ctx: VarContext = {
+        stem: removeExt(name),
+        ext: extName(name),
+        dirName: baseName(entry.parent),
+        modified: entry.modified,
+        size: entry.size,
+        hashes: {},
+        users: cfg.users ?? [],
+      };
+      const expanded = expandTemplate(raw, ctx);
+      const parts = expanded.replace(/[\\/]+/g, '/').split('/').filter((p) => p !== '' && p !== '.');
+      if (!parts.length) return { ok: false, reason: t('move.emptyTemplateValue') };
+      if (parts.some((p) => p === '..')) return { ok: false, reason: t('move.parentSegment') };
+      return {
+        ok: true,
+        value: parts.map((p) => sanitizeSegment(p, t('move.uncategorized'))).join('/'),
+      };
+    }
     default:
       return { ok: false, reason: t('move.unknown') };
   }
+}
+
+/** 模板已按 / 拆段并逐段清洗过，这里只换成平台分隔符；其他规则仍需整体清洗。 */
+function subdirFor(bucket: string, cfg: MoveConfig, env: EnvInfo): string {
+  if (cfg.kind === 'template') return bucket.split('/').join(env.separator);
+  return sanitizeSegment(bucket, t('move.uncategorized'));
 }
 
 function relativeParent(parent: string, root: string, sep: string): string {
@@ -135,7 +174,7 @@ export function buildMoveRows(
       rows.push({ entry, subdir: '', target: '', status: 'invalid', reasons: [t('move.needRoot')] });
       continue;
     }
-    const subdir = sanitizeSegment(bucket.value, t('move.uncategorized'));
+    const subdir = subdirFor(bucket.value, cfg, env);
     const rel = cfg.keepStructure ? relativeParent(entry.parent, root, env.separator) : '';
     const dir = [root, rel, subdir].filter((part) => part && part !== '.').join(env.separator);
     const target = targetPath(dir, baseName(entry.path), env);

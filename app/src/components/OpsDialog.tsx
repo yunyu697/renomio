@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { applyAttrs, applyMove, applyTime, pathsExist, readAttrs, readTimes } from '../lib/bridge';
 import { formatTime } from '../lib/format';
 import { buildMoveRows, defaultMoveRoot, type DateGranularity, type MoveRuleKind } from '../lib/moveRules';
+import { randomMsOf } from '../lib/time';
 import { useTranslation } from '../i18n';
 import type { AttrInfo, AttrSpecDto, Entry, OpsOutcome, TimeField, TimeInfo, TimeSpecDto } from '../lib/types';
 import { normalizePath } from '../lib/validate';
@@ -85,10 +86,13 @@ function TimeBody({ onClose }: { onClose: () => void }) {
   const targets = useMemo(() => selectedFiles(entries), [entries]);
   const [info, setInfo] = useState<Record<string, TimeInfo>>({});
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<'shift' | 'fixed'>('shift');
+  const [mode, setMode] = useState<'shift' | 'fixed' | 'random'>('shift');
   const [amount, setAmount] = useState('1');
   const [unit, setUnit] = useState<ShiftUnit>('day');
   const [fixed, setFixed] = useState('');
+  const [randomFrom, setRandomFrom] = useState('');
+  const [randomTo, setRandomTo] = useState('');
+  const [writeExif, setWriteExif] = useState(false);
   const [fields, setFields] = useState<TimeField[]>(['mtime']);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<OpsOutcome | null>(null);
@@ -118,10 +122,17 @@ function TimeBody({ onClose }: { onClose: () => void }) {
 
   const deltaMs = mode === 'shift' ? (Number(amount) || 0) * UNIT_MS[unit] : 0;
   const fixedMs = mode === 'fixed' && fixed ? new Date(fixed).getTime() : 0;
+  const randomMinMs = mode === 'random' && randomFrom ? new Date(randomFrom).getTime() : 0;
+  const randomMaxMs = mode === 'random' && randomTo ? new Date(randomTo).getTime() : 0;
+  const randomReady = mode !== 'random' || (randomMinMs > 0 && randomMaxMs > 0);
   const primary: TimeField = fields.includes('mtime') ? 'mtime' : fields[0] ?? 'mtime';
 
-  const nextOf = (ms: number | null | undefined): number | null => {
+  const nextOf = (path: string, ms: number | null | undefined): number | null => {
     if (mode === 'fixed') return fixedMs || null;
+    if (mode === 'random') {
+      if (!randomReady) return null;
+      return randomMsOf(path, randomMinMs, randomMaxMs, '');
+    }
     if (ms === null || ms === undefined) return null;
     return ms + deltaMs;
   };
@@ -135,7 +146,7 @@ function TimeBody({ onClose }: { onClose: () => void }) {
           ? item.atimeMs
           : item.creationMs
       : null;
-    const next = nextOf(raw ?? null);
+    const next = nextOf(entry.path, raw ?? null);
     const creationBlocked = fields.includes('creation') && !env.creationTimeWritable;
     const invalid = !item || item.error ? item?.error ?? t('ops.timeUnread') : creationBlocked ? t('ops.creationBlocked') : null;
     return { entry, raw: raw ?? null, next, invalid: invalid ?? null };
@@ -152,11 +163,24 @@ function TimeBody({ onClose }: { onClose: () => void }) {
       showToast('warn', t('ops.needFixed'));
       return;
     }
+    if (mode === 'random' && !randomReady) {
+      showToast('warn', t('ops.needRandom'));
+      return;
+    }
     if (!actionable.length) {
       showToast('warn', t('ops.noRows'));
       return;
     }
-    const spec: TimeSpecDto = { mode, shiftSeconds: Math.round(deltaMs / 1000), fixedMs, fields };
+    const spec: TimeSpecDto = {
+      mode,
+      shiftSeconds: Math.round(deltaMs / 1000),
+      fixedMs,
+      randomMinMs,
+      randomMaxMs,
+      randomSeed: '',
+      writeExif,
+      fields,
+    };
     setBusy(true);
     try {
       const outcome = await applyTime(
@@ -197,6 +221,13 @@ function TimeBody({ onClose }: { onClose: () => void }) {
                 >
                   {t('ops.fixed')}
                 </span>
+                <span
+                  className={mode === 'random' ? 'on' : ''}
+                  data-testid="ops-time-mode-random"
+                  onClick={() => setMode('random')}
+                >
+                  {t('ops.random')}
+                </span>
               </div>
               {mode === 'shift' ? (
                 <div className="field-row">
@@ -225,7 +256,7 @@ function TimeBody({ onClose }: { onClose: () => void }) {
                     </select>
                   </label>
                 </div>
-              ) : (
+              ) : mode === 'fixed' ? (
                 <label className="field">
                   <span>{t('ops.fixedTime')}</span>
                   <input
@@ -236,7 +267,39 @@ function TimeBody({ onClose }: { onClose: () => void }) {
                     onChange={(e) => setFixed(e.target.value)}
                   />
                 </label>
+              ) : (
+                <div className="field-row">
+                  <label className="field" style={{ flex: 1 }}>
+                    <span>{t('ops.randomFrom')}</span>
+                    <input
+                      className="input"
+                      data-testid="ops-random-from"
+                      type="datetime-local"
+                      value={randomFrom}
+                      onChange={(e) => setRandomFrom(e.target.value)}
+                    />
+                  </label>
+                  <label className="field" style={{ flex: 1 }}>
+                    <span>{t('ops.randomTo')}</span>
+                    <input
+                      className="input"
+                      data-testid="ops-random-to"
+                      type="datetime-local"
+                      value={randomTo}
+                      onChange={(e) => setRandomTo(e.target.value)}
+                    />
+                  </label>
+                </div>
               )}
+              <label className="ops-check">
+                <input
+                  type="checkbox"
+                  data-testid="ops-write-exif"
+                  checked={writeExif}
+                  onChange={(e) => setWriteExif(e.target.checked)}
+                />
+                {t('ops.exifWrite')}
+              </label>
               <div className="ops-fields">
                 <span className="policy-label">{t('ops.applyTo')}</span>
                 {(['mtime', 'atime', 'creation'] as TimeField[]).map((field) => {
@@ -318,7 +381,7 @@ function TimeBody({ onClose }: { onClose: () => void }) {
   );
 }
 
-type AttrChoice = 'keep' | 'set' | 'clear';
+type AttrChoice = 'keep' | 'set' | 'clear' | 'invert';
 
 function AttrBody({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -358,7 +421,8 @@ function AttrBody({ onClose }: { onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const desired = (choice: AttrChoice, old: boolean) => (choice === 'keep' ? old : choice === 'set');
+  const desired = (choice: AttrChoice, old: boolean) =>
+    choice === 'keep' ? old : choice === 'invert' ? !old : choice === 'set';
 
   const rows = targets.map((entry) => {
     const item = info[entry.path];
@@ -382,8 +446,8 @@ function AttrBody({ onClose }: { onClose: () => void }) {
       return;
     }
     const spec: AttrSpecDto = {
-      readonly: readonly === 'keep' ? null : readonly === 'set',
-      hidden: hidden === 'keep' ? null : hidden === 'set',
+      readonly: readonly === 'keep' ? null : readonly,
+      hidden: hidden === 'keep' ? null : hidden,
     };
     setBusy(true);
     try {
@@ -405,6 +469,7 @@ function AttrBody({ onClose }: { onClose: () => void }) {
     { id: 'keep', label: t('ops.keep') },
     { id: 'set', label: t('ops.set') },
     { id: 'clear', label: t('ops.clear') },
+    { id: 'invert', label: t('ops.invert') },
   ];
 
   return (
@@ -510,15 +575,26 @@ function MoveBody({ onClose }: { onClose: () => void }) {
   const [granularity, setGranularity] = useState<DateGranularity>('month');
   const [pattern, setPattern] = useState('^(\\d{4})');
   const [capture, setCapture] = useState('1');
+  const [template, setTemplate] = useState('<EXT>');
+  const userVars = useApp((s) => s.settings.userVars);
   const [existing, setExisting] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<OpsOutcome | null>(null);
 
-  const cfg = { kind, root, keepStructure, dateGranularity: granularity, pattern, capture: Number(capture) || 0 };
+  const cfg = {
+    kind,
+    root,
+    keepStructure,
+    dateGranularity: granularity,
+    pattern,
+    capture: Number(capture) || 0,
+    template,
+    users: userVars,
+  };
   const rows = useMemo(
     () => buildMoveRows(targets, cfg, env, existing),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [targets, kind, root, keepStructure, granularity, pattern, capture, existing, env],
+    [targets, kind, root, keepStructure, granularity, pattern, capture, template, userVars, existing, env],
   );
 
   const signature = rows.map((r) => r.target).filter(Boolean).join('\n');
@@ -587,6 +663,7 @@ function MoveBody({ onClose }: { onClose: () => void }) {
     { id: 'date', label: t('ops.moveKindDate') },
     { id: 'initial', label: t('ops.moveKindInitial') },
     { id: 'regex', label: t('ops.moveKindRegex') },
+    { id: 'template', label: t('ops.moveKindTemplate') },
   ];
 
   const granularities: Array<[DateGranularity, string]> = [
@@ -653,6 +730,19 @@ function MoveBody({ onClose }: { onClose: () => void }) {
                     />
                   </label>
                 </div>
+              )}
+              {kind === 'template' && (
+                <label className="field">
+                  <span>{t('ops.moveTemplate')}</span>
+                  <input
+                    className="input"
+                    data-testid="ops-move-template"
+                    value={template}
+                    onChange={(e) => setTemplate(e.target.value)}
+                    placeholder="<EXT>/<DATE:yyyy>"
+                  />
+                  <span className="drawer-note">{t('ops.moveTemplateHint')}</span>
+                </label>
               )}
               <label className="field">
                 <span>{t('ops.moveRoot')}</span>

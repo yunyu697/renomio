@@ -1,7 +1,7 @@
 {
   "name": "rename-studio",
   "private": true,
-  "version": "1.0.0-alpha8",
+  "version": "1.1.0-alpha1",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -16,7 +16,7 @@
     "version:selftest": "node scripts/check-version.mjs --self-test",
     "tauri:build": "node scripts/version.mjs && tauri build",
     "test:corpus": "node scripts/gen-test-corpus.mjs",
-    "test:core": "cargo test --manifest-path src-tauri/ffrn-core/Cargo.toml",
+    "test:core": "cargo test --manifest-path src-tauri/renomio-core/Cargo.toml",
     "test:e2e": "node e2e/run.mjs",
     "test:drop": "node scripts/test-drop-gate.mjs",
     "test:history": "node scripts/test-rule-history.mjs",

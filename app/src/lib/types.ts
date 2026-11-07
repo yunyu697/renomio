@@ -1,3 +1,5 @@
+import type { ShortcutId } from './shortcuts';
+
 export type RuleType = 'add' | 'replace' | 'delete' | 'number' | 'move' | 'case' | 'ext' | 'meta';
 
 export interface Entry {
@@ -9,7 +11,20 @@ export interface Entry {
   size: number;
   modified: number;
   readonly: boolean;
+  /** 隐藏属性（Windows 属性或名称以 . 开头），来自扫描结果 */
+  hidden?: boolean;
+  /** 系统属性（仅 Windows 可判定），来自扫描结果 */
+  system?: boolean;
   selected: boolean;
+}
+
+/** 元变量需要的内容哈希（按需计算，缺失字段为空） */
+export interface EntryFacts {
+  crc32?: string;
+  md5?: string;
+  sha1?: string;
+  /** 计算失败时的原因（失败文件不再自动重试） */
+  error?: string;
 }
 
 export interface EnvInfo {
@@ -31,6 +46,30 @@ export type LocaleSetting = 'system' | 'zh-CN' | 'zh-TW' | 'en-US' | 'ja-JP' | '
 
 export type ColumnKey = 'name' | 'location' | 'size' | 'modified' | 'newName' | 'status';
 
+/** 规则链与文件列表的预设布局视图。 */
+export type LayoutView = 'files-left' | 'rules-left' | 'files-top' | 'rules-top' | 'compact';
+
+/** 规则链折叠/展开状态（随设置持久化，重启后保留）。 */
+export interface RuleUiState {
+  /** 已展开编辑器的规则 id（单栏下可同时展开多条） */
+  expanded: string[];
+  /** 当前选中（获得焦点）的规则 id */
+  openId: string | null;
+  /** 整块规则栏收成窄竖条 */
+  collapsed: boolean;
+}
+
+/** 布局设置：预设视图 + 可选高级自由拖动尺寸。 */
+export interface LayoutState {
+  view: LayoutView;
+  /** 高级模式：允许拖动分隔条自由调整（默认关闭，使用预设比例） */
+  advanced: boolean;
+  /** 并排视图下规则栏宽度（px） */
+  side: number;
+  /** 上下视图下规则栏高度（px） */
+  stack: number;
+}
+
 export interface AppSettings {
   theme: 'light' | 'dark';
   /** 界面语言：跟随系统或五种受支持语言之一（默认 system） */
@@ -44,10 +83,50 @@ export interface AppSettings {
   /** 自动把 Windows 非法字符替换为指定字符（默认关闭） */
   replaceInvalid: boolean;
   invalidReplacement: string;
+  /** 名称长度上限（0 = 平台上限），只能收紧（默认 255） */
+  nameMaxLength: number;
+  /** 超长名称处理：block 阻止（默认）/ truncate 截断主体保留扩展名 */
+  longNameAction: 'block' | 'truncate';
+  /** 空名处理：block 阻止（默认）/ fallback 使用备用名 */
+  emptyNameAction: 'block' | 'fallback';
+  /** 空名备用文本（仅在 fallback 时使用，默认「未命名」） */
+  emptyNameFallback: string;
+  /** 跳过带系统/隐藏属性的文件（默认 false，与旧行为一致） */
+  skipSystemHidden: boolean;
+  /** USER1–USER9：名称模板里 <USERn> 展开为对应文本（默认全空） */
+  userVars: string[];
+  /** 全局快捷键绑定（命令 id → `Ctrl+Shift+K` 形式），可自定义 */
+  shortcuts: Record<ShortcutId, string>;
   columns: Record<ColumnKey, boolean>;
   columnWidths: Partial<Record<ColumnKey, number>>;
   /** 首次启动「已导入上一版本数据」提示已关闭（默认 false，只提示一次） */
   migrationNoticeDismissed: boolean;
+  /** 当前规则链（含执行顺序；随设置持久化，重启后顺序不变） */
+  rules: Rule[];
+  /** 规则栏折叠/展开状态 */
+  ruleUi: RuleUiState;
+  /** 文件列表与规则链的布局 */
+  layout: LayoutState;
+}
+
+/** 规则之间（含顶部路径筛选模式）的冲突类型。 */
+export type ConflictKind =
+  | 'include-exclude'
+  | 'path-overlap'
+  | 'action-contradiction'
+  | 'shadowed'
+  | 'regex-overlap';
+
+/** 一条冲突：同一对对象多类型命中的合并为一条。 */
+export interface RuleConflict {
+  key: string;
+  kinds: ConflictKind[];
+  /** 涉及的规则 id（路径模式冲突时为空） */
+  ruleIds: string[];
+  /** 涉及的筛选模式（规则动作冲突时为空） */
+  patterns: string[];
+  /** 命中摘要（模式文本或规则类型名），用于就地展示 */
+  detail: string;
 }
 
 /** 首次启动迁移结果（Rust `migration_info`）。 */
@@ -176,6 +255,116 @@ export interface MetaFields {
   artist: string;
   album: string;
   track: string;
+}
+
+/** 可编辑元数据的字段 id（图片 / 音频 / 文档共用一套字符串键，按格式白名单过滤）。 */
+export type MetaFieldId =
+  | 'title'
+  | 'description'
+  | 'keywords'
+  | 'author'
+  | 'copyright'
+  | 'software'
+  | 'takenAt'
+  | 'artist'
+  | 'album'
+  | 'year'
+  | 'track'
+  | 'genre'
+  | 'comment'
+  | 'albumArtist'
+  | 'lyrics'
+  | 'cover'
+  | 'subject'
+  | 'lastModifiedBy'
+  | 'category';
+
+export interface CoverInfoDto {
+  present: boolean;
+  mime: string;
+  bytes: number;
+  width: number;
+  height: number;
+}
+
+/** 某文件的元数据快照（编辑对话框预填；只读）。 */
+export interface MetaSnapshotDto {
+  path: string;
+  kind: 'image' | 'audio' | 'document' | string;
+  format: string;
+  writable: boolean;
+  supportedFields: string[];
+  fields: Record<string, string>;
+  cover: CoverInfoDto | null;
+  warnings: string[];
+  unsupportedReason: string | null;
+}
+
+/** 格式支持矩阵中的一行（含明确不支持的格式）。 */
+export interface MetaCapabilityDto {
+  kind: string;
+  format: string;
+  read: boolean;
+  write: boolean;
+  fields: string[];
+  notes: string;
+}
+
+export interface MetaEditRequestDto {
+  path: string;
+  fields: Record<string, string>;
+  coverPath?: string | null;
+  clearCover?: boolean;
+  backup?: boolean;
+}
+
+/** 逐文件写入结果：ok=false 时 error 必定说明具体文件与原因。 */
+export interface MetaEditResultDto {
+  path: string;
+  kind: string;
+  format: string;
+  supported: boolean;
+  ok: boolean;
+  backup: string | null;
+  written: string[];
+  cleared: string[];
+  ignored: string[];
+  verified: boolean;
+  error: string | null;
+  warnings: string[];
+  elapsedMs: number;
+}
+
+/** 内容完全相同的文件组（不同路径）。 */
+export interface DuplicateGroupDto {
+  size: number;
+  hash: string;
+  paths: string[];
+}
+
+export interface DuplicateReportDto {
+  groups: DuplicateGroupDto[];
+  scanned: number;
+  warnings: string[];
+}
+
+/** 文件列表顺序（随工作区持久化，重启后保留）。 */
+export interface SessionEntryDto {
+  path: string;
+  name: string;
+  parent: string;
+  isDir: boolean;
+  size: number;
+  modified: number;
+  readonly: boolean;
+  selected: boolean;
+}
+
+export interface SessionDto {
+  version: number;
+  /** 是否经过用户手动拖动排序（用于界面提示「手动顺序」） */
+  manualOrder?: boolean;
+  entries: SessionEntryDto[];
 }
 
 export interface MetaRule extends RuleBase {
@@ -363,15 +552,23 @@ export interface OpTargetDto {
 export type TimeField = 'mtime' | 'atime' | 'creation';
 
 export interface TimeSpecDto {
-  mode: 'shift' | 'fixed';
+  mode: 'shift' | 'fixed' | 'random';
   shiftSeconds: number;
   fixedMs: number;
+  randomMinMs: number;
+  randomMaxMs: number;
+  randomSeed: string;
+  /** 同时把图片 EXIF 拍摄时间写成新的修改时间 */
+  writeExif: boolean;
   fields: TimeField[];
 }
 
+/** 单个属性的处理方式；null 表示保持原状。 */
+export type AttrAction = 'set' | 'clear' | 'invert';
+
 export interface AttrSpecDto {
-  readonly?: boolean | null;
-  hidden?: boolean | null;
+  readonly?: AttrAction | null;
+  hidden?: AttrAction | null;
 }
 
 export interface MoveItemDto {
@@ -407,6 +604,63 @@ export interface UndoOutcome {
   failed: SkippedChange[];
   /** 平台能力缺失而主动跳过的字段（不计入 failed），例如 Linux 上的创建时间 */
   skippedFields: SkippedField[];
+}
+
+/** 快照条目：from 为原名（还原目标），to 为快照时的计划新名（还原起点）。 */
+export interface SnapshotEntryDto {
+  from: string;
+  to: string;
+  size: number;
+  mtimeMs: number;
+  isDir: boolean;
+  sha256?: string | null;
+}
+
+export interface SnapshotDto {
+  schema: string;
+  id: string;
+  createdAt: number;
+  roots: string[];
+  entryCount: number;
+  hashed: number;
+  skipped: number;
+  entries: SnapshotEntryDto[];
+}
+
+export interface SnapshotSummaryDto {
+  id: string;
+  createdAt: number;
+  entryCount: number;
+  hashed: number;
+  skipped: number;
+  roots: string[];
+}
+
+/** 还原预览行；action=skip 时 reasonCode 供界面本地化。 */
+export interface SnapshotPlanItemDto {
+  id: string;
+  from: string;
+  to: string;
+  isDir: boolean;
+  action: 'restore' | 'skip';
+  reasonCode?: string | null;
+  reason?: string | null;
+  hashCheck: boolean;
+}
+
+export interface SnapshotRestoreResult {
+  batch?: Batch | null;
+  restored: AppliedChange[];
+  skipped: SkippedChange[];
+  failed: SkippedChange[];
+  hashChecked: number;
+}
+
+export interface SnapshotProgress {
+  phase: string;
+  done: number;
+  total: number;
+  current: string;
 }
 
 export interface ApplyItemDto {
@@ -467,6 +721,8 @@ export interface UpdateInfo {
   source: string;
   installable: boolean;
   assetName: string;
+  /** 安装包字节数（清单未提供时为 null） */
+  assetSize?: number | null;
 }
 
 export type UpdatePhase = 'checking' | 'download' | 'verify' | 'verified' | 'ready' | 'installing' | 'restarting';

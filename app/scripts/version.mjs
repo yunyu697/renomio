@@ -44,8 +44,8 @@ const targets = [
     pattern: /(\[package\][\s\S]*?\nversion\s*=\s*")[^"]*(")/,
   },
   {
-    file: path.join(appDir, 'src-tauri', 'ffrn-core', 'Cargo.toml'),
-    label: 'app/src-tauri/ffrn-core/Cargo.toml',
+    file: path.join(appDir, 'src-tauri', 'renomio-core', 'Cargo.toml'),
+    label: 'app/src-tauri/renomio-core/Cargo.toml',
     pattern: /(\[package\][\s\S]*?\nversion\s*=\s*")[^"]*(")/,
   },
 ];

@@ -1,16 +1,16 @@
 //! “UI 触发路径”回归测试：用真实 Core API（与 Tauri command 相同的参数结构）
 //! 覆盖曾经修复的两类缺陷：
 //!   1. 批次内多个项目指向同一目标时的“同名输出覆盖”；
-//!   2. 应用/撤销后残留 `.ffrn-*` 临时文件。
+//!   2. 应用/撤销后残留 `.renomio-*` 临时文件。
 //! 说明：本测试不经过 Tauri IPC（那需要启动 GUI），属于核心层回归；
 //! UI 层的交互路径由 `app/e2e` 的无头浏览器脚本覆盖。
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use ffrn_core::platform::native_path;
-use ffrn_core::rename::{ApplyItem, ApplyOptions};
-use ffrn_core::Core;
+use renomio_core::platform::native_path;
+use renomio_core::rename::{ApplyItem, ApplyOptions};
+use renomio_core::Core;
 
 fn stamp() -> u128 {
     std::time::SystemTime::now()
@@ -27,7 +27,7 @@ struct Temp {
 
 impl Temp {
     fn new(tag: &str) -> Self {
-        let base = std::env::temp_dir().join(format!("ffrn-ui-{tag}-{}", stamp()));
+        let base = std::env::temp_dir().join(format!("renomio-ui-{tag}-{}", stamp()));
         let root = base.join("files");
         let data = base.join("data");
         fs::create_dir_all(&root).unwrap();
@@ -68,7 +68,7 @@ impl Temp {
     fn temps(&self) -> Vec<String> {
         self.names()
             .into_iter()
-            .filter(|n| n.starts_with(".ffrn-"))
+            .filter(|n| n.starts_with(".renomio-"))
             .collect()
     }
 }

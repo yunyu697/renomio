@@ -5,9 +5,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use ffrn_core::ops::{AttrSpec, MoveItem, MoveSpec, OpTarget, TimeSpec};
-use ffrn_core::platform::native_path;
-use ffrn_core::Core;
+use renomio_core::ops::{AttrAction, AttrSpec, MoveItem, MoveSpec, OpTarget, TimeSpec};
+use renomio_core::platform::native_path;
+use renomio_core::Core;
 
 fn stamp() -> u128 {
     SystemTime::now()
@@ -24,7 +24,7 @@ struct Temp {
 
 impl Temp {
     fn new(tag: &str) -> Self {
-        let base = std::env::temp_dir().join(format!("ffrn-ops-{tag}-{}", stamp()));
+        let base = std::env::temp_dir().join(format!("renomio-ops-{tag}-{}", stamp()));
         let root = base.join("files");
         let data = base.join("data");
         fs::create_dir_all(&root).unwrap();
@@ -97,7 +97,7 @@ fn left_temp_files(dir: &Path) -> Vec<String> {
     if let Ok(entries) = fs::read_dir(native_path(dir)) {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with(".ffrn-move-") {
+            if name.starts_with(".renomio-move-") {
                 leftovers.push(name);
             }
         }
@@ -121,6 +121,7 @@ fn time_shift_then_undo_restores_original() {
         shift_seconds: 3600,
         fixed_ms: 0,
         fields: vec!["mtime".into(), "atime".into()],
+        ..Default::default()
     };
     let outcome = core.apply_time(vec![target(&file)], &spec).unwrap();
     assert_eq!(outcome.applied.len(), 1);
@@ -130,7 +131,7 @@ fn time_shift_then_undo_restores_original() {
     let undo = core.undo(&outcome.batch.id).unwrap();
     assert_eq!(undo.restored.len(), 1);
     assert_eq!(mtime_ms(&core, &file), T0, "mtime 必须恢复");
-    if ffrn_core::platform::can_write_btime() {
+    if renomio_core::platform::can_write_btime() {
         assert!(undo.skipped_fields.is_empty(), "{:?}", undo.skipped_fields);
         assert_eq!(creation_ms(&file), before_creation, "btime 应被恢复");
         assert!(undo.failed.is_empty(), "{:?}", undo.failed);
@@ -163,6 +164,7 @@ fn time_fixed_value_survives_restart_and_undo() {
         shift_seconds: 0,
         fixed_ms: fixed,
         fields: vec!["mtime".into()],
+        ..Default::default()
     };
     let outcome = core.apply_time(vec![target(&file)], &spec).unwrap();
     assert_eq!(mtime_ms(&core, &file), fixed);
@@ -175,7 +177,7 @@ fn time_fixed_value_survives_restart_and_undo() {
     let creation_skipped = undo.skipped_fields.iter().any(|f| f.field == "creation");
     assert_eq!(
         creation_skipped,
-        !ffrn_core::platform::can_write_btime(),
+        !renomio_core::platform::can_write_btime(),
         "跳过的字段必须与平台 btime 能力一致：{:?}",
         undo.skipped_fields
     );
@@ -203,6 +205,7 @@ fn time_skips_unchanged_and_marks_locked_per_item() {
         shift_seconds: 600,
         fixed_ms: 0,
         fields: vec!["mtime".into()],
+        ..Default::default()
     };
     let outcome = core
         .apply_time(vec![target(&ok), target(&busy)], &spec)
@@ -251,6 +254,7 @@ fn time_creation_time_writes_and_undoes() {
         shift_seconds: 86_400,
         fixed_ms: 0,
         fields: vec!["creation".into()],
+        ..Default::default()
     };
     let outcome = core.apply_time(vec![target(&file)], &spec).unwrap();
     assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
@@ -280,6 +284,7 @@ fn time_creation_time_rejected_per_item_on_non_windows() {
         shift_seconds: 60,
         fixed_ms: 0,
         fields: vec!["creation".into()],
+        ..Default::default()
     };
     let outcome = core.apply_time(vec![target(&file)], &spec).unwrap();
     assert_eq!(outcome.applied.len(), 0);
@@ -288,12 +293,95 @@ fn time_creation_time_rejected_per_item_on_non_windows() {
 }
 
 #[test]
+fn time_shift_accumulates_when_applied_again() {
+    let t = Temp::new("time-again");
+    let file = t.file("again.txt", "a");
+    let core = t.core();
+    let base = mtime_ms(&core, &file);
+    let spec = TimeSpec {
+        mode: "shift".into(),
+        shift_seconds: 3600,
+        fixed_ms: 0,
+        fields: vec!["mtime".into()],
+        ..Default::default()
+    };
+    let first = core.apply_time(vec![target(&file)], &spec).unwrap();
+    let after_one = mtime_ms(&core, &file);
+    assert!((after_one - (base + 3_600_000)).abs() <= 2, "first={after_one} base={base}");
+    let second = core.apply_time(vec![target(&file)], &spec).unwrap();
+    let after_two = mtime_ms(&core, &file);
+    assert!((after_two - (base + 7_200_000)).abs() <= 2, "second={after_two}");
+    core.undo(&second.batch.id).unwrap();
+    assert!((mtime_ms(&core, &file) - after_one).abs() <= 2);
+    core.undo(&first.batch.id).unwrap();
+    assert!((mtime_ms(&core, &file) - base).abs() <= 2);
+}
+
+#[test]
+fn time_random_is_deterministic_and_in_range() {
+    let t = Temp::new("time-random");
+    let a = t.file("a.txt", "a");
+    let b = t.file("b.txt", "b");
+    let core = t.core();
+    let low = 1_600_000_000_000i64;
+    let high = low + 86_400_000;
+    let spec = TimeSpec {
+        mode: "random".into(),
+        shift_seconds: 0,
+        fixed_ms: 0,
+        random_min_ms: low,
+        random_max_ms: high,
+        fields: vec!["mtime".into(), "atime".into()],
+        ..Default::default()
+    };
+    let outcome = core.apply_time(vec![target(&a), target(&b)], &spec).unwrap();
+    assert_eq!(outcome.applied.len(), 2, "{:?}", outcome.failed);
+    let av = mtime_ms(&core, &a);
+    let bv = mtime_ms(&core, &b);
+    assert!((low..=high).contains(&av), "a={av}");
+    assert!((low..=high).contains(&bv), "b={bv}");
+    assert_eq!(
+        core.read_times(&[a.to_string_lossy().to_string()])[0].atime_ms,
+        Some(av),
+        "同一文件的 atime/mtime 取同一个随机值"
+    );
+    core.undo(&outcome.batch.id).unwrap();
+    let again = core.apply_time(vec![target(&a)], &spec).unwrap();
+    assert_eq!(mtime_ms(&core, &a), av, "同路径重跑结果确定");
+    core.undo(&again.batch.id).unwrap();
+}
+
+#[test]
+fn time_write_exif_uses_new_value() {
+    let t = Temp::new("time-exif");
+    let path = t.root.join("shot.jpg");
+    // 最小 JPEG：SOI + SOS(len=2) + EOI；元数据走 XMP APP1
+    fs::write(native_path(&path), [0xFF, 0xD8, 0xFF, 0xDA, 0x00, 0x02, 0xFF, 0xD9]).unwrap();
+    let core = t.core();
+    let fixed = 1_577_934_245_000i64; // 2020-01-02T03:04:05Z
+    let spec = TimeSpec {
+        mode: "fixed".into(),
+        shift_seconds: 0,
+        fixed_ms: fixed,
+        write_exif: true,
+        fields: vec!["mtime".into()],
+        ..Default::default()
+    };
+    let outcome = core.apply_time(vec![target(&path)], &spec).unwrap();
+    assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
+    assert_eq!(mtime_ms(&core, &path), fixed);
+    let snap = renomio_core::metaedit::snapshot(&path.to_string_lossy()).unwrap();
+    let taken = snap.fields.get("takenAt").cloned().unwrap_or_default();
+    assert!(taken.starts_with("2020-01-02"), "takenAt={taken}");
+}
+
+#[test]
 fn attrs_readonly_set_and_undo() {
     let t = Temp::new("attrs-readonly");
     let file = t.file("ro.txt", "r");
     let core = t.core();
     let spec = AttrSpec {
-        readonly: Some(true),
+        readonly: Some(AttrAction::Set),
         hidden: None,
     };
     let outcome = core.apply_attrs(vec![target(&file)], &spec).unwrap();
@@ -305,6 +393,79 @@ fn attrs_readonly_set_and_undo() {
     assert!(!core.read_attrs(&[file.to_string_lossy().to_string()])[0].readonly);
 }
 
+#[test]
+fn attrs_invert_and_undo_restores_original() {
+    let t = Temp::new("attrs-invert");
+    let file = t.file("invert.txt", "i");
+    let core = t.core();
+    let path_str = file.to_string_lossy().to_string();
+
+    // 先设为只读，作为「原属性」基线
+    let set = core
+        .apply_attrs(
+            vec![target(&file)],
+            &AttrSpec { readonly: Some(AttrAction::Set), hidden: None },
+        )
+        .unwrap();
+    assert!(core.read_attrs(&[path_str.clone()])[0].readonly);
+
+    // 取反：只读 → 可写；备份记录中应保存取反前的只读值
+    let invert = core
+        .apply_attrs(
+            vec![target(&file)],
+            &AttrSpec { readonly: Some(AttrAction::Invert), hidden: None },
+        )
+        .unwrap();
+    assert_eq!(invert.applied.len(), 1, "{:?}", invert.failed);
+    let before: serde_json::Value =
+        serde_json::from_str(&invert.applied[0].before).unwrap();
+    assert_eq!(before["readonly"], serde_json::json!(true));
+    assert!(!core.read_attrs(&[path_str.clone()])[0].readonly);
+
+    // 再取反 → 回到只读
+    let again = core
+        .apply_attrs(
+            vec![target(&file)],
+            &AttrSpec { readonly: Some(AttrAction::Invert), hidden: None },
+        )
+        .unwrap();
+    assert!(core.read_attrs(&[path_str.clone()])[0].readonly);
+
+    // 撤销第二次取反 → 恢复为可写（第一次取反后的状态）
+    core.undo(&again.batch.id).unwrap();
+    assert!(!core.read_attrs(&[path_str.clone()])[0].readonly);
+    // 撤销第一次取反 → 恢复基线只读
+    core.undo(&invert.batch.id).unwrap();
+    assert!(core.read_attrs(&[path_str])[0].readonly);
+
+    // 入参兼容性：取反 + 保持另一属性
+    let keep = core
+        .apply_attrs(
+            vec![target(&file)],
+            &AttrSpec { readonly: Some(AttrAction::Invert), hidden: None },
+        )
+        .unwrap();
+    assert!(!core.read_attrs(&[file.to_string_lossy().to_string()])[0].readonly);
+    core.undo(&keep.batch.id).unwrap();
+    assert!(core.read_attrs(&[file.to_string_lossy().to_string()])[0].readonly);
+    core.undo(&set.batch.id).unwrap();
+
+    // 隐藏属性走同一 resolve：取反 → 显示变隐藏，撤销还原为显示
+    #[cfg(windows)]
+    {
+        let hide = core
+            .apply_attrs(
+                vec![target(&file)],
+                &AttrSpec { readonly: None, hidden: Some(AttrAction::Invert) },
+            )
+            .unwrap();
+        let path_str = file.to_string_lossy().to_string();
+        assert!(core.read_attrs(&[path_str.clone()])[0].hidden);
+        core.undo(&hide.batch.id).unwrap();
+        assert!(!core.read_attrs(&[path_str])[0].hidden);
+    }
+}
+
 #[cfg(windows)]
 #[test]
 fn attrs_hidden_set_and_undo() {
@@ -313,7 +474,7 @@ fn attrs_hidden_set_and_undo() {
     let core = t.core();
     let spec = AttrSpec {
         readonly: None,
-        hidden: Some(true),
+        hidden: Some(AttrAction::Set),
     };
     let outcome = core.apply_attrs(vec![target(&file)], &spec).unwrap();
     assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
@@ -600,6 +761,7 @@ fn undo_logs_btime_skip_and_appends() {
         shift_seconds: 600, // 用 shift 而非 fixed，避免「未变化被跳过」导致无操作
         fixed_ms: 0,
         fields: vec!["mtime".into(), "atime".into()],
+        ..Default::default()
     };
 
     let mut outcomes = Vec::new();
@@ -615,7 +777,7 @@ fn undo_logs_btime_skip_and_appends() {
         outcomes.push((applied.batch.id.clone(), undo));
     }
 
-    if ffrn_core::platform::can_write_btime() {
+    if renomio_core::platform::can_write_btime() {
         // Windows：btime 可写，撤销后没有跳过项，也就不该写 undo.log
         for (_, undo) in &outcomes {
             assert!(

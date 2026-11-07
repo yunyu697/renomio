@@ -1,7 +1,7 @@
 /** 预览计算入口：模块级缓存，避免多个组件重复跑规则链 */
 import { useEffect, useMemo } from 'react';
 import { computePreview, type PreviewResult } from '../lib/preview';
-import type { EnvInfo, Entry, MetaFields, Rule } from '../lib/types';
+import type { EntryFacts, EnvInfo, Entry, MetaFields, Rule } from '../lib/types';
 import { useApp } from '../store';
 
 interface Cache {
@@ -12,8 +12,15 @@ interface Cache {
   readonly: boolean;
   disk: Record<string, boolean>;
   meta: Record<string, MetaFields>;
+  facts: Record<string, EntryFacts>;
+  userVars: string[];
   replaceInvalid: boolean;
   invalidReplacement: string;
+  nameMaxLength: number;
+  longNameAction: 'block' | 'truncate';
+  emptyNameAction: 'block' | 'fallback';
+  emptyNameFallback: string;
+  skipSystemHidden: boolean;
   result: PreviewResult;
 }
 
@@ -27,8 +34,15 @@ export function usePreview(): PreviewResult {
   const readonly = useApp((s) => s.settings.readonlySkip);
   const disk = useApp((s) => s.diskExists);
   const meta = useApp((s) => s.metaFields);
+  const facts = useApp((s) => s.fileFacts);
+  const userVars = useApp((s) => s.settings.userVars);
   const replaceInvalid = useApp((s) => s.settings.replaceInvalid);
   const invalidReplacement = useApp((s) => s.settings.invalidReplacement);
+  const nameMaxLength = useApp((s) => s.settings.nameMaxLength ?? 255);
+  const longNameAction = useApp((s) => s.settings.longNameAction ?? 'block');
+  const emptyNameAction = useApp((s) => s.settings.emptyNameAction ?? 'block');
+  const emptyNameFallback = useApp((s) => s.settings.emptyNameFallback ?? '');
+  const skipSystemHidden = useApp((s) => s.settings.skipSystemHidden ?? false);
 
   return useMemo(() => {
     if (
@@ -40,8 +54,15 @@ export function usePreview(): PreviewResult {
       cache.readonly === readonly &&
       cache.disk === disk &&
       cache.meta === meta &&
+      cache.facts === facts &&
+      cache.userVars === userVars &&
       cache.replaceInvalid === replaceInvalid &&
       cache.invalidReplacement === invalidReplacement
+      && cache.nameMaxLength === nameMaxLength
+      && cache.longNameAction === longNameAction
+      && cache.emptyNameAction === emptyNameAction
+      && cache.emptyNameFallback === emptyNameFallback
+      && cache.skipSystemHidden === skipSystemHidden
     ) {
       return cache.result;
     }
@@ -51,12 +72,23 @@ export function usePreview(): PreviewResult {
       readonlySkip: readonly,
       diskExists: disk,
       meta,
+      facts,
+      userVars,
       replaceInvalid,
       invalidReplacement,
+      nameMaxLength,
+      longNameAction,
+      emptyNameAction,
+      emptyNameFallback,
+      skipSystemHidden,
     });
-    cache = { entries, rules, env, strict, readonly, disk, meta, replaceInvalid, invalidReplacement, result };
+    cache = {
+      entries, rules, env, strict, readonly, disk, meta, facts, userVars, replaceInvalid, invalidReplacement,
+      nameMaxLength, longNameAction, emptyNameAction, emptyNameFallback, skipSystemHidden, result,
+    };
     return result;
-  }, [entries, rules, env, strict, readonly, disk, meta, replaceInvalid, invalidReplacement]);
+  }, [entries, rules, env, strict, readonly, disk, meta, facts, userVars, replaceInvalid, invalidReplacement,
+    nameMaxLength, longNameAction, emptyNameAction, emptyNameFallback, skipSystemHidden]);
 }
 
 /** 去抖检查目标是否已存在于磁盘；只由 App 调用一次 */
