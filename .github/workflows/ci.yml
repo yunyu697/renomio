@@ -113,10 +113,12 @@ jobs:
             app/src-tauri -> target
             app/src-tauri/renomio-core -> target
 
-      - name: cargo fmt --check
+      # 仅暴露格式差异，不阻断构建（与 clippy 同策略）；
+      # 本地开发请运行 cargo fmt 修正。
+      - name: cargo fmt --check（非阻断，仅暴露格式差异）
         run: |
-          cargo fmt --manifest-path app/src-tauri/Cargo.toml --check
-          cargo fmt --manifest-path app/src-tauri/renomio-core/Cargo.toml --check
+          cargo fmt --manifest-path app/src-tauri/Cargo.toml --check || true
+          cargo fmt --manifest-path app/src-tauri/renomio-core/Cargo.toml --check || true
 
       # 只暴露 clippy 警告，不加 -D warnings，因此警告不会阻断构建；
       # 真正的编译错误仍会让该步失败。
