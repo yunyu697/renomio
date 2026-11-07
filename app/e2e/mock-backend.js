@@ -145,7 +145,7 @@
     state.files.forEach((f, i) => map.set(key(f.path), i));
     return map;
   };
-  const IMAGE_FIELDS = ['title', 'description', 'keywords', 'author', 'copyright', 'software', 'takenAt', 'headline', 'bylineTitle', 'credit', 'source'];
+  const IMAGE_FIELDS = ['title', 'description', 'keywords', 'author', 'copyright', 'software', 'takenAt', 'headline', 'bylineTitle', 'credit', 'source', 'model', 'city', 'location', 'latitude', 'longitude'];
   const AUDIO_FIELDS = ['title', 'artist', 'album', 'year', 'track', 'genre', 'comment', 'albumArtist', 'lyrics', 'cover'];
   const DOC_FIELDS = ['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category'];
   const META_DEFAULTS = {
@@ -863,34 +863,33 @@
       state.metadata.push(args.path);
       const name = splitPath(args.path).name.toLowerCase();
       const ext = name.includes('.') ? name.split('.').pop() : '';
+      const fixture = state.files.find((f) => key(f.path) === key(args.path));
+      const sizeText = fixture
+        ? fixture.size >= 1048576
+          ? `${(fixture.size / 1048576).toFixed(1)} MB`
+          : `${(fixture.size / 1024).toFixed(1)} KB`
+        : '未知';
       if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
+        // 与真实样本对齐：示例 JPG 没有 EXIF，只返回解码尺寸/大小并给出缺失提示。
         return {
           kind: 'image',
           format: ext === 'png' ? 'PNG 图像' : 'JPEG 图像',
           readOnly: true,
           fields: [
-            { label: '尺寸', value: '4032 × 3024 px' },
-            { label: '相机型号', value: 'DemoCam X100' },
-            { label: '拍摄时间', value: '2025-06-18 09:12:33' },
-            { label: '方向', value: '正常' },
+            { label: '尺寸', value: name.endsWith('.png') ? '640 × 480 px' : '1920 × 1080 px' },
+            { label: '文件大小', value: sizeText },
           ],
-          warnings: [],
+          warnings: ['未发现 EXIF 信息（可能是截图、导出图或已剥离元数据）'],
         };
       }
       if (['mp3', 'flac'].includes(ext)) {
+        // 示例音频没有 ID3/标签，不凭空造标题与艺术家。
         return {
           kind: 'audio',
           format: 'MP3 音频',
           readOnly: true,
-          fields: [
-            { label: '标题', value: '夜曲' },
-            { label: '艺术家', value: '周杰伦' },
-            { label: '专辑', value: '十一月的萧邦' },
-            { label: '年份', value: '2005' },
-            { label: '采样率', value: '44.1 kHz' },
-            { label: '时长', value: '2:34' },
-          ],
-          warnings: [],
+          fields: [{ label: '文件大小', value: sizeText }],
+          warnings: ['未发现 ID3 标签（示例样本没有标签信息）'],
         };
       }
       if (['docx', 'doc'].includes(ext)) {
@@ -1102,6 +1101,120 @@
       };
     }),
     meta_restore_backup: () => 'restored',
+
+    /* EXIF 清除与文本编码：mock 只回放测试脚本显式注入的样本（state.exif / state.text），
+     * 不凭空编造 EXIF 或编码，保证断言前的数据来源可追溯。 */
+    exif_inventory: (args) => {
+      const fixture = (state.exif || {})[args.path];
+      if (!fixture) {
+        return {
+          path: args.path, format: '未知', groups: [], orientation: 0, orientationKept: true,
+          hasIcc: false, hasExif: false, hasXmp: false, hasThumbnail: false,
+          warnings: ['mock 未提供该文件的 EXIF 样本（请由测试注入 state.exif）'],
+        };
+      }
+      return {
+        path: args.path,
+        format: fixture.format || 'JPEG',
+        groups: (fixture.groups || []).map((g) => ({ ...g, items: [...g.items] })),
+        orientation: fixture.orientation ?? 0,
+        orientationKept: true,
+        hasIcc: !!fixture.icc,
+        hasExif: (fixture.groups || []).length > 0,
+        hasXmp: !!fixture.xmp,
+        hasThumbnail: (fixture.groups || []).some((g) => g.id === 'thumbnail'),
+        warnings: fixture.warnings ? [...fixture.warnings] : [],
+      };
+    },
+
+    exif_clear: (args) => (args.items || []).map((item) => {
+      const started = Date.now();
+      const fixture = (state.exif || {})[item.path];
+      if (!fixture) {
+        return {
+          path: item.path, format: '未知', ok: false, supported: false, backup: null,
+          cleared: [], orientationBefore: 0, orientationAfter: 0, iccBefore: false, iccAfter: false,
+          xmpCleared: false, pixelsUnchanged: null, verified: false,
+          warnings: [], error: 'mock 未提供该文件的 EXIF 样本', elapsedMs: Date.now() - started,
+        };
+      }
+      const scopes = item.scopes || {};
+      const removeIds = new Set();
+      if (scopes.all) ['gps', 'camera', 'time', 'thumbnail'].forEach((id) => removeIds.add(id));
+      else ['gps', 'camera', 'time', 'thumbnail'].forEach((id) => { if (scopes[id]) removeIds.add(id); });
+      const before = { groups: fixture.groups || [], orientation: fixture.orientation ?? 0, icc: !!fixture.icc };
+      const cleared = [];
+      fixture.groups = before.groups.filter((g) => {
+        if (removeIds.has(g.id)) { cleared.push(g.id); return false; }
+        return true;
+      });
+      // Orientation 与 ICC 不参与清除，清除前后保持一致
+      fixture.orientation = before.orientation;
+      fixture.icc = before.icc;
+      const xmpCleared = !!item.clearXmp;
+      if (xmpCleared) fixture.xmp = false;
+      const backup = item.backup === false ? null : `${item.path}.${Date.now()}.bak`;
+      const result = {
+        path: item.path, format: fixture.format || 'JPEG', ok: true, supported: true, backup,
+        cleared,
+        orientationBefore: before.orientation, orientationAfter: fixture.orientation,
+        iccBefore: before.icc, iccAfter: fixture.icc,
+        xmpCleared,
+        pixelsUnchanged: true,
+        verified: true,
+        warnings: xmpCleared ? ['XMP 中对应项也已清除'] : [],
+        error: null,
+        elapsedMs: Date.now() - started,
+      };
+      state.exifResults = (state.exifResults || []).concat(result);
+      return result;
+    }),
+
+    text_detect: (args) => {
+      const fixture = (state.text || {})[args.path];
+      if (!fixture) {
+        return {
+          path: args.path, encoding: 'unknown', encodingLabel: '未识别', confirmed: false,
+          bytes: 0, chars: 0, lines: 0, preview: '',
+          warnings: ['mock 未提供该文件的文本样本（请由测试注入 state.text）'],
+        };
+      }
+      return { path: args.path, ...fixture };
+    },
+
+    text_save: (args) => {
+      const req = args.req || {};
+      const fixture = (state.text || {})[req.path];
+      const started = Date.now();
+      if (!fixture) {
+        return {
+          path: req.path, outputPath: req.path, sourceEncoding: 'unknown', sourceEncodingLabel: '未识别',
+          targetEncoding: req.targetEncoding, targetEncodingLabel: req.targetEncoding,
+          backup: null, bytesBefore: 0, bytesAfter: 0, chars: 0, verified: false, ok: false,
+          error: 'mock 未提供该文件的文本样本', elapsedMs: Date.now() - started,
+        };
+      }
+      if (fixture.encoding === 'unknown' && !req.sourceEncoding) {
+        return {
+          path: req.path, outputPath: req.path, sourceEncoding: 'unknown', sourceEncodingLabel: '未识别',
+          targetEncoding: req.targetEncoding, targetEncodingLabel: req.targetEncoding,
+          backup: null, bytesBefore: fixture.bytes, bytesAfter: 0, chars: 0, verified: false, ok: false,
+          error: '编码未识别，需手动指定源编码', elapsedMs: Date.now() - started,
+        };
+      }
+      const outputPath = req.saveAs || req.path;
+      const label = req.targetEncoding;
+      state.text = state.text || {};
+      state.text[outputPath] = { ...fixture, encoding: req.targetEncoding, encodingLabel: label, confirmed: true };
+      return {
+        path: req.path, outputPath, sourceEncoding: req.sourceEncoding || fixture.encoding,
+        sourceEncodingLabel: fixture.encodingLabel, targetEncoding: req.targetEncoding,
+        targetEncodingLabel: label,
+        backup: req.saveAs ? null : `${req.path}.${Date.now()}.bak`,
+        bytesBefore: fixture.bytes, bytesAfter: fixture.bytes, chars: fixture.chars,
+        verified: true, ok: true, error: null, elapsedMs: Date.now() - started,
+      };
+    },
     check_update: () => {
       const mode = state.updateMode || 'latest';
       if (mode === 'error') throw new Error('mock 网络不可用');

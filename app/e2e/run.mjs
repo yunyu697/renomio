@@ -709,6 +709,25 @@ async function main() {
     })`);
     check('UI', '明暗主题切换 → data-theme=dark 且面板底色变化', theme.theme === 'dark' && theme.panelBg !== bootTheme.panelBg, JSON.stringify(theme));
 
+    // 跟随系统：写入设置 + 运行时系统主题变化监听（用 CDP 模拟系统配色）
+    await click('[data-testid="theme-system"]');
+    await sleep(250);
+    const storedTheme = await evaluate(`JSON.parse(localStorage.getItem('rename-studio.settings')).data.theme`);
+    await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
+    await sleep(300);
+    const sysDark = await evaluate(`document.documentElement.dataset.theme`);
+    await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] });
+    await sleep(300);
+    const sysLight = await evaluate(`document.documentElement.dataset.theme`);
+    check(
+      'UI',
+      '跟随系统主题：settings.theme=system 且系统配色变化时实时跟随',
+      storedTheme === 'system' && sysDark === 'dark' && sysLight === 'light',
+      JSON.stringify({ storedTheme, sysDark, sysLight }),
+    );
+    await click('[data-testid="theme-dark"]');
+    await sleep(200);
+
     // 智能更名策略面板：默认值与「空名处理」联动
     const policyUi = await evaluate(`(() => {
       const max = document.querySelector('[data-testid="input-name-max-length"]');
@@ -761,7 +780,7 @@ async function main() {
     })()`);
     await waitFor(`document.querySelector('[data-testid="metadata-dialog"]')`, '元数据弹窗');
     const metaText = await textOf('[data-testid="metadata-dialog"]');
-    check('UI', '元数据弹窗展示图片尺寸与只读标识', metaText.includes('4032 × 3024') && metaText.includes('只读') && metaText.includes('不会修改文件'), metaText.slice(0, 120));
+    check('UI', '元数据弹窗展示图片尺寸与只读标识', metaText.includes('1920 × 1080') && metaText.includes('未发现 EXIF') && metaText.includes('只读') && metaText.includes('不会修改文件'), metaText.slice(0, 120));
     await shot('08-metadata-readonly.png');
     await clickText('[data-testid="metadata-dialog"] .btn-primary', '关闭');
 
@@ -911,8 +930,8 @@ async function main() {
     await click('[data-testid="col-settings"]');
 
     // ---- P1 第二梯队：时间属性（UI 层，mock 后端） ----
-    await clickText('.nav .nav-item', '时间属性');
-    await waitFor(`document.querySelector('[data-testid="ops-dialog"]')`, '时间面板');
+    await click('[data-testid="nav-times"]');
+    await waitFor(`document.querySelector('[data-testid="page-times"]')`, '时间功能页');
     await waitFor(`document.querySelectorAll('[data-testid="ops-row"]').length === 4`, '时间预览 4 行');
     const creationDisabled = await evaluate(
       `document.querySelector('[data-testid="ops-field-creation"]')?.disabled === true`,
@@ -979,7 +998,7 @@ async function main() {
     );
     await shot('15-ops-time-result.png');
     await clickText('[data-testid="ops-result"] .btn-primary', '关闭');
-    await waitFor(`!document.querySelector('[data-testid="ops-dialog"]')`, '时间面板关闭');
+    await waitFor(`!document.querySelector('[data-testid="page-times"]')`, '时间功能页关闭');
     await click('[data-testid="action-undo"]');
     await sleep(400);
     const mtimeRestored = await evaluate(`window.__E2E__.files.map((f) => f.modified)`);
@@ -990,9 +1009,95 @@ async function main() {
       JSON.stringify(mtimeRestored),
     );
 
+    // ---- 侧栏入口覆盖：每个入口打开完整功能页（自带选择区 / 空态 / 返回） ----
+    const navPages = [
+      ['nav-music', 'page-music'],
+      ['nav-image', 'page-image'],
+      ['nav-office', 'page-office'],
+      ['nav-text', 'page-text'],
+      ['nav-attrs', 'page-attrs'],
+      ['nav-times', 'page-times'],
+      ['nav-organize', 'page-organize'],
+    ];
+    for (const [nav, page] of navPages) {
+      await click(`[data-testid="${nav}"]`);
+      await waitFor(`document.querySelector('[data-testid="${page}"]')`, `侧栏 ${nav} → ${page}`, 5000);
+      const navState = await evaluate(`(() => {
+        const n = document.querySelector('[data-testid="${nav}"]');
+        const p = document.querySelector('[data-testid="${page}"]');
+        return {
+          active: n.classList.contains('active'),
+          current: n.getAttribute('aria-current'),
+          select: !!p.querySelector('[data-testid="page-select"]'),
+          count: p.querySelector('[data-testid="page-select-count"]')?.textContent || '',
+          back: !!p.querySelector('[data-testid="page-back"]'),
+          empty: !!p.querySelector('[data-testid="page-empty"]'),
+        };
+      })()`);
+      check(
+        'UI',
+        `侧栏 ${nav} → 打开完整功能页 ${page}（选择区 + 计数 + 返回，不是弹窗）`,
+        navState.active && navState.current === 'true' && navState.select && navState.count.length > 0 && navState.back,
+        JSON.stringify(navState),
+      );
+      await click('[data-testid="page-back"]');
+      await waitFor(`!document.querySelector('[data-testid="${page}"]')`, `${page} 返回列表`, 3000);
+    }
+    // 分组标题可交互（折叠/展开），不是死标签
+    await click('[data-testid="nav-group-meta"]');
+    await sleep(250);
+    const groupCollapsed = await evaluate(`(() => {
+      const label = document.querySelector('[data-testid="nav-group-meta"]');
+      return {
+        expanded: label.getAttribute('aria-expanded'),
+        visibleMetaItems: ['nav-music', 'nav-image', 'nav-office', 'nav-text'].filter((id) => document.querySelector('[data-testid="' + id + '"]')).length,
+      };
+    })()`);
+    check('UI', '元数据分组标题可点击折叠（aria-expanded=false 且条目隐藏）', groupCollapsed.expanded === 'false' && groupCollapsed.visibleMetaItems === 0, JSON.stringify(groupCollapsed));
+    await click('[data-testid="nav-group-meta"]');
+    await sleep(250);
+
+    // 列表未勾选时打开功能页：页面自带全选与计数（不再只弹 toast、不强制改列表勾选）
+    await click('[data-testid="list-tab-rename"]');
+    await sleep(300);
+    await evaluate(`(() => { for (const cb of [...document.querySelectorAll('.trow .checkbox[aria-checked="true"]')]) cb.click(); })()`);
+    await sleep(300);
+    const selectedBefore = await evaluate(`document.querySelectorAll('.trow .checkbox[aria-checked="true"]').length`);
+    await click('[data-testid="nav-times"]');
+    await waitFor(`document.querySelector('[data-testid="page-times"]')`, '空勾选点击时间入口后打开功能页', 4000);
+    const autoPanel = await evaluate(`({
+      count: document.querySelector('[data-testid="page-select-count"]')?.textContent || '',
+      rows: document.querySelectorAll('[data-testid^="page-file-"]').length,
+      defaultNote: !!document.querySelector('[data-testid="page-select-default"]'),
+      selected: document.querySelectorAll('.trow .checkbox[aria-checked="true"]').length,
+    })`);
+    check(
+      'UI',
+      '列表未勾选 → 功能页自带全选与计数（默认 4/4），且不改写列表勾选状态',
+      selectedBefore === 0 && autoPanel.rows === 4 && autoPanel.count.includes('4') && autoPanel.defaultNote && autoPanel.selected === 0,
+      JSON.stringify({ selectedBefore, autoPanel }),
+    );
+    await click('[data-testid="page-back"]');
+    await waitFor(`!document.querySelector('[data-testid="page-times"]')`, '关闭时间功能页');
+
+    // 元数据页签内的编辑入口必须真的打开编辑弹窗（视图页签也接后端写能力）
+    await click('[data-testid="list-tab-photo"]');
+    await sleep(300);
+    await click('[data-testid="list-action-edit-photo"]');
+    await waitFor(`document.querySelector('[data-testid="meta-edit-dialog"]')`, '图片页签编辑元数据入口', 5000);
+    const editEntry = await evaluate(`({
+      fields: !!document.querySelector('[data-testid="meta-fields"]'),
+      unsupported: !!document.querySelector('[data-testid="meta-unsupported"]'),
+      hasApply: !!document.querySelector('[data-testid="meta-apply"]'),
+    })`);
+    check('UI', '图片页签的「编辑元数据」入口打开真实编辑弹窗', editEntry.hasApply && (editEntry.fields || editEntry.unsupported), JSON.stringify(editEntry));
+    await click('[data-testid="meta-close"]');
+    await click('[data-testid="list-tab-rename"]');
+    await sleep(300);
+
     // ---- 文件属性（UI 层，mock 后端） ----
-    await clickText('.nav .nav-item', '文件属性');
-    await waitFor(`document.querySelector('[data-testid="ops-dialog"]')`, '属性面板');
+    await click('[data-testid="nav-attrs"]');
+    await waitFor(`document.querySelector('[data-testid="page-attrs"]')`, '属性功能页');
     await waitFor(`document.querySelectorAll('[data-testid="ops-row"]').length === 4`, '属性预览 4 行');
     await click('[data-testid="ops-readonly-set"]');
     await sleep(250);
@@ -1008,15 +1113,15 @@ async function main() {
     const readonlyApplied = await evaluate(`window.__E2E__.files.every((f) => f.readonly === true)`);
     check('UI-triggered mock', '属性写入 → 勾选文件全部只读（已只读项跳过）', readonlyApplied);
     await clickText('[data-testid="ops-result"] .btn-primary', '关闭');
-    await waitFor(`!document.querySelector('[data-testid="ops-dialog"]')`, '属性面板关闭');
+    await waitFor(`!document.querySelector('[data-testid="page-attrs"]')`, '属性功能页关闭');
     await click('[data-testid="action-undo"]');
     await sleep(400);
     const readonlyRestored = await evaluate(`window.__E2E__.files.filter((f) => f.readonly).length`);
     check('UI-triggered mock', '属性撤销 → 仅原本只读的文件保持只读', readonlyRestored === 1, `readonly=${readonlyRestored}`);
 
     // 取反模式：属性面板第三态，预览 = 原值取反
-    await clickText('.nav .nav-item', '文件属性');
-    await waitFor(`document.querySelector('[data-testid="ops-dialog"]')`, '属性面板（取反）');
+    await click('[data-testid="nav-attrs"]');
+    await waitFor(`document.querySelector('[data-testid="page-attrs"]')`, '属性功能页（取反）');
     const invertButtons = await evaluate(
       `['ops-readonly-invert', 'ops-hidden-invert'].every((id) => !!document.querySelector('[data-testid="' + id + '"]'))`,
     );
@@ -1035,15 +1140,15 @@ async function main() {
     const inverted = await evaluate(`window.__E2E__.files.filter((f) => f.readonly).length`);
     check('UI-triggered mock', '取反写入 → 3 个可写变只读、1 个只读变可写', inverted === 3, `readonly=${inverted}`);
     await clickText('[data-testid="ops-result"] .btn-primary', '关闭');
-    await waitFor(`!document.querySelector('[data-testid="ops-dialog"]')`, '取反面板关闭');
+    await waitFor(`!document.querySelector('[data-testid="page-attrs"]')`, '取反功能页关闭');
     await click('[data-testid="action-undo"]');
     await sleep(400);
     const invertRestored = await evaluate(`window.__E2E__.files.filter((f) => f.readonly).length`);
     check('UI-triggered mock', '取反撤销 → 还原原只读属性', invertRestored === 1, `readonly=${invertRestored}`);
 
     // ---- 文件归类（正则捕获组分支；UI 层，mock 后端） ----
-    await clickText('.nav .nav-item', '文件归类');
-    await waitFor(`document.querySelector('[data-testid="ops-dialog"]')`, '归类面板');
+    await click('[data-testid="nav-organize"]');
+    await waitFor(`document.querySelector('[data-testid="page-organize"]')`, '归类功能页');
     await waitFor(`document.querySelectorAll('[data-testid="ops-row"]').length === 4`, '归类预览 4 行');
     await click('[data-testid="ops-move-kind-regex"]');
     await setInput('[data-testid="ops-move-pattern"]', '(\\d{3})');
@@ -1091,7 +1196,7 @@ async function main() {
     );
     await shot('17-ops-move-result.png');
     await clickText('[data-testid="ops-result"] .btn-primary', '关闭');
-    await waitFor(`!document.querySelector('[data-testid="ops-dialog"]')`, '归类面板关闭');
+    await waitFor(`!document.querySelector('[data-testid="page-organize"]')`, '归类功能页关闭');
     await click('[data-testid="action-undo"]');
     await sleep(400);
     const moveUndone = await evaluate(`window.__E2E__.files.map((f) => f.path)`);
@@ -1113,8 +1218,8 @@ async function main() {
     );
 
     // ---- 归类模板（多级目录；UI 层，mock 后端） ----
-    await clickText('.nav .nav-item', '文件归类');
-    await waitFor(`document.querySelector('[data-testid="ops-dialog"]')`, '归类面板（模板）');
+    await click('[data-testid="nav-organize"]');
+    await waitFor(`document.querySelector('[data-testid="page-organize"]')`, '归类功能页（模板）');
     await waitFor(`document.querySelectorAll('[data-testid="ops-row"]').length === 4`, '模板预览 4 行');
     await click('[data-testid="ops-move-kind-template"]');
     await waitFor(`document.querySelector('[data-testid="ops-move-template"]')`, '模板输入框');
@@ -1145,7 +1250,7 @@ async function main() {
       templatePaths.join(' | '),
     );
     await clickText('[data-testid="ops-result"] .btn-primary', '关闭');
-    await waitFor(`!document.querySelector('[data-testid="ops-dialog"]')`, '模板面板关闭');
+    await waitFor(`!document.querySelector('[data-testid="page-organize"]')`, '模板功能页关闭');
     await click('[data-testid="action-undo"]');
     await sleep(400);
     const templateUndone = await evaluate(`window.__E2E__.files.map((f) => f.path)`);
@@ -1156,8 +1261,8 @@ async function main() {
       templateUndone.join(' | '),
     );
 
-    await clickText('.nav .nav-item', '文件归类');
-    await waitFor(`document.querySelector('[data-testid="ops-dialog"]')`, '归类面板（非法模板）');
+    await click('[data-testid="nav-organize"]');
+    await waitFor(`document.querySelector('[data-testid="page-organize"]')`, '归类功能页（非法模板）');
     await click('[data-testid="ops-move-kind-template"]');
     await setInput('[data-testid="ops-move-template"]', '<MD5>');
     await sleep(300);
@@ -1177,8 +1282,8 @@ async function main() {
     await sleep(300);
     const counterPreview = await textOf('[data-testid="ops-preview"]');
     check('UI', '模板含 <#> → 提示不支持序号变量', counterPreview.includes('不支持 <#>'), counterPreview.slice(0, 180));
-    await clickText('[data-testid="ops-dialog"] .dialog-foot .btn-outline', '取消');
-    await waitFor(`!document.querySelector('[data-testid="ops-dialog"]')`, '非法模板面板关闭');
+    await clickText('[data-testid="page-organize"] .dialog-foot .btn-outline', '取消');
+    await waitFor(`!document.querySelector('[data-testid="page-organize"]')`, '非法模板功能页关闭');
 
     // ---- 隐藏文件开关（开 / 关两组；UI 层，mock 后端） ----
     await evaluate(`window.__E2E__.files.push({
@@ -1428,6 +1533,8 @@ async function main() {
     await waitFor(`document.querySelector('[data-testid="add-files"]')`, '重载后应用就绪', 10000);
     await click('[data-testid="add-files"]');
     await waitFor(`document.querySelectorAll('.trow').length === 4`, '重载后添加 4 个文件');
+    await evaluate(`(() => { for (const cb of [...document.querySelectorAll('.trow .checkbox[aria-checked="false"]')]) cb.click(); })()`);
+    await waitFor(`document.querySelectorAll('.trow .checkbox[aria-checked="true"]').length === 4`, '重载后选中 4 个文件');
     // 规则链随设置持久化（重启/重载后保留），这里先清空到已知状态再添加
     const clearBtn = await evaluate(`(() => {
       const btn = [...document.querySelectorAll('.rules .panel-head .btn-icon')].find((el) => (el.getAttribute('title') || '').includes('清空'));
@@ -1921,12 +2028,15 @@ async function main() {
       const panes = document.querySelector('.panes');
       const main = document.querySelector('.main');
       const rules = document.querySelector('.rules');
+      const nav = document.querySelector('.nav');
+      // 窄窗下侧栏是有意收起的抽屉（屏幕外），不能算作控件裁切
+      const navOff = workspace.getAttribute('data-narrow') === 'true' && !nav.classList.contains('open');
       const box = (el) => {
         const r = el.getBoundingClientRect();
         return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
       };
       const controls = [...document.querySelectorAll('button, input, select, textarea, [role="switch"], .switch, .tab, .nav-item, .chip')]
-        .filter((el) => el.getClientRects().length > 0);
+        .filter((el) => el.getClientRects().length > 0 && !(navOff && el.closest('.nav')));
       let clipped = 0;
       const clippedNames = [];
       for (const el of controls) {
@@ -1963,7 +2073,7 @@ async function main() {
         return el.scrollWidth > el.clientWidth + 1 && (style.overflowX === 'auto' || style.overflowX === 'scroll');
       }).map((el) => (el.className || el.tagName) + ':' + el.clientWidth + '/' + el.scrollWidth);
       const truncated = [...document.querySelectorAll('button, .tab, .nav-item, .rule-title, .conflict-kind, .layout-item > span, .side-hint')]
-        .filter((el) => el.getClientRects().length > 0 && el.scrollWidth > el.clientWidth + 1)
+        .filter((el) => el.getClientRects().length > 0 && !(navOff && el.closest('.nav')) && el.scrollWidth > el.clientWidth + 1)
         .map((el) => (el.textContent || '').trim().slice(0, 22));
       const ellipsis = [...document.querySelectorAll('*')]
         .filter((el) => {
@@ -1980,7 +2090,7 @@ async function main() {
         pageOverflow: root.scrollWidth > root.clientWidth + 1,
         page: { client: root.clientWidth, scroll: root.scrollWidth },
         panesDir: getComputedStyle(panes).flexDirection,
-        main: box(main), rules: box(rules), panes: box(panes),
+        main: box(main), rules: rules ? box(rules) : null, panes: box(panes),
         clipped, clippedNames, scrollables, truncated, ellipsis,
       };
     })()`);
@@ -2019,7 +2129,9 @@ async function main() {
         });
         const narrow = m.narrow === 'true';
         let ok = true;
-        if (narrow) {
+        if (view === 'compact') {
+          ok = m.panesDir === 'column' && m.rules === null;
+        } else if (narrow) {
           ok = m.panesDir === 'column' && m.main.y < m.rules.y;
         } else if (view === 'files-left') {
           ok = m.panesDir === 'row' && m.main.x < m.rules.x && Math.abs(m.main.y - m.rules.y) <= 2;
@@ -2048,6 +2160,32 @@ async function main() {
       return { narrow: ws.getAttribute('data-narrow'), view: ws.getAttribute('data-view'), dir: getComputedStyle(document.querySelector('.panes')).flexDirection };
     })()`);
     check('UI', '760 窄窗下并排视图自动收敛为单列（视图设置不变）', narrowState.narrow === 'true' && narrowState.view === 'rules-left' && narrowState.dir === 'column', JSON.stringify(narrowState));
+    // 窄窗侧栏不是 display:none，而是可呼出的抽屉 + 呼出按钮 + 收敛提示
+    const narrowNav = await evaluate(`(() => {
+      const nav = document.querySelector('.nav');
+      const fab = document.querySelector('[data-testid="nav-fab"]');
+      const notice = document.querySelector('[data-testid="narrow-notice"]');
+      return { display: getComputedStyle(nav).display, transform: getComputedStyle(nav).transform, fab: !!fab, notice: notice?.textContent || '' };
+    })()`);
+    check(
+      'UI',
+      '760 窄窗侧栏保留（抽屉式）而非 display:none，并有呼出按钮与「已按窗口宽度收敛」提示',
+      narrowNav.display !== 'none' && narrowNav.transform !== 'none' && narrowNav.fab && narrowNav.notice.length > 0,
+      JSON.stringify(narrowNav),
+    );
+    await click('[data-testid="nav-fab"]');
+    await sleep(350);
+    const drawerOpen = await evaluate(`document.querySelector('.nav').classList.contains('open') && getComputedStyle(document.querySelector('.nav')).transform === 'none'`);
+    check('UI', '窄窗点击呼出按钮 → 侧栏抽屉滑入（可见且功能不丢）', drawerOpen, String(drawerOpen));
+    await click('[data-testid="nav-attrs"]');
+    await waitFor(`document.querySelector('[data-testid="page-attrs"]')`, '抽屉内点击属性入口', 4000);
+    const drawerAfterNav = await evaluate(`(() => ({
+      open: document.querySelector('.nav').classList.contains('open'),
+      page: !!document.querySelector('[data-testid="page-attrs"]'),
+    }))()`);
+    check('UI', '窄窗抽屉内点击入口 → 打开功能页并自动收起抽屉', drawerAfterNav.page && !drawerAfterNav.open, JSON.stringify(drawerAfterNav));
+    await click('[data-testid="page-back"]');
+    await sleep(300);
     await viewport(1440, 900, 1);
     await sleep(500);
     const wideState = await evaluate(`(() => {
@@ -2059,6 +2197,12 @@ async function main() {
     // 高级拖动 + 尺寸持久化
     await setView('rules-top');
     await click('[data-testid="layout-switch"]');
+    await waitFor(`document.querySelector('[data-testid="layout-menu"]')`, '布局菜单', 4000);
+    const layoutLabel = await evaluate(`(() => ({
+      trigger: document.querySelector('[data-testid="layout-switch"]').innerText.trim(),
+      items: [...document.querySelectorAll('[data-testid="layout-menu"] [role="menuitemradio"]')].map((n) => n.innerText.replace(/\\n/g, ' ')),
+    }))()`);
+    check('UI', '布局菜单文字全部本地化（无 layout. 原始 key）', !layoutLabel.trigger.includes('layout.') && !layoutLabel.items.join('|').includes('layout.') && layoutLabel.items.length === 5, JSON.stringify(layoutLabel));
     await waitFor(`document.querySelector('[data-testid="layout-advanced"]')`, '布局高级开关', 6000);
     await click('[data-testid="layout-advanced"]');
     await sleep(300);
@@ -2077,7 +2221,12 @@ async function main() {
     await sleep(400);
     const h2 = await evaluate(`Math.round(document.querySelector('.rules').getBoundingClientRect().height)`);
     const layoutSaved = await evaluate(`JSON.parse(localStorage.getItem('rename-studio.settings')).data.layout`);
-    check('UI', '高级模式拖动分隔条改变规则栏尺寸并写入设置', Math.abs(h2 - h1 - 60) <= 6 && layoutSaved.advanced === true && layoutSaved.stack === h2, JSON.stringify({ h1, h2, layoutSaved }));
+    check(
+      'UI',
+      '高级模式拖动分隔条改变规则栏尺寸并写入该视图独立尺寸',
+      Math.abs(h2 - h1 - 60) <= 6 && layoutSaved.advanced === true && layoutSaved.sizes?.['rules-top'] === h2 && layoutSaved.sizes?.['rules-left'] === 400,
+      JSON.stringify({ h1, h2, sizes: layoutSaved.sizes }),
+    );
     await reloadApp();
     const h3 = await evaluate(`Math.round(document.querySelector('.rules').getBoundingClientRect().height)`);
     const stateAfterReload = await evaluate(`(() => {
@@ -2085,6 +2234,81 @@ async function main() {
       return { view: ws.getAttribute('data-view'), advanced: ws.getAttribute('data-advanced'), h: Math.round(document.querySelector('.rules').getBoundingClientRect().height) };
     })()`);
     check('UI', '重启后保留视图 rules-top 与拖动尺寸', stateAfterReload.view === 'rules-top' && stateAfterReload.advanced === 'true' && Math.abs(h3 - h2) <= 3, JSON.stringify({ before: h2, after: h3, stateAfterReload }));
+
+    // 设置面板的布局分区：preset 缩略图 + 本地化文字 + 独立尺寸 + advanced 关闭时无分隔条
+    await click('[data-testid="open-settings"]');
+    await waitFor(`document.querySelector('[data-testid="layout-settings"]')`, '设置面板布局分区', 6000);
+    const settingsLayout = await evaluate(`(() => ({
+      picks: document.querySelectorAll('[data-testid^="settings-layout-"]').length,
+      thumbs: document.querySelectorAll('[data-testid="layout-settings"] .layout-thumb').length,
+      rawKeys: document.querySelector('[data-testid="layout-settings"]').innerText.includes('layout.'),
+      sizeInput: !!document.querySelector('[data-testid="input-layout-size"]'),
+      reset: !!document.querySelector('[data-testid="layout-reset-sizes"]'),
+    }))()`);
+    check(
+      'UI',
+      '设置面板含布局分区：5 个 preset 缩略示意图 + 尺寸输入 + 重置，且无 layout. 原始 key',
+      settingsLayout.picks === 5 && settingsLayout.thumbs === 5 && !settingsLayout.rawKeys && settingsLayout.sizeInput && settingsLayout.reset,
+      JSON.stringify(settingsLayout),
+    );
+    await click('[data-testid="settings-layout-compact"]');
+    await sleep(300);
+    const settingsView = await evaluate(`document.querySelector('.workspace').getAttribute('data-view')`);
+    check('UI', '设置面板切换 preset → 视图立即切换到 compact', settingsView === 'compact', String(settingsView));
+    await click('[data-testid="settings-layout-files-left"]');
+    await sleep(300);
+    await click('[data-testid="switch-layout-advanced"]');
+    await sleep(300);
+    const advOff = await evaluate(`document.querySelectorAll('[data-testid="layout-splitter"]').length`);
+    check('UI', 'advanced 关闭 → 不再渲染不可拖的分隔条', advOff === 0, String(advOff));
+    await click('[data-testid="switch-layout-advanced"]');
+    await sleep(300);
+    const advOn = await evaluate(`document.querySelectorAll('[data-testid="layout-splitter"]').length`);
+    check('UI', 'advanced 开启 → 分隔条恢复渲染', advOn === 1, String(advOn));
+    await click('.drawer-mask');
+    await sleep(250);
+
+    // compact：规则区默认收起为底部面板，一键展开并持久化
+    await setView('compact');
+    const compactClosed = await evaluate(`(() => ({
+      view: document.querySelector('.workspace').getAttribute('data-view'),
+      rules: !!document.querySelector('.panes > .rules'),
+      toggle: !!document.querySelector('[data-testid="compact-toggle"]'),
+      expanded: document.querySelector('[data-testid="compact-toggle"]')?.getAttribute('aria-expanded') || '',
+    }))()`);
+    check('UI', 'compact 默认收起：只渲染紧凑条，不渲染规则区', compactClosed.view === 'compact' && !compactClosed.rules && compactClosed.toggle && compactClosed.expanded === 'false', JSON.stringify(compactClosed));
+    await click('[data-testid="compact-toggle"]');
+    await waitFor(`document.querySelector('.panes > .rules')`, '紧凑视图展开规则区', 4000);
+    await sleep(350);
+    const compactOpenState = await evaluate(`(() => {
+      const p = document.querySelector('.panes');
+      const r = document.querySelector('.panes > .rules');
+      const cs = getComputedStyle(r);
+      return {
+        expanded: document.querySelector('[data-testid="compact-toggle"]').getAttribute('aria-expanded'),
+        ruleH: Math.round(r.getBoundingClientRect().height),
+        panesH: Math.round(p.getBoundingClientRect().height),
+        flexBasis: cs.flexBasis,
+        rulesBelowMain: r.getBoundingClientRect().top > document.querySelector('.panes > .main').getBoundingClientRect().top,
+      };
+    })()`);
+    check(
+      'UI',
+      'compact 展开 → 规则区是底部面板（不再固定 260px），高度按窗口比例伸缩',
+      compactOpenState.expanded === 'true'
+        && compactOpenState.ruleH > 200
+        && compactOpenState.ruleH < compactOpenState.panesH * 0.6
+        && compactOpenState.flexBasis === 'auto'
+        && compactOpenState.rulesBelowMain,
+      JSON.stringify(compactOpenState),
+    );
+    await reloadApp();
+    const compactPersist = await evaluate(`(() => ({
+      view: document.querySelector('.workspace').getAttribute('data-view'),
+      rules: !!document.querySelector('.panes > .rules'),
+      expanded: document.querySelector('[data-testid="compact-toggle"]')?.getAttribute('aria-expanded') || '',
+    }))()`);
+    check('UI', '重启后保留 compact 展开状态（规则区仍展开）', compactPersist.view === 'compact' && compactPersist.rules && compactPersist.expanded === 'true', JSON.stringify(compactPersist));
 
     // --- 3) 规则冲突：四类命中 + 不命中 + 合并 + 跳转 ---
     await setView('files-left');
@@ -2569,6 +2793,154 @@ async function main() {
     await click('[data-testid="snapshot-close"]');
     await sleep(200);
 
+    // ---- 图片信息 → EXIF 清除：预览 → 分组清除 → 回读 → 还原 ----
+    await click('[data-testid="nav-image"]');
+    await waitFor(`document.querySelector('[data-testid="page-image"]')`, '图片功能页', 5000);
+    await click('[data-testid="image-tab-exif"]');
+    await waitFor(`document.querySelector('[data-testid="exif-panel"]')`, 'EXIF 清除面板', 4000);
+    const exifFixturePath = await evaluate(`(() => {
+      const jpg = window.__E2E__.files.find((f) => f.path.toLowerCase().endsWith('.jpg')).path;
+      window.__E2E__.exif = {
+        [jpg]: {
+          format: 'JPEG', orientation: 6, icc: true, xmp: true,
+          groups: [
+            { id: 'gps', label: 'GPS 定位', items: ['GPSLatitude=31.230400N', 'GPSLongitude=121.473700E'] },
+            { id: 'camera', label: '相机与镜头', items: ['Make=Canon', 'Model=EOS R6', 'LensModel=RF24-70mm F2.8'] },
+            { id: 'time', label: '拍摄时间', items: ['DateTimeOriginal=2024:05:01 10:20:30'] },
+            { id: 'thumbnail', label: '缩略图', items: ['JPEGInterchangeFormat=1234'] },
+          ],
+        },
+      };
+      return jpg;
+    })()`);
+    await click('[data-testid="exif-preview"]');
+    await waitFor(`document.querySelector('[data-testid="exif-file-0"]')`, 'EXIF 预览结果', 5000);
+    const exifPreview = await evaluate(`(() => ({
+      groups: [...document.querySelectorAll('[data-testid^="exif-group-0-"]')].map((n) => n.getAttribute('data-testid')),
+      orientation: document.querySelector('[data-testid="exif-orientation-0"]')?.textContent || '',
+      icc: document.querySelector('[data-testid="exif-icc-0"]')?.textContent || '',
+      xmp: document.querySelector('[data-testid="exif-xmp-badge-0"]')?.textContent || '',
+      protect: document.querySelector('[data-testid="exif-protect"]')?.textContent || '',
+    }))()`);
+    check(
+      'UI',
+      'EXIF 预览按文件列出实际存在项，并明确标注 Orientation / ICC / XMP 的处理方式',
+      exifPreview.groups.length === 4 && exifPreview.orientation.includes('Orientation') && exifPreview.icc.length > 0 && exifPreview.xmp.length > 0 && exifPreview.protect.includes('ICC'),
+      JSON.stringify(exifPreview),
+    );
+    await click('[data-testid="exif-scope-gps"]');
+    await sleep(250);
+    const applyDisabled = await evaluate(`document.querySelector('[data-testid="exif-apply"]').disabled`);
+    check('UI', '改变清除范围后预览失效，执行按钮回到禁用（必须先重新预览）', applyDisabled === true, String(applyDisabled));
+    await click('[data-testid="exif-preview"]');
+    await waitFor(`document.querySelector('[data-testid="exif-remove-0"]')`, 'EXIF 移除清单', 4000);
+    const removeList = await evaluate(`document.querySelector('[data-testid="exif-remove-0"]').textContent`);
+    check('UI', '勾选 GPS → 预览按文件列出将移除的具体项（GPSLatitude / GPSLongitude）', removeList.includes('GPSLatitude') && removeList.includes('GPSLongitude'), removeList.slice(0, 120));
+    await click('[data-testid="exif-apply"]');
+    await waitFor(`document.querySelector('[data-testid="exif-results"]')`, 'EXIF 清除结果', 6000);
+    await waitFor(`!document.querySelector('[data-testid="exif-group-0-gps"]')`, 'GPS 组从预览中消失', 6000);
+    const exifResult = await evaluate(`(() => ({
+      ok: !!document.querySelector('[data-testid="exif-result-0"].ok'),
+      meta: document.querySelector('[data-testid="exif-result-meta-0"]')?.textContent || '',
+      restore: !!document.querySelector('[data-testid="exif-restore-0"]'),
+      gpsGone: !document.querySelector('[data-testid="exif-group-0-gps"]'),
+      groupsAfter: window.__E2E__.exif[Object.keys(window.__E2E__.exif)[0]].groups.map((g) => g.id),
+      orientationAfter: window.__E2E__.exif[Object.keys(window.__E2E__.exif)[0]].orientation,
+      iccAfter: window.__E2E__.exif[Object.keys(window.__E2E__.exif)[0]].icc,
+    }))()`);
+    check(
+      'UI',
+      'EXIF 清除后回读：GPS 组消失，Orientation 与 ICC 保留，结果含像素比对与还原按钮',
+      exifResult.ok
+        && exifResult.gpsGone
+        && !exifResult.groupsAfter.includes('gps')
+        && exifResult.groupsAfter.includes('camera')
+        && exifResult.orientationAfter === 6
+        && exifResult.iccAfter === true
+        && exifResult.meta.includes('Orientation')
+        && exifResult.restore,
+      JSON.stringify(exifResult),
+    );
+    await click('[data-testid="exif-restore-0"]');
+    await sleep(400);
+    const exifRestoreCall = await evaluate(`window.__E2E__.calls.some((c) => c.cmd === 'meta_restore_backup')`);
+    check('UI', 'EXIF 清除结果提供还原按钮，并走已有备份还原通路（meta_restore_backup）', exifRestoreCall, String(exifRestoreCall));
+    await click('[data-testid="page-back"]');
+    await sleep(250);
+
+    // ---- 文本编码：探测未知编码 → 强制手动指定源编码 → 原地覆盖 + 回读校验 + 还原 ----
+    const txtPath = await evaluate(`(() => {
+      const p = 'D:\\\\e2e\\\\旅行\\\\编码样本.txt';
+      window.__E2E__.files.push({ path: p, size: 128, modified: Date.now(), readonly: false, hidden: false, creation: Date.now() });
+      window.__E2E__.text = { [p]: { encoding: 'gb18030', encodingLabel: 'GB18030（待确认）', confirmed: false, bytes: 128, chars: 42, lines: 3, preview: 'E2E 编码样本', warnings: ['编码未识别，需手动指定源编码'] } };
+      return p;
+    })()`);
+    await click('[data-testid="nav-text"]');
+    await waitFor(`document.querySelector('[data-testid="page-text"]')`, '文本编码功能页', 5000);
+    const textEmpty = await evaluate(`!!document.querySelector('[data-testid="text-empty"]') && !!document.querySelector('[data-testid="page-empty"]')`);
+    check('UI', '文本编码页在无可用文件时显示自带空态（引导选择文件）', textEmpty === true, String(textEmpty));
+    await click('[data-testid="page-empty-files"]');
+    await waitFor(`document.querySelector('[data-testid="text-target-0"]')`, '选择文件后出现文本目标', 8000);
+    await waitFor(`document.querySelector('[data-testid="text-confirmed"]')`, '文本编码探测完成', 8000);
+    const textDetectState = await evaluate(`(() => {
+      const sel = document.querySelector('[data-testid="text-source"]');
+      return {
+        confirmed: document.querySelector('[data-testid="text-confirmed"]')?.textContent || '',
+        warning: document.querySelector('[data-testid="text-warning"]')?.textContent || '',
+        sourceOptions: [...sel.options].map((o) => o.textContent),
+      };
+    })()`);
+    check(
+      'UI',
+      '非 UTF-8/未确认编码 → 显式提示「需手动指定源编码」且源编码下拉给出 5 种可选',
+      textDetectState.warning.includes('手动指定') && textDetectState.sourceOptions.includes('GB18030') && textDetectState.sourceOptions.includes('UTF-16 BE') && !textDetectState.sourceOptions.includes('utf8') && !textDetectState.sourceOptions.includes('gb18030'),
+      JSON.stringify(textDetectState),
+    );
+    await click('[data-testid="text-apply"]');
+    await sleep(350);
+    const textBlocked = await evaluate(`({ hasResult: !!document.querySelector('[data-testid="text-result"]'), toast: [...document.querySelectorAll('.toast')].map((n) => n.textContent).join('|') })`);
+    check('UI', '源编码未确认且保持「自动」时执行被阻止并提示手动指定（不静默按 UTF-8 写）', !textBlocked.hasResult && textBlocked.toast.includes('手动指定'), JSON.stringify(textBlocked));
+    await evaluate(`(() => {
+      const setSel = (sel, value) => {
+        const proto = Object.getPrototypeOf(sel);
+        const setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+        setter.call(sel, value);
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      setSel(document.querySelector('[data-testid="text-source"]'), 'gb18030');
+      setSel(document.querySelector('[data-testid="text-target"]'), 'utf8bom');
+      return true;
+    })()`);
+    await sleep(300);
+    await click('[data-testid="text-apply"]');
+    await waitFor(`document.querySelector('[data-testid="text-result"]')`, '文本编码写入结果', 6000);
+    const textResultState = await evaluate(`(() => ({
+      ok: !!document.querySelector('[data-testid="text-result"].ok'),
+      verified: !!document.querySelector('[data-testid="text-verified"]'),
+      stats: document.querySelector('[data-testid="text-result-stats"]')?.textContent || '',
+      restore: !!document.querySelector('[data-testid="text-restore"]'),
+      call: window.__E2E__.calls.filter((c) => c.cmd === 'text_save').map((c) => c.args?.req || null).pop(),
+    }))()`);
+    check(
+      'UI-triggered mock',
+      '文本编码原地覆盖：请求携带手动源编码 GB18030、目标 UTF-8 BOM，结果含回读校验与备份还原入口',
+      textResultState.ok
+        && textResultState.verified
+        && textResultState.restore
+        && textResultState.stats.includes('编码样本')
+        && textResultState.call?.sourceEncoding === 'gb18030'
+        && textResultState.call?.targetEncoding === 'utf8bom'
+        && textResultState.call?.saveAs === null,
+      JSON.stringify(textResultState),
+    );
+    const restoreCallsBeforeText = await evaluate(`window.__E2E__.calls.filter((c) => c.cmd === 'meta_restore_backup').length`);
+    await click('[data-testid="text-restore"]');
+    await sleep(400);
+    const restoreCallsAfterText = await evaluate(`window.__E2E__.calls.filter((c) => c.cmd === 'meta_restore_backup').length`);
+    check('UI', '文本编码结果提供「还原」按钮并走已有备份还原通路', restoreCallsAfterText === restoreCallsBeforeText + 1, JSON.stringify({ restoreCallsBeforeText, restoreCallsAfterText }));
+    await click('[data-testid="page-back"]');
+    await sleep(250);
+
     cdp.close();
   } finally {
     killTree(child.pid);
@@ -2663,7 +3035,7 @@ ${perf.map(line).join('\n')}
 ## 层级别说明
 
 - **UI 层已验证**：无头浏览器渲染真实构建产物，交互事件、DOM 状态、主题、列设置、九类列表页签、拖放高亮/计数、弹窗与截图均来自真实前端代码。
-- **mock 后端**：\`scan_paths / apply_plan / undo_batch / read_metadata / read_metadata_batch / read_times / read_attrs / apply_time / apply_attrs / apply_move / write_text_atomic / plugin:event|listen\` 为内存实现，用于跑通交互路径；真实磁盘行为另见 \`src-tauri/renomio-core/tests/\` 的 Rust 测试（含 \`ops_fs.rs\`）。
+- **mock 后端**：\`scan_paths / apply_plan / undo_batch / read_metadata / read_metadata_batch / read_times / read_attrs / apply_time / apply_attrs / apply_move / meta_read / meta_edit / meta_restore_backup / exif_inventory / exif_clear / text_detect / text_save / write_text_atomic / plugin:event|listen\` 为内存实现，用于跑通交互路径；EXIF 与文本样本由测试显式注入（\`window.__E2E__.exif\` / \`text\`），mock 不凭空编造；真实磁盘行为另见 \`src-tauri/renomio-core/tests/\` 的 Rust 测试（含 \`ops_fs.rs\`）。
 - **真机已验证（用户手工确认）**：真实窗口的右上角关闭、最小化、最大化在 Windows 真机上由用户在 2026-11-04 手工确认正常；这是人工确认，**不是本脚本的自动断言**。脚本仍只验证「点击后确实调用了 \`plugin:window|*\`」。
 - **未验证（本脚本不覆盖）**：真实 Explorer 拖放（需用户从资源管理器实际拖入一次）、Tauri IPC 序列化、系统文件对话框、NSIS 安装器界面、macOS/Linux 平台差异。需要启动 GUI 或有头环境，按项目约定不在此处自动执行。
 

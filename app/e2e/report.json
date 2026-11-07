@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-07T07:13:36.054Z",
+  "generatedAt": "2026-11-07T12:05:58.644Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
-  "passed": 195,
+  "passed": 227,
   "failed": 0,
   "results": [
     {
@@ -142,13 +142,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-07 15:11 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-07 20:04 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-07 15:11 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-07 20:04 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -194,6 +194,12 @@
     },
     {
       "layer": "UI",
+      "name": "跟随系统主题：settings.theme=system 且系统配色变化时实时跟随",
+      "ok": true,
+      "detail": "{\"storedTheme\":\"system\",\"sysDark\":\"dark\",\"sysLight\":\"light\"}"
+    },
+    {
+      "layer": "UI",
       "name": "策略面板默认值（255 / 阻止 / 阻止 / 未命名 / 关）",
       "ok": true,
       "detail": "{\"max\":\"255\",\"long\":\"block\",\"empty\":\"block\",\"fallback\":\"未命名\",\"fallbackDisabled\":true,\"skip\":\"false\"}"
@@ -208,7 +214,7 @@
       "layer": "UI",
       "name": "元数据弹窗展示图片尺寸与只读标识",
       "ok": true,
-      "detail": "只读元数据只读旧照片 001.jpg · D:\\e2e\\旅行\\旧照片 001.jpg图片JPEG 图像尺寸4032 × 3024 px相机型号DemoCam X100拍摄时间2025-06-18 09:12:33方向正常本面板仅读取展示，不"
+      "detail": "只读元数据只读旧照片 001.jpg · D:\\e2e\\旅行\\旧照片 001.jpg图片JPEG 图像尺寸1920 × 1080 px文件大小2.3 MB未发现 EXIF 信息（可能是截图、导出图或已剥离元数据）本面板仅读取展示，不会修改文"
     },
     {
       "layer": "UI",
@@ -298,7 +304,7 @@
       "layer": "UI",
       "name": "拖动表头调整列宽并持久化",
       "ok": true,
-      "detail": "266→306px, stored=306"
+      "detail": "285→325px, stored=325"
     },
     {
       "layer": "UI",
@@ -334,7 +340,7 @@
       "layer": "UI",
       "name": "时间修改 → 逐条结果面板 + 可撤销提示",
       "ok": true,
-      "detail": "4 成功 · 0 跳过 · 0 失败批次 mock-batch-6 已写入日志，可在「操作记录」撤销关闭"
+      "detail": "4 成功 · 0 跳过 · 0 失败批次 mock-batch-6 已写入日志，可在「操作记录」撤销撤销本次关闭"
     },
     {
       "layer": "UI-triggered mock",
@@ -347,6 +353,66 @@
       "name": "时间修改可撤销 → mtime 回到原值",
       "ok": true,
       "detail": "[1735689600000,1735776000000,1735862400000,1735952400000]"
+    },
+    {
+      "layer": "UI",
+      "name": "侧栏 nav-music → 打开完整功能页 page-music（选择区 + 计数 + 返回，不是弹窗）",
+      "ok": true,
+      "detail": "{\"active\":true,\"current\":\"true\",\"select\":true,\"count\":\"已选 0 / 0\",\"back\":true,\"empty\":true}"
+    },
+    {
+      "layer": "UI",
+      "name": "侧栏 nav-image → 打开完整功能页 page-image（选择区 + 计数 + 返回，不是弹窗）",
+      "ok": true,
+      "detail": "{\"active\":true,\"current\":\"true\",\"select\":true,\"count\":\"已选 4 / 4\",\"back\":true,\"empty\":false}"
+    },
+    {
+      "layer": "UI",
+      "name": "侧栏 nav-office → 打开完整功能页 page-office（选择区 + 计数 + 返回，不是弹窗）",
+      "ok": true,
+      "detail": "{\"active\":true,\"current\":\"true\",\"select\":true,\"count\":\"已选 0 / 0\",\"back\":true,\"empty\":true}"
+    },
+    {
+      "layer": "UI",
+      "name": "侧栏 nav-text → 打开完整功能页 page-text（选择区 + 计数 + 返回，不是弹窗）",
+      "ok": true,
+      "detail": "{\"active\":true,\"current\":\"true\",\"select\":true,\"count\":\"已选 0 / 0\",\"back\":true,\"empty\":true}"
+    },
+    {
+      "layer": "UI",
+      "name": "侧栏 nav-attrs → 打开完整功能页 page-attrs（选择区 + 计数 + 返回，不是弹窗）",
+      "ok": true,
+      "detail": "{\"active\":true,\"current\":\"true\",\"select\":true,\"count\":\"已选 4 / 4\",\"back\":true,\"empty\":false}"
+    },
+    {
+      "layer": "UI",
+      "name": "侧栏 nav-times → 打开完整功能页 page-times（选择区 + 计数 + 返回，不是弹窗）",
+      "ok": true,
+      "detail": "{\"active\":true,\"current\":\"true\",\"select\":true,\"count\":\"已选 4 / 4\",\"back\":true,\"empty\":false}"
+    },
+    {
+      "layer": "UI",
+      "name": "侧栏 nav-organize → 打开完整功能页 page-organize（选择区 + 计数 + 返回，不是弹窗）",
+      "ok": true,
+      "detail": "{\"active\":true,\"current\":\"true\",\"select\":true,\"count\":\"已选 4 / 4\",\"back\":true,\"empty\":false}"
+    },
+    {
+      "layer": "UI",
+      "name": "元数据分组标题可点击折叠（aria-expanded=false 且条目隐藏）",
+      "ok": true,
+      "detail": "{\"expanded\":\"false\",\"visibleMetaItems\":0}"
+    },
+    {
+      "layer": "UI",
+      "name": "列表未勾选 → 功能页自带全选与计数（默认 4/4），且不改写列表勾选状态",
+      "ok": true,
+      "detail": "{\"selectedBefore\":0,\"autoPanel\":{\"count\":\"已选 4 / 4\",\"rows\":4,\"defaultNote\":true,\"selected\":0}}"
+    },
+    {
+      "layer": "UI",
+      "name": "图片页签的「编辑元数据」入口打开真实编辑弹窗",
+      "ok": true,
+      "detail": "{\"fields\":true,\"unsupported\":false,\"hasApply\":true}"
     },
     {
       "layer": "UI",
@@ -502,37 +568,37 @@
       "layer": "UI",
       "name": "页签「music」渲染表格 / 表头 / 数据行且无空壳",
       "ok": true,
-      "detail": "rows=1, th=11, note=false, action=false"
+      "detail": "rows=1, th=11, note=true, action=true"
     },
     {
       "layer": "UI",
       "name": "页签「photo」渲染表格 / 表头 / 数据行且无空壳",
       "ok": true,
-      "detail": "rows=4, th=12, note=true, action=false"
+      "detail": "rows=4, th=12, note=true, action=true"
     },
     {
       "layer": "UI",
       "name": "页签「image」渲染表格 / 表头 / 数据行且无空壳",
       "ok": true,
-      "detail": "rows=4, th=8, note=true, action=false"
+      "detail": "rows=4, th=8, note=true, action=true"
     },
     {
       "layer": "UI",
       "name": "页签「office」渲染表格 / 表头 / 数据行且无空壳",
       "ok": true,
-      "detail": "rows=1, th=12, note=true, action=false"
+      "detail": "rows=1, th=12, note=true, action=true"
     },
     {
       "layer": "UI",
       "name": "页签「pdf」渲染表格 / 表头 / 数据行且无空壳",
       "ok": true,
-      "detail": "rows=1, th=9, note=false, action=false"
+      "detail": "rows=1, th=9, note=true, action=true"
     },
     {
       "layer": "UI",
       "name": "页签「text」渲染表格 / 表头 / 数据行且无空壳",
       "ok": true,
-      "detail": "rows=2, th=6, note=true, action=false"
+      "detail": "rows=2, th=6, note=true, action=true"
     },
     {
       "layer": "UI",
@@ -604,7 +670,7 @@
       "layer": "UI",
       "name": "1100×640 @150% DPI 外层无横向溢出",
       "ok": true,
-      "detail": "{\"innerWidth\":1100,\"scrollWidth\":1100,\"innerHeight\":640,\"scrollHeight\":640,\"actionBottom\":610,\"actionRight\":1100,\"toolbarBottom\":93,\"dpr\":1.5,\"rulesVisible\":true}"
+      "detail": "{\"innerWidth\":1100,\"scrollWidth\":1100,\"innerHeight\":640,\"scrollHeight\":640,\"actionBottom\":610,\"actionRight\":1100,\"toolbarBottom\":131,\"dpr\":1.5,\"rulesVisible\":true}"
     },
     {
       "layer": "UI",
@@ -616,19 +682,19 @@
       "layer": "UI",
       "name": "1100×640 @150% DPI 操作条与工具栏未被裁切",
       "ok": true,
-      "detail": "{\"innerWidth\":1100,\"scrollWidth\":1100,\"innerHeight\":640,\"scrollHeight\":640,\"actionBottom\":610,\"actionRight\":1100,\"toolbarBottom\":93,\"dpr\":1.5,\"rulesVisible\":true}"
+      "detail": "{\"innerWidth\":1100,\"scrollWidth\":1100,\"innerHeight\":640,\"scrollHeight\":640,\"actionBottom\":610,\"actionRight\":1100,\"toolbarBottom\":131,\"dpr\":1.5,\"rulesVisible\":true}"
     },
     {
       "layer": "UI",
       "name": "1100×640 @150% DPI：九类页签不撑破页面，页签条与数据行可读",
       "ok": true,
-      "detail": "{\"innerWidth\":1100,\"scrollWidth\":1100,\"innerHeight\":640,\"tabsClient\":1085,\"tabsScroll\":1085,\"tabsDir\":\"row\",\"tabsWrap\":\"nowrap\",\"tabRect\":{\"x\":0,\"w\":1100},\"mainW\":1100,\"rulesW\":1100,\"navW\":0,\"panesW\":1100,\"panesX\":0,\"rulesX\":0,\"panesKids\":[\"main:1100@0\",\"splitter :0@0\",\"rules:1100@0\"],\"viewBottom\":362,\"rowHeight\":43}"
+      "detail": "{\"innerWidth\":1100,\"scrollWidth\":1100,\"innerHeight\":640,\"tabsClient\":1085,\"tabsScroll\":1085,\"tabsDir\":\"row\",\"tabsWrap\":\"nowrap\",\"tabRect\":{\"x\":0,\"w\":1100},\"mainW\":1100,\"rulesW\":1100,\"navW\":262,\"panesW\":1100,\"panesX\":0,\"rulesX\":0,\"panesKids\":[\"main:1100@0\",\"rules:1100@0\"],\"viewBottom\":362,\"rowHeight\":43}"
     },
     {
       "layer": "UI-triggered mock",
       "name": "交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/批量元数据/事件/写文件）",
       "ok": true,
-      "detail": "startup_report,load_rule_history,plugin:event|listen,env_info,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_times,apply_time,read_attrs,apply_attrs,apply_move,read_metadata_batch"
+      "detail": "load_rule_history,startup_report,plugin:event|listen,env_info,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_times,apply_time,meta_read,meta_capabilities,read_attrs,read_metadata_batch,apply_attrs,apply_move"
     },
     {
       "layer": "UI-triggered mock",
@@ -932,21 +998,87 @@
     },
     {
       "layer": "UI",
+      "name": "760 窄窗侧栏保留（抽屉式）而非 display:none，并有呼出按钮与「已按窗口宽度收敛」提示",
+      "ok": true,
+      "detail": "{\"display\":\"flex\",\"transform\":\"matrix(1, 0, 0, 1, -262, 0)\",\"fab\":true,\"notice\":\"Narrow window: the sidebar collapsed into a drawer. Click the top-left button to open it.\"}"
+    },
+    {
+      "layer": "UI",
+      "name": "窄窗点击呼出按钮 → 侧栏抽屉滑入（可见且功能不丢）",
+      "ok": true,
+      "detail": "true"
+    },
+    {
+      "layer": "UI",
+      "name": "窄窗抽屉内点击入口 → 打开功能页并自动收起抽屉",
+      "ok": true,
+      "detail": "{\"open\":false,\"page\":true}"
+    },
+    {
+      "layer": "UI",
       "name": "恢复宽窗后回落到用户视图 rules-left（并排）",
       "ok": true,
       "detail": "{\"narrow\":\"false\",\"view\":\"rules-left\",\"dir\":\"row\"}"
     },
     {
       "layer": "UI",
-      "name": "高级模式拖动分隔条改变规则栏尺寸并写入设置",
+      "name": "布局菜单文字全部本地化（无 layout. 原始 key）",
       "ok": true,
-      "detail": "{\"h1\":320,\"h2\":380,\"layoutSaved\":{\"view\":\"rules-top\",\"advanced\":true,\"side\":400,\"stack\":380}}"
+      "detail": "{\"trigger\":\"Stacked · rules on top\",\"items\":[\"Side by side · files left\",\"Side by side · rules left\",\"Stacked · files on top\",\"Stacked · rules on top\",\"Compact single column\"]}"
+    },
+    {
+      "layer": "UI",
+      "name": "高级模式拖动分隔条改变规则栏尺寸并写入该视图独立尺寸",
+      "ok": true,
+      "detail": "{\"h1\":320,\"h2\":380,\"sizes\":{\"files-left\":400,\"rules-left\":400,\"files-top\":320,\"rules-top\":380}}"
     },
     {
       "layer": "UI",
       "name": "重启后保留视图 rules-top 与拖动尺寸",
       "ok": true,
       "detail": "{\"before\":380,\"after\":380,\"stateAfterReload\":{\"view\":\"rules-top\",\"advanced\":\"true\",\"h\":380}}"
+    },
+    {
+      "layer": "UI",
+      "name": "设置面板含布局分区：5 个 preset 缩略示意图 + 尺寸输入 + 重置，且无 layout. 原始 key",
+      "ok": true,
+      "detail": "{\"picks\":5,\"thumbs\":5,\"rawKeys\":false,\"sizeInput\":true,\"reset\":true}"
+    },
+    {
+      "layer": "UI",
+      "name": "设置面板切换 preset → 视图立即切换到 compact",
+      "ok": true,
+      "detail": "compact"
+    },
+    {
+      "layer": "UI",
+      "name": "advanced 关闭 → 不再渲染不可拖的分隔条",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "layer": "UI",
+      "name": "advanced 开启 → 分隔条恢复渲染",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "layer": "UI",
+      "name": "compact 默认收起：只渲染紧凑条，不渲染规则区",
+      "ok": true,
+      "detail": "{\"view\":\"compact\",\"rules\":false,\"toggle\":true,\"expanded\":\"false\"}"
+    },
+    {
+      "layer": "UI",
+      "name": "compact 展开 → 规则区是底部面板（不再固定 260px），高度按窗口比例伸缩",
+      "ok": true,
+      "detail": "{\"expanded\":\"true\",\"ruleH\":378,\"panesH\":677,\"flexBasis\":\"auto\",\"rulesBelowMain\":true}"
+    },
+    {
+      "layer": "UI",
+      "name": "重启后保留 compact 展开状态（规则区仍展开）",
+      "ok": true,
+      "detail": "{\"view\":\"compact\",\"rules\":true,\"expanded\":\"true\"}"
     },
     {
       "layer": "UI",
@@ -970,7 +1102,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmw62g5ur1\",\"jumpState\":{\"openId\":\"rmw62g5ur1\",\"detail\":1,\"focused\":\"rmw62g5ur1\"}}"
+      "detail": "{\"firstRuleId\":\"rmw6cwxql1\",\"jumpState\":{\"openId\":\"rmw6cwxql1\",\"detail\":1,\"focused\":\"rmw6cwxql1\"}}"
     },
     {
       "layer": "UI",
@@ -1036,7 +1168,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verified写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1794035564677.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1794053143353.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -1102,7 +1234,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/7 15:12:513 条 · 仅映射预览还原删除"
+      "detail": "2026/11/7 20:05:483 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -1162,7 +1294,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-07 15:12 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-07 20:05 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",
@@ -1175,6 +1307,66 @@
       "name": "删除快照 → 列表与后端同步只剩 1 条",
       "ok": true,
       "detail": "1"
+    },
+    {
+      "layer": "UI",
+      "name": "EXIF 预览按文件列出实际存在项，并明确标注 Orientation / ICC / XMP 的处理方式",
+      "ok": true,
+      "detail": "{\"groups\":[\"exif-group-0-gps\",\"exif-group-0-camera\",\"exif-group-0-time\",\"exif-group-0-thumbnail\"],\"orientation\":\"Orientation=6 · 保留\",\"icc\":\"ICC 保留\",\"xmp\":\"XMP 保留\",\"protect\":\"保护项：Orientation 方向标记保留（照片不会躺倒）；ICC 色彩配置保留（不偏色）。\"}"
+    },
+    {
+      "layer": "UI",
+      "name": "改变清除范围后预览失效，执行按钮回到禁用（必须先重新预览）",
+      "ok": true,
+      "detail": "true"
+    },
+    {
+      "layer": "UI",
+      "name": "勾选 GPS → 预览按文件列出将移除的具体项（GPSLatitude / GPSLongitude）",
+      "ok": true,
+      "detail": "本次移除：GPS 定位（GPSLatitude=31.230400N、GPSLongitude=121.473700E）"
+    },
+    {
+      "layer": "UI",
+      "name": "EXIF 清除后回读：GPS 组消失，Orientation 与 ICC 保留，结果含像素比对与还原按钮",
+      "ok": true,
+      "detail": "{\"ok\":true,\"meta\":\"Orientation 6 → 6 · ICC 保留 · 像素 未改动\",\"restore\":true,\"gpsGone\":true,\"groupsAfter\":[\"camera\",\"time\",\"thumbnail\"],\"orientationAfter\":6,\"iccAfter\":true}"
+    },
+    {
+      "layer": "UI",
+      "name": "EXIF 清除结果提供还原按钮，并走已有备份还原通路（meta_restore_backup）",
+      "ok": true,
+      "detail": "true"
+    },
+    {
+      "layer": "UI",
+      "name": "文本编码页在无可用文件时显示自带空态（引导选择文件）",
+      "ok": true,
+      "detail": "true"
+    },
+    {
+      "layer": "UI",
+      "name": "非 UTF-8/未确认编码 → 显式提示「需手动指定源编码」且源编码下拉给出 5 种可选",
+      "ok": true,
+      "detail": "{\"confirmed\":\"未确认\",\"warning\":\"编码未识别，需手动指定源编码\",\"sourceOptions\":[\"自动检测\",\"UTF-8\",\"UTF-8 with BOM\",\"GB18030\",\"UTF-16 LE\",\"UTF-16 BE\"]}"
+    },
+    {
+      "layer": "UI",
+      "name": "源编码未确认且保持「自动」时执行被阻止并提示手动指定（不静默按 UTF-8 写）",
+      "ok": true,
+      "detail": "{\"hasResult\":false,\"toast\":\"源编码未确认：请在下拉框手动指定源编码\"}"
+    },
+    {
+      "layer": "UI-triggered mock",
+      "name": "文本编码原地覆盖：请求携带手动源编码 GB18030、目标 UTF-8 BOM，结果含回读校验与备份还原入口",
+      "ok": true,
+      "detail": "{\"ok\":true,\"verified\":true,\"stats\":\"128 → 128 字节 · D:\\\\e2e\\\\旅行\\\\编码样本.txt\",\"restore\":true,\"call\":{\"path\":\"D:\\\\e2e\\\\旅行\\\\编码样本.txt\",\"targetEncoding\":\"utf8bom\",\"sourceEncoding\":\"gb18030\",\"saveAs\":null,\"backup\":true}}"
+    },
+    {
+      "layer": "UI",
+      "name": "文本编码结果提供「还原」按钮并走已有备份还原通路",
+      "ok": true,
+      "detail": "{\"restoreCallsBeforeText\":1,\"restoreCallsAfterText\":2}"
     }
   ],
   "screenshots": [
