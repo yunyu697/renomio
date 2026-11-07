@@ -29,6 +29,16 @@ function selectedFiles(entries: Entry[]): Entry[] {
 
 function ResultPanel({ outcome, onClose }: { outcome: OpsOutcome; onClose: () => void }) {
   const { t } = useTranslation();
+  const undoUntil = useApp((s) => s.undoUntil);
+  const [undoing, setUndoing] = useState(false);
+  const undo = async () => {
+    setUndoing(true);
+    try {
+      await undoUntil(outcome.batch.id);
+    } finally {
+      setUndoing(false);
+    }
+  };
   return (
     <div className="ops-result" data-testid="ops-result">
       <div className="ops-result-head">
@@ -38,6 +48,16 @@ function ResultPanel({ outcome, onClose }: { outcome: OpsOutcome; onClose: () =>
         <span className="foot-note" style={{ marginLeft: 8 }}>
           {t('ops.batchNote', { batch: outcome.batch.id })}
         </span>
+        <button
+          className="mini"
+          type="button"
+          data-testid="ops-undo"
+          disabled={undoing}
+          style={{ marginLeft: 8 }}
+          onClick={() => void undo()}
+        >
+          <Icon name="undo" size={12} />{undoing ? t('ops.undoing') : t('ops.undoThis')}
+        </button>
       </div>
       {(outcome.failed.length > 0 || outcome.skipped.length > 0) && (
         <div className="ops-result-list" data-testid="ops-result-failed">
@@ -76,14 +96,12 @@ function DialogHead({ title, subtitle }: { title: string; subtitle: string }) {
   );
 }
 
-function TimeBody({ onClose }: { onClose: () => void }) {
+export function TimeBody({ onClose, targets }: { onClose: () => void; targets: Entry[] }) {
   const { t } = useTranslation();
-  const entries = useApp((s) => s.entries);
   const env = useApp((s) => s.env);
   const finishOps = useApp((s) => s.finishOps);
   const showToast = useApp((s) => s.showToast);
 
-  const targets = useMemo(() => selectedFiles(entries), [entries]);
   const [info, setInfo] = useState<Record<string, TimeInfo>>({});
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<'shift' | 'fixed' | 'random'>('shift');
@@ -118,7 +136,7 @@ function TimeBody({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [targets]);
 
   const deltaMs = mode === 'shift' ? (Number(amount) || 0) * UNIT_MS[unit] : 0;
   const fixedMs = mode === 'fixed' && fixed ? new Date(fixed).getTime() : 0;
@@ -383,14 +401,12 @@ function TimeBody({ onClose }: { onClose: () => void }) {
 
 type AttrChoice = 'keep' | 'set' | 'clear' | 'invert';
 
-function AttrBody({ onClose }: { onClose: () => void }) {
+export function AttrBody({ onClose, targets }: { onClose: () => void; targets: Entry[] }) {
   const { t } = useTranslation();
-  const entries = useApp((s) => s.entries);
   const env = useApp((s) => s.env);
   const finishOps = useApp((s) => s.finishOps);
   const showToast = useApp((s) => s.showToast);
 
-  const targets = useMemo(() => selectedFiles(entries), [entries]);
   const [info, setInfo] = useState<Record<string, AttrInfo>>({});
   const [loading, setLoading] = useState(true);
   const [readonly, setReadonly] = useState<AttrChoice>('keep');
@@ -419,7 +435,7 @@ function AttrBody({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [targets]);
 
   const desired = (choice: AttrChoice, old: boolean) =>
     choice === 'keep' ? old : choice === 'invert' ? !old : choice === 'set';
@@ -561,16 +577,14 @@ function AttrBody({ onClose }: { onClose: () => void }) {
   );
 }
 
-function MoveBody({ onClose }: { onClose: () => void }) {
+export function MoveBody({ onClose, targets }: { onClose: () => void; targets: Entry[] }) {
   const { t } = useTranslation();
-  const entries = useApp((s) => s.entries);
   const env = useApp((s) => s.env);
   const finishOps = useApp((s) => s.finishOps);
   const showToast = useApp((s) => s.showToast);
 
-  const targets = useMemo(() => selectedFiles(entries), [entries]);
   const [kind, setKind] = useState<MoveRuleKind>('ext');
-  const [root, setRoot] = useState(() => defaultMoveRoot(entries, env));
+  const [root, setRoot] = useState(() => defaultMoveRoot(targets, env));
   const [keepStructure, setKeep] = useState(false);
   const [granularity, setGranularity] = useState<DateGranularity>('month');
   const [pattern, setPattern] = useState('^(\\d{4})');
@@ -818,13 +832,14 @@ function MoveBody({ onClose }: { onClose: () => void }) {
 export function OpsDialog() {
   const mode = useApp((s) => s.opsMode);
   const close = useApp((s) => s.closeOps);
+  const entries = useApp((s) => s.entries);
   if (!mode) return null;
   return (
     <div className="modal-mask" onClick={close}>
       <div className="dialog dialog-wide" data-testid="ops-dialog" onClick={(e) => e.stopPropagation()}>
-        {mode === 'time' && <TimeBody onClose={close} />}
-        {mode === 'attrs' && <AttrBody onClose={close} />}
-        {mode === 'move' && <MoveBody onClose={close} />}
+        {mode === 'time' && <TimeBody onClose={close} targets={selectedFiles(entries)} />}
+        {mode === 'attrs' && <AttrBody onClose={close} targets={selectedFiles(entries)} />}
+        {mode === 'move' && <MoveBody onClose={close} targets={selectedFiles(entries)} />}
       </div>
     </div>
   );

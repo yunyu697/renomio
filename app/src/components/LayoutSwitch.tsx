@@ -5,7 +5,25 @@ import type { LayoutView } from '../lib/types';
 import { useApp } from '../store';
 import { Icon } from './Icon';
 
-const VIEWS: LayoutView[] = ['files-left', 'rules-left', 'files-top', 'rules-top', 'compact'];
+export const VIEWS: LayoutView[] = ['files-left', 'rules-left', 'files-top', 'rules-top', 'compact'];
+
+/** 视图 id 用连字符，i18n 键用 camelCase；两者不能直接拼接。 */
+export const VIEW_LABEL: Record<LayoutView, string> = {
+  'files-left': 'layout.filesLeft',
+  'rules-left': 'layout.rulesLeft',
+  'files-top': 'layout.filesTop',
+  'rules-top': 'layout.rulesTop',
+  compact: 'layout.compact',
+};
+
+/** 预设布局的缩略示意图（与菜单/设置面板共用）。 */
+export function LayoutThumb({ view }: { view: LayoutView }) {
+  return (
+    <span className="layout-thumb" data-view={view} aria-hidden="true">
+      <i /><i />
+    </span>
+  );
+}
 
 /**
  * 预设布局切换：文件在左 / 规则在左 / 上下两种 / 紧凑单列。
@@ -71,7 +89,7 @@ export function LayoutSwitch() {
         onClick={() => (pos ? close() : open())}
       >
         <Icon name="grid" size={13} />
-        <span>{t(`layout.${layout.view}`)}</span>
+        <span>{t(VIEW_LABEL[layout.view])}</span>
       </button>
       {pos && createPortal(
         <div
@@ -92,8 +110,8 @@ export function LayoutSwitch() {
               data-testid={`layout-option-${view}`}
               onClick={() => { setLayout({ view }); close(); }}
             >
-              <Icon name={view === 'compact' ? 'minus' : 'grid'} size={12} />
-              <span>{t(`layout.${view}`)}</span>
+              <LayoutThumb view={view} />
+              <span>{t(VIEW_LABEL[view])}</span>
               {layout.view === view && <Icon name="check" size={12} />}
             </button>
           ))}

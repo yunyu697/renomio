@@ -10,6 +10,7 @@ import type {
 } from '../lib/types';
 import { useApp } from '../store';
 import { Icon } from './Icon';
+import { LayoutThumb, VIEWS, VIEW_LABEL } from './LayoutSwitch';
 
 const STATE_KEY: Record<BatchSummary['state'], string> = {
   pending: 'history.statePending',
@@ -460,6 +461,98 @@ function UpdateSection() {
   );
 }
 
+/** 设置面板内的布局分区：预设缩略图 + 高级拖动开关 + 当前视图尺寸（按视图独立保存）。 */
+function LayoutSection() {
+  const { t } = useTranslation();
+  const layout = useApp((s) => s.settings.layout);
+  const setLayout = useApp((s) => s.setLayout);
+  const sideView = layout.view === 'files-left' || layout.view === 'rules-left';
+  const minSize = sideView ? 300 : 160;
+  const maxSize = sideView ? 900 : 720;
+  const currentSize = clampSize(
+    layout.sizes?.[layout.view] ?? (sideView ? layout.side : layout.stack),
+    minSize,
+    maxSize,
+  );
+  const [draft, setDraft] = useState(String(currentSize));
+  useEffect(() => setDraft(String(currentSize)), [currentSize]);
+
+  const commit = () => {
+    const parsed = Number(draft);
+    if (!Number.isFinite(parsed)) {
+      setDraft(String(currentSize));
+      return;
+    }
+    const next = clampSize(Math.round(parsed), minSize, maxSize);
+    setDraft(String(next));
+    setLayout({ sizes: { ...layout.sizes, [layout.view]: next } });
+  };
+
+  return (
+    <section className="settings-section" data-testid="layout-settings">
+      <h4>{t('layout.settingsTitle')}</h4>
+      <div className="layout-picks">
+        {VIEWS.map((view) => (
+          <button
+            key={view}
+            type="button"
+            className={`layout-pick${layout.view === view ? ' on' : ''}`}
+            data-testid={`settings-layout-${view}`}
+            aria-pressed={layout.view === view}
+            onClick={() => setLayout({ view })}
+          >
+            <LayoutThumb view={view} />
+            <span>{t(VIEW_LABEL[view])}</span>
+            {layout.view === view && <Icon name="check" size={12} />}
+          </button>
+        ))}
+      </div>
+      <Row label={t('layout.advanced')} hint={t('layout.advancedHint')}>
+        <Switch
+          testId="switch-layout-advanced"
+          on={layout.advanced}
+          onChange={(v) => setLayout({ advanced: v })}
+        />
+      </Row>
+      <Row label={t('layout.size')} hint={t('layout.sizeHint')}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input
+            className="input small mono"
+            type="number"
+            min={minSize}
+            max={maxSize}
+            style={{ width: 78 }}
+            data-testid="input-layout-size"
+            value={draft}
+            disabled={layout.view === 'compact'}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commit();
+            }}
+          />
+          <span className="foot-note">px</span>
+        </div>
+      </Row>
+      <div className="drawer-note" style={{ marginBottom: 8 }}>{t('layout.sizesNote')}</div>
+      <Row label={t('layout.resetSizes')} hint={t('layout.resetSizesHint')}>
+        <button
+          className="btn btn-outline"
+          type="button"
+          data-testid="layout-reset-sizes"
+          onClick={() => setLayout({ sizes: {} })}
+        >
+          <Icon name="refresh" size={12} />{t('layout.resetSizes')}
+        </button>
+      </Row>
+    </section>
+  );
+}
+
+function clampSize(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
 function SettingsPanel() {
   const { t } = useTranslation();
   const settings = useApp((s) => s.settings);
@@ -493,8 +586,9 @@ function SettingsPanel() {
           <h4>{t('settings.interface')}</h4>
           <Row label={t('settings.theme')}>
             <span className="seg-ctrl">
-              <span className={settings.theme === 'light' ? 'on' : ''} onClick={() => setTheme('light')}>{t('settings.light')}</span>
-              <span className={settings.theme === 'dark' ? 'on' : ''} onClick={() => setTheme('dark')}>{t('settings.dark')}</span>
+              <span className={settings.theme === 'light' ? 'on' : ''} data-testid="theme-light" onClick={() => setTheme('light')}>{t('settings.light')}</span>
+              <span className={settings.theme === 'dark' ? 'on' : ''} data-testid="theme-dark" onClick={() => setTheme('dark')}>{t('settings.dark')}</span>
+              <span className={settings.theme === 'system' ? 'on' : ''} data-testid="theme-system" onClick={() => setTheme('system')}>{t('settings.system')}</span>
             </span>
           </Row>
           <Row label={t('settings.language')} hint={t('settings.languageHint')}>
@@ -514,6 +608,8 @@ function SettingsPanel() {
           </Row>
           {unreviewed && <div className="drawer-note" data-testid="lang-unreviewed">{t('settings.unreviewed')}</div>}
         </section>
+
+        <LayoutSection />
 
         <section className="settings-section">
           <h4>{t('settings.nameSafety')}</h4>

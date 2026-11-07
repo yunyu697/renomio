@@ -1,12 +1,12 @@
 import type { CSSProperties } from 'react';
 
-type IconName =
+export type IconName =
   | 'mark' | 'file-plus' | 'folder-plus' | 'folder' | 'image' | 'pdf' | 'text' | 'music'
   | 'doc' | 'video' | 'file' | 'search' | 'filter' | 'undo' | 'play' | 'check' | 'alert'
   | 'info' | 'clock' | 'shield' | 'eye' | 'trash' | 'refresh' | 'minus' | 'maximize' | 'x'
   | 'chevron-down' | 'chevron-right' | 'chevron-up' | 'history' | 'settings' | 'layers'
   | 'tag' | 'bolt' | 'grid' | 'save' | 'import' | 'help' | 'sort' | 'lock' | 'ban' | 'plus'
-  | 'arrow-up' | 'arrow-down' | 'drag';
+  | 'arrow-up' | 'arrow-down' | 'drag' | 'menu' | 'rules';
 
 const PATHS: Record<IconName, string> = {
   mark: 'M4 7a3 3 0 0 1 3-3h7l4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z M14 4v4h4 M8 15h6m0 0-2.2-2.2m2.2 2.2-2.2 2.2',
@@ -54,6 +54,8 @@ const PATHS: Record<IconName, string> = {
   'arrow-up': 'M12 19V5 M6 11l6-6 6 6',
   'arrow-down': 'M12 5v14 M6 13l6 6 6-6',
   drag: 'M9 6h1 M14 6h1 M9 12h1 M14 12h1 M9 18h1 M14 18h1',
+  menu: 'M4 7h16 M4 12h16 M4 17h16',
+  rules: 'M4 6h16 M4 11h16 M4 16h10 M7 4v4 M7 9v4 M7 14v4',
 };
 
 export function Icon({
@@ -83,5 +85,3 @@ export function Icon({
     </svg>
   );
 }
-
-export type { IconName };

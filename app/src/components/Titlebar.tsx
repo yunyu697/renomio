@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { isDesktop } from '../lib/bridge';
 import { PRODUCT_NAME } from '../lib/branding';
 import { useTranslation } from '../i18n';
@@ -20,6 +21,19 @@ export function Titlebar() {
   const os = useApp((s) => s.env.os);
   const theme = useApp((s) => s.settings.theme);
   const setTheme = useApp((s) => s.setTheme);
+  const [systemDark, setSystemDark] = useState(false);
+  useEffect(() => {
+    try {
+      const media = window.matchMedia('(prefers-color-scheme: dark)');
+      const onChange = () => setSystemDark(media.matches);
+      onChange();
+      media.addEventListener('change', onChange);
+      return () => media.removeEventListener('change', onChange);
+    } catch {
+      return undefined;
+    }
+  }, []);
+  const effective = theme === 'system' ? (systemDark ? 'dark' : 'light') : theme;
   const showToast = useApp((s) => s.showToast);
 
   const act = (action: 'minimize' | 'maximize' | 'close') => () => {
@@ -60,11 +74,11 @@ export function Titlebar() {
       <button
         className="btn-icon"
         type="button"
-        title={theme === 'light' ? t('title.themeDark') : t('title.themeLight')}
+        title={effective === 'light' ? t('title.themeDark') : t('title.themeLight')}
         style={{ width: 28, height: 24, marginLeft: 4 }}
-        onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+        onClick={() => setTheme(effective === 'light' ? 'dark' : 'light')}
       >
-        {theme === 'light' ? '◐' : '☀'}
+        {effective === 'light' ? '◐' : '☀'}
       </button>
       {os !== 'macos' && (
         <div className="win-controls" style={{ marginLeft: 4 }}>

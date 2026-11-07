@@ -20,6 +20,7 @@ import { MetadataDialog } from './components/MetadataDialog';
 import { MetaEditDialog } from './components/MetaEditDialog';
 import { Nav } from './components/Nav';
 import { OpsDialog } from './components/OpsDialog';
+import { Pages } from './components/Pages';
 import { PlanDialog } from './components/PlanDialog';
 import { PathBar } from './components/PathBar';
 import { PreviewDialog } from './components/PreviewDialog';
@@ -49,11 +50,19 @@ export function App() {
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const [dragSize, setDragSize] = useState<number | null>(null);
   const [narrow, setNarrow] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+  const activePage = useApp((s) => s.activePage);
+  const rules = useApp((s) => s.rules);
   const layout = settings.layout;
   const sideView = layout.view === 'files-left' || layout.view === 'rules-left';
   const rulesFirst = layout.view === 'rules-left' || layout.view === 'rules-top';
   const compact = layout.view === 'compact';
-  const presetSize = sideView ? layout.side : layout.stack;
+  // 每个视图各自记住尺寸；旧字段 side/stack 只作缺省值，读取时统一 clamp
+  const presetSize = clamp(
+    layout.sizes?.[layout.view] ?? (sideView ? layout.side : layout.stack),
+    sideView ? 300 : 160,
+    sideView ? 900 : 720,
+  );
 
   /** 窄窗自动收敛为单列（按工作区真实宽度判断，宽窗恢复后回落到用户选择的视图）。 */
   useEffect(() => {
@@ -94,7 +103,7 @@ export function App() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       setDragSize(null);
-      setLayout(horizontal ? { side: Math.round(last) } : { stack: Math.round(last) });
+      setLayout({ sizes: { ...layout.sizes, [layout.view]: Math.round(last) } });
     };
     event.preventDefault();
     setDragSize(presetSize);
@@ -102,22 +111,39 @@ export function App() {
     window.addEventListener('pointerup', up);
   };
 
-  const splitter = (
+  const splitter = layout.advanced ? (
     <div
-      className={`splitter ${layout.advanced ? 'active' : ''}`}
+      className="splitter active"
       role="separator"
       aria-orientation={sideView ? 'vertical' : 'horizontal'}
       aria-label={t('layout.resize')}
       data-testid="layout-splitter"
-      data-enabled={layout.advanced}
+      data-enabled="true"
       onPointerDown={startResize}
     />
+  ) : null;
+
+  const compactBar = (
+    <div className="compact-bar">
+      <button
+        className={`compact-toggle${layout.compactOpen ? ' open' : ''}`}
+        type="button"
+        data-testid="compact-toggle"
+        aria-expanded={layout.compactOpen}
+        onClick={() => setLayout({ compactOpen: !layout.compactOpen })}
+      >
+        <Icon name="rules" size={13} />
+        {t('layout.compactToggle', { count: rules.length })}
+        <span className={`chev${layout.compactOpen ? '' : ' down'}`}>▾</span>
+      </button>
+    </div>
   );
 
   const panes = compact ? (
     <>
       <MainPane />
-      <RulesPanel />
+      {compactBar}
+      {layout.compactOpen && <RulesPanel />}
     </>
   ) : rulesFirst ? (
     <>
@@ -151,7 +177,6 @@ export function App() {
   }, [init]);
 
   // 「按元数据取名」需要先把 EXIF / ID3 字段读进来；只在规则启用时读，避免无谓 I/O
-  const rules = useApp((s) => s.rules);
   const entries = useApp((s) => s.entries);
   const loadMetaFields = useApp((s) => s.loadMetaFields);
   useEffect(() => {
@@ -283,6 +308,7 @@ export function App() {
         if (e.key === 'Escape') {
           dropResetRef.current();
           if (state.previewOpen) state.closePreview();
+          else if (state.activePage) state.closePage();
           else if (state.opsMode) state.closeOps();
           else if (state.drawer) state.closeDrawer();
           else if (state.ruleMenuOpen) useApp.setState({ ruleMenuOpen: false });
@@ -367,20 +393,36 @@ export function App() {
         data-advanced={settings.layout.advanced}
         data-narrow={narrow ? 'true' : 'false'}
       >
-        <Nav />
+        <Nav open={narrow && navOpen} onNavigate={() => setNavOpen(false)} />
+        {narrow && (
+          <>
+            <button
+              className={`nav-fab${navOpen ? ' open' : ''}`}
+              type="button"
+              data-testid="nav-fab"
+              aria-expanded={navOpen}
+              onClick={() => setNavOpen((v) => !v)}
+            >
+              <Icon name="menu" size={15} />
+            </button>
+            <div className="narrow-notice" data-testid="narrow-notice">
+              <Icon name="info" size={12} />{t('layout.narrow')}
+            </div>
+          </>
+        )}
         <div
           className="panes"
           ref={panesRef}
           data-view={settings.layout.view}
           style={{
-            '--rules-side': `${dragSize ?? layout.side}px`,
-            '--rules-stack': `${dragSize ?? layout.stack}px`,
+            '--rules-side': `${dragSize ?? presetSize}px`,
+            '--rules-stack': `${dragSize ?? presetSize}px`,
           } as CSSProperties}
         >
-          {panes}
+          {activePage ? <Pages /> : panes}
         </div>
       </div>
-      <ActionBar />
+      {!activePage && <ActionBar />}
       <StatusBar />
 
       {bootError && (

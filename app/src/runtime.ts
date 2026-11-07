@@ -38,7 +38,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
   migrationNoticeDismissed: false,
   rules: [],
   ruleUi: { expanded: [], openId: null, collapsed: false },
-  layout: { view: 'files-left', advanced: false, side: 400, stack: 320 },
+  layout: {
+    view: 'files-left',
+    advanced: false,
+    side: 400,
+    stack: 320,
+    sizes: { 'files-left': 400, 'rules-left': 400, 'files-top': 320, 'rules-top': 320 },
+    compactOpen: false,
+  },
 };
 
 export const settingsStore = createSettings<AppSettings>({

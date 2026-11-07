@@ -19,7 +19,9 @@
           var raw = localStorage.getItem('rename-studio.settings');
           if (!forced && raw) {
             var env = JSON.parse(raw);
-            if (env && env.data && env.data.theme === 'dark') theme = 'dark';
+            var saved = env && env.data && env.data.theme;
+            if (saved === 'dark') theme = 'dark';
+            else if (saved === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) theme = 'dark';
           }
           document.documentElement.dataset.theme = theme;
           window.__STARTUP_THEME__ = theme;

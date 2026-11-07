@@ -24,8 +24,8 @@ import { normalizePath, targetPath } from './lib/validate';
 import type {
   AppSettings, ApplyItemDto, ApplyOutcome, ApplyProgress, Batch, BatchSummary, ConflictPolicy,
   DuplicateReportDto, Entry, EntryFacts, EnvInfo, LayoutState, ListTab, MetadataInfo, MetaFields, MigrationInfo,
-  OpsOutcome, PreviewRow, PrivilegeInfo, Rule, RuleType, ScanEntryDto, SessionDto, SkippedChange,
-  SnapshotPlanItemDto, SnapshotProgress, SnapshotRestoreResult, SnapshotSummaryDto, StartupMark,
+  OpsOutcome, PageId, PreviewRow, PrivilegeInfo, Rule, RuleType, ScanEntryDto, SessionDto, SkippedChange,
+  SnapshotPlanItemDto, SnapshotProgress, SnapshotRestoreResult, SnapshotSummaryDto, StartupMark, ThemeSetting,
 } from './lib/types';
 import { logger, queue, settingsStore } from './runtime';
 
@@ -155,6 +155,8 @@ interface AppState {
   applyPolicy: ConflictPolicy;
   drawer: Drawer;
   opsMode: OpsMode | null;
+  /** 侧栏功能页：非空时主区域显示完整功能页（自带选择区/空态） */
+  activePage: PageId | null;
   /** 键位窗（快捷键列表与自定义）是否打开 */
   shortcutOpen: boolean;
   toast: Toast | null;
@@ -267,6 +269,9 @@ interface AppState {
   closeDrawer: () => void;
   openOps: (mode: OpsMode) => void;
   closeOps: () => void;
+  /** 打开侧栏功能页（音乐标签/图片信息/Office·PDF/文本编码/属性/时间/归类） */
+  openPage: (page: PageId) => void;
+  closePage: () => void;
   openShortcuts: () => void;
   closeShortcuts: () => void;
   /** 设置某条命令的绑定；与其他命令冲突时拒绝并提示，返回是否写入成功 */
@@ -275,7 +280,7 @@ interface AppState {
   finishOps: (outcome: OpsOutcome, mode: OpsMode) => Promise<void>;
   showToast: (kind: Toast['kind'], text: string) => void;
   dismissToast: () => void;
-  setTheme: (theme: 'light' | 'dark') => void;
+  setTheme: (theme: ThemeSetting) => void;
   updateSettings: (patch: Partial<AppSettings>) => void;
   relaunchElevated: () => Promise<void>;
   dismissUipiNotice: () => void;
@@ -310,8 +315,31 @@ interface AppState {
   deleteSnapshotItem: (id: string) => Promise<void>;
 }
 
-function applyTheme(theme: 'light' | 'dark') {
-  document.documentElement.dataset.theme = theme;
+export function resolveTheme(theme: ThemeSetting): 'light' | 'dark' {
+  if (theme !== 'system') return theme;
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+}
+
+function applyTheme(theme: ThemeSetting) {
+  document.documentElement.dataset.theme = resolveTheme(theme);
+}
+
+/** 系统主题变化时，仅在「跟随系统」下生效。 */
+function watchSystemTheme() {
+  let media: MediaQueryList;
+  try {
+    media = window.matchMedia('(prefers-color-scheme: dark)');
+  } catch {
+    return;
+  }
+  const onChange = () => {
+    if (settingsStore.value.theme === 'system') applyTheme('system');
+  };
+  media.addEventListener('change', onChange);
 }
 
 function demoRules(): Rule[] {
@@ -517,6 +545,7 @@ export const useApp = create<AppState>((set, get) => ({
   applyPolicy: settingsStore.value.conflictPolicy,
   drawer: null,
   opsMode: null,
+  activePage: null,
   shortcutOpen: false,
   toast: null,
   ruleMenuOpen: false,
@@ -555,6 +584,7 @@ export const useApp = create<AppState>((set, get) => ({
     const settings = themeOverride ? { ...stored, theme: themeOverride } : stored;
     const ruleHistory = (await loadRuleHistory()) ?? emptyHistory();
     applyTheme(settings.theme);
+    watchSystemTheme();
     if (settings.language && settings.language !== 'system') setUiLocale(settings.language);
     const reportMark = (name: string) => {
       const ms = performance.now();
@@ -563,7 +593,7 @@ export const useApp = create<AppState>((set, get) => ({
         at: Math.round(performance.timeOrigin + ms),
         ms: Math.round(ms * 10) / 10,
       };
-      void startupReport([mark], settings.theme, false);
+      void startupReport([mark], resolveTheme(settings.theme), false);
     };
     const reportReady = (name = 'app_ready') => {
       if (startupReadyReported) return;
@@ -1399,13 +1429,25 @@ export const useApp = create<AppState>((set, get) => ({
 
   openOps: (mode) => {
     const s = get();
-    if (!s.entries.some((e) => e.selected)) {
-      get().showToast('info', translate('toast.needChecked'));
+    if (!s.entries.length) {
+      get().showToast('info', translate('toast.noFiles'));
       return;
+    }
+    if (!s.entries.some((e) => e.selected)) {
+      // 导航入口不应因为「没勾选」而无反应：有文件就自动全选，并在提示里说明。
+      const targets = s.entries.filter((e) => !e.isDir);
+      if (!targets.length) {
+        get().showToast('info', translate('toast.noFiles'));
+        return;
+      }
+      set({ entries: s.entries.map((e) => (e.isDir ? e : { ...e, selected: true })) });
+      get().showToast('info', translate('toast.autoChecked', { count: targets.length }));
     }
     set({ opsMode: mode });
   },
   closeOps: () => set({ opsMode: null }),
+  openPage: (page) => set({ activePage: page, opsMode: null, metaEditor: { open: false, paths: [] } }),
+  closePage: () => set({ activePage: null }),
 
   openShortcuts: () => set({ shortcutOpen: true }),
   closeShortcuts: () => set({ shortcutOpen: false }),
