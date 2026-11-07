@@ -30,16 +30,16 @@ MIT License — 见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-
 
 ## 下载与安装
 
-源码仓库保持私有；**安装包与更新清单公开发布在 [yunyu697/renomio-releases](https://github.com/yunyu697/renomio-releases/releases)**。截至本次对账，最新公开发布是预发布 `v1.1.0-alpha1`（稳定版仍为 `v1.0.0`），源码 `VERSION` 与之一致。下表为该版本的两个包：
+源码仓库保持私有；**安装包与更新清单公开发布在 [yunyu697/renomio-releases](https://github.com/yunyu697/renomio-releases/releases)**。截至本次对账，最新公开发布是预发布 `v1.1.0-alpha2`（稳定版仍为 `v1.0.0`），源码 `VERSION` 与之一致。滚动更新清单 `latest.json` 仍指向 `1.1.0-alpha1`，本预发布需手动下载安装。下表为该版本的两个包：
 
-| 包 | 文件 | 大小 | SHA-256（1.1.0-alpha1） |
+| 包 | 文件 | 大小 | SHA-256（1.1.0-alpha2） |
 | --- | --- | --- | --- |
-| NSIS（推荐，可选安装范围） | `Renomio_1.1.0-alpha1_x64-setup.exe` | 2,382,542 字节（2.27 MiB） | `741228485BDF0BDA1D00EA6C7E0F66DC42D49A729A0DDA080F9B69BEEBD10FFE` |
-| MSI（机器级单一包） | `Renomio_1.1.0-alpha1_x64_en-US.msi` | 3,182,592 字节（3.04 MiB） | `1636AD5E1F4F14E0E4471D33552FEE1B30C9CEEC18E12F9F51C4370EF4FEC369` |
+| NSIS（推荐，可选安装范围） | `Renomio_1.1.0-alpha2_x64-setup.exe` | 2,442,881 字节（2.33 MiB） | `F5E5F4550EA844F855C3735BD97F36719EE6316B03A3FB87FBF2031DB97C9461` |
+| MSI（机器级单一包） | `Renomio_1.1.0-alpha2_x64_en-US.msi` | 3,629,056 字节（3.46 MiB） | `5C6B7A3C167CA25ED6434427F58365CD1E5D038E758ACC1046EE15A896A4B713` |
 
 应用内「设置 → 检查更新」读取公开仓库滚动 release `updates` 下的 `latest.json`，安装包也由该公开仓库下载；清单与资源的地址均不再指向私有源码仓库。
 
-版本规则：唯一可改的版本号是仓库根 `VERSION`，其余（`app/package.json`、`app/packages/foundation/package.json`、`app/src-tauri/tauri.conf.json`、两个 `Cargo.toml`）由 `npm run version:sync` 注入；tag（如当前 `v1.1.0-alpha1`）必须与 `VERSION` 一致，段位（第二/三段与 alpha 序号）≤ 10。版本闸门按推送类型分档：**分支推送**（含 `main`）只要求 `VERSION` 不低于最新已发布 alpha，等于可通过、低于即拦截；**tag 推送**仍要求严格递增，alpha 复用与倒退一律拦截（`version` job 的 16 条反例自测覆盖这三种情形）。MSI 的 `ProductVersion` 只能是纯数字，故 `wix.version` 由同一 VERSION 的数字核注入（alpha 阶段取 `1.1.0`），包文件名仍带 alpha 号。
+版本规则：唯一可改的版本号是仓库根 `VERSION`，其余（`app/package.json`、`app/packages/foundation/package.json`、`app/src-tauri/tauri.conf.json`、两个 `Cargo.toml`）由 `npm run version:sync` 注入；tag（如当前 `v1.1.0-alpha2`）必须与 `VERSION` 一致，段位（第二/三段与 alpha 序号）≤ 10。版本闸门按推送类型分档：**分支推送**（含 `main`）只要求 `VERSION` 不低于最新已发布 alpha，等于可通过、低于即拦截；**tag 推送**仍要求严格递增，alpha 复用与倒退一律拦截（`version` job 的 16 条反例自测覆盖这三种情形）。MSI 的 `ProductVersion` 只能是纯数字，故 `wix.version` 由同一 VERSION 的数字核注入（alpha 阶段取 `1.1.0`），包文件名仍带 alpha 号。
 
 校验方式（PowerShell）：
 
