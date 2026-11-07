@@ -183,6 +183,7 @@ export function ListView({ tab }: { tab: Exclude<ListTab, 'rename'> }) {
   const diskExists = useApp((s) => s.diskExists);
   const isDemo = useApp((s) => s.isDemo);
   const openOps = useApp((s) => s.openOps);
+  const openMetaEditor = useApp((s) => s.openMetaEditor);
   const [meta, setMeta] = useState<Record<string, BatchMetadata>>({});
   const [times, setTimes] = useState<Record<string, TimeInfo>>({});
   const [attrs, setAttrs] = useState<Record<string, AttrInfo>>({});
@@ -314,14 +315,29 @@ export function ListView({ tab }: { tab: Exclude<ListTab, 'rename'> }) {
   }, [tab, files, meta, times, attrs, organizeRows, t]);
 
   const headers = COLUMNS[tab];
-  const cols = `${headers.length > 1 ? 'minmax(150px, 1.4fr)' : '1fr'} ${headers.slice(1).map(() => 'minmax(92px, 1fr)').join(' ')}`;
+  const cols = `${headers.length > 1 ? 'minmax(0, 1.4fr)' : '1fr'} ${headers.slice(1).map(() => 'minmax(0, 1fr)').join(' ')}`;
   const noteKey = TAB_NOTE_KEY[tab];
+  // 元数据页签不只做展示：勾选的文件（未勾选时取当前页签全部）可直接进入编辑对话框。
+  const metaTargets = META_TABS.has(tab)
+    ? (files.filter((f) => f.selected).length ? files.filter((f) => f.selected) : files).map((f) => f.path)
+    : [];
 
   return (
     <div className="list-view" data-testid={`list-view-${tab}`}>
-      {noteKey && (
+      {(noteKey || META_TABS.has(tab)) && (
         <div className="list-note" data-testid={`list-note-${tab}`}>
-          <Icon name="info" size={12} />{t(noteKey)}
+          <Icon name="info" size={12} />{noteKey ? t(noteKey) : t('list.metaEditHint')}
+          {META_TABS.has(tab) && (
+            <button
+              className="mini"
+              type="button"
+              data-testid={`list-action-edit-${tab}`}
+              disabled={!metaTargets.length}
+              onClick={() => openMetaEditor(metaTargets)}
+            >
+              {t('list.metaEdit', { count: metaTargets.length })}
+            </button>
+          )}
           {(tab === 'organize' || tab === 'attrs') && (
             <button
               className="mini"

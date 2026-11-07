@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
 import { usePreview } from '../hooks/usePreview';
 import { formatSize, formatTime } from '../lib/format';
 import { fileKind } from '../lib/rules';
@@ -21,6 +21,19 @@ const COLUMN_DEFS: ColumnDef[] = [
   { key: 'newName', defaultCss: 'minmax(168px, 1.15fr)' },
   { key: 'status', defaultCss: '96px' },
 ];
+
+/** 窄窗时的列收敛顺序（越小越先保留）与最小可读宽度；name 永远保留。 */
+const COLUMN_RANK: Record<ColumnKey, number> = { name: 0, newName: 1, status: 2, size: 3, modified: 4, location: 5 };
+const COLUMN_MIN: Record<ColumnKey, number> = { name: 120, location: 100, size: 58, modified: 78, newName: 100, status: 72 };
+/** 未设置自定义宽度时的弹性模板：文本列走 fr，数值/时间列定宽。 */
+const COLUMN_FLEX: Record<ColumnKey, string> = {
+  name: 'minmax(0, 1.5fr)',
+  location: 'minmax(0, .9fr)',
+  size: '62px',
+  modified: '92px',
+  newName: 'minmax(0, 1.3fr)',
+  status: '96px',
+};
 
 const STATUS_CLASS: Record<RowStatus, string> = {
   ready: 's-pending',
@@ -108,13 +121,43 @@ export function MainPane() {
   const [dragWidths, setDragWidths] = useState<Partial<Record<ColumnKey, number>>>({});
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<number | null>(null);
+  /** 列表可用宽度（随窗口/面板变化），用于窄窗收敛列。 */
+  const [listWidth, setListWidth] = useState(0);
 
   const visibleColumns = COLUMN_DEFS.filter((c) => columns[c.key]);
   const widthOf = (key: ColumnKey) => dragWidths[key] ?? columnWidths[key];
-  const cols = `34px ${visibleColumns
-    .map((c) => {
-      const width = widthOf(c.key);
-      return width ? `minmax(60px, ${Math.max(60, width)}px)` : c.defaultCss;
+  /** 按可用宽度收敛列：保留 name，优先保留 newName/status，次要列在窄窗隐藏，避免列被裁。 */
+  const shownKeys = (() => {
+    const all = visibleColumns.map((c) => c.key);
+    if (!listWidth) return all;
+    const keep: ColumnKey[] = [];
+    let used = 34;
+    for (const key of [...all].sort((a, b) => COLUMN_RANK[a] - COLUMN_RANK[b])) {
+      const min = widthOf(key) || COLUMN_MIN[key];
+      if (!keep.length || used + min <= listWidth) {
+        keep.push(key);
+        used += min;
+      }
+    }
+    return all.filter((k) => keep.includes(k));
+  })();
+  const shown: Record<ColumnKey, boolean> = {
+    name: shownKeys.includes('name'),
+    location: shownKeys.includes('location'),
+    size: shownKeys.includes('size'),
+    modified: shownKeys.includes('modified'),
+    newName: shownKeys.includes('newName'),
+    status: shownKeys.includes('status'),
+  };
+  const compact = !!listWidth && shownKeys.length < visibleColumns.length;
+  const cols = `34px ${shownKeys
+    .map((key) => {
+      const width = widthOf(key);
+      const room = listWidth ? listWidth - 34 : 0;
+      if (width && room >= Math.max(60, width)) return `minmax(0, ${Math.max(60, width)}px)`;
+      if (compact && key === 'name') return 'minmax(0, 2.4fr)';
+      if (compact && key === 'newName') return 'minmax(0, 1fr)';
+      return COLUMN_FLEX[key];
     })
     .join(' ')}`;
 
@@ -207,7 +250,22 @@ export function MainPane() {
 
   const virtual = rows.length > VIRTUAL_THRESHOLD;
   const tableRef = useRef<HTMLDivElement>(null);
+  const tableRoRef = useRef<ResizeObserver | null>(null);
   const [view, setView] = useState({ top: 0, height: 640 });
+
+  /** 用回调 ref 观察列表宽度：列表在空态/页面切换时可能晚于挂载出现，effect 只跑一次会漏挂。 */
+  const observeTable = useCallback((el: HTMLDivElement | null) => {
+    tableRef.current = el;
+    tableRoRef.current?.disconnect();
+    tableRoRef.current = null;
+    if (!el) return;
+    const sync = () => setListWidth((prev) => (prev === el.clientWidth ? prev : el.clientWidth));
+    sync();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(sync);
+    observer.observe(el);
+    tableRoRef.current = observer;
+  }, []);
 
   useEffect(() => {
     if (!virtual) return;
@@ -417,7 +475,10 @@ export function MainPane() {
         data-testid="file-table"
         data-total={rows.length}
         data-virtual={virtual ? '1' : '0'}
-        ref={tableRef}
+        data-listw={listWidth}
+        data-shown={shownKeys.length}
+        data-compact={compact ? '1' : '0'}
+        ref={observeTable}
         onScroll={(event) => {
           if (!virtual) return;
           const el = event.currentTarget;
@@ -442,34 +503,34 @@ export function MainPane() {
               {!allOn && selectedCount > 0 && <Icon name="minus" size={10} />}
             </span>
           </div>
-          {columns.name && (
+          {shown.name && (
             <div className="th sortable resizable" onClick={() => toggleSort('name')}>
               {t('column.name')} <Icon name={sortKey === 'name' ? (sortDir === -1 ? 'chevron-up' : 'chevron-down') : 'sort'} size={11} />
               <span className="col-grip" data-testid="col-grip-name" onMouseDown={(e) => beginResize('name', e)} />
             </div>
           )}
-          {columns.location && (
+          {shown.location && (
             <div className="th resizable">
               {t('column.location')}<span className="col-grip" onMouseDown={(e) => beginResize('location', e)} />
             </div>
           )}
-          {columns.size && (
+          {shown.size && (
             <div className="th resizable" style={{ justifyContent: 'flex-end' }} onClick={() => toggleSort('size')}>
               {t('column.size')}<span className="col-grip" onMouseDown={(e) => beginResize('size', e)} />
             </div>
           )}
-          {columns.modified && (
+          {shown.modified && (
             <div className="th sortable resizable" onClick={() => toggleSort('modified')}>
               {t('column.modified')} <Icon name={sortKey === 'modified' ? (sortDir === -1 ? 'chevron-up' : 'chevron-down') : 'sort'} size={11} />
               <span className="col-grip" onMouseDown={(e) => beginResize('modified', e)} />
             </div>
           )}
-          {columns.newName && (
+          {shown.newName && (
             <div className="th resizable">
               {t('column.newName')}<span className="col-grip" onMouseDown={(e) => beginResize('newName', e)} />
             </div>
           )}
-          {columns.status && (
+          {shown.status && (
             <div className="th resizable">
               {t('column.status')}<span className="col-grip" onMouseDown={(e) => beginResize('status', e)} />
             </div>
@@ -591,18 +652,18 @@ export function MainPane() {
                   </button>
                 </span>
               </div>
-              {columns.location && (
+              {shown.location && (
                 <div className="cell mono"><span className="txt" style={{ color: 'var(--muted)' }}>{row.entry.parent}</span></div>
               )}
-              {columns.size && (
+              {shown.size && (
                 <div className="cell right">
                   <span className="dims">{row.entry.isDir ? '—' : formatSize(row.entry.size)}</span>
                 </div>
               )}
-              {columns.modified && (
+              {shown.modified && (
                 <div className="cell"><span className="dims">{formatTime(row.entry.modified)}</span></div>
               )}
-              {columns.newName && (
+              {shown.newName && (
                 <div className="cell" style={{ display: 'block', overflow: 'hidden' }}>
                   {changed ? (
                     <span className="new-name" title={`${row.entry.name} → ${row.newName}`}>
@@ -619,7 +680,7 @@ export function MainPane() {
                   )}
                 </div>
               )}
-              {columns.status && (
+              {shown.status && (
                 <div className="cell">
                   <span className={`status ${STATUS_CLASS[row.status]}`}>
                     <i className="dot" />{t(STATUS_KEY[row.status])}
