@@ -362,7 +362,7 @@ app/
 
 跨安装器：NSIS 会识别已安装的 WiX/MSI 版本并在安装前卸载（模板内置 `FindWixInstall` → `PageReinstall`），所以「先 MSI 后 NSIS」是干净的；**MSI 不识别 NSIS 版**，装 MSI 前请先卸载 NSIS 版，否则会留下两条 ARP 与两个同名快捷方式（程序目录相同，卸载可能互删）。这一点**未做自动拦截**。此外 [installer-hooks.nsh](src-tauri/installer-hooks.nsh) 在写文件前按「旧显示名 `Rename Studio`」与「旧 UpgradeCode `B9847038-…`（注册表倒序打包形式）」两条判据检测旧版，命中即提示卸载命令并中止，避免新旧两个应用并存。
 
-数据目录：每用户的 `%APPDATA%\app.renomio.desktop`（Tauri `app_data_dir`，随 identifier 变化），不随安装目录走；**切换安装范围不会迁移配置、日志与撤销历史**（同一用户的同一数据目录，两者共享）。**自动更新（alpha5 起）**：设置页「检查更新」读取公开仓库 `yunyu697/renomio-releases` 滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；以 minisign 签名校验为准，支持镜像回退、仅下载与安装后重启。源码仓库保持私有，不承载更新资源。
+数据目录：每用户的 `%APPDATA%\app.renomio.desktop`（Tauri `app_data_dir`，随 identifier 变化），不随安装目录走；**切换安装范围不会迁移配置、日志与撤销历史**（同一用户的同一数据目录，两者共享）。**自动更新（alpha5 起）**：设置页「检查更新」读取源码仓库 `yunyu697/renomio` 滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；以 minisign 签名校验为准，支持镜像回退、仅下载与安装后重启。源码仓库已公开，安装包与更新清单与源码同仓发布；旧发行仓库 `renomio-releases` 已归档，仅保留历史下载。
 
 ## 产物（本轮构建：1.1.0-alpha1）
 

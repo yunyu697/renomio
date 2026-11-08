@@ -17,7 +17,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 const MANIFEST_URL: &str =
     "https://github.com/yunyu697/renomio/releases/download/updates/latest.json";
-const HOMEPAGE: &str = "https://github.com/yunyu697/renomio-releases";
+const HOMEPAGE: &str = "https://github.com/yunyu697/renomio";
 
 /// base64(公钥文件全文)。私钥只在本机 `Documents\Trae-CN\renomio-signing`，不入仓库。
 const PUBKEY_B64: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZENTBCQzBCQjZFREQ4QTEKUldTaDJPMjJDN3hRL2JURjBoajFjMERSZ1dWMHNncDVqdmR1S1o4L1VzSWIvbndwUlc3SWJrWXYK";
