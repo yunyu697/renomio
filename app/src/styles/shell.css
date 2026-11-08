@@ -470,7 +470,6 @@ body { margin: 0; overflow: hidden; }
   font-size: 13px;
   background: var(--bg);
 }
-.boot .tb-mark { display: grid; place-items: center; color: var(--accent-on); }
 
 .boot-error {
   position: fixed;

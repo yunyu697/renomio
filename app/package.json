@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "version:sync": "node scripts/version.mjs",
+    "icon:build": "node scripts/gen-icons.mjs",
     "version:check": "node scripts/check-version.mjs",
     "version:selftest": "node scripts/check-version.mjs --self-test",
     "tauri:build": "node scripts/version.mjs && tauri build",

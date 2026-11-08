@@ -9,6 +9,7 @@ import type {
   BatchSummary, ConflictPolicy, LocaleSetting, SavedUpdate, UpdateInfo, UpdateProgress,
 } from '../lib/types';
 import { useApp } from '../store';
+import { BrandMark } from './BrandMark';
 import { Icon } from './Icon';
 import { LayoutThumb, VIEWS, VIEW_LABEL } from './LayoutSwitch';
 
@@ -889,9 +890,7 @@ function AboutPanel() {
       />
       <div className="drawer-body">
         <div className="about-brand">
-          <span className="tb-mark" style={{ width: 38, height: 38, borderRadius: 10 }}>
-            <Icon name="mark" size={20} />
-          </span>
+          <BrandMark size={38} />
           <div>
             <h3>{PRODUCT_NAME}</h3>
             <p>{t('about.tagline')}</p>

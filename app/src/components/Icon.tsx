@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 
 export type IconName =
-  | 'mark' | 'file-plus' | 'folder-plus' | 'folder' | 'image' | 'pdf' | 'text' | 'music'
+  | 'file-plus' | 'folder-plus' | 'folder' | 'image' | 'pdf' | 'text' | 'music'
   | 'doc' | 'video' | 'file' | 'search' | 'filter' | 'undo' | 'play' | 'check' | 'alert'
   | 'info' | 'clock' | 'shield' | 'eye' | 'trash' | 'refresh' | 'minus' | 'maximize' | 'x'
   | 'chevron-down' | 'chevron-right' | 'chevron-up' | 'history' | 'settings' | 'layers'
@@ -9,7 +9,6 @@ export type IconName =
   | 'arrow-up' | 'arrow-down' | 'drag' | 'menu' | 'rules';
 
 const PATHS: Record<IconName, string> = {
-  mark: 'M4 7a3 3 0 0 1 3-3h7l4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z M14 4v4h4 M8 15h6m0 0-2.2-2.2m2.2 2.2-2.2 2.2',
   'file-plus': 'M5 6a2 2 0 0 1 2-2h6l4 4v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z M13 4v4h4M12 12v5m-2.5-2.5h5',
   'folder-plus': 'M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2.2 2.5H18a2.5 2.5 0 0 1 2.5 2.5v6A2.5 2.5 0 0 1 18 18.5H6A2.5 2.5 0 0 1 3.5 16z M11.5 10.5v5m-2.5-2.5h5',
   folder: 'M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2.2 2.5H18a2.5 2.5 0 0 1 2.5 2.5v6A2.5 2.5 0 0 1 18 18.5H6A2.5 2.5 0 0 1 3.5 16z',

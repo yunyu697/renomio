@@ -32,16 +32,33 @@ a { color: inherit; }
   min-width: 0;
 }
 
-.mark {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  display: grid;
-  place-items: center;
-  color: var(--accent-on);
-  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 30%, transparent);
+/* 品牌图标只跟随明暗主题，不跟随配色方案 */
+.brand-mark {
   flex: 0 0 auto;
+  --bm-ink: #4F46E5;
+  --bm-tile: #F7F8FE;
+  --bm-edge: #E5E8F0;
+  --bm-ring: #ffffff;
+  --bm-arrow: #ffffff;
+}
+html[data-theme="dark"] .brand-mark {
+  --bm-ink: #A5B4FC;
+  --bm-tile: #1E2145;
+  --bm-edge: rgba(255, 255, 255, .14);
+  --bm-ring: #ffffff;
+  --bm-arrow: #1E2145;
+}
+.brand-mark .bm-tile { fill: var(--bm-tile); stroke: var(--bm-edge); stroke-width: .6; }
+.brand-mark .bm-ghost { fill: var(--bm-ink); }
+.brand-mark .bm-doc { fill: none; stroke: var(--bm-ink); stroke-width: 2.6; }
+.brand-mark .bm-line { fill: var(--bm-ink); }
+.brand-mark .bm-badge { fill: var(--bm-ink); stroke: var(--bm-ring); stroke-width: 2.5; }
+.brand-mark .bm-arrow {
+  fill: none;
+  stroke: var(--bm-arrow);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .brand-title {
@@ -137,15 +154,6 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   border-bottom: 1px solid var(--line);
   flex: 0 0 auto;
   user-select: none;
-}
-
-.tb-mark {
-  width: 22px; height: 22px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  display: grid; place-items: center;
-  color: var(--accent-on);
-  flex: 0 0 auto;
 }
 
 .tb-title {

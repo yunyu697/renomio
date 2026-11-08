@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 104 104" role="img">
+<title>Flow Indigo light</title>
+<rect x="0" y="0" width="104" height="104" rx="24" fill="#F7F8FE" stroke="#E5E8F0" stroke-opacity="1" stroke-width="0.6"/>
+<g color="#4F46E5" style="color:#4F46E5">
+<g transform="rotate(-11 52 54)"><rect x="27" y="26" width="42" height="54" rx="7" fill="currentColor" opacity="0.28"/></g>
+<g transform="rotate(8 52 54)"><rect x="35" y="27" width="42" height="54" rx="7" fill="currentColor" opacity="0.52"/></g>
+<rect x="33" y="29" width="42" height="54" rx="7" fill="none" stroke="currentColor" stroke-width="2.6"/>
+<rect x="40" y="47" width="26" height="3" rx="1.5" fill="currentColor"/>
+<rect x="40" y="56" width="20" height="3" rx="1.5" fill="currentColor" opacity="0.6"/>
+<rect x="40" y="65" width="23" height="3" rx="1.5" fill="currentColor" opacity="0.35"/>
+<circle cx="76" cy="77" r="15" fill="currentColor" stroke="#ffffff" stroke-width="2.5"/>
+<path d="M69 77h13m-5-5 5 5-5 5" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</svg>

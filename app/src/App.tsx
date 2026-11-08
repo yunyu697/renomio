@@ -12,6 +12,7 @@ import { useTranslation } from './i18n';
 import { PRODUCT_NAME } from './lib/branding';
 import { useApp } from './store';
 import { ActionBar } from './components/ActionBar';
+import { BrandMark } from './components/BrandMark';
 import { Drawer } from './components/Drawer';
 import { ElevationNotice } from './components/ElevationNotice';
 import { FailureDialog } from './components/FailureDialog';
@@ -345,9 +346,7 @@ export function App() {
   if (!ready) {
     return (
       <div className="boot">
-        <span className="tb-mark" style={{ width: 34, height: 34 }}>
-          <Icon name="mark" size={18} />
-        </span>
+        <BrandMark size={34} />
         <div>{t('app.booting', { product: PRODUCT_NAME })}</div>
       </div>
     );

@@ -3,6 +3,7 @@ import { isDesktop } from '../lib/bridge';
 import { PRODUCT_NAME } from '../lib/branding';
 import { useTranslation } from '../i18n';
 import { useApp } from '../store';
+import { BrandMark } from './BrandMark';
 import { Icon } from './Icon';
 
 async function windowAction(action: 'minimize' | 'maximize' | 'close'): Promise<void> {
@@ -51,7 +52,7 @@ export function Titlebar() {
 
   return (
     <div className="titlebar" data-tauri-drag-region>
-      <span className="tb-mark"><Icon name="mark" size={13} /></span>
+      <BrandMark size={22} />
       <span className="tb-title" data-tauri-drag-region>{PRODUCT_NAME}</span>
       <span className="tb-crumb" data-tauri-drag-region>
         <span style={{ color: 'var(--muted-2)' }}>›</span>
