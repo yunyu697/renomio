@@ -4,10 +4,10 @@ import type { InspectorMode } from '../lib/types';
 import { useApp } from '../store';
 import { Icon, type IconName } from './Icon';
 import { MetaEditorBody } from './MetaEditDialog';
-import { AttrBody, MoveBody, TimeBody } from './OpsDialog';
+import { AttrBody, MoveBody, TimeBody } from './OpsBodies';
 import { ExifClearPanel } from './ExifClearPanel';
-import { TextEncodingBody } from './TextEncodingPage';
-import { matchesKind } from './FeaturePage';
+import { TextEncodingBody } from './TextEncodingBody';
+import { matchesKind } from '../lib/fileKind';
 
 const TABS: Array<{ id: InspectorMode; labelKey: string; icon: IconName }> = [
   { id: 'attrs', labelKey: 'inspector.tab.attrs', icon: 'eye' },

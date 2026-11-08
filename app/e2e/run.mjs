@@ -1059,14 +1059,13 @@ async function main() {
           current: n.getAttribute('aria-current'),
           main: !!document.querySelector('.panes > .main'),
           rules: !!document.querySelector('[data-testid="rules-module"]'),
-          page: !!document.querySelector('.panes > .feature-page'),
           scope: document.querySelector('[data-testid="inspector-scope"]')?.textContent || '',
         };
       })()`);
       check(
         'UI',
         `侧栏 ${nav} → 停靠检查器 ${mode}（文件列表与规则链不被整页替换）`,
-        navState.active && navState.current === 'true' && navState.main && navState.rules && !navState.page && navState.scope.length > 0,
+        navState.active && navState.current === 'true' && navState.main && navState.rules && navState.scope.length > 0,
         JSON.stringify(navState),
       );
       await click('[data-testid="inspector-close"]');
@@ -1076,7 +1075,7 @@ async function main() {
     // 「文件」组：切回工作台视图 / 打开历史、快照、方案，都不离开工作台
     await click('[data-testid="nav-rename"]');
     await sleep(250);
-    const renameActive = await evaluate(`Boolean(document.querySelector('[data-testid="list-tab-rename"]')?.classList.contains('active')) && !document.querySelector('.panes > .feature-page')`);
+    const renameActive = await evaluate(`Boolean(document.querySelector('[data-testid="list-tab-rename"]')?.classList.contains('active')) && !!document.querySelector('.panes > .main')`);
     check('UI', '「文件 → 重命名」切回更名列表，不打开整页', renameActive, String(renameActive));
     await click('[data-testid="nav-history"]');
     await waitFor(`document.querySelector('.drawer')`, '历史抽屉');
@@ -1120,7 +1119,6 @@ async function main() {
         scope,
         main: !!document.querySelector('.panes > .main'),
         rules: !!document.querySelector('[data-testid="rules-module"]'),
-        page: !!document.querySelector('.panes > .feature-page'),
         width: Math.round(panel.getBoundingClientRect().width),
         expanded: document.querySelector('[data-testid="inspector-toggle"]')?.getAttribute('aria-expanded'),
       };
@@ -1129,7 +1127,7 @@ async function main() {
     check(
       'UI',
       '打开检查器 → 文件列表与规则链仍在同一屏（不整页替换工作台）',
-      dockOpen.main && dockOpen.rules && !dockOpen.page && dockOpen.expanded === 'true',
+      dockOpen.main && dockOpen.rules && dockOpen.expanded === 'true',
       JSON.stringify(dockOpen),
     );
     check(
@@ -1239,12 +1237,12 @@ async function main() {
       empty: !!document.querySelector('[data-testid="inspector-empty"]'),
       scope: document.querySelector('[data-testid="inspector-scope"]')?.textContent || '',
       selected: document.querySelectorAll('.trow .checkbox[aria-checked="true"]').length,
-      page: !!document.querySelector('.panes > .feature-page'),
+      main: !!document.querySelector('.panes > .main'),
     })`);
     check(
       'UI',
       '列表未勾选 → 检查器显示空态、保持列表勾选为 0（不再由页面自动全选）',
-      selectedBefore === 0 && autoPanel.empty && autoPanel.selected === 0 && !autoPanel.page && autoPanel.scope.includes('0'),
+      selectedBefore === 0 && autoPanel.empty && autoPanel.selected === 0 && autoPanel.main && autoPanel.scope.includes('0'),
       JSON.stringify({ selectedBefore, autoPanel }),
     );
     await click('[data-testid="inspector-close"]');

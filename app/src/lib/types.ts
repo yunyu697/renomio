@@ -358,9 +358,6 @@ export interface DuplicateGroupDto {
   paths: string[];
 }
 
-/** 侧栏功能页：每个入口都打开独立的完整页面（自带选择区与空态）。 */
-export type PageId = 'music' | 'image' | 'office' | 'text' | 'attrs' | 'times' | 'organize';
-
 /** 右侧检查器：属性 / 元数据 / 时间 / 归类 / EXIF / 编码共用一块面板，内容跟随列表勾选。 */
 export type InspectorMode = 'attrs' | 'meta' | 'time' | 'organize' | 'exif' | 'encoding';
 

@@ -147,7 +147,7 @@ export function ExifClearPanel({ paths }: { paths: string[] }) {
         >
           <Icon name="ban" size={13} />{applying ? t('exif.applying') : t('exif.apply')}
         </button>
-        {cleanLevel && <span className="page-select-note" data-testid="exif-clean-note">{t('exif.cleanNow')}</span>}
+        {cleanLevel && <span className="exif-clean-note" data-testid="exif-clean-note">{t('exif.cleanNow')}</span>}
       </div>
 
       {inventories && (

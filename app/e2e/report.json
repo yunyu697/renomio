@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-08T09:29:08.050Z",
+  "generatedAt": "2026-11-08T09:57:37.510Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
@@ -142,13 +142,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-08 17:27 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-08 17:56 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-08 17:27 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-08 17:56 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -364,37 +364,37 @@
       "layer": "UI",
       "name": "侧栏 nav-attrs → 停靠检查器 attrs（文件列表与规则链不被整页替换）",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"page\":false,\"scope\":\"作用于 4 个文件\"}"
+      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
     },
     {
       "layer": "UI",
       "name": "侧栏 nav-meta → 停靠检查器 meta（文件列表与规则链不被整页替换）",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"page\":false,\"scope\":\"作用于 4 个文件\"}"
+      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
     },
     {
       "layer": "UI",
       "name": "侧栏 nav-times → 停靠检查器 time（文件列表与规则链不被整页替换）",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"page\":false,\"scope\":\"作用于 4 个文件\"}"
+      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
     },
     {
       "layer": "UI",
       "name": "侧栏 nav-organize → 停靠检查器 organize（文件列表与规则链不被整页替换）",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"page\":false,\"scope\":\"作用于 4 个文件\"}"
+      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
     },
     {
       "layer": "UI",
       "name": "侧栏 nav-exif → 停靠检查器 exif（文件列表与规则链不被整页替换）",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"page\":false,\"scope\":\"作用于 4 个文件\"}"
+      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
     },
     {
       "layer": "UI",
       "name": "侧栏 nav-encoding → 停靠检查器 encoding（文件列表与规则链不被整页替换）",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"page\":false,\"scope\":\"作用于 4 个文件\"}"
+      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
     },
     {
       "layer": "UI",
@@ -412,7 +412,7 @@
       "layer": "UI",
       "name": "打开检查器 → 文件列表与规则链仍在同一屏（不整页替换工作台）",
       "ok": true,
-      "detail": "{\"scope\":\"作用于 4 个文件\",\"main\":true,\"rules\":true,\"page\":false,\"width\":320,\"expanded\":\"true\"}"
+      "detail": "{\"scope\":\"作用于 4 个文件\",\"main\":true,\"rules\":true,\"width\":320,\"expanded\":\"true\"}"
     },
     {
       "layer": "UI",
@@ -466,7 +466,7 @@
       "layer": "UI",
       "name": "列表未勾选 → 检查器显示空态、保持列表勾选为 0（不再由页面自动全选）",
       "ok": true,
-      "detail": "{\"selectedBefore\":0,\"autoPanel\":{\"empty\":true,\"scope\":\"作用于 0 个文件\",\"selected\":0,\"page\":false}}"
+      "detail": "{\"selectedBefore\":0,\"autoPanel\":{\"empty\":true,\"scope\":\"作用于 0 个文件\",\"selected\":0,\"main\":true}}"
     },
     {
       "layer": "UI",
@@ -1168,7 +1168,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmw7mqywy1\",\"jumpState\":{\"openId\":\"rmw7mqywy1\",\"detail\":1,\"focused\":\"rmw7mqywy1\"}}"
+      "detail": "{\"firstRuleId\":\"rmw7nrnhj1\",\"jumpState\":{\"openId\":\"rmw7nrnhj1\",\"detail\":1,\"focused\":\"rmw7nrnhj1\"}}"
     },
     {
       "layer": "UI",
@@ -1234,7 +1234,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1794130127273.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1794131838765.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -1300,7 +1300,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/8 17:28:543 条 · 仅映射预览还原删除"
+      "detail": "2026/11/8 17:57:243 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -1360,7 +1360,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-08 17:28 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-08 17:57 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",

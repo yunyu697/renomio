@@ -19,8 +19,6 @@ import { MainPane } from './components/MainPane';
 import { MetadataDialog } from './components/MetadataDialog';
 import { MetaEditDialog } from './components/MetaEditDialog';
 import { Nav } from './components/Nav';
-import { OpsDialog } from './components/OpsDialog';
-import { Pages } from './components/Pages';
 import { PlanDialog } from './components/PlanDialog';
 import { PathBar } from './components/PathBar';
 import { PreviewDialog } from './components/PreviewDialog';
@@ -52,7 +50,6 @@ export function App() {
   const [dragSize, setDragSize] = useState<number | null>(null);
   const [narrow, setNarrow] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
-  const activePage = useApp((s) => s.activePage);
   const inspectorOpen = useApp((s) => s.inspector.open);
   const rules = useApp((s) => s.rules);
   const layout = settings.layout;
@@ -310,8 +307,6 @@ export function App() {
         if (e.key === 'Escape') {
           dropResetRef.current();
           if (state.previewOpen) state.closePreview();
-          else if (state.activePage) state.closePage();
-          else if (state.opsMode) state.closeOps();
           else if (state.inspector.open) state.closeInspector();
           else if (state.drawer) state.closeDrawer();
           else if (state.ruleMenuOpen) useApp.setState({ ruleMenuOpen: false });
@@ -424,12 +419,12 @@ export function App() {
               '--rules-stack': `${dragSize ?? presetSize}px`,
             } as CSSProperties}
           >
-            {activePage ? <Pages /> : panes}
+            {panes}
           </div>
-          {!activePage && inspectorOpen && <Inspector />}
+          {inspectorOpen && <Inspector />}
         </div>
       </div>
-      {!activePage && <ActionBar />}
+      <ActionBar />
       <StatusBar />
 
       {bootError && (
@@ -444,7 +439,6 @@ export function App() {
       <FailureDialog />
       <MetadataDialog />
       <MetaEditDialog />
-      <OpsDialog />
       <PlanDialog />
       <SnapshotDialog />
       <ShortcutDialog />

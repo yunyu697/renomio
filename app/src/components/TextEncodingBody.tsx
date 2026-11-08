@@ -5,7 +5,6 @@ import { metaRestoreBackup, textDetect, textSave } from '../lib/bridge';
 import type { Entry, TextDetectDto, TextEncodingId, TextSaveResultDto } from '../lib/types';
 import { baseName } from '../lib/format';
 import { Icon } from './Icon';
-import { PageShell, usePageTargets } from './FeaturePage';
 
 const TARGETS: Array<{ id: TextEncodingId; label: string }> = [
   { id: 'utf8', label: 'UTF-8' },
@@ -78,10 +77,7 @@ export function TextEncodingBody({ targets }: { targets: Entry[] }) {
   const manualRequired = detected ? detected.encoding === 'unknown' || !detected.confirmed : false;
 
   const apply = async () => {
-    if (!current) {
-      showToast('info', t('page.noFiles'));
-      return;
-    }
+    if (!current) return;
     if (manualRequired && source === 'auto') {
       showToast('warn', t('text.manualRequired'));
       return;
@@ -237,34 +233,5 @@ export function TextEncodingBody({ targets }: { targets: Entry[] }) {
         </div>
       )}
     </div>
-  );
-}
-
-export function TextEncodingPage() {
-  const { t } = useTranslation();
-  const { panel, targets } = usePageTargets('text');
-  const chooseFiles = useApp((s) => s.chooseFiles);
-
-  return (
-    <PageShell
-      page="text"
-      icon="text"
-      title={t('nav.text')}
-      subtitle={t('page.textSubtitle')}
-    >
-      {panel}
-      {targets.length === 0 && (
-        <div className="page-empty" data-testid="text-empty">
-          <Icon name="text" size={22} />
-          <p>{t('page.textNoFiles')}</p>
-          <div className="page-empty-actions">
-            <button className="btn btn-primary" type="button" onClick={() => void chooseFiles()}>
-              <Icon name="folder" size={13} />{t('page.chooseFiles')}
-            </button>
-          </div>
-        </div>
-      )}
-      {targets.length > 0 && <TextEncodingBody targets={targets} />}
-    </PageShell>
   );
 }

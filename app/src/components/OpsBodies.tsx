@@ -23,10 +23,6 @@ const FIELD_KEY: Record<TimeField, string> = {
 const UNIT_MS = { second: 1000, minute: 60_000, hour: 3_600_000, day: 86_400_000 } as const;
 type ShiftUnit = keyof typeof UNIT_MS;
 
-function selectedFiles(entries: Entry[]): Entry[] {
-  return entries.filter((e) => e.selected && !e.isDir);
-}
-
 function ResultPanel({ outcome, onClose }: { outcome: OpsOutcome; onClose: () => void }) {
   const { t } = useTranslation();
   const undoUntil = useApp((s) => s.undoUntil);
@@ -826,21 +822,5 @@ export function MoveBody({ onClose, targets }: { onClose: () => void; targets: E
         </div>
       </div>
     </>
-  );
-}
-
-export function OpsDialog() {
-  const mode = useApp((s) => s.opsMode);
-  const close = useApp((s) => s.closeOps);
-  const entries = useApp((s) => s.entries);
-  if (!mode) return null;
-  return (
-    <div className="modal-mask" onClick={close}>
-      <div className="dialog dialog-wide" data-testid="ops-dialog" onClick={(e) => e.stopPropagation()}>
-        {mode === 'time' && <TimeBody onClose={close} targets={selectedFiles(entries)} />}
-        {mode === 'attrs' && <AttrBody onClose={close} targets={selectedFiles(entries)} />}
-        {mode === 'move' && <MoveBody onClose={close} targets={selectedFiles(entries)} />}
-      </div>
-    </div>
   );
 }

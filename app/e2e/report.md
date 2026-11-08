@@ -1,6 +1,6 @@
 # 无头浏览器 E2E 报告
 
-- 生成时间：2026-11-08T09:29:08.050Z
+- 生成时间：2026-11-08T09:57:37.510Z
 - 运行方式：无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）
 - 浏览器：`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`
 - 视口：1440×900（默认） / 1100×640@1.5x（最小尺寸）
@@ -28,8 +28,8 @@
 | ✅ 通过 | 应用 → 2 个完成 + 1 个冲突跳过（未改名文件不参与）（{"total":3,"done":2,"skipped":1,"failed":0}） |
 | ✅ 通过 | 冲突文件保持原名 |
 | ✅ 通过 | 撤销 → 4 个原名全部恢复（["旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg","logo.png"]） |
-| ✅ 通过 | 历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略（2026-11-08 17:27 · 更名D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤） |
-| ✅ 通过 | 历史面板：已撤销批次显示「已撤销」并说明原因（{"undoable":"0","state":"已撤销","reason":"该批次已经撤销","text":"2026-11-08 17:27 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销"}） |
+| ✅ 通过 | 历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略（2026-11-08 17:56 · 更名D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤） |
+| ✅ 通过 | 历史面板：已撤销批次显示「已撤销」并说明原因（{"undoable":"0","state":"已撤销","reason":"该批次已经撤销","text":"2026-11-08 17:56 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销"}） |
 | ✅ 通过 | 历史面板：新批次显示「可撤销」（{"undoable":"1","id":"mock-batch-2"}） |
 | ✅ 通过 | 历史面板：撤销后条目变为「已撤销」（{"undoable":"0","state":"已撤销","chip":"已撤销","reason":"该批次已经撤销"}） |
 | ✅ 通过 | 历史面板：较新批次可撤销时，「撤销到此」可用（多级撤销）（{"index":1,"undoable":"1","disabled":false}） |
@@ -61,15 +61,15 @@
 | ✅ 通过 | 时间面板提供 EXIF 拍摄时间写入开关 |
 | ✅ 通过 | 时间修改 → 逐条结果面板 + 可撤销提示（4 成功 · 0 跳过 · 0 失败批次 mock-batch-6 已写入日志，可在「操作记录」撤销撤销本次关闭） |
 | ✅ 通过 | 左栏收敛为「文件 / 检查器」两组，六类操作都在检查器分组，旧整页入口与「旧版入口」标记已消失（{"groups":[{"id":"nav-group-files","label":"文件▾","items":["nav-rename","nav-history","nav-snapshot","nav-plan"]},{"id":"nav-group-inspector","label":"检查器▾","items":["nav-attrs","nav-meta","nav-times","nav-organize","nav-exif","nav-encoding"]}],"legacy":[],"oldPages":[]}） |
-| ✅ 通过 | 侧栏 nav-attrs → 停靠检查器 attrs（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"page":false,"scope":"作用于 4 个文件"}） |
-| ✅ 通过 | 侧栏 nav-meta → 停靠检查器 meta（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"page":false,"scope":"作用于 4 个文件"}） |
-| ✅ 通过 | 侧栏 nav-times → 停靠检查器 time（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"page":false,"scope":"作用于 4 个文件"}） |
-| ✅ 通过 | 侧栏 nav-organize → 停靠检查器 organize（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"page":false,"scope":"作用于 4 个文件"}） |
-| ✅ 通过 | 侧栏 nav-exif → 停靠检查器 exif（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"page":false,"scope":"作用于 4 个文件"}） |
-| ✅ 通过 | 侧栏 nav-encoding → 停靠检查器 encoding（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"page":false,"scope":"作用于 4 个文件"}） |
+| ✅ 通过 | 侧栏 nav-attrs → 停靠检查器 attrs（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
+| ✅ 通过 | 侧栏 nav-meta → 停靠检查器 meta（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
+| ✅ 通过 | 侧栏 nav-times → 停靠检查器 time（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
+| ✅ 通过 | 侧栏 nav-organize → 停靠检查器 organize（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
+| ✅ 通过 | 侧栏 nav-exif → 停靠检查器 exif（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
+| ✅ 通过 | 侧栏 nav-encoding → 停靠检查器 encoding（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
 | ✅ 通过 | 「文件 → 重命名」切回更名列表，不打开整页（true） |
 | ✅ 通过 | 检查器分组标题可点击折叠（aria-expanded=false 且条目隐藏）（{"expanded":"false","visibleItems":0}） |
-| ✅ 通过 | 打开检查器 → 文件列表与规则链仍在同一屏（不整页替换工作台）（{"scope":"作用于 4 个文件","main":true,"rules":true,"page":false,"width":320,"expanded":"true"}） |
+| ✅ 通过 | 打开检查器 → 文件列表与规则链仍在同一屏（不整页替换工作台）（{"scope":"作用于 4 个文件","main":true,"rules":true,"width":320,"expanded":"true"}） |
 | ✅ 通过 | 检查器头部常驻「作用于 N 个文件」，N 与列表勾选一致（作用于 4 个文件 / 列表勾选 4） |
 | ✅ 通过 | 检查器是右侧停靠面板（宽 320px，不覆盖列表）（320px） |
 | ✅ 通过 | ≤1100 窄窗：检查器改为右侧抽屉浮层，文件列表不被挤压缩（{"position":"absolute","width":340,"mainWidth":1100,"narrow":"true"}） |
@@ -78,7 +78,7 @@
 | ✅ 通过 | 检查器「元数据」页签复用真实编辑器，并说明只写入勾选的文件（只写入勾选的文件；逐字段勾选后才会保存，并保留可还原的备份。） |
 | ✅ 通过 | 检查器「归类」页签按勾选生成移动预览（3 行） |
 | ✅ 通过 | 关闭检查器 → 工作台恢复，开关收起状态同步（{"gone":true,"expanded":"false","main":true}） |
-| ✅ 通过 | 列表未勾选 → 检查器显示空态、保持列表勾选为 0（不再由页面自动全选）（{"selectedBefore":0,"autoPanel":{"empty":true,"scope":"作用于 0 个文件","selected":0,"page":false}}） |
+| ✅ 通过 | 列表未勾选 → 检查器显示空态、保持列表勾选为 0（不再由页面自动全选）（{"selectedBefore":0,"autoPanel":{"empty":true,"scope":"作用于 0 个文件","selected":0,"main":true}}） |
 | ✅ 通过 | 图片页签的「编辑元数据」入口打开停靠检查器并复用真实编辑器（{"fields":true,"unsupported":false,"hasApply":true,"scope":"作用于 1 个文件"}） |
 | ✅ 通过 | 属性预览 → 可写 → 只读（原值 → 新值）（文件只读 / 隐藏（原 → 新）状态旧照片 001.jpg可写 / 可见→只读 / 可见待写入旧照片 002.jpg可写 / 可见→只读 / 可见待写入旧照片 003.jpg只读 / 可见→只读 / 可见未变更logo.png可写 / 可见→只读 / 可见待写入） |
 | ✅ 通过 | 属性面板提供「取反」模式（只读 / 隐藏） |
@@ -184,7 +184,7 @@
 | ✅ 通过 | 冲突命中：同路径包含+排除、前缀/子目录重叠（2 条独立冲突）（{"count":2,"items":["include-exclude","path-overlap"]}） |
 | ✅ 通过 | 冲突命中：动作矛盾与正则等价合并为一条（同一对规则只出现一次）（{"count":1,"items":["regex-overlap,action-contradiction"],"badges":2,"rules":2,"modal":false}） |
 | ✅ 通过 | 冲突不阻断保存：两条规则仍在、无阻断弹窗、两条规则就地标出（{"count":1,"items":["regex-overlap,action-contradiction"],"badges":2,"rules":2,"modal":false}） |
-| ✅ 通过 | 点击冲突汇总可跳转到对应规则（展开并聚焦）（{"firstRuleId":"rmw7mqywy1","jumpState":{"openId":"rmw7mqywy1","detail":1,"focused":"rmw7mqywy1"}}） |
+| ✅ 通过 | 点击冲突汇总可跳转到对应规则（展开并聚焦）（{"firstRuleId":"rmw7nrnhj1","jumpState":{"openId":"rmw7nrnhj1","detail":1,"focused":"rmw7nrnhj1"}}） |
 | ✅ 通过 | 冲突命中：后一条被遮蔽不可达（{"items":2,"hasShadow":true}） |
 | ✅ 通过 | 冲突不命中：模式不重叠且替换互不相干时不提示（{"panel":false,"items":0,"badges":0,"rules":2}） |
 | ✅ 通过 | 列表「下移」立即改变顺序并出现手动顺序标记（{"namesBefore":["旧照片 001.jpg","logo.png","旧照片 002.jpg","旧照片 003.jpg"],"namesAfterDown":["logo.png","旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg"],"manualChip":1}） |
@@ -195,7 +195,7 @@
 | ✅ 通过 | 同名不同路径保留两条并在界面标出重名（{"sameNameCount":2,"dupBadges":2}） |
 | ✅ 通过 | 内容相同的不同路径进入「疑似重复」分组，未静默删除（{"dupPanelBefore":1,"dupGroups":1}） |
 | ✅ 通过 | 一键去重只移除列表中的一条，磁盘文件数不变（{"countBeforeDedupe":7,"countAfterDedupe":6,"filesOnDisk":7,"filesAfterDedupe":7}） |
-| ✅ 通过 | 属性编辑：选中字段写入并回读校验通过（{"text":"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\e2e\\旅行\\旧照片 002.jpg.1794130127273.bak","ok":true,"verified":true}） |
+| ✅ 通过 | 属性编辑：选中字段写入并回读校验通过（{"text":"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\e2e\\旅行\\旧照片 002.jpg.1794131838765.bak","ok":true,"verified":true}） |
 | ✅ 通过 | 属性编辑：重新打开可见写入后的值（{"rereadTitle":"E2E 新标题"}） |
 | ✅ 通过 | 不支持格式（HEIC）明确拒绝并附文件与原因（{"unsupportedShown":1,"heicResult":{"bad":true,"text":"sample.heicHEICFailedHEIC 不支持写入：HEIC/HEIF 解码能力缺失，本版本不支持Backup：No backup"}}） |
 | ✅ 通过 | 未检查：只显示「检查更新」「打开主页」（{"phase":"idle","check":1,"action":0,"save":0,"home":1,"retry":0,"latest":0,"install":0,"size":0,"error":0}） |
@@ -206,7 +206,7 @@
 | ✅ 通过 | 之后显示已最新时仍保留「安装」按钮（{"phase":"latest","check":1,"action":0,"save":0,"home":1,"retry":0,"latest":1,"install":1,"size":0,"error":0}） |
 | ✅ 通过 | 快照：入口真实可用且哈希复选框默认关闭（false） |
 | ✅ 通过 | 快照（仅映射）→ 记录 3 条原名/新名与大小/时间，不含哈希（{"entryCount":3,"hashed":0}） |
-| ✅ 通过 | 快照列表显示「仅映射」（2026/11/8 17:28:543 条 · 仅映射预览还原删除） |
+| ✅ 通过 | 快照列表显示「仅映射」（2026/11/8 17:57:243 条 · 仅映射预览还原删除） |
 | ✅ 通过 | 快照：勾选后开启 SHA-256（true） |
 | ✅ 通过 | 快照（含哈希）→ 3 条 SHA-256 且逐条上报进度（{"id":"mock-snap-2","hashed":3}） |
 | ✅ 通过 | 快照生成 → 进度事件可取消/可观测（hash/done）（hash,done） |
@@ -216,7 +216,7 @@
 | ✅ 通过 | 还原执行 → 2 条还原、1 条跳过，批次 kind=restore 且 policy=skip（{"total":3,"done":2,"skipped":1,"failed":0}） |
 | ✅ 通过 | 还原绝不覆盖：诱饵文件保持原样，冲突条目的新名文件仍在（{"decoyIntact":12345,"afterRestoreFiles":["照片_001.jpg","旧照片 002.jpg","旧照片 003.jpg","logo.png","旧照片 001.jpg"]}） |
 | ✅ 通过 | 还原结果逐条说明跳过原因（还原结果：成功 2 条，跳过/失败 1 条批次 mock-batch-2还原已写入操作记录，可在「操作记录」里整批撤销D:\e2e\旅行\照片_002.jpg→D:\e2e\旅行\旧照片 002.jpg已还原D:\e2e\旅行\照片_003.jpg→D:\e2e\旅行\旧照片 003.jpg已还原D:\e2e\旅行\照） |
-| ✅ 通过 | 操作记录把还原标为「快照还原」且可撤销（2026-11-08 17:28 · 快照还原D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销） |
+| ✅ 通过 | 操作记录把还原标为「快照还原」且可撤销（2026-11-08 17:57 · 快照还原D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销） |
 | ✅ 通过 | 撤销还原 → 2 条回到新名（冲突条目不受影响）（["照片_001.jpg","照片_002.jpg","照片_003.jpg","logo.png","旧照片 001.jpg"]） |
 | ✅ 通过 | 删除快照 → 列表与后端同步只剩 1 条（1） |
 | ✅ 通过 | 勾选一张图片后 EXIF 入口在检查器里可用（作用于勾选文件）（1 / 作用于 1 个文件） |
