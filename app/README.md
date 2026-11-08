@@ -56,6 +56,8 @@ MIT License — 见仓库根目录的 [LICENSE](../LICENSE)
 
 **EXIF 拍摄时间可写（1.1.0-alpha1）。** 时间面板可勾选「同时写入图片 EXIF 拍摄时间」：先写 EXIF `DateTimeOriginal`（0x9003）/ `DateTime`（0x0132）与 XMP `photoshop:DateCreated`，再写文件系统时间（元数据改写会刷新 mtime，顺序不能反）；沿用属性编辑的 `.bak` 备份与写后校验。EXIF 写入不随批次撤销回滚，撤销只还原文件系统时间。
 
+**1.1.0-alpha5 修 EXIF 子 IFD 写入**：`DateTimeOriginal` 实际落到 `ExifIFD`（0x9003），并与 `ExifIFD:CreateDate`（0x9004）、`IFD0:ModifyDate`（0x0132）、XMP `photoshop:DateCreated` 保持一致；GPS 按 `IFD0 → GPS IFD` 子指针写入并与 XMP 对齐。改型号时按厂商前缀白名单联动 `IFD0:Make` 与 XMP `tiff:Make`（如 `Fujifilm X-T5` → `FUJIFILM`），认不出厂商则保留原 Make、不清空不猜测。
+
 ## 性能（10,000 个文件的真实测量）
 
 压测语料：100 个多级目录 × 100 个文件，混合扩展名（jpg/png/mp3/pdf/txt/docx），含中文名与超长名；生成在系统临时目录，测完整体删除，不写用户目录。
@@ -172,7 +174,7 @@ npm install
 npm run dev          # 浏览器演示模式（不读写磁盘）
 npm run tauri dev    # 真实桌面应用
 npm run build        # tsc --noEmit + vite build
-npm run test:core    # renomio-core 测试：单测 + 真实文件系统回归（106 项）
+npm run test:core    # renomio-core 测试：单测 + 真实文件系统回归（112 项）
 npm run test:e2e     # 无头浏览器 E2E（mock 后端，不启动 GUI 窗口）
 npm run test:bundle  # 打包合规检查：读实际 MSI 数据库 + 生成脚本，14 条断言（不弹 UAC）
 ```
@@ -319,9 +321,9 @@ app/
 ## 验证与截图
 
 - 类型检查与前端构建：`npm run build` ✅（日志 `build.log` / `release.log`）
-- Rust 核心测试：`npm run test:core` → **105 passed / 1 failed（共 106 项）**（扫描/平台/整批改名/撤销现状校验/取消回滚/时间与属性/归类移动/文本编码/批量元数据、音频歌词三载体与 IPTC Core 四字段等真实文件系统用例；唯一失败为 `directory_junction_is_renamed_as_a_link`——本机目录联接权限限制，属既有环境问题）
+- Rust 核心测试：`npm run test:core` → **111 passed / 1 failed（共 112 项）**（扫描/平台/整批改名/撤销现状校验/取消回滚/时间与属性/归类移动/文本编码/批量元数据、音频歌词三载体与 IPTC Core 四字段等真实文件系统用例；新增 EXIF 子 IFD 三例：从 `ExifIFD` 读回 `DateTimeOriginal`、写入后 `IFD0:Model`/`ExifIFD` 时间/GPS IFD 与 XMP 一致、型号命中厂商白名单时 `IFD0:Make` 与 XMP `tiff:Make` 同步而认不出厂商时保留原 Make；唯一失败为 `directory_junction_is_renamed_as_a_link`——本机目录联接权限限制，属既有环境问题）
 - 桌面壳编译与测试：`cargo test --manifest-path src-tauri/Cargo.toml` → **18 passed / 1 ignored** ✅（含失败原因归类、旧数据迁移 4 例、用真实 journal 验证迁移后仍可撤销）
-- 无头浏览器 E2E：`npm run test:e2e` → **195 通过 / 0 失败** ✅（配置层 1 项 + mock 命令层 22 项 + 其余为 UI/DOM 断言；`PERF=1` 时另加 4 项性能断言），仓库只保留最新一次报告文本 `e2e/report.md` / `e2e/report.json`；截图写入本机 `e2e/screenshots/`（已 `.gitignore`），仓库内不提供截图链接，需要留存请取 CI artifact 或本地文件
+- 无头浏览器 E2E：`npm run test:e2e` → **243 通过 / 0 失败** ✅（配置层 1 项 + UI 层 219 项 + UI 触发的 mock 命令层 20 项 + 3 条真实文件脚本汇总（元变量 93、八规则 41、智能更名策略 41）；`PERF=1` 时另加 4 项性能断言），仓库只保留最新一次报告文本 `e2e/report.md` / `e2e/report.json`；截图写入本机 `e2e/screenshots/`（已 `.gitignore`），仓库内不提供截图链接，需要留存请取 CI artifact 或本地文件
 - 性能压测：`cargo run --release --example perf_10k`（真实磁盘 10k）+ `node scripts/perf-preview.mjs`（真实规则引擎 10k）+ `PERF=1 npm run test:e2e`（真实前端 10k 渲染），数据见上文「性能」表；测试语料生成在系统临时目录并在结束时删除
 - 窗口按钮：E2E 断言点击最小化/最大化/关闭确实调用 `plugin:window|*`，并校验 capability 声明；**真实窗口的关闭 / 最小化 / 最大化已在 Windows 真机由用户手工确认正常（2026-11-04）**。这是用户手工确认，不是脚本断言。
 - 拖放：E2E 用 mock 事件链路断言「drag-enter 显示高亮遮罩 → drag-drop 调用扫描命令并新增 2 行 → 松手提示计数」，并断言规则区内部拖拽（无 `Files`）不误触发遮罩；**真实 Explorer 拖放仍需用户在真机拖一次**。
@@ -335,11 +337,11 @@ app/
 
 | 层次 | 覆盖 | 说明 |
 | --- | --- | --- |
-| UI 层已验证 | 172 项 DOM / 可见性 / 截图断言 | 无头 Edge 加载真实 `dist` 构建产物，注入 mock Tauri 后端；覆盖添加文件、隐藏文件开关（开/关）、规则编辑与排序、列头排序不改变执行顺序、编号 `start=0`、冲突策略、应用、**批次执行进度条（已处理/总数 + 当前文件名 + 可取消，断言事件随批次推进变化）**、撤销、**撤销历史面板（批次信息 / 撤销后『已撤销』/ 不可撤销原因）**、明暗主题（含首屏浅色断言）、元数据、方案导出/导入/版本不兼容、**多格式导出（CSV / TSV / HTML / `.xlsx`）**、**快照（哈希默认关 / 可选 SHA-256 / 预览跳过已在原名或占用的条目 / 还原绝不覆盖 / 还原批次可撤销 / 删除）**、列显隐与列宽、时间/属性/归类移动面板（预览、逐条结果、撤销）、**归类模板多级目录与变量拦截**、**快捷键键位窗（录制 / 冲突拒绝 / Esc 分层 / 持久化 / 恢复默认）**、**九类列表页签逐页渲染与关键控件**、**拖放高亮 / 松手计数 / 规则区不误触发**、1100×640@150% DPI 外层无溢出与页签条完整可读（表格内部横向滚动）、**日/西/英长文案在 125% 与 150% 缩放下无溢出**、**权限失败逐条清单 / UAC 取消后继续运行 / 提权后 UIPI 提示**、**旧版数据迁移一次性提示（关闭后不重复弹）与设置里的手动导入入口** |
+| UI 层已验证 | 219 项 DOM / 可见性 / 截图断言 | 无头 Edge 加载真实 `dist` 构建产物，注入 mock Tauri 后端；覆盖添加文件、隐藏文件开关（开/关）、规则编辑与排序、列头排序不改变执行顺序、编号 `start=0`、冲突策略、应用、**批次执行进度条（已处理/总数 + 当前文件名 + 可取消，断言事件随批次推进变化）**、撤销、**撤销历史面板（批次信息 / 撤销后『已撤销』/ 不可撤销原因）**、明暗主题（含首屏浅色断言）、元数据、方案导出/导入/版本不兼容、**多格式导出（CSV / TSV / HTML / `.xlsx`）**、**快照（哈希默认关 / 可选 SHA-256 / 预览跳过已在原名或占用的条目 / 还原绝不覆盖 / 还原批次可撤销 / 删除）**、列显隐与列宽、时间/属性/归类移动面板（预览、逐条结果、撤销）、**归类模板多级目录与变量拦截**、**快捷键键位窗（录制 / 冲突拒绝 / Esc 分层 / 持久化 / 恢复默认）**、**九类列表页签逐页渲染与关键控件**、**拖放高亮 / 松手计数 / 规则区不误触发**、1100×640@150% DPI 外层无溢出与页签条完整可读（表格内部横向滚动）、**日/西/英长文案在 125% 与 150% 缩放下无溢出**、**权限失败逐条清单 / UAC 取消后继续运行 / 提权后 UIPI 提示**、**旧版数据迁移一次性提示（关闭后不重复弹）与设置里的手动导入入口** |
 | 配置层 | 1 项 | `capabilities/default.json` 必须包含 `core:window:allow-close / allow-minimize / allow-toggle-maximize / allow-start-dragging` |
-| UI 触发的 mock 命令层 | 22 项 | 断言上述交互确实经过 `env_info / scan_paths / apply_plan / undo_batch / list_batches / create_snapshot / cancel_snapshot / list_snapshots / preview_snapshot / restore_snapshot / delete_snapshot / read_metadata / read_metadata_batch / read_times / read_attrs / apply_time / apply_attrs / apply_move / write_text_atomic / write_bytes_atomic / plugin:dialog:* / plugin:window:* / plugin:event|listen / import_legacy_data`；包含提交顺序、隐藏扫描参数、拖放事件→扫描命令、窗口按钮命令，且 mock 状态确实被写入、撤销与「外部改动后不可撤销」 |
+| UI 触发的 mock 命令层 | 20 项 | 断言上述交互确实经过 `env_info / scan_paths / apply_plan / undo_batch / list_batches / create_snapshot / cancel_snapshot / list_snapshots / preview_snapshot / restore_snapshot / delete_snapshot / read_metadata / read_metadata_batch / read_times / read_attrs / apply_time / apply_attrs / apply_move / write_text_atomic / write_bytes_atomic / plugin:dialog:* / plugin:window:* / plugin:event|listen / import_legacy_data`；包含提交顺序、隐藏扫描参数、拖放事件→扫描命令、窗口按钮命令，且 mock 状态确实被写入、撤销与「外部改动后不可撤销」 |
 | 性能层（无头） | 4 项 | 10,000 条目首屏耗时、虚拟滚动生效（DOM 行数受控）、滚动到底部窗口移动、切换规则重算耗时 |
-| 真实文件系统（unit 层） | 106 项 Rust 测试 | `renomio-core` 在临时目录真实改名与写盘：两阶段、撤销、覆盖备份、同名目标防链式覆盖、取消回滚无临时残留；**撤销前磁盘现状校验（目标被外部移动 → 不可撤销）**；时间平移/固定值/逐条失败/撤销、创建时间（Windows `SetFileTime`）、只读与隐藏属性、目标目录自动创建与撤销清理、正则捕获结果落盘、跨盘复制校验失败回滚（`force_copy`）；**快照 5 条**；**音频歌词三载体 `USLT` / `LYRICS` / `©lyr` 往返与清空**；**IPTC Core 四字段仅写 XMP、清空后属性移除**；隐藏文件开关（前导点 + Windows 隐藏属性）；文本编码（UTF-8 / BOM / 非 UTF-8 降级）与批量元数据单条失败隔离 |
+| 真实文件系统（unit 层） | 112 项 Rust 测试 | `renomio-core` 在临时目录真实改名与写盘：两阶段、撤销、覆盖备份、同名目标防链式覆盖、取消回滚无临时残留；**撤销前磁盘现状校验（目标被外部移动 → 不可撤销）**；时间平移/固定值/逐条失败/撤销、创建时间（Windows `SetFileTime`）、只读与隐藏属性、目标目录自动创建与撤销清理、正则捕获结果落盘、跨盘复制校验失败回滚（`force_copy`）；**快照 5 条**；**音频歌词三载体 `USLT` / `LYRICS` / `©lyr` 往返与清空**；**IPTC Core 四字段仅写 XMP、清空后属性移除**；隐藏文件开关（前导点 + Windows 隐藏属性）；文本编码（UTF-8 / BOM / 非 UTF-8 降级）与批量元数据单条失败隔离 |
 | 打包产物层 | 2 个安装包 + 14 条断言 | NSIS：`installMode: "both"`，静态核验范围页/默认 `Program Files`/用户分支 `%LocalAppData%\Programs`/快捷方式与 `SHCTX` ARP（**未执行静默安装，both 必然触发 UAC**）；MSI：定位为机器级单一包，COM 读**实际包内** `ALLUSERS=1` + `ProductName=Renomio` + 生成脚本 `InstallScope="perMachine"`/`ProgramFiles64Folder`(x64)/`INSTALLDIR = Renomio`/新 `UpgradeCode`。以上由 `npm run test:bundle` 自动断言（14/14 PASS）。**安装后启动未验证**（会创建可见窗口） |
 | 真机已验证（用户手工确认） | 真实窗口关闭 / 最小化 / 最大化 | 用户在 Windows 真机上于 2026-11-04 手工确认 ✕ 能退出、最小化与最大化正常；**不是自动化断言**，脚本只验证命令调用 |
 | 未验证 | 安装后启动与真实窗口交互、**需要 UAC 的安装范围验收**（机器范围装到 `Program Files\Renomio`、用户范围装到 `%LocalAppData%\Programs\Renomio`、两范围交叉安装的 hook 拦截、卸载、ARP 条目 `Renomio`、快捷方式实际落点）、**旧版 Rename Studio 并存拦截弹窗**、**真实用户目录上的首次启动迁移表现与迁移后撤销历史可用性**、**提权后真实 Explorer 拖放行为**、真实 Explorer 拖放、真实物理跨盘移动（用 `force_copy` 模拟复制路径却仍在同盘）、EXIF 写入在真实相机样张上的表现（仅用自造 JPEG 结构测试）、**快照窗在桌面端真实 UI 上的操作**（Rust 真实文件测试与浏览器 mock 均已覆盖）、macOS/Linux 的创建时间与隐藏属性（平台明确报「不支持」）、Tauri IPC 新命令参数序列化（`migration_info` / `import_legacy_data`）、系统文件对话框、NSIS/MSI 安装向导界面、安装包代码签名、macOS/Linux 平台差异 | 需要 GUI/有头环境、UAC 提权、多磁盘机器、签名证书或其它操作系统，按项目约定不在会话中自动执行 |
@@ -364,16 +366,16 @@ app/
 
 数据目录：每用户的 `%APPDATA%\app.renomio.desktop`（Tauri `app_data_dir`，随 identifier 变化），不随安装目录走；**切换安装范围不会迁移配置、日志与撤销历史**（同一用户的同一数据目录，两者共享）。**自动更新（alpha5 起）**：设置页「检查更新」读取源码仓库 `yunyu697/renomio` 滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；以 minisign 签名校验为准，支持镜像回退、仅下载与安装后重启。源码仓库已公开，安装包与更新清单与源码同仓发布；旧发行仓库 `renomio-releases` 已归档，仅保留历史下载。
 
-## 产物（本轮构建：1.1.0-alpha1）
+## 产物（本轮构建：1.1.0-alpha5）
 
 | 安装包 | 路径 | 大小 | SHA-256 |
 | --- | --- | --- | --- |
-| NSIS | `src-tauri/target/release/bundle/nsis/Renomio_1.1.0-alpha1_x64-setup.exe` | 2,382,542 字节（2.27 MiB） | `741228485BDF0BDA1D00EA6C7E0F66DC42D49A729A0DDA080F9B69BEEBD10FFE` |
-| MSI | `src-tauri/target/release/bundle/msi/Renomio_1.1.0-alpha1_x64_en-US.msi` | 3,182,592 字节（3.04 MiB） | `1636AD5E1F4F14E0E4471D33552FEE1B30C9CEEC18E12F9F51C4370EF4FEC369` |
+| NSIS | `src-tauri/target/release/bundle/nsis/Renomio_1.1.0-alpha5_x64-setup.exe` | 2,447,911 字节（2.33 MiB） | `3CD76B620FB6F333C95829AF549B31A4F253BCE9BD4DDB2413E8201EA487A8D0` |
+| MSI | `src-tauri/target/release/bundle/msi/Renomio_1.1.0-alpha5_x64_en-US.msi` | 3,633,152 字节（3.46 MiB） | `30AF9A285554D1284A2B22DFFE25FBD0DE52802240066DFD24FF3D6DC0353C6E` |
 
 两包均未代码签名；更新用 minisign 签名见同目录 `.sig`。`bundle.targets` 已显式设为 `["nsis", "msi"]`，`npm run tauri build` 一次产出两个包。安装范围：NSIS 安装时可选、默认所有用户（`Program Files\Renomio`）；MSI 只有机器级一种（固定 `Program Files\Renomio`、必须管理员、不提供用户级）。**该轮为合并包**：`1.0.0` 之后的快照、多格式导出、属性取反、时间随机化与 EXIF 写入、归类模板、键位窗、`<SUBSTR>` 系列元变量、歌词三载体、IPTC Core 四字段（仅 XMP）与 `ffrn` → `renomio` 改名全部包含在内。主程序为 `renomio.exe`，由 `[[bin]] name = "renomio"` 产出。以上定位由 `npm run test:bundle`（14/14 断言）对实际产物把关。
 
-**本轮真实升级实测**：匿名下载公开 `v1.0.0` NSIS 包并静默安装（`/S`，5.3 s，落到 `C:\Program Files\Renomio`，ARP 显示 `1.0.0`），再用 `1.1.0-alpha1` NSIS 包静默覆盖（6.5 s，ARP 与 `renomio.exe --version` 均变为 `1.1.0-alpha1`，安装路径不变；`uninstall.exe` 重写时间为升级时刻）。卸载、快捷方式落点、两范围交叉安装、旧版并存拦截仍未验证。
+**1.1.0-alpha1 时的真实升级实测**：匿名下载公开 `v1.0.0` NSIS 包并静默安装（`/S`，5.3 s，落到 `C:\Program Files\Renomio`，ARP 显示 `1.0.0`），再用 `1.1.0-alpha1` NSIS 包静默覆盖（6.5 s，ARP 与 `renomio.exe --version` 均变为 `1.1.0-alpha1`，安装路径不变；`uninstall.exe` 重写时间为升级时刻）。卸载、快捷方式落点、两范围交叉安装、旧版并存拦截仍未验证。
 
 ## 权限体验（Windows）
 

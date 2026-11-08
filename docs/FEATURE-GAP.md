@@ -1,7 +1,7 @@
 # FEATURE-GAP：六域功能对账（对标商业批量改名软件）
 
 - 对账日期：2026-11-06
-- 我方产品：Renomio（Tauri v2 + React 19 + Rust core `renomio-core`），当前工作树版本 `1.1.0-alpha1`（公开最新为 `1.0.0`）
+- 我方产品：Renomio（Tauri v2 + React 19 + Rust core `renomio-core`），当前工作树版本 `1.1.0-alpha5`（公开最新为 `1.1.0-alpha5`）
 - 参照产品：某商业批量改名软件（Windows 原版；证据见 `docs/商业改名软件-实证分析与跨平台重构方案.md` 第 1.5 节，37 项功能清单）
 - 状态口径（验证层级，不用「已实现」掩盖未验证）：
   - **A 已实现·有实测**：真实文件 / 端到端跑过，有可复核断言
