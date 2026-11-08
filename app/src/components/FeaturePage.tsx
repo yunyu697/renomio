@@ -30,6 +30,11 @@ function accept(kind: PageKind, entry: Entry): boolean {
   return KIND_EXTS[kind].includes(extOf(entry.path));
 }
 
+/** 供检查器判断勾选文件是否属于图片 / 文本等能力范围。 */
+export function matchesKind(kind: PageKind, entry: Entry): boolean {
+  return accept(kind, entry);
+}
+
 /**
  * 功能页自带的选择区：默认沿用列表勾选；列表没勾选时默认全选可用文件。
  * 空态分两级：完全没有文件 → 引导选择文件/文件夹；有文件但没有适用类型 → 提示并允许继续选择。

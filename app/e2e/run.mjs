@@ -930,8 +930,15 @@ async function main() {
     await click('[data-testid="col-settings"]');
 
     // ---- P1 第二梯队：时间属性（UI 层，mock 后端） ----
+    // 入口已收进检查器，目标就是列表勾选：先确保 4 个文件都被勾选
+    await evaluate(`(() => {
+      const cbs = [...document.querySelectorAll('.trow .checkbox')];
+      if (cbs.length && cbs.some((c) => c.getAttribute('aria-checked') !== 'true')) document.querySelector('.thead .checkbox')?.click();
+      return true;
+    })()`);
+    await sleep(300);
     await click('[data-testid="nav-times"]');
-    await waitFor(`document.querySelector('[data-testid="page-times"]')`, '时间功能页');
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="time"]')`, '时间检查器');
     await waitFor(`document.querySelectorAll('[data-testid="ops-row"]').length === 4`, '时间预览 4 行');
     const creationDisabled = await evaluate(
       `document.querySelector('[data-testid="ops-field-creation"]')?.disabled === true`,
@@ -998,7 +1005,7 @@ async function main() {
     );
     await shot('15-ops-time-result.png');
     await clickText('[data-testid="ops-result"] .btn-primary', '关闭');
-    await waitFor(`!document.querySelector('[data-testid="page-times"]')`, '时间功能页关闭');
+    await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '时间检查器关闭');
     await click('[data-testid="action-undo"]');
     await sleep(400);
     const mtimeRestored = await evaluate(`window.__E2E__.files.map((f) => f.modified)`);
@@ -1009,62 +1016,95 @@ async function main() {
       JSON.stringify(mtimeRestored),
     );
 
-    // ---- 侧栏入口覆盖：每个入口打开完整功能页（自带选择区 / 空态 / 返回） ----
-    const navPages = [
-      ['nav-music', 'page-music'],
-      ['nav-image', 'page-image'],
-      ['nav-office', 'page-office'],
-      ['nav-text', 'page-text'],
-      ['nav-attrs', 'page-attrs'],
-      ['nav-times', 'page-times'],
-      ['nav-organize', 'page-organize'],
-    ];
-    for (const [nav, page] of navPages) {
+    // ---- 侧栏收敛为「文件 / 检查器」两组：检查器入口停靠右侧，旧整页入口不再出现 ----
+    const navStructure = await evaluate(`(() => ({
+      groups: [...document.querySelectorAll('.nav-group')].map((g) => ({
+        id: g.querySelector('[data-testid^="nav-group-"]')?.getAttribute('data-testid') || '',
+        label: g.querySelector('.nav-label')?.textContent?.trim() || '',
+        items: [...g.querySelectorAll('.nav-item')].map((n) => n.getAttribute('data-testid')),
+      })),
+      legacy: [...document.querySelectorAll('.nav-legacy')].map((n) => n.textContent.trim()),
+      oldPages: ['nav-music', 'nav-image', 'nav-office', 'nav-text'].filter((id) => document.querySelector('[data-testid="' + id + '"]')),
+    }))()`);
+    check(
+      'UI',
+      '左栏收敛为「文件 / 检查器」两组，六类操作都在检查器分组，旧整页入口与「旧版入口」标记已消失',
+      navStructure.groups.length === 2 &&
+        navStructure.groups[0].id === 'nav-group-files' &&
+        navStructure.groups[1].id === 'nav-group-inspector' &&
+        navStructure.groups[0].items.includes('nav-rename') &&
+        navStructure.groups[0].items.includes('nav-history') &&
+        navStructure.groups[0].items.includes('nav-snapshot') &&
+        navStructure.groups[0].items.includes('nav-plan') &&
+        ['nav-attrs', 'nav-meta', 'nav-times', 'nav-organize', 'nav-exif', 'nav-encoding'].every((id) => navStructure.groups[1].items.includes(id)) &&
+        navStructure.legacy.length === 0 &&
+        navStructure.oldPages.length === 0,
+      JSON.stringify(navStructure),
+    );
+
+    for (const [nav, mode] of [
+      ['nav-attrs', 'attrs'],
+      ['nav-meta', 'meta'],
+      ['nav-times', 'time'],
+      ['nav-organize', 'organize'],
+      ['nav-exif', 'exif'],
+      ['nav-encoding', 'encoding'],
+    ]) {
       await click(`[data-testid="${nav}"]`);
-      await waitFor(`document.querySelector('[data-testid="${page}"]')`, `侧栏 ${nav} → ${page}`, 5000);
+      await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="${mode}"]')`, `侧栏 ${nav} → 检查器 ${mode}`, 5000);
       const navState = await evaluate(`(() => {
         const n = document.querySelector('[data-testid="${nav}"]');
-        const p = document.querySelector('[data-testid="${page}"]');
         return {
           active: n.classList.contains('active'),
           current: n.getAttribute('aria-current'),
-          select: !!p.querySelector('[data-testid="page-select"]'),
-          count: p.querySelector('[data-testid="page-select-count"]')?.textContent || '',
-          back: !!p.querySelector('[data-testid="page-back"]'),
-          empty: !!p.querySelector('[data-testid="page-empty"]'),
-          legacy: !!p.querySelector('[data-testid="page-legacy-badge"]'),
-          navLegacy: n.closest('.nav-group')?.querySelector('.nav-legacy')?.textContent?.trim() || '',
+          main: !!document.querySelector('.panes > .main'),
+          rules: !!document.querySelector('[data-testid="rules-module"]'),
+          page: !!document.querySelector('.panes > .feature-page'),
+          scope: document.querySelector('[data-testid="inspector-scope"]')?.textContent || '',
         };
       })()`);
       check(
         'UI',
-        `侧栏 ${nav} → 打开完整功能页 ${page}（选择区 + 计数 + 返回，不是弹窗）`,
-        navState.active && navState.current === 'true' && navState.select && navState.count.length > 0 && navState.back,
+        `侧栏 ${nav} → 停靠检查器 ${mode}（文件列表与规则链不被整页替换）`,
+        navState.active && navState.current === 'true' && navState.main && navState.rules && !navState.page && navState.scope.length > 0,
         JSON.stringify(navState),
       );
-      check(
-        'UI',
-        `旧入口有「旧版入口」标记：${nav} 与 ${page} 页头都显式标注`,
-        navState.legacy && navState.navLegacy.length > 0,
-        JSON.stringify({ legacy: navState.legacy, navLegacy: navState.navLegacy }),
-      );
-      await click('[data-testid="page-back"]');
-      await waitFor(`!document.querySelector('[data-testid="${page}"]')`, `${page} 返回列表`, 3000);
+      await click('[data-testid="inspector-close"]');
+      await waitFor(`!document.querySelector('[data-testid="inspector"]')`, `关闭检查器 ${mode}`, 3000);
     }
+
+    // 「文件」组：切回工作台视图 / 打开历史、快照、方案，都不离开工作台
+    await click('[data-testid="nav-rename"]');
+    await sleep(250);
+    const renameActive = await evaluate(`Boolean(document.querySelector('[data-testid="list-tab-rename"]')?.classList.contains('active')) && !document.querySelector('.panes > .feature-page')`);
+    check('UI', '「文件 → 重命名」切回更名列表，不打开整页', renameActive, String(renameActive));
+    await click('[data-testid="nav-history"]');
+    await waitFor(`document.querySelector('.drawer')`, '历史抽屉');
+    await evaluate(`document.querySelector('.drawer-mask')?.click()`);
+    await waitFor(`!document.querySelector('.drawer')`, '历史抽屉关闭');
+    await click('[data-testid="nav-snapshot"]');
+    await waitFor(`document.querySelector('[data-testid="snapshot-dialog"]')`, '快照对话框');
+    await click('[data-testid="snapshot-close"]');
+    await waitFor(`!document.querySelector('[data-testid="snapshot-dialog"]')`, '快照对话框关闭');
+    await click('[data-testid="nav-plan"]');
+    await waitFor(`document.querySelector('[data-testid="plan-dialog"]')`, '方案对话框');
+    await evaluate(`document.querySelector('.modal-mask')?.click()`);
+    await waitFor(`!document.querySelector('[data-testid="plan-dialog"]')`, '方案对话框关闭');
+
     // 分组标题可交互（折叠/展开），不是死标签
-    await click('[data-testid="nav-group-meta"]');
+    await click('[data-testid="nav-group-inspector"]');
     await sleep(250);
     const groupCollapsed = await evaluate(`(() => {
-      const label = document.querySelector('[data-testid="nav-group-meta"]');
-      const items = document.querySelector('[data-testid="nav-items-meta"]');
+      const label = document.querySelector('[data-testid="nav-group-inspector"]');
+      const items = document.querySelector('[data-testid="nav-items-inspector"]');
       const visible = items ? items.getBoundingClientRect().height > 0 : false;
       return {
         expanded: label.getAttribute('aria-expanded'),
-        visibleMetaItems: visible ? ['nav-music', 'nav-image', 'nav-office', 'nav-text'].filter((id) => document.querySelector('[data-testid="' + id + '"]')).length : 0,
+        visibleItems: visible ? items.querySelectorAll('.nav-item').length : 0,
       };
     })()`);
-    check('UI', '元数据分组标题可点击折叠（aria-expanded=false 且条目隐藏）', groupCollapsed.expanded === 'false' && groupCollapsed.visibleMetaItems === 0, JSON.stringify(groupCollapsed));
-    await click('[data-testid="nav-group-meta"]');
+    check('UI', '检查器分组标题可点击折叠（aria-expanded=false 且条目隐藏）', groupCollapsed.expanded === 'false' && groupCollapsed.visibleItems === 0, JSON.stringify(groupCollapsed));
+    await click('[data-testid="nav-group-inspector"]');
     await sleep(250);
 
     // ---- 一期：右侧检查器与列表勾选共用同一份目标，规则链常驻 ----
@@ -1186,47 +1226,61 @@ async function main() {
       JSON.stringify(dockClosed),
     );
 
-    // 列表未勾选时打开功能页：页面自带全选与计数（不再只弹 toast、不强制改列表勾选）
+    // 列表未勾选时从检查器入口打开：不再自动全选，明确空态并保持列表勾选为 0
     await click('[data-testid="list-tab-rename"]');
     await sleep(300);
     await evaluate(`(() => { for (const cb of [...document.querySelectorAll('.trow .checkbox[aria-checked="true"]')]) cb.click(); })()`);
     await sleep(300);
     const selectedBefore = await evaluate(`document.querySelectorAll('.trow .checkbox[aria-checked="true"]').length`);
     await click('[data-testid="nav-times"]');
-    await waitFor(`document.querySelector('[data-testid="page-times"]')`, '空勾选点击时间入口后打开功能页', 4000);
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="time"]')`, '空勾选点击时间入口后打开检查器', 4000);
+    await waitFor(`document.querySelector('[data-testid="inspector-empty"]')`, '检查器空态', 3000);
     const autoPanel = await evaluate(`({
-      count: document.querySelector('[data-testid="page-select-count"]')?.textContent || '',
-      rows: document.querySelectorAll('[data-testid^="page-file-"]').length,
-      defaultNote: !!document.querySelector('[data-testid="page-select-default"]'),
+      empty: !!document.querySelector('[data-testid="inspector-empty"]'),
+      scope: document.querySelector('[data-testid="inspector-scope"]')?.textContent || '',
       selected: document.querySelectorAll('.trow .checkbox[aria-checked="true"]').length,
+      page: !!document.querySelector('.panes > .feature-page'),
     })`);
     check(
       'UI',
-      '列表未勾选 → 功能页自带全选与计数（默认 4/4），且不改写列表勾选状态',
-      selectedBefore === 0 && autoPanel.rows === 4 && autoPanel.count.includes('4') && autoPanel.defaultNote && autoPanel.selected === 0,
+      '列表未勾选 → 检查器显示空态、保持列表勾选为 0（不再由页面自动全选）',
+      selectedBefore === 0 && autoPanel.empty && autoPanel.selected === 0 && !autoPanel.page && autoPanel.scope.includes('0'),
       JSON.stringify({ selectedBefore, autoPanel }),
     );
-    await click('[data-testid="page-back"]');
-    await waitFor(`!document.querySelector('[data-testid="page-times"]')`, '关闭时间功能页');
+    await click('[data-testid="inspector-close"]');
+    await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '关闭空态检查器');
 
-    // 元数据页签内的编辑入口必须真的打开编辑弹窗（视图页签也接后端写能力）
+    // 元数据页签内的编辑入口改为打开检查器；目标仍是列表勾选
+    await click('[data-testid="list-tab-rename"]');
+    await sleep(250);
+    await evaluate(`document.querySelector('.trow .checkbox[aria-checked="false"]')?.click()`);
+    await sleep(250);
+    const photoSelected = await evaluate(`document.querySelectorAll('.trow .checkbox[aria-checked="true"]').length`);
     await click('[data-testid="list-tab-photo"]');
-    await sleep(300);
+    await sleep(250);
     await click('[data-testid="list-action-edit-photo"]');
-    await waitFor(`document.querySelector('[data-testid="meta-edit-dialog"]')`, '图片页签编辑元数据入口', 5000);
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="meta"]')`, '图片页签编辑元数据入口', 5000);
     const editEntry = await evaluate(`({
-      fields: !!document.querySelector('[data-testid="meta-fields"]'),
-      unsupported: !!document.querySelector('[data-testid="meta-unsupported"]'),
-      hasApply: !!document.querySelector('[data-testid="meta-apply"]'),
+      fields: !!document.querySelector('.inspector [data-testid="meta-fields"]'),
+      unsupported: !!document.querySelector('.inspector [data-testid="meta-unsupported"]'),
+      hasApply: !!document.querySelector('.inspector [data-testid="meta-apply"]'),
+      scope: document.querySelector('[data-testid="inspector-scope"]')?.textContent || '',
     })`);
-    check('UI', '图片页签的「编辑元数据」入口打开真实编辑弹窗', editEntry.hasApply && (editEntry.fields || editEntry.unsupported), JSON.stringify(editEntry));
-    await click('[data-testid="meta-close"]');
+    check('UI', '图片页签的「编辑元数据」入口打开停靠检查器并复用真实编辑器', editEntry.hasApply && (editEntry.fields || editEntry.unsupported) && editEntry.scope.includes(String(photoSelected)), JSON.stringify(editEntry));
+    await click('[data-testid="inspector-close"]');
+    await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '关闭元数据检查器');
     await click('[data-testid="list-tab-rename"]');
     await sleep(300);
 
-    // ---- 文件属性（UI 层，mock 后端） ----
+    // ---- 文件属性（UI 层，mock 后端）：检查器目标仍是列表勾选，先恢复 4 个目标 ----
+    await evaluate(`(() => {
+      const cbs = [...document.querySelectorAll('.trow .checkbox')];
+      if (cbs.length && cbs.some((c) => c.getAttribute('aria-checked') !== 'true')) document.querySelector('.thead .checkbox')?.click();
+      return true;
+    })()`);
+    await sleep(300);
     await click('[data-testid="nav-attrs"]');
-    await waitFor(`document.querySelector('[data-testid="page-attrs"]')`, '属性功能页');
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="attrs"]')`, '属性检查器');
     await waitFor(`document.querySelectorAll('[data-testid="ops-row"]').length === 4`, '属性预览 4 行');
     await click('[data-testid="ops-readonly-set"]');
     await sleep(250);
@@ -1242,7 +1296,7 @@ async function main() {
     const readonlyApplied = await evaluate(`window.__E2E__.files.every((f) => f.readonly === true)`);
     check('UI-triggered mock', '属性写入 → 勾选文件全部只读（已只读项跳过）', readonlyApplied);
     await clickText('[data-testid="ops-result"] .btn-primary', '关闭');
-    await waitFor(`!document.querySelector('[data-testid="page-attrs"]')`, '属性功能页关闭');
+    await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '属性检查器关闭');
     await click('[data-testid="action-undo"]');
     await sleep(400);
     const readonlyRestored = await evaluate(`window.__E2E__.files.filter((f) => f.readonly).length`);
@@ -1250,7 +1304,7 @@ async function main() {
 
     // 取反模式：属性面板第三态，预览 = 原值取反
     await click('[data-testid="nav-attrs"]');
-    await waitFor(`document.querySelector('[data-testid="page-attrs"]')`, '属性功能页（取反）');
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="attrs"]')`, '属性检查器（取反）');
     const invertButtons = await evaluate(
       `['ops-readonly-invert', 'ops-hidden-invert'].every((id) => !!document.querySelector('[data-testid="' + id + '"]'))`,
     );
@@ -1269,7 +1323,7 @@ async function main() {
     const inverted = await evaluate(`window.__E2E__.files.filter((f) => f.readonly).length`);
     check('UI-triggered mock', '取反写入 → 3 个可写变只读、1 个只读变可写', inverted === 3, `readonly=${inverted}`);
     await clickText('[data-testid="ops-result"] .btn-primary', '关闭');
-    await waitFor(`!document.querySelector('[data-testid="page-attrs"]')`, '取反功能页关闭');
+    await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '取反检查器关闭');
     await click('[data-testid="action-undo"]');
     await sleep(400);
     const invertRestored = await evaluate(`window.__E2E__.files.filter((f) => f.readonly).length`);
@@ -1277,7 +1331,7 @@ async function main() {
 
     // ---- 文件归类（正则捕获组分支；UI 层，mock 后端） ----
     await click('[data-testid="nav-organize"]');
-    await waitFor(`document.querySelector('[data-testid="page-organize"]')`, '归类功能页');
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="organize"]')`, '归类检查器');
     await waitFor(`document.querySelectorAll('[data-testid="ops-row"]').length === 4`, '归类预览 4 行');
     await click('[data-testid="ops-move-kind-regex"]');
     await setInput('[data-testid="ops-move-pattern"]', '(\\d{3})');
@@ -1325,7 +1379,7 @@ async function main() {
     );
     await shot('17-ops-move-result.png');
     await clickText('[data-testid="ops-result"] .btn-primary', '关闭');
-    await waitFor(`!document.querySelector('[data-testid="page-organize"]')`, '归类功能页关闭');
+    await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '归类检查器关闭');
     await click('[data-testid="action-undo"]');
     await sleep(400);
     const moveUndone = await evaluate(`window.__E2E__.files.map((f) => f.path)`);
@@ -1348,7 +1402,7 @@ async function main() {
 
     // ---- 归类模板（多级目录；UI 层，mock 后端） ----
     await click('[data-testid="nav-organize"]');
-    await waitFor(`document.querySelector('[data-testid="page-organize"]')`, '归类功能页（模板）');
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="organize"]')`, '归类检查器（模板）');
     await waitFor(`document.querySelectorAll('[data-testid="ops-row"]').length === 4`, '模板预览 4 行');
     await click('[data-testid="ops-move-kind-template"]');
     await waitFor(`document.querySelector('[data-testid="ops-move-template"]')`, '模板输入框');
@@ -1379,7 +1433,7 @@ async function main() {
       templatePaths.join(' | '),
     );
     await clickText('[data-testid="ops-result"] .btn-primary', '关闭');
-    await waitFor(`!document.querySelector('[data-testid="page-organize"]')`, '模板功能页关闭');
+    await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '模板检查器关闭');
     await click('[data-testid="action-undo"]');
     await sleep(400);
     const templateUndone = await evaluate(`window.__E2E__.files.map((f) => f.path)`);
@@ -1391,7 +1445,7 @@ async function main() {
     );
 
     await click('[data-testid="nav-organize"]');
-    await waitFor(`document.querySelector('[data-testid="page-organize"]')`, '归类功能页（非法模板）');
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="organize"]')`, '归类检查器（非法模板）');
     await click('[data-testid="ops-move-kind-template"]');
     await setInput('[data-testid="ops-move-template"]', '<MD5>');
     await sleep(300);
@@ -1411,8 +1465,8 @@ async function main() {
     await sleep(300);
     const counterPreview = await textOf('[data-testid="ops-preview"]');
     check('UI', '模板含 <#> → 提示不支持序号变量', counterPreview.includes('不支持 <#>'), counterPreview.slice(0, 180));
-    await clickText('[data-testid="page-organize"] .dialog-foot .btn-outline', '取消');
-    await waitFor(`!document.querySelector('[data-testid="page-organize"]')`, '非法模板功能页关闭');
+    await clickText('[data-testid="inspector"] .dialog-foot .btn-outline', '取消');
+    await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '非法模板检查器关闭');
 
     // ---- 隐藏文件开关（开 / 关两组；UI 层，mock 后端） ----
     await evaluate(`window.__E2E__.files.push({
@@ -1504,12 +1558,33 @@ async function main() {
         `rows=${info.rows}, th=${info.th}, note=${info.note}, action=${info.action}`,
       );
     }
+    // 页签行「打开归类移动」改指检查器；先让列表有勾选目标
+    await click('[data-testid="list-tab-rename"]');
+    await sleep(200);
+    await evaluate(`(() => {
+      const cbs = [...document.querySelectorAll('.trow .checkbox')];
+      if (cbs.length && cbs.some((c) => c.getAttribute('aria-checked') !== 'true')) document.querySelector('.thead .checkbox')?.click();
+      return true;
+    })()`);
+    await sleep(300);
+    await click('[data-testid="list-tab-organize"]');
+    await sleep(250);
     await click('[data-testid="list-action-organize"]');
-    await waitFor(`document.querySelector('[data-testid="ops-apply"]')`, '归类移动面板打开');
-    const organizeActionOk = await evaluate(`Boolean(document.querySelector('[data-testid="ops-apply"]'))`);
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="organize"] [data-testid="ops-apply"]')`, '归类移动面板打开');
+    const organizeActionOk = await evaluate(`Boolean(document.querySelector('[data-testid="inspector"] [data-testid="ops-apply"]'))`);
     await send('Runtime.evaluate', { expression: `document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))` });
     await sleep(200);
-    check('UI', '归类页签「打开归类移动」按钮可交互并打开真实面板', organizeActionOk, `apply=${organizeActionOk}, note=${(await textOf('[data-testid="list-note-organize"]')).slice(0, 40)}`);
+    check('UI', '归类页签「打开归类移动」按钮改指检查器并打开真实面板', organizeActionOk, `apply=${organizeActionOk}, note=${(await textOf('[data-testid="list-note-organize"]')).slice(0, 40)}`);
+
+    // 页签行「打开属性设置」同样改指检查器，作用于列表勾选
+    await click('[data-testid="list-tab-attrs"]');
+    await sleep(250);
+    await click('[data-testid="list-action-attrs"]');
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="attrs"] [data-testid="ops-apply"]')`, '属性面板打开');
+    const attrsActionOk = await evaluate(`Boolean(document.querySelector('[data-testid="inspector"] [data-testid="ops-apply"]'))`);
+    await send('Runtime.evaluate', { expression: `document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))` });
+    await sleep(200);
+    check('UI', '属性页签「打开属性设置」按钮改指检查器并打开真实面板', attrsActionOk, String(attrsActionOk));
 
     await click('[data-testid="list-tab-text"]');
     await sleep(300);
@@ -2307,13 +2382,14 @@ async function main() {
     const drawerOpen = await evaluate(`document.querySelector('.nav').classList.contains('open') && getComputedStyle(document.querySelector('.nav')).transform === 'none'`);
     check('UI', '窄窗点击呼出按钮 → 侧栏抽屉滑入（可见且功能不丢）', drawerOpen, String(drawerOpen));
     await click('[data-testid="nav-attrs"]');
-    await waitFor(`document.querySelector('[data-testid="page-attrs"]')`, '抽屉内点击属性入口', 4000);
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="attrs"]')`, '抽屉内点击属性入口', 4000);
     const drawerAfterNav = await evaluate(`(() => ({
       open: document.querySelector('.nav').classList.contains('open'),
-      page: !!document.querySelector('[data-testid="page-attrs"]'),
+      inspector: !!document.querySelector('[data-testid="inspector"]'),
     }))()`);
-    check('UI', '窄窗抽屉内点击入口 → 打开功能页并自动收起抽屉', drawerAfterNav.page && !drawerAfterNav.open, JSON.stringify(drawerAfterNav));
-    await click('[data-testid="page-back"]');
+    check('UI', '窄窗抽屉内点击入口 → 打开检查器并自动收起抽屉', drawerAfterNav.inspector && !drawerAfterNav.open, JSON.stringify(drawerAfterNav));
+    await click('[data-testid="inspector-close"]');
+    await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '关闭窄窗检查器');
     await sleep(300);
     await viewport(1440, 900, 1);
     await sleep(500);
@@ -2922,11 +2998,7 @@ async function main() {
     await click('[data-testid="snapshot-close"]');
     await sleep(200);
 
-    // ---- 图片信息 → EXIF 清除：预览 → 分组清除 → 回读 → 还原 ----
-    await click('[data-testid="nav-image"]');
-    await waitFor(`document.querySelector('[data-testid="page-image"]')`, '图片功能页', 5000);
-    await click('[data-testid="image-tab-exif"]');
-    await waitFor(`document.querySelector('[data-testid="exif-panel"]')`, 'EXIF 清除面板', 4000);
+    // ---- 图片信息 → EXIF 清除：预览 → 分组清除 → 回读 → 还原（检查器内真实执行） ----
     const exifFixturePath = await evaluate(`(() => {
       const jpg = window.__E2E__.files.find((f) => f.path.toLowerCase().endsWith('.jpg')).path;
       window.__E2E__.exif = {
@@ -2942,6 +3014,33 @@ async function main() {
       };
       return jpg;
     })()`);
+    const exifFileName = exifFixturePath.split(/[\\\\/]/).pop();
+    await click('[data-testid="list-tab-rename"]');
+    await sleep(300);
+    // 检查器只会作用于勾选文件：清空勾选后只勾这一张带 EXIF 的 jpg
+    const exifSelBefore = await evaluate(`document.querySelectorAll('.trow .checkbox[aria-checked="true"]').length`);
+    if (exifSelBefore > 0) {
+      const exifAllOn = await evaluate(`document.querySelector('.thead .checkbox')?.getAttribute('aria-checked') === 'true'`);
+      await click('.thead .checkbox');
+      await sleep(300);
+      if (!exifAllOn) {
+        await click('.thead .checkbox');
+        await sleep(300);
+      }
+    }
+    await evaluate(`(() => {
+      const row = [...document.querySelectorAll('.trow')].find((r) => r.textContent.includes(${JSON.stringify(exifFileName)}));
+      const cb = row?.querySelector('.checkbox');
+      if (cb && cb.getAttribute('aria-checked') !== 'true') cb.click();
+      return true;
+    })()`);
+    await sleep(300);
+    const exifChecked = await evaluate(`document.querySelectorAll('.trow .checkbox[aria-checked="true"]').length`);
+    await click('[data-testid="nav-exif"]');
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="exif"]')`, 'EXIF 检查器', 5000);
+    await waitFor(`document.querySelector('[data-testid="exif-panel"]')`, 'EXIF 清除面板', 4000);
+    const exifScopeOk = await evaluate(`document.querySelector('[data-testid="inspector-scope"]')?.textContent || ''`);
+    check('UI', '勾选一张图片后 EXIF 入口在检查器里可用（作用于勾选文件）', exifChecked === 1 && exifScopeOk.includes('1'), `${exifChecked} / ${exifScopeOk}`);
     await click('[data-testid="exif-preview"]');
     await waitFor(`document.querySelector('[data-testid="exif-file-0"]')`, 'EXIF 预览结果', 5000);
     const exifPreview = await evaluate(`(() => ({
@@ -2994,7 +3093,8 @@ async function main() {
     await sleep(400);
     const exifRestoreCall = await evaluate(`window.__E2E__.calls.some((c) => c.cmd === 'meta_restore_backup')`);
     check('UI', 'EXIF 清除结果提供还原按钮，并走已有备份还原通路（meta_restore_backup）', exifRestoreCall, String(exifRestoreCall));
-    await click('[data-testid="page-back"]');
+    await click('[data-testid="inspector-close"]');
+    await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '关闭 EXIF 检查器');
     await sleep(250);
 
     // ---- 文本编码：探测未知编码 → 强制手动指定源编码 → 原地覆盖 + 回读校验 + 还原 ----
@@ -3004,13 +3104,44 @@ async function main() {
       window.__E2E__.text = { [p]: { encoding: 'gb18030', encodingLabel: 'GB18030（待确认）', confirmed: false, bytes: 128, chars: 42, lines: 3, preview: 'E2E 编码样本', warnings: ['编码未识别，需手动指定源编码'] } };
       return p;
     })()`);
-    await click('[data-testid="nav-text"]');
-    await waitFor(`document.querySelector('[data-testid="page-text"]')`, '文本编码功能页', 5000);
-    const textEmpty = await evaluate(`!!document.querySelector('[data-testid="text-empty"]') && !!document.querySelector('[data-testid="page-empty"]')`);
-    check('UI', '文本编码页在无可用文件时显示自带空态（引导选择文件）', textEmpty === true, String(textEmpty));
-    await click('[data-testid="page-empty-files"]');
-    await waitFor(`document.querySelector('[data-testid="text-target-0"]')`, '选择文件后出现文本目标', 8000);
-    await waitFor(`document.querySelector('[data-testid="text-confirmed"]')`, '文本编码探测完成', 8000);
+    // ----- 文本编码：在检查器里真实可用（无文本目标时明确空态，不假装可用） -----
+    await click('[data-testid="nav-encoding"]');
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="encoding"]')`, '编码检查器', 5000);
+    await waitFor(`document.querySelector('[data-testid="inspector-empty"]')`, '无文本目标空态', 3000);
+    const textEmpty = await evaluate(`(() => ({
+      empty: !!document.querySelector('[data-testid="inspector-empty"]'),
+      scope: document.querySelector('[data-testid="inspector-scope"]')?.textContent || '',
+      clarified: (document.querySelector('[data-testid="inspector-empty"]')?.textContent || '').includes('文本'),
+    }))()`);
+    check('UI', '检查器「编码」在没有文本目标时显示空态并说明原因', textEmpty.empty && textEmpty.clarified, JSON.stringify(textEmpty));
+    await click('[data-testid="inspector-close"]');
+    await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '关闭编码检查器');
+    // 把样本带进列表，只勾选它再打开编码检查器（真实探测 → 手动指定 → 覆盖 → 还原）
+    await click('[data-testid="add-files"]');
+    await waitFor(`[...document.querySelectorAll('.trow')].some((r) => r.textContent.includes('编码样本.txt'))`, '编码样本进入列表', 8000);
+    await sleep(300);
+    const textSelBefore = await evaluate(`document.querySelectorAll('.trow .checkbox[aria-checked="true"]').length`);
+    if (textSelBefore > 0) {
+      const textAllOn = await evaluate(`document.querySelector('.thead .checkbox')?.getAttribute('aria-checked') === 'true'`);
+      await click('.thead .checkbox');
+      await sleep(300);
+      if (!textAllOn) {
+        await click('.thead .checkbox');
+        await sleep(300);
+      }
+    }
+    await evaluate(`(() => {
+      const row = [...document.querySelectorAll('.trow')].find((r) => r.textContent.includes('编码样本.txt'));
+      const cb = row?.querySelector('.checkbox');
+      if (cb && cb.getAttribute('aria-checked') !== 'true') cb.click();
+      return true;
+    })()`);
+    await sleep(300);
+    const textChecked = await evaluate(`document.querySelectorAll('.trow .checkbox[aria-checked="true"]').length`);
+    await click('[data-testid="nav-encoding"]');
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="encoding"] [data-testid="text-target-0"]')`, '选择文件后出现文本目标', 8000);
+    await waitFor(`document.querySelector('[data-testid="inspector"] [data-testid="text-confirmed"]')`, '文本编码探测完成', 8000);
+    check('UI', '勾选一个文本文件后编码检查器按勾选文件真实探测', textChecked === 1, String(textChecked));
     const textDetectState = await evaluate(`(() => {
       const sel = document.querySelector('[data-testid="text-source"]');
       return {
@@ -3067,7 +3198,8 @@ async function main() {
     await sleep(400);
     const restoreCallsAfterText = await evaluate(`window.__E2E__.calls.filter((c) => c.cmd === 'meta_restore_backup').length`);
     check('UI', '文本编码结果提供「还原」按钮并走已有备份还原通路', restoreCallsAfterText === restoreCallsBeforeText + 1, JSON.stringify({ restoreCallsBeforeText, restoreCallsAfterText }));
-    await click('[data-testid="page-back"]');
+    await click('[data-testid="inspector-close"]');
+    await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '关闭编码检查器');
     await sleep(250);
 
     cdp.close();

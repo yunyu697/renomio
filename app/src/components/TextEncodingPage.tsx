@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../store';
 import { useTranslation } from '../i18n';
 import { metaRestoreBackup, textDetect, textSave } from '../lib/bridge';
-import type { TextDetectDto, TextEncodingId, TextSaveResultDto } from '../lib/types';
+import type { Entry, TextDetectDto, TextEncodingId, TextSaveResultDto } from '../lib/types';
 import { baseName } from '../lib/format';
 import { Icon } from './Icon';
 import { PageShell, usePageTargets } from './FeaturePage';
@@ -20,12 +20,13 @@ const SOURCES: Array<{ id: TextEncodingId | 'auto'; labelKey?: string; label?: s
   ...TARGETS,
 ];
 
-/** 文本编码：探测源编码 → 选择目标编码 → 原地覆盖（自动 .bak）或另存；写完回读校验。 */
-export function TextEncodingPage() {
+/**
+ * 文本编码主体：探测源编码 → 选择目标编码 → 原地覆盖（自动 .bak）或另存；写完回读校验。
+ * 旧整页与右侧检查器共用这一份实现，目标都来自同一份文件列表勾选。
+ */
+export function TextEncodingBody({ targets }: { targets: Entry[] }) {
   const { t } = useTranslation();
-  const { panel, targets } = usePageTargets('text');
   const showToast = useApp((s) => s.showToast);
-  const chooseFiles = useApp((s) => s.chooseFiles);
   const refresh = useApp((s) => s.refreshEntriesFromDisk);
 
   const [active, setActive] = useState<string | null>(null);
@@ -124,6 +125,126 @@ export function TextEncodingPage() {
     }
   };
 
+  if (!targets.length || !current) return null;
+
+  return (
+    <div className="text-encoding" data-testid="text-editor">
+      <div className="text-targets" data-testid="text-targets">
+        {targets.map((file, index) => (
+          <button
+            className={`text-target${file.path === current.path ? ' on' : ''}`}
+            type="button"
+            key={file.path}
+            data-testid={`text-target-${index}`}
+            onClick={() => setActive(file.path)}
+          >
+            <Icon name="text" size={12} />
+            <span>{file.name}</span>
+            <span className="text-target-ext">{file.parent}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="text-detect" data-testid="text-detect">
+        {detecting && <span>{t('text.detecting')}</span>}
+        {!detecting && detected && (
+          <>
+            <div className="text-detect-line">
+              <b>{baseName(detected.path)}</b>
+              <span className="meta-format">{detected.encodingLabel}</span>
+              <span className={detected.confirmed ? 'ok-chip' : 'warn-chip'} data-testid="text-confirmed">
+                {detected.confirmed ? t('text.confirmed') : t('text.unconfirmed')}
+              </span>
+              <span className="foot-note">
+                {t('text.stats', { bytes: detected.bytes, chars: detected.chars, lines: detected.lines })}
+              </span>
+            </div>
+            {detected.preview && <div className="text-preview">“{detected.preview}”</div>}
+            {detected.warnings.map((w) => (
+              <div className="text-warn" key={w} data-testid="text-warning"><Icon name="alert" size={12} />{w}</div>
+            ))}
+          </>
+        )}
+      </div>
+
+      <div className="text-form">
+        <label>
+          <span>{t('text.source')}</span>
+          <select
+            className="input"
+            data-testid="text-source"
+            value={source}
+            onChange={(e) => setSource(e.target.value as TextEncodingId | 'auto')}
+          >
+            {SOURCES.map((item) => (
+              <option value={item.id} key={item.id}>
+                {item.labelKey ? t(item.labelKey) : item.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{t('text.target')}</span>
+          <select className="input" data-testid="text-target" value={target} onChange={(e) => setTarget(e.target.value as TextEncodingId)}>
+            {TARGETS.map((item) => (
+              <option value={item.id} key={item.id}>{item.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="text-check">
+          <input type="checkbox" data-testid="text-saveas" checked={saveAs} onChange={(e) => setSaveAs(e.target.checked)} />
+          <span>{t('text.saveAs')}</span>
+        </label>
+        {saveAs && (
+          <label className="text-output">
+            <span>{t('text.output')}</span>
+            <input className="input" data-testid="text-output" value={output} onChange={(e) => setOutput(e.target.value)} />
+          </label>
+        )}
+      </div>
+
+      <div className="text-actions">
+        <span className="foot-note">{t('text.backupNote')}</span>
+        <button className="btn btn-primary" type="button" data-testid="text-apply" disabled={applying || detecting} onClick={() => void apply()}>
+          <Icon name="save" size={13} />{applying ? t('text.applying') : t('text.apply')}
+        </button>
+      </div>
+
+      {result && (
+        <div className={`text-result ${result.ok ? 'ok' : 'bad'}`} data-testid="text-result">
+          <div className="meta-result-line">
+            <Icon name={result.ok ? 'check' : 'alert'} size={12} />
+            <strong>{baseName(result.path)}</strong>
+            <span className="meta-format">{result.sourceEncodingLabel} → {result.targetEncodingLabel}</span>
+            <span className="meta-result-state">{result.ok ? t('text.resultOk') : t('text.resultFail')}</span>
+            {result.ok && result.verified && <span className="meta-verified" data-testid="text-verified">{t('meta.verified')}</span>}
+            {result.backup && (
+              <button className="mini" type="button" data-testid="text-restore" disabled={restoring} onClick={() => void restore()}>
+                {restoring ? t('meta.restoring') : t('meta.restore')}
+              </button>
+            )}
+          </div>
+          {result.error && <div className="meta-result-msg">{result.error}</div>}
+          {result.ok && (
+            <div className="meta-result-msg" data-testid="text-result-stats">
+              {t('text.resultStats', {
+                before: result.bytesBefore,
+                after: result.bytesAfter,
+                output: result.outputPath,
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function TextEncodingPage() {
+  const { t } = useTranslation();
+  const { panel, targets } = usePageTargets('text');
+  const chooseFiles = useApp((s) => s.chooseFiles);
+
   return (
     <PageShell
       page="text"
@@ -143,117 +264,7 @@ export function TextEncodingPage() {
           </div>
         </div>
       )}
-      {targets.length > 0 && current && (
-        <div className="page-editor text-encoding" data-testid="text-editor">
-          <div className="text-targets" data-testid="text-targets">
-            {targets.map((file, index) => (
-              <button
-                className={`text-target${file.path === current.path ? ' on' : ''}`}
-                type="button"
-                key={file.path}
-                data-testid={`text-target-${index}`}
-                onClick={() => setActive(file.path)}
-              >
-                <Icon name="text" size={12} />
-                <span>{file.name}</span>
-                <span className="text-target-ext">{file.parent}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="text-detect" data-testid="text-detect">
-            {detecting && <span>{t('text.detecting')}</span>}
-            {!detecting && detected && (
-              <>
-                <div className="text-detect-line">
-                  <b>{baseName(detected.path)}</b>
-                  <span className="meta-format">{detected.encodingLabel}</span>
-                  <span className={detected.confirmed ? 'ok-chip' : 'warn-chip'} data-testid="text-confirmed">
-                    {detected.confirmed ? t('text.confirmed') : t('text.unconfirmed')}
-                  </span>
-                  <span className="foot-note">
-                    {t('text.stats', { bytes: detected.bytes, chars: detected.chars, lines: detected.lines })}
-                  </span>
-                </div>
-                {detected.preview && <div className="text-preview">“{detected.preview}”</div>}
-                {detected.warnings.map((w) => (
-                  <div className="text-warn" key={w} data-testid="text-warning"><Icon name="alert" size={12} />{w}</div>
-                ))}
-              </>
-            )}
-          </div>
-
-          <div className="text-form">
-            <label>
-              <span>{t('text.source')}</span>
-              <select
-                className="input"
-                data-testid="text-source"
-                value={source}
-                onChange={(e) => setSource(e.target.value as TextEncodingId | 'auto')}
-              >
-                {SOURCES.map((item) => (
-                  <option value={item.id} key={item.id}>
-                    {item.labelKey ? t(item.labelKey) : item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>{t('text.target')}</span>
-              <select className="input" data-testid="text-target" value={target} onChange={(e) => setTarget(e.target.value as TextEncodingId)}>
-                {TARGETS.map((item) => (
-                  <option value={item.id} key={item.id}>{item.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="text-check">
-              <input type="checkbox" data-testid="text-saveas" checked={saveAs} onChange={(e) => setSaveAs(e.target.checked)} />
-              <span>{t('text.saveAs')}</span>
-            </label>
-            {saveAs && (
-              <label className="text-output">
-                <span>{t('text.output')}</span>
-                <input className="input" data-testid="text-output" value={output} onChange={(e) => setOutput(e.target.value)} />
-              </label>
-            )}
-          </div>
-
-          <div className="text-actions">
-            <span className="foot-note">{t('text.backupNote')}</span>
-            <button className="btn btn-primary" type="button" data-testid="text-apply" disabled={applying || detecting} onClick={() => void apply()}>
-              <Icon name="save" size={13} />{applying ? t('text.applying') : t('text.apply')}
-            </button>
-          </div>
-
-          {result && (
-            <div className={`text-result ${result.ok ? 'ok' : 'bad'}`} data-testid="text-result">
-              <div className="meta-result-line">
-                <Icon name={result.ok ? 'check' : 'alert'} size={12} />
-                <strong>{baseName(result.path)}</strong>
-                <span className="meta-format">{result.sourceEncodingLabel} → {result.targetEncodingLabel}</span>
-                <span className="meta-result-state">{result.ok ? t('text.resultOk') : t('text.resultFail')}</span>
-                {result.ok && result.verified && <span className="meta-verified" data-testid="text-verified">{t('meta.verified')}</span>}
-                {result.backup && (
-                  <button className="mini" type="button" data-testid="text-restore" disabled={restoring} onClick={() => void restore()}>
-                    {restoring ? t('meta.restoring') : t('meta.restore')}
-                  </button>
-                )}
-              </div>
-              {result.error && <div className="meta-result-msg">{result.error}</div>}
-              {result.ok && (
-                <div className="meta-result-msg" data-testid="text-result-stats">
-                  {t('text.resultStats', {
-                    before: result.bytesBefore,
-                    after: result.bytesAfter,
-                    output: result.outputPath,
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      {targets.length > 0 && <TextEncodingBody targets={targets} />}
     </PageShell>
   );
 }

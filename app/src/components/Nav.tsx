@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../store';
 import { useTranslation } from '../i18n';
 import { Icon, type IconName } from './Icon';
-import { tabCount } from './ListView';
-import type { ListTab, PageId } from '../lib/types';
+import type { InspectorMode, ListTab } from '../lib/types';
 
 interface NavEntry {
   id: string;
@@ -11,66 +10,80 @@ interface NavEntry {
   icon: IconName;
   count?: number;
   active?: boolean;
-  /** 功能说明（页面标题/行为）；为空表示纯导航 */
+  /** 功能说明（入口行为），作为悬停提示 */
   hint?: string;
   action?: () => void;
 }
 
-/** 左侧导航：元数据入口打开真实编辑器页，属性/时间/归类打开独立功能页。 */
+/** 左侧导航收敛为两组：「文件」负责工作台视图与历史，「检查器」负责改文件的六类操作。 */
 export function Nav({ onNavigate, open }: { onNavigate?: () => void; open?: boolean }) {
   const { t } = useTranslation();
   const batches = useApp((s) => s.batches);
   const entries = useApp((s) => s.entries);
-  const activePage = useApp((s) => s.activePage);
-  const openPage = useApp((s) => s.openPage);
+  const listTab = useApp((s) => s.listTab);
+  const setListTab = useApp((s) => s.setListTab);
+  const inspector = useApp((s) => s.inspector);
+  const openInspector = useApp((s) => s.openInspector);
   const openDrawer = useApp((s) => s.openDrawer);
   const openPlanExport = useApp((s) => s.openPlanExport);
   const openSnapshots = useApp((s) => s.openSnapshots);
   const selected = entries.filter((e) => e.selected && !e.isDir).length;
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  const meta = (tab: ListTab, page: PageId) => ({
-    count: tabCount(tab, entries),
-    active: activePage === page,
-    hint: `${t('nav.metaEditHint')} · ${t('page.legacyHint')}`,
-    action: () => openPage(page),
-  });
-
   const go = (action: () => void) => () => {
     action();
     onNavigate?.();
   };
 
-  // 一期：这两组仍是旧版整页入口，组标题上直接标注；二期收敛为「文件 / 检查器」时删除
-  const groups: Array<{ id: string; label: string; legacy?: boolean; items: NavEntry[] }> = [
+  const view = (tab: ListTab): NavEntry => ({
+    id: 'rename',
+    label: t('nav.rename'),
+    icon: 'file',
+    active: listTab === tab,
+    hint: t('nav.renameHint'),
+    action: go(() => setListTab(tab)),
+  });
+
+  const inspect = (mode: InspectorMode, id: string, label: string, icon: IconName): NavEntry => ({
+    id,
+    label,
+    icon,
+    count: selected,
+    active: inspector.open && inspector.mode === mode,
+    hint: t('nav.inspectorHint'),
+    action: go(() => openInspector(mode)),
+  });
+
+  const groups: Array<{ id: string; label: string; items: NavEntry[] }> = [
     {
-      id: 'meta',
-      label: t('nav.metaGroup'),
-      legacy: true,
+      id: 'files',
+      label: t('nav.filesGroup'),
       items: [
-        { id: 'music', label: t('nav.music'), icon: 'music', ...meta('music', 'music') },
-        { id: 'image', label: t('nav.image'), icon: 'image', ...meta('photo', 'image') },
-        { id: 'office', label: t('nav.office'), icon: 'doc', ...meta('office', 'office') },
-        { id: 'text', label: t('nav.text'), icon: 'text', ...meta('text', 'text') },
+        view('rename'),
+        {
+          id: 'history', label: t('nav.history'), icon: 'history', count: batches.length,
+          hint: t('nav.historyHint'), action: go(() => openDrawer('history')),
+        },
+        {
+          id: 'snapshot', label: t('nav.snapshot'), icon: 'history',
+          hint: t('nav.snapshotHint'), action: go(() => void openSnapshots()),
+        },
+        {
+          id: 'plan', label: t('nav.plan'), icon: 'save',
+          hint: t('nav.planHint'), action: go(openPlanExport),
+        },
       ],
     },
     {
-      id: 'ops',
-      label: t('nav.opsGroup'),
-      legacy: true,
+      id: 'inspector',
+      label: t('nav.inspectorGroup'),
       items: [
-        {
-          id: 'attrs', label: t('nav.attrs'), icon: 'grid', count: selected, active: activePage === 'attrs',
-          hint: `${t('nav.opsAttrsHint')} · ${t('page.legacyHint')}`, action: go(() => openPage('attrs')),
-        },
-        {
-          id: 'times', label: t('nav.times'), icon: 'clock', count: selected, active: activePage === 'times',
-          hint: `${t('nav.opsTimesHint')} · ${t('page.legacyHint')}`, action: go(() => openPage('times')),
-        },
-        {
-          id: 'organize', label: t('nav.organize'), icon: 'folder', count: selected, active: activePage === 'organize',
-          hint: `${t('nav.opsMoveHint')} · ${t('page.legacyHint')}`, action: go(() => openPage('organize')),
-        },
+        inspect('attrs', 'attrs', t('nav.attrs'), 'grid'),
+        inspect('meta', 'meta', t('nav.meta'), 'tag'),
+        inspect('time', 'times', t('nav.times'), 'clock'),
+        inspect('organize', 'organize', t('nav.organize'), 'folder'),
+        inspect('exif', 'exif', t('nav.exif'), 'ban'),
+        inspect('encoding', 'encoding', t('nav.encoding'), 'text'),
       ],
     },
   ];
@@ -86,7 +99,7 @@ export function Nav({ onNavigate, open }: { onNavigate?: () => void; open?: bool
               role="button"
               tabIndex={0}
               aria-expanded={!isCollapsed}
-              title={group.id === 'meta' ? t('nav.metaHint') : group.label}
+              title={group.label}
               data-testid={`nav-group-${group.id}`}
               onClick={() => setCollapsed((prev) => ({ ...prev, [group.id]: !isCollapsed }))}
               onKeyDown={(e) => {
@@ -94,9 +107,6 @@ export function Nav({ onNavigate, open }: { onNavigate?: () => void; open?: bool
               }}
             >
               <span>{group.label}</span>
-              {group.legacy && (
-                <span className="p1-tag nav-legacy" data-testid={`nav-group-legacy-${group.id}`}>{t('page.legacyShort')}</span>
-              )}
               <span className={`chev${isCollapsed ? ' down' : ''}`}>▾</span>
             </div>
             <div
@@ -129,33 +139,6 @@ export function Nav({ onNavigate, open }: { onNavigate?: () => void; open?: bool
         );
       })}
       <div className="nav-foot">
-        <div className="nav-item" role="button" tabIndex={0} onClick={go(() => openDrawer('history'))} data-testid="nav-history">
-          <Icon name="history" />
-          {t('nav.history')}
-          {batches.length > 0 && <span className="count">{batches.length}</span>}
-        </div>
-        <div
-          className="nav-item"
-          role="button"
-          tabIndex={0}
-          onClick={go(openPlanExport)}
-          title={t('nav.planHint')}
-          data-testid="nav-plan"
-        >
-          <Icon name="save" />
-          {t('nav.plan')}
-        </div>
-        <div
-          className="nav-item"
-          role="button"
-          tabIndex={0}
-          onClick={go(() => void openSnapshots())}
-          title={t('nav.snapshotHint')}
-          data-testid="nav-snapshot"
-        >
-          <Icon name="history" />
-          {t('nav.snapshot')}
-        </div>
         <div className="nav-item" role="button" tabIndex={0} onClick={go(() => openDrawer('settings'))} data-testid="nav-settings">
           <Icon name="settings" />
           {t('nav.settings')}

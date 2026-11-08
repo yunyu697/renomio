@@ -5,16 +5,21 @@ import { useApp } from '../store';
 import { Icon, type IconName } from './Icon';
 import { MetaEditorBody } from './MetaEditDialog';
 import { AttrBody, MoveBody, TimeBody } from './OpsDialog';
+import { ExifClearPanel } from './ExifClearPanel';
+import { TextEncodingBody } from './TextEncodingPage';
+import { matchesKind } from './FeaturePage';
 
 const TABS: Array<{ id: InspectorMode; labelKey: string; icon: IconName }> = [
   { id: 'attrs', labelKey: 'inspector.tab.attrs', icon: 'eye' },
   { id: 'meta', labelKey: 'inspector.tab.meta', icon: 'tag' },
   { id: 'time', labelKey: 'inspector.tab.time', icon: 'clock' },
   { id: 'organize', labelKey: 'inspector.tab.organize', icon: 'folder' },
+  { id: 'exif', labelKey: 'inspector.tab.exif', icon: 'ban' },
+  { id: 'encoding', labelKey: 'inspector.tab.encoding', icon: 'text' },
 ];
 
 /**
- * 右侧检查器：属性 / 元数据 / 时间 / 归类共用一块停靠面板。
+ * 右侧检查器：属性 / 元数据 / 时间 / 归类 / EXIF / 编码共用一块停靠面板。
  * 目标直接取列表勾选（同一份选择源），因此规则链、预览、动作栏始终可见；
  * 头部常驻「作用于 N 个文件」，避免出现「以为改的是这几行」。
  */
@@ -27,6 +32,18 @@ export function Inspector() {
 
   // 保持引用稳定，避免勾选变化之外的渲染触发面板内部重复读取
   const targets = useMemo(() => entries.filter((e) => e.selected && !e.isDir), [entries]);
+  const imageTargets = useMemo(() => targets.filter((e) => matchesKind('image', e)), [targets]);
+  const textTargets = useMemo(() => targets.filter((e) => matchesKind('text', e)), [targets]);
+
+  const applicable = mode === 'exif' ? imageTargets : mode === 'encoding' ? textTargets : targets;
+  const emptyMessage =
+    targets.length === 0
+      ? t('inspector.empty')
+      : !applicable.length
+        ? mode === 'exif'
+          ? t('inspector.exifEmpty', { count: targets.length })
+          : t('inspector.encodingEmpty', { count: targets.length })
+        : null;
 
   return (
     <aside id="inspector-panel" className="inspector" data-testid="inspector" data-mode={mode} aria-label={t('inspector.title')}>
@@ -68,10 +85,10 @@ export function Inspector() {
       </div>
 
       <div className="inspector-body">
-        {targets.length === 0 ? (
+        {emptyMessage ? (
           <div className="inspector-empty" data-testid="inspector-empty">
             <Icon name="info" size={22} />
-            <p>{t('inspector.empty')}</p>
+            <p>{emptyMessage}</p>
           </div>
         ) : mode === 'attrs' ? (
           <AttrBody targets={targets} onClose={closeInspector} />
@@ -79,6 +96,20 @@ export function Inspector() {
           <MetaEditorBody paths={targets.map((e) => e.path)} note={t('inspector.metaNote')} />
         ) : mode === 'time' ? (
           <TimeBody targets={targets} onClose={closeInspector} />
+        ) : mode === 'exif' ? (
+          <>
+            <div className="meta-edit-hint page-note" data-testid="inspector-exif-note">
+              <Icon name="info" size={13} />{t('inspector.exifNote')}
+            </div>
+            <ExifClearPanel paths={imageTargets.map((e) => e.path)} />
+          </>
+        ) : mode === 'encoding' ? (
+          <>
+            <div className="meta-edit-hint page-note" data-testid="inspector-encoding-note">
+              <Icon name="info" size={13} />{t('inspector.encodingNote')}
+            </div>
+            <TextEncodingBody targets={textTargets} />
+          </>
         ) : (
           <MoveBody targets={targets} onClose={closeInspector} />
         )}

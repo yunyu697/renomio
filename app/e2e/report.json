@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-08T08:49:04.860Z",
+  "generatedAt": "2026-11-08T09:29:08.050Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
-  "passed": 243,
+  "passed": 240,
   "failed": 0,
   "results": [
     {
@@ -142,13 +142,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-08 16:47 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-08 17:27 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-08 16:47 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-08 17:27 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -356,93 +356,57 @@
     },
     {
       "layer": "UI",
-      "name": "侧栏 nav-music → 打开完整功能页 page-music（选择区 + 计数 + 返回，不是弹窗）",
+      "name": "左栏收敛为「文件 / 检查器」两组，六类操作都在检查器分组，旧整页入口与「旧版入口」标记已消失",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"select\":true,\"count\":\"已选 0 / 0\",\"back\":true,\"empty\":true,\"legacy\":true,\"navLegacy\":\"旧版\"}"
+      "detail": "{\"groups\":[{\"id\":\"nav-group-files\",\"label\":\"文件▾\",\"items\":[\"nav-rename\",\"nav-history\",\"nav-snapshot\",\"nav-plan\"]},{\"id\":\"nav-group-inspector\",\"label\":\"检查器▾\",\"items\":[\"nav-attrs\",\"nav-meta\",\"nav-times\",\"nav-organize\",\"nav-exif\",\"nav-encoding\"]}],\"legacy\":[],\"oldPages\":[]}"
     },
     {
       "layer": "UI",
-      "name": "旧入口有「旧版入口」标记：nav-music 与 page-music 页头都显式标注",
+      "name": "侧栏 nav-attrs → 停靠检查器 attrs（文件列表与规则链不被整页替换）",
       "ok": true,
-      "detail": "{\"legacy\":true,\"navLegacy\":\"旧版\"}"
+      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"page\":false,\"scope\":\"作用于 4 个文件\"}"
     },
     {
       "layer": "UI",
-      "name": "侧栏 nav-image → 打开完整功能页 page-image（选择区 + 计数 + 返回，不是弹窗）",
+      "name": "侧栏 nav-meta → 停靠检查器 meta（文件列表与规则链不被整页替换）",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"select\":true,\"count\":\"已选 4 / 4\",\"back\":true,\"empty\":false,\"legacy\":true,\"navLegacy\":\"旧版\"}"
+      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"page\":false,\"scope\":\"作用于 4 个文件\"}"
     },
     {
       "layer": "UI",
-      "name": "旧入口有「旧版入口」标记：nav-image 与 page-image 页头都显式标注",
+      "name": "侧栏 nav-times → 停靠检查器 time（文件列表与规则链不被整页替换）",
       "ok": true,
-      "detail": "{\"legacy\":true,\"navLegacy\":\"旧版\"}"
+      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"page\":false,\"scope\":\"作用于 4 个文件\"}"
     },
     {
       "layer": "UI",
-      "name": "侧栏 nav-office → 打开完整功能页 page-office（选择区 + 计数 + 返回，不是弹窗）",
+      "name": "侧栏 nav-organize → 停靠检查器 organize（文件列表与规则链不被整页替换）",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"select\":true,\"count\":\"已选 0 / 0\",\"back\":true,\"empty\":true,\"legacy\":true,\"navLegacy\":\"旧版\"}"
+      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"page\":false,\"scope\":\"作用于 4 个文件\"}"
     },
     {
       "layer": "UI",
-      "name": "旧入口有「旧版入口」标记：nav-office 与 page-office 页头都显式标注",
+      "name": "侧栏 nav-exif → 停靠检查器 exif（文件列表与规则链不被整页替换）",
       "ok": true,
-      "detail": "{\"legacy\":true,\"navLegacy\":\"旧版\"}"
+      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"page\":false,\"scope\":\"作用于 4 个文件\"}"
     },
     {
       "layer": "UI",
-      "name": "侧栏 nav-text → 打开完整功能页 page-text（选择区 + 计数 + 返回，不是弹窗）",
+      "name": "侧栏 nav-encoding → 停靠检查器 encoding（文件列表与规则链不被整页替换）",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"select\":true,\"count\":\"已选 0 / 0\",\"back\":true,\"empty\":true,\"legacy\":true,\"navLegacy\":\"旧版\"}"
+      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"page\":false,\"scope\":\"作用于 4 个文件\"}"
     },
     {
       "layer": "UI",
-      "name": "旧入口有「旧版入口」标记：nav-text 与 page-text 页头都显式标注",
+      "name": "「文件 → 重命名」切回更名列表，不打开整页",
       "ok": true,
-      "detail": "{\"legacy\":true,\"navLegacy\":\"旧版\"}"
+      "detail": "true"
     },
     {
       "layer": "UI",
-      "name": "侧栏 nav-attrs → 打开完整功能页 page-attrs（选择区 + 计数 + 返回，不是弹窗）",
+      "name": "检查器分组标题可点击折叠（aria-expanded=false 且条目隐藏）",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"select\":true,\"count\":\"已选 4 / 4\",\"back\":true,\"empty\":false,\"legacy\":true,\"navLegacy\":\"旧版\"}"
-    },
-    {
-      "layer": "UI",
-      "name": "旧入口有「旧版入口」标记：nav-attrs 与 page-attrs 页头都显式标注",
-      "ok": true,
-      "detail": "{\"legacy\":true,\"navLegacy\":\"旧版\"}"
-    },
-    {
-      "layer": "UI",
-      "name": "侧栏 nav-times → 打开完整功能页 page-times（选择区 + 计数 + 返回，不是弹窗）",
-      "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"select\":true,\"count\":\"已选 4 / 4\",\"back\":true,\"empty\":false,\"legacy\":true,\"navLegacy\":\"旧版\"}"
-    },
-    {
-      "layer": "UI",
-      "name": "旧入口有「旧版入口」标记：nav-times 与 page-times 页头都显式标注",
-      "ok": true,
-      "detail": "{\"legacy\":true,\"navLegacy\":\"旧版\"}"
-    },
-    {
-      "layer": "UI",
-      "name": "侧栏 nav-organize → 打开完整功能页 page-organize（选择区 + 计数 + 返回，不是弹窗）",
-      "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"select\":true,\"count\":\"已选 4 / 4\",\"back\":true,\"empty\":false,\"legacy\":true,\"navLegacy\":\"旧版\"}"
-    },
-    {
-      "layer": "UI",
-      "name": "旧入口有「旧版入口」标记：nav-organize 与 page-organize 页头都显式标注",
-      "ok": true,
-      "detail": "{\"legacy\":true,\"navLegacy\":\"旧版\"}"
-    },
-    {
-      "layer": "UI",
-      "name": "元数据分组标题可点击折叠（aria-expanded=false 且条目隐藏）",
-      "ok": true,
-      "detail": "{\"expanded\":\"false\",\"visibleMetaItems\":0}"
+      "detail": "{\"expanded\":\"false\",\"visibleItems\":0}"
     },
     {
       "layer": "UI",
@@ -500,15 +464,15 @@
     },
     {
       "layer": "UI",
-      "name": "列表未勾选 → 功能页自带全选与计数（默认 4/4），且不改写列表勾选状态",
+      "name": "列表未勾选 → 检查器显示空态、保持列表勾选为 0（不再由页面自动全选）",
       "ok": true,
-      "detail": "{\"selectedBefore\":0,\"autoPanel\":{\"count\":\"已选 4 / 4\",\"rows\":4,\"defaultNote\":true,\"selected\":0}}"
+      "detail": "{\"selectedBefore\":0,\"autoPanel\":{\"empty\":true,\"scope\":\"作用于 0 个文件\",\"selected\":0,\"page\":false}}"
     },
     {
       "layer": "UI",
-      "name": "图片页签的「编辑元数据」入口打开真实编辑弹窗",
+      "name": "图片页签的「编辑元数据」入口打开停靠检查器并复用真实编辑器",
       "ok": true,
-      "detail": "{\"fields\":true,\"unsupported\":false,\"hasApply\":true}"
+      "detail": "{\"fields\":true,\"unsupported\":false,\"hasApply\":true,\"scope\":\"作用于 1 个文件\"}"
     },
     {
       "layer": "UI",
@@ -704,9 +668,15 @@
     },
     {
       "layer": "UI",
-      "name": "归类页签「打开归类移动」按钮可交互并打开真实面板",
+      "name": "归类页签「打开归类移动」按钮改指检查器并打开真实面板",
       "ok": true,
       "detail": "apply=true, note=按扩展名生成归类预览；目标目录不存在时执行阶段自动创建。打开归类移动"
+    },
+    {
+      "layer": "UI",
+      "name": "属性页签「打开属性设置」按钮改指检查器并打开真实面板",
+      "ok": true,
+      "detail": "true"
     },
     {
       "layer": "UI",
@@ -790,7 +760,7 @@
       "layer": "UI-triggered mock",
       "name": "交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/批量元数据/事件/写文件）",
       "ok": true,
-      "detail": "load_rule_history,startup_report,plugin:event|listen,env_info,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_times,apply_time,meta_read,meta_capabilities,read_attrs,read_metadata_batch,apply_attrs,apply_move"
+      "detail": "load_rule_history,startup_report,plugin:event|listen,env_info,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_times,apply_time,read_attrs,meta_read,meta_capabilities,list_snapshots,read_metadata_batch,apply_attrs,apply_move"
     },
     {
       "layer": "UI-triggered mock",
@@ -1106,9 +1076,9 @@
     },
     {
       "layer": "UI",
-      "name": "窄窗抽屉内点击入口 → 打开功能页并自动收起抽屉",
+      "name": "窄窗抽屉内点击入口 → 打开检查器并自动收起抽屉",
       "ok": true,
-      "detail": "{\"open\":false,\"page\":true}"
+      "detail": "{\"open\":false,\"inspector\":true}"
     },
     {
       "layer": "UI",
@@ -1198,7 +1168,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmw7lbl7k1\",\"jumpState\":{\"openId\":\"rmw7lbl7k1\",\"detail\":1,\"focused\":\"rmw7lbl7k1\"}}"
+      "detail": "{\"firstRuleId\":\"rmw7mqywy1\",\"jumpState\":{\"openId\":\"rmw7mqywy1\",\"detail\":1,\"focused\":\"rmw7mqywy1\"}}"
     },
     {
       "layer": "UI",
@@ -1264,7 +1234,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1794127730035.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1794130127273.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -1330,7 +1300,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/8 16:48:553 条 · 仅映射预览还原删除"
+      "detail": "2026/11/8 17:28:543 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -1390,7 +1360,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-08 16:48 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-08 17:28 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",
@@ -1403,6 +1373,12 @@
       "name": "删除快照 → 列表与后端同步只剩 1 条",
       "ok": true,
       "detail": "1"
+    },
+    {
+      "layer": "UI",
+      "name": "勾选一张图片后 EXIF 入口在检查器里可用（作用于勾选文件）",
+      "ok": true,
+      "detail": "1 / 作用于 1 个文件"
     },
     {
       "layer": "UI",
@@ -1436,9 +1412,15 @@
     },
     {
       "layer": "UI",
-      "name": "文本编码页在无可用文件时显示自带空态（引导选择文件）",
+      "name": "检查器「编码」在没有文本目标时显示空态并说明原因",
       "ok": true,
-      "detail": "true"
+      "detail": "{\"empty\":true,\"scope\":\"作用于 1 个文件\",\"clarified\":true}"
+    },
+    {
+      "layer": "UI",
+      "name": "勾选一个文本文件后编码检查器按勾选文件真实探测",
+      "ok": true,
+      "detail": "1"
     },
     {
       "layer": "UI",

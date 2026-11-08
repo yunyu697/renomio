@@ -807,6 +807,23 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
 .inspector .meta-edit-row { grid-template-columns: minmax(0, 1fr); }
 .inspector .meta-edit-row > * { min-width: 0; }
 .inspector .mini-table { overflow-x: auto; }
+/* EXIF / 编码面板在 320px 窄栏内改为单列，避免横向溢出 */
+.inspector .exif-actions,
+.inspector .exif-file-head,
+.inspector .exif-scopes,
+.inspector .text-actions { flex-wrap: wrap; }
+.inspector .exif-xmp { margin-left: 0; }
+.inspector .exif-group { flex-wrap: wrap; }
+.inspector .text-form { flex-direction: column; align-items: stretch; gap: 8px; }
+.inspector .text-form label,
+.inspector .text-form label.text-output { flex: 1 1 auto; width: 100%; }
+.inspector .text-form .input,
+.inspector .text-form select { width: 100%; min-width: 0; }
+.inspector .text-targets { max-height: 128px; overflow: auto; }
+.inspector .text-target { max-width: 100%; }
+.inspector .text-target .text-target-ext { display: none; }
+.inspector .text-actions .btn { width: 100%; justify-content: center; }
+.inspector .text-actions .foot-note { flex: 1 1 100%; }
 .inspector-empty {
   display: flex;
   flex-direction: column;

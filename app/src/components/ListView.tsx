@@ -199,8 +199,7 @@ export function ListView({ tab }: { tab: Exclude<ListTab, 'rename'> }) {
   const env = useApp((s) => s.env);
   const diskExists = useApp((s) => s.diskExists);
   const isDemo = useApp((s) => s.isDemo);
-  const openOps = useApp((s) => s.openOps);
-  const openMetaEditor = useApp((s) => s.openMetaEditor);
+  const openInspector = useApp((s) => s.openInspector);
   const [meta, setMeta] = useState<Record<string, BatchMetadata>>({});
   const [times, setTimes] = useState<Record<string, TimeInfo>>({});
   const [attrs, setAttrs] = useState<Record<string, AttrInfo>>({});
@@ -334,10 +333,8 @@ export function ListView({ tab }: { tab: Exclude<ListTab, 'rename'> }) {
   const headers = COLUMNS[tab];
   const cols = `${headers.length > 1 ? 'minmax(0, 1.4fr)' : '1fr'} ${headers.slice(1).map(() => 'minmax(0, 1fr)').join(' ')}`;
   const noteKey = TAB_NOTE_KEY[tab];
-  // 元数据页签不只做展示：勾选的文件（未勾选时取当前页签全部）可直接进入编辑对话框。
-  const metaTargets = META_TABS.has(tab)
-    ? (files.filter((f) => f.selected).length ? files.filter((f) => f.selected) : files).map((f) => f.path)
-    : [];
+  // 页签行的动作不再另开整页/弹窗：统一指向右侧检查器，目标就是列表勾选。
+  const selectedCount = entries.filter((e) => e.selected && !e.isDir).length;
 
   return (
     <div className="list-view" data-testid={`list-view-${tab}`}>
@@ -349,10 +346,10 @@ export function ListView({ tab }: { tab: Exclude<ListTab, 'rename'> }) {
               className="mini"
               type="button"
               data-testid={`list-action-edit-${tab}`}
-              disabled={!metaTargets.length}
-              onClick={() => openMetaEditor(metaTargets)}
+              disabled={!selectedCount}
+              onClick={() => openInspector('meta')}
             >
-              {t('list.metaEdit', { count: metaTargets.length })}
+              {t('list.metaEdit', { count: selectedCount })}
             </button>
           )}
           {(tab === 'organize' || tab === 'attrs') && (
@@ -360,7 +357,7 @@ export function ListView({ tab }: { tab: Exclude<ListTab, 'rename'> }) {
               className="mini"
               type="button"
               data-testid={`list-action-${tab}`}
-              onClick={() => openOps(tab === 'organize' ? 'move' : 'attrs')}
+              onClick={() => openInspector(tab === 'organize' ? 'organize' : 'attrs')}
             >
               {tab === 'organize' ? t('list.openOrganize') : t('list.openAttrs')}
             </button>
