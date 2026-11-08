@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
 
 const MANIFEST_URL: &str =
-    "https://github.com/yunyu697/renomio-releases/releases/download/updates/latest.json";
+    "https://github.com/yunyu697/renomio/releases/download/updates/latest.json";
 const HOMEPAGE: &str = "https://github.com/yunyu697/renomio-releases";
 
 /// base64(公钥文件全文)。私钥只在本机 `Documents\Trae-CN\renomio-signing`，不入仓库。
