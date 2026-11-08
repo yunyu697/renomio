@@ -847,11 +847,14 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
 
 .list-tabs {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
+  row-gap: 2px;
   padding: 6px 10px 0;
   border-bottom: 1px solid var(--line);
-  overflow-x: auto;
+  overflow-x: visible;
+  scrollbar-width: none;
   flex: 0 0 auto;
 }
 
@@ -1083,6 +1086,27 @@ html[data-theme="dark"] .file-ico.txt { background: #1c2230; color: #9aa6ba; }
   flex-direction: column;
   gap: 6px;
   min-height: 0;
+}
+
+/* 宽而矮的规则区（上下分栏 / 底部面板）：规则卡片按列自适应，展开项跨整行 */
+.panes[data-view="files-top"] > .rules .rule-list,
+.panes[data-view="rules-top"] > .rules .rule-list,
+.panes[data-view="compact"] > .rules .rule-list,
+.workspace[data-narrow="true"] .panes > .rules .rule-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-auto-rows: max-content;
+  align-content: start;
+}
+.panes[data-view="files-top"] > .rules .rule-card.open,
+.panes[data-view="rules-top"] > .rules .rule-card.open,
+.panes[data-view="compact"] > .rules .rule-card.open,
+.workspace[data-narrow="true"] .panes > .rules .rule-card.open,
+.panes[data-view="files-top"] > .rules .rules-empty,
+.panes[data-view="rules-top"] > .rules .rules-empty,
+.panes[data-view="compact"] > .rules .rules-empty,
+.workspace[data-narrow="true"] .panes > .rules .rules-empty {
+  grid-column: 1 / -1;
 }
 
 /* 冲突汇总：就地列出命中的规则对 / 模式对，点击跳转 */
