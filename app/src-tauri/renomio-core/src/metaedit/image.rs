@@ -281,17 +281,31 @@ fn read_exif(tiff: &[u8], fields: &mut FieldMap) {
     let Ok((entries, _)) = hdr.entries(tiff) else {
         return;
     };
+    // IFD0 之外，DateTimeOriginal/Digitized 等标签位于 ExifIFD（0x8769）
+    let mut groups: Vec<Vec<IfdEntry>> = vec![entries];
+    let exif_ifd_off = groups[0]
+        .iter()
+        .find(|e| e.tag == TAG_EXIF_IFD && e.typ == 4 && e.count == 1)
+        .map(|e| raw_u32(&e.raw, hdr.be) as usize)
+        .filter(|off| *off != 0);
+    if let Some(off) = exif_ifd_off {
+        if let Ok((sub, _)) = ifd_at(tiff, off, hdr.be) {
+            groups.push(sub);
+        }
+    }
     let text = |tag: u16| -> Option<String> {
-        entries
+        groups
             .iter()
+            .flat_map(|g| g.iter())
             .find(|e| e.tag == tag)
             .and_then(|e| e.ascii(tiff, hdr.be))
             .map(|s| s.trim_matches('\0').trim().to_string())
             .filter(|s| !s.is_empty())
     };
     let utf16 = |tag: u16| -> Option<String> {
-        entries
+        groups
             .iter()
+            .flat_map(|g| g.iter())
             .find(|e| e.tag == tag)
             .and_then(|e| e.as_utf16(tiff, hdr.be))
             .map(|s| s.trim().to_string())
@@ -806,7 +820,13 @@ impl IfdEntry {
         let bytes = self.bytes(tiff, be)?;
         let units = bytes
             .chunks_exact(2)
-            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .map(|c| {
+                if be {
+                    u16::from_be_bytes([c[0], c[1]])
+                } else {
+                    u16::from_le_bytes([c[0], c[1]])
+                }
+            })
             .collect::<Vec<_>>();
         let mut s = String::new();
         for u in units {
@@ -817,7 +837,6 @@ impl IfdEntry {
                 s.push(ch);
             }
         }
-        let _ = be;
         Some(s)
     }
 }
@@ -903,42 +922,9 @@ struct PendingEntry {
 fn tiff_update(data: &[u8], edits: &[(u16, u16, Vec<u8>)]) -> Result<Option<Vec<u8>>, String> {
     let hdr = TiffHeader::parse(data)?;
     let (entries, next) = hdr.entries(data)?;
-
-    let edited_tags: Vec<u16> = edits.iter().map(|(t, _, _)| *t).collect();
-    let mut pending: Vec<PendingEntry> = entries
-        .into_iter()
-        .filter(|e| !edited_tags.contains(&e.tag))
-        .map(|e| PendingEntry { raw: e.raw, payload: None })
-        .collect();
-    let mut changed = false;
-    for (tag, typ, payload) in edits {
-        if payload.is_empty() {
-            changed = true; // 清空 = 移除条目
-            continue;
-        }
-        changed = true;
-        let mut raw = [0u8; 12];
-        write_u16(&mut raw[0..2], *tag, hdr.be);
-        write_u16(&mut raw[2..4], *typ, hdr.be);
-        write_u32(&mut raw[4..8], payload.len() as u32, hdr.be);
-        if payload.len() <= 4 {
-            raw[8..8 + payload.len()].copy_from_slice(payload);
-        }
-        let payload = if payload.len() > 4 { Some(payload.clone()) } else { None };
-        pending.push(PendingEntry { raw, payload });
-    }
-    if !changed {
+    if edits.is_empty() {
         return Ok(None);
     }
-    let tag_of = |raw: &[u8; 12]| {
-        if hdr.be {
-            u16::from_be_bytes([raw[0], raw[1]])
-        } else {
-            u16::from_le_bytes([raw[0], raw[1]])
-        }
-    };
-    pending.sort_by_key(|e| tag_of(&e.raw));
-
     let mut out = data.to_vec();
     if out.len() & 1 == 1 {
         out.push(0);
@@ -947,15 +933,60 @@ fn tiff_update(data: &[u8], edits: &[(u16, u16, Vec<u8>)]) -> Result<Option<Vec<
     if ifd_off > u32::MAX as usize {
         return Err("TIFF 过大，IFD0 偏移超出 32 位".into());
     }
-    let data_start = ifd_off + 2 + pending.len() * 12 + 4;
+    let block = build_ifd(entries, edits, hdr.be, ifd_off, next)?;
+    out.extend_from_slice(&block);
+    out[4..8].copy_from_slice(&u32_bytes(ifd_off as u32, hdr.be));
+    Ok(Some(out))
+}
+
+/// 在 `base` 处生成一个新 IFD（条目 + 外部数据区），偏移均为文件内绝对值。
+fn build_ifd(
+    entries: Vec<IfdEntry>,
+    edits: &[(u16, u16, Vec<u8>)],
+    be: bool,
+    base: usize,
+    next: usize,
+) -> Result<Vec<u8>, String> {
+    let edited_tags: Vec<u16> = edits.iter().map(|(t, _, _)| *t).collect();
+    let mut pending: Vec<PendingEntry> = entries
+        .into_iter()
+        .filter(|e| !edited_tags.contains(&e.tag))
+        .map(|e| PendingEntry { raw: e.raw, payload: None })
+        .collect();
+    for (tag, typ, payload) in edits {
+        if payload.is_empty() {
+            continue; // 清空 = 移除条目
+        }
+        let unit = type_size(*typ).ok_or_else(|| format!("未知 TIFF 类型 {typ}"))?;
+        let mut raw = [0u8; 12];
+        write_u16(&mut raw[0..2], *tag, be);
+        write_u16(&mut raw[2..4], *typ, be);
+        // TIFF 的 count 是「元素个数」，不是字节数（RATIONAL 等类型必须换算）
+        write_u32(&mut raw[4..8], (payload.len() / unit) as u32, be);
+        if payload.len() <= 4 {
+            raw[8..8 + payload.len()].copy_from_slice(payload);
+        }
+        let payload = if payload.len() > 4 { Some(payload.clone()) } else { None };
+        pending.push(PendingEntry { raw, payload });
+    }
+    let tag_of = |raw: &[u8; 12]| {
+        if be {
+            u16::from_be_bytes([raw[0], raw[1]])
+        } else {
+            u16::from_le_bytes([raw[0], raw[1]])
+        }
+    };
+    pending.sort_by_key(|e| tag_of(&e.raw));
+
+    let data_start = base + 2 + pending.len() * 12 + 4;
     let mut data_off = data_start;
     let mut ifd = Vec::with_capacity(2 + pending.len() * 12 + 4);
-    ifd.extend_from_slice(&u16_bytes(pending.len() as u16, hdr.be));
+    ifd.extend_from_slice(&u16_bytes(pending.len() as u16, be));
     let mut tail: Vec<u8> = Vec::new();
     for entry in &pending {
         let mut raw = entry.raw;
         if let Some(payload) = &entry.payload {
-            write_u32(&mut raw[8..12], data_off as u32, hdr.be);
+            write_u32(&mut raw[8..12], data_off as u32, be);
             data_off += payload.len();
             if payload.len() & 1 == 1 {
                 data_off += 1;
@@ -967,12 +998,43 @@ fn tiff_update(data: &[u8], edits: &[(u16, u16, Vec<u8>)]) -> Result<Option<Vec<
         }
         ifd.extend_from_slice(&raw);
     }
-    ifd.extend_from_slice(&u32_bytes(next as u32, hdr.be));
-    out.extend_from_slice(&ifd);
-    out.extend_from_slice(&tail);
-    let off_bytes = u32_bytes(ifd_off as u32, hdr.be);
-    out[4..8].copy_from_slice(&off_bytes);
-    Ok(Some(out))
+    ifd.extend_from_slice(&u32_bytes(next as u32, be));
+    ifd.extend_from_slice(&tail);
+    Ok(ifd)
+}
+
+/// 更新子 IFD（ExifIFD 0x8769 / GPS IFD 0x8825）：在文件末尾重建子 IFD，
+/// 再把新的绝对偏移写回 IFD0 的指针条目。
+fn tiff_update_sub(
+    data: &[u8],
+    pointer_tag: u16,
+    edits: &[(u16, u16, Vec<u8>)],
+) -> Result<Option<Vec<u8>>, String> {
+    if edits.is_empty() {
+        return Ok(None);
+    }
+    let hdr = TiffHeader::parse(data)?;
+    let (ifd0, _) = hdr.entries(data)?;
+    let existing = ifd0
+        .iter()
+        .find(|e| e.tag == pointer_tag && e.typ == 4 && e.count == 1)
+        .map(|e| raw_u32(&e.raw, hdr.be) as usize)
+        .filter(|off| *off != 0)
+        .and_then(|off| ifd_at(data, off, hdr.be).ok());
+    let (entries, next) = existing.unwrap_or_default();
+
+    let mut out = data.to_vec();
+    if out.len() & 1 == 1 {
+        out.push(0);
+    }
+    let sub_off = out.len();
+    if sub_off > u32::MAX as usize {
+        return Err("TIFF 过大，子 IFD 偏移超出 32 位".into());
+    }
+    let block = build_ifd(entries, edits, hdr.be, sub_off, next)?;
+    out.extend_from_slice(&block);
+    let pointer = [(pointer_tag, 4u16, u32_bytes(sub_off as u32, hdr.be).to_vec())];
+    tiff_update(&out, &pointer)
 }
 
 fn write_u16(dst: &mut [u8], value: u16, be: bool) {
@@ -1016,20 +1078,47 @@ fn push_utf16(edits: &mut Vec<(u16, u16, Vec<u8>)>, tag: u16, value: &str) {
 }
 
 fn exif_update(tiff: &[u8], fields: &FieldMap) -> Result<Option<Vec<u8>>, String> {
-    let edits = exif_edits_for(fields);
-    if edits.is_empty() {
-        return Ok(None);
+    let edits = exif_edits_for(fields, tiff);
+    let mut data: Option<Vec<u8>> = None;
+    if !edits.exif.is_empty() {
+        let base = data.as_deref().unwrap_or(tiff);
+        if let Some(next) = tiff_update_sub(base, TAG_EXIF_IFD, &edits.exif)? {
+            data = Some(next);
+        }
     }
-    tiff_update(tiff, &edits)
+    if !edits.gps.is_empty() {
+        let base = data.as_deref().unwrap_or(tiff);
+        if let Some(next) = tiff_update_sub(base, TAG_GPS_IFD, &edits.gps)? {
+            data = Some(next);
+        }
+    }
+    if !edits.ifd0.is_empty() {
+        let base = data.as_deref().unwrap_or(tiff);
+        if let Some(next) = tiff_update(base, &edits.ifd0)? {
+            data = Some(next);
+        }
+    }
+    Ok(data)
 }
 
 fn tiff_rewrite(data: &[u8], fields: &FieldMap) -> Result<Rewrite, String> {
     let existing = tiff_xmp(data, &mut Vec::new());
     let (packet, mut warnings) = build_xmp(existing.as_deref(), fields);
-    let mut edits: Vec<(u16, u16, Vec<u8>)> = Vec::new();
-    edits.push((700, 1, packet.into_bytes()));
-    edits.extend(exif_edits_for(fields));
-    let new_data = tiff_update(data, &edits)?
+    let edits = exif_edits_for(fields, data);
+    let mut base = data.to_vec();
+    if !edits.exif.is_empty() {
+        if let Some(next) = tiff_update_sub(&base, TAG_EXIF_IFD, &edits.exif)? {
+            base = next;
+        }
+    }
+    if !edits.gps.is_empty() {
+        if let Some(next) = tiff_update_sub(&base, TAG_GPS_IFD, &edits.gps)? {
+            base = next;
+        }
+    }
+    let mut ifd0 = edits.ifd0;
+    ifd0.push((700, 1, packet.into_bytes()));
+    let new_data = tiff_update(&base, &ifd0)?
         .ok_or_else(|| "TIFF IFD0 未产生变化".to_string())?;
     let mut written = Vec::new();
     let mut cleared = Vec::new();
@@ -1040,35 +1129,139 @@ fn tiff_rewrite(data: &[u8], fields: &FieldMap) -> Result<Rewrite, String> {
     Ok(Rewrite { bytes: new_data, written, cleared, warnings })
 }
 
-fn exif_edits_for(fields: &FieldMap) -> Vec<(u16, u16, Vec<u8>)> {
-    let mut edits = Vec::new();
+/// EXIF 写入的三组条目：IFD0 / ExifIFD（0x8769）/ GPS IFD（0x8825）。
+#[derive(Default)]
+struct ExifEdits {
+    ifd0: Vec<(u16, u16, Vec<u8>)>,
+    exif: Vec<(u16, u16, Vec<u8>)>,
+    gps: Vec<(u16, u16, Vec<u8>)>,
+}
+
+/// 型号 → 厂商的规范 Make 值；只认明确的厂商前缀与常见机型族，认不出返回 None。
+fn vendor_for_model(model: &str) -> Option<&'static str> {
+    let m = model.trim().to_ascii_lowercase();
+    if m.is_empty() {
+        return None;
+    }
+    const RULES: &[(&[&str], &str)] = &[
+        (&["canon", "eos"], "Canon"),
+        (&["nikon", "coolpix"], "NIKON CORPORATION"),
+        (&["sony", "ilce-", "nex-", "dsc-"], "SONY"),
+        (&["fujifilm", "x-t", "x100", "x-pro", "x-h", "x-s", "gfx"], "FUJIFILM"),
+        (&["om system", "om-1", "om-5"], "OM Digital Solutions"),
+        (&["olympus", "e-m", "e-p", "pen-"], "OLYMPUS CORPORATION"),
+        (&["panasonic", "lumix"], "Panasonic"),
+        (&["leica"], "Leica Camera AG"),
+        (&["pentax", "ricoh"], "RICOH IMAGING COMPANY, LTD."),
+        (&["dji"], "DJI"),
+        (&["hasselblad"], "Hasselblad"),
+        (&["apple", "iphone", "ipad"], "Apple"),
+        (&["sigma"], "SIGMA"),
+        (&["gopro"], "GoPro"),
+        (&["samsung"], "SAMSUNG"),
+        (&["xiaomi"], "Xiaomi"),
+        (&["huawei"], "HUAWEI"),
+        (&["google", "pixel"], "Google"),
+    ];
+    RULES
+        .iter()
+        .find(|(prefixes, _)| prefixes.iter().any(|p| m.starts_with(p)))
+        .map(|(_, make)| *make)
+}
+
+fn exif_edits_for(fields: &FieldMap, tiff: &[u8]) -> ExifEdits {
+    let be = TiffHeader::parse(tiff).map(|h| h.be).unwrap_or(false);
+    let mut edits = ExifEdits::default();
     if let Some(v) = fields.get("title") {
-        push_utf16(&mut edits, 0x9C9B, v);
+        push_utf16(&mut edits.ifd0, 0x9C9B, v);
     }
     if let Some(v) = fields.get("description") {
-        push_ascii(&mut edits, 0x010E, v);
-        push_utf16(&mut edits, 0x9C9F, v);
+        push_ascii(&mut edits.ifd0, 0x010E, v);
+        push_utf16(&mut edits.ifd0, 0x9C9F, v);
     }
     if let Some(v) = fields.get("keywords") {
-        push_utf16(&mut edits, 0x9C9E, v);
+        push_utf16(&mut edits.ifd0, 0x9C9E, v);
     }
     if let Some(v) = fields.get("author") {
-        push_ascii(&mut edits, 0x013B, v);
-        push_utf16(&mut edits, 0x9C9D, v);
+        push_ascii(&mut edits.ifd0, 0x013B, v);
+        push_utf16(&mut edits.ifd0, 0x9C9D, v);
     }
     if let Some(v) = fields.get("copyright") {
-        push_ascii(&mut edits, 0x8298, v);
+        push_ascii(&mut edits.ifd0, 0x8298, v);
     }
     if let Some(v) = fields.get("software") {
-        push_ascii(&mut edits, 0x0131, v);
+        push_ascii(&mut edits.ifd0, 0x0131, v);
+    }
+    if let Some(v) = fields.get("model") {
+        push_ascii(&mut edits.ifd0, 0x0110, v);
+        // 型号能明确认出厂商时同步 Make，避免"Canon + Fujifilm X-T5"式自相矛盾
+        if let Some(make) = vendor_for_model(v) {
+            push_ascii(&mut edits.ifd0, 0x010F, make);
+        }
     }
     if let Some(v) = fields.get("takenAt") {
         if let Some(t) = to_exif_time(v) {
-            push_ascii(&mut edits, 0x9003, &t);
-            push_ascii(&mut edits, 0x0132, &t);
+            // DateTime 在 IFD0；DateTimeOriginal/Digitized 在 ExifIFD
+            push_ascii(&mut edits.ifd0, 0x0132, &t);
+            push_ascii(&mut edits.exif, 0x9003, &t);
+            push_ascii(&mut edits.exif, 0x9004, &t);
+        }
+    }
+    let gps_written = ["latitude", "longitude"]
+        .iter()
+        .any(|id| fields.get(*id).is_some_and(|v| !v.trim().is_empty()));
+    if gps_written {
+        // GPSVersionID = 2.3.0.0（BYTE×4）
+        edits.gps.push((0x0000, 1, vec![2, 3, 0, 0]));
+    }
+    for (id, latitude) in [("latitude", true), ("longitude", false)] {
+        let Some(v) = fields.get(id) else { continue };
+        let (ref_tag, value_tag) = if latitude { (0x0001u16, 0x0002u16) } else { (0x0003, 0x0004) };
+        if v.trim().is_empty() {
+            edits.gps.push((ref_tag, 2, Vec::new()));
+            edits.gps.push((value_tag, 5, Vec::new()));
+            continue;
+        }
+        match gps_rationals(v, latitude, be) {
+            Some((rationals, hemi)) => {
+                push_ascii(&mut edits.gps, ref_tag, hemi);
+                edits.gps.push((value_tag, 5, rationals.to_vec()));
+            }
+            None => {}
         }
     }
     edits
+}
+
+/// 十进制坐标 → EXIF GPS 的 3 个 RATIONAL（度/分/秒），秒精确到 1/10000。
+fn gps_rationals(value: &str, latitude: bool, be: bool) -> Option<([u8; 24], &'static str)> {
+    let v: f64 = value.trim().parse().ok()?;
+    if !v.is_finite() || !(-180.0..=180.0).contains(&v) {
+        return None;
+    }
+    let (hemi, abs) = if v < 0.0 {
+        (if latitude { "S" } else { "W" }, -v)
+    } else {
+        (if latitude { "N" } else { "E" }, v)
+    };
+    let mut deg = abs.floor() as u32;
+    let minutes_f = (abs - abs.floor()) * 60.0;
+    let mut min = minutes_f.floor() as u32;
+    let mut sec = ((minutes_f - minutes_f.floor()) * 60.0 * 10000.0).round() as u32;
+    if sec >= 600000 {
+        sec -= 600000;
+        min += 1;
+    }
+    if min >= 60 {
+        min -= 60;
+        deg += 1;
+    }
+    let mut out = [0u8; 24];
+    for (i, (num, den)) in [(deg, 1u32), (min, 1u32), (sec, 10000u32)].iter().enumerate() {
+        write_u32(&mut out[i * 8..i * 8 + 4], *num, be);
+        write_u32(&mut out[i * 8 + 4..i * 8 + 8], *den, be);
+    }
+    Some((out, hemi))
 }
 
 // ---------------------------------------------------------------------------
@@ -1115,6 +1308,13 @@ fn build_xmp(existing: Option<&str>, fields: &FieldMap) -> (String, Vec<String>)
             continue;
         }
         additions.push(property_xml(id, prop, value));
+        // 型号能明确认出厂商时，XMP 的 tiff:Make 跟 EXIF 一起同步
+        if id == "model" {
+            if let Some(make) = vendor_for_model(value) {
+                remove_element(&mut packet, "tiff:Make");
+                additions.push(format!("<tiff:Make>{}</tiff:Make>", xml_escape(make)));
+            }
+        }
     }
     if additions.is_empty() {
         return (packet, warnings);
@@ -2174,5 +2374,207 @@ mod tests {
         let cleared = tiff_rewrite(&set.bytes, &BTreeMap::from([("description".to_string(), String::new())])).unwrap();
         assert!(read_fields(ImageFormat::Tiff, &cleared.bytes).get("description").is_none());
         assert!(read_fields(ImageFormat::Tiff, &cleared.bytes).contains_key("title") == false);
+    }
+
+    /// 最小 TIFF 构造器（小端），用于生成带 ExifIFD / GPS IFD 的样本。
+    struct TiffFixture {
+        data: Vec<u8>,
+    }
+
+    impl TiffFixture {
+        fn new() -> Self {
+            let mut data = vec![0x49, 0x49, 0x2A, 0x00, 0, 0, 0, 0];
+            Self { data }
+        }
+
+        fn ifd(&mut self, entries: &[(u16, u16, Vec<u8>)]) -> usize {
+            let off = self.data.len();
+            let mut pos = off + 2 + entries.len() * 12 + 4;
+            let mut tail = Vec::new();
+            let mut table = vec![0u8; 2];
+            table.copy_from_slice(&u16_bytes(entries.len() as u16, false));
+            for (tag, typ, payload) in entries {
+                let unit = type_size(*typ).unwrap();
+                table.extend_from_slice(&u16_bytes(*tag, false));
+                table.extend_from_slice(&u16_bytes(*typ, false));
+                table.extend_from_slice(&u32_bytes((payload.len() / unit) as u32, false));
+                if payload.len() <= 4 {
+                    let mut inline = [0u8; 4];
+                    inline[..payload.len()].copy_from_slice(payload);
+                    table.extend_from_slice(&inline);
+                } else {
+                    table.extend_from_slice(&u32_bytes(pos as u32, false));
+                    tail.extend_from_slice(payload);
+                    if payload.len() & 1 == 1 {
+                        tail.push(0);
+                        pos += 1;
+                    }
+                    pos += payload.len();
+                }
+            }
+            table.extend_from_slice(&u32_bytes(0, false));
+            self.data.extend_from_slice(&table);
+            self.data.extend_from_slice(&tail);
+            off
+        }
+
+        fn finish_ifd0(&mut self, off: usize) {
+            self.data[4..8].copy_from_slice(&u32_bytes(off as u32, false));
+        }
+    }
+
+    fn rationals_bytes(pairs: &[(u32, u32)]) -> Vec<u8> {
+        let mut out = Vec::new();
+        for (num, den) in pairs {
+            out.extend_from_slice(&num.to_le_bytes());
+            out.extend_from_slice(&den.to_le_bytes());
+        }
+        out
+    }
+
+    /// IFD0（仅 Model + 两个子 IFD 指针）、ExifIFD（DateTimeOriginal）、GPS IFD（旧坐标）。
+    fn sample_exif_tiff() -> Vec<u8> {
+        let mut b = TiffFixture::new();
+        let exif_off = b.ifd(&[(0x9003, 2, b"2024:05:01 10:20:30\0".to_vec())]);
+        let gps_off = b.ifd(&[
+            (0x0000, 1, vec![2, 3, 0, 0]),
+            (0x0001, 2, b"S\0".to_vec()),
+            (0x0002, 5, rationals_bytes(&[(31, 1), (14, 1), (229200, 10000)])),
+            (0x0003, 2, b"W\0".to_vec()),
+            (0x0004, 5, rationals_bytes(&[(121, 1), (29, 1), (592800, 10000)])),
+        ]);
+        let ifd0_off = b.ifd(&[
+            (0x010F, 2, b"Canon\0".to_vec()),
+            (0x0110, 2, b"Canon EOS R6\0".to_vec()),
+            (0x8769, 4, u32_bytes(exif_off as u32, false).to_vec()),
+            (0x8825, 4, u32_bytes(gps_off as u32, false).to_vec()),
+        ]);
+        b.finish_ifd0(ifd0_off);
+        b.data
+    }
+
+    fn jpeg_with_exif(tiff: &[u8]) -> Vec<u8> {
+        let base = sample_jpeg();
+        let mut out = base[..2].to_vec();
+        out.extend_from_slice(&[0xFF, 0xE1]);
+        out.extend_from_slice(&((tiff.len() + 8) as u16).to_be_bytes());
+        out.extend_from_slice(b"Exif\0\0");
+        out.extend_from_slice(tiff);
+        out.extend_from_slice(&base[2..]);
+        out
+    }
+
+    fn entry_of<'a>(group: &'a [IfdEntry], tag: u16) -> &'a IfdEntry {
+        group.iter().find(|e| e.tag == tag).unwrap_or_else(|| panic!("缺少标签 {tag:#06x}"))
+    }
+
+    fn rationals_to_decimal(entry: &IfdEntry, tiff: &[u8], be: bool) -> f64 {
+        let bytes = entry.bytes(tiff, be).unwrap();
+        let mut parts = Vec::new();
+        for chunk in bytes.chunks_exact(8).take(3) {
+            let num = if be {
+                u32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]])
+            } else {
+                u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]])
+            };
+            let den = if be {
+                u32::from_be_bytes([chunk[4], chunk[5], chunk[6], chunk[7]])
+            } else {
+                u32::from_le_bytes([chunk[4], chunk[5], chunk[6], chunk[7]])
+            };
+            parts.push(num as f64 / den as f64);
+        }
+        parts[0] + parts[1] / 60.0 + parts[2] / 3600.0
+    }
+
+    #[test]
+    fn read_exif_reads_datetime_original_from_exif_ifd() {
+        let mut fields = FieldMap::new();
+        read_exif(&sample_exif_tiff(), &mut fields);
+        assert_eq!(
+            fields.get("takenAt").map(String::as_str),
+            Some("2024-05-01T10:20:30"),
+            "DateTimeOriginal 位于 ExifIFD，应能被读到"
+        );
+        assert_eq!(fields.get("model").map(String::as_str), Some("Canon EOS R6"));
+    }
+
+    #[test]
+    fn exif_write_keeps_xmp_and_sub_ifds_consistent() {
+        let data = jpeg_with_exif(&sample_exif_tiff());
+        let fields = BTreeMap::from([
+            ("model".to_string(), "Fujifilm X-T5".to_string()),
+            ("takenAt".to_string(), "2024-07-08T06:12:33".to_string()),
+            ("latitude".to_string(), "31.239700".to_string()),
+            ("longitude".to_string(), "121.499800".to_string()),
+        ]);
+        let rw = jpeg_rewrite(&data, &fields).unwrap();
+        let xmp = jpeg_xmp(&rw.bytes).unwrap();
+        let tiff = jpeg_exif(&rw.bytes).unwrap();
+        let hdr = TiffHeader::parse(&tiff).unwrap();
+        let (ifd0, _) = hdr.entries(&tiff).unwrap();
+
+        // IFD0:Model 与 XMP tiff:Model 一致，Make 随型号联动为厂商规范值
+        let model = entry_of(&ifd0, 0x0110).ascii(&tiff, hdr.be).unwrap();
+        assert_eq!(model.trim_matches('\0'), "Fujifilm X-T5");
+        let make = entry_of(&ifd0, 0x010F).ascii(&tiff, hdr.be).unwrap();
+        assert_eq!(make.trim_matches('\0'), "FUJIFILM");
+        assert!(xmp.contains("<tiff:Model>Fujifilm X-T5</tiff:Model>"), "{xmp}");
+        assert!(xmp.contains("<tiff:Make>FUJIFILM</tiff:Make>"), "{xmp}");
+
+        // IFD0:DateTime 与 ExifIFD:DateTimeOriginal / DateTimeDigitized 同步
+        let dt = entry_of(&ifd0, 0x0132).ascii(&tiff, hdr.be).unwrap();
+        assert_eq!(dt.trim_matches('\0'), "2024:07:08 06:12:33");
+        let exif_off = raw_u32(&entry_of(&ifd0, 0x8769).raw, hdr.be) as usize;
+        let (exif, _) = ifd_at(&tiff, exif_off, hdr.be).unwrap();
+        for tag in [0x9003u16, 0x9004] {
+            let v = entry_of(&exif, tag).ascii(&tiff, hdr.be).unwrap();
+            assert_eq!(v.trim_matches('\0'), "2024:07:08 06:12:33", "标签 {tag:#06x}");
+        }
+
+        // GPS IFD 与 XMP 坐标一致（误差 ≤ 1e-6 度）
+        let gps_off = raw_u32(&entry_of(&ifd0, 0x8825).raw, hdr.be) as usize;
+        let (gps, _) = ifd_at(&tiff, gps_off, hdr.be).unwrap();
+        let lat = rationals_to_decimal(entry_of(&gps, 0x0002), &tiff, hdr.be);
+        let lon = rationals_to_decimal(entry_of(&gps, 0x0004), &tiff, hdr.be);
+        assert!((lat - 31.2397).abs() < 1e-6, "lat={lat}");
+        assert!((lon - 121.4998).abs() < 1e-6, "lon={lon}");
+        assert_eq!(entry_of(&gps, 0x0001).ascii(&tiff, hdr.be).unwrap().trim_matches('\0'), "N");
+        assert_eq!(entry_of(&gps, 0x0003).ascii(&tiff, hdr.be).unwrap().trim_matches('\0'), "E");
+        assert!(xmp.contains("exif:GPSLatitude>31,14.382"), "{xmp}");
+
+        let read = read_fields(ImageFormat::Jpeg, &rw.bytes);
+        assert_eq!(read.get("model").map(String::as_str), Some("Fujifilm X-T5"));
+        assert_eq!(read.get("takenAt").map(String::as_str), Some("2024-07-08T06:12:33"));
+    }
+
+    #[test]
+    fn vendor_only_rewrites_make_when_model_is_recognized() {
+        for (model, expected) in [
+            ("Canon EOS R6", Some("Canon")),
+            ("NIKON Z 6_2", Some("NIKON CORPORATION")),
+            ("ILCE-7M3", Some("SONY")),
+            ("X-T5", Some("FUJIFILM")),
+            ("iPhone 15 Pro", Some("Apple")),
+            ("Unknown Camera 2000", None),
+        ] {
+            assert_eq!(vendor_for_model(model), expected, "型号 {model}");
+        }
+
+        // 认不出厂商时保留原 Make，不清空也不猜测
+        let data = jpeg_with_exif(&sample_exif_tiff());
+        let fields = BTreeMap::from([("model".to_string(), "Unknown Camera 2000".to_string())]);
+        let rw = jpeg_rewrite(&data, &fields).unwrap();
+        let tiff = jpeg_exif(&rw.bytes).unwrap();
+        let hdr = TiffHeader::parse(&tiff).unwrap();
+        let (ifd0, _) = hdr.entries(&tiff).unwrap();
+        assert_eq!(
+            entry_of(&ifd0, 0x0110).ascii(&tiff, hdr.be).unwrap().trim_matches('\0'),
+            "Unknown Camera 2000"
+        );
+        assert_eq!(
+            entry_of(&ifd0, 0x010F).ascii(&tiff, hdr.be).unwrap().trim_matches('\0'),
+            "Canon"
+        );
     }
 }
