@@ -155,6 +155,10 @@ export function ListTabs() {
   const entries = useApp((s) => s.entries);
   const listTab = useApp((s) => s.listTab);
   const setListTab = useApp((s) => s.setListTab);
+  const inspector = useApp((s) => s.inspector);
+  const openInspector = useApp((s) => s.openInspector);
+  const closeInspector = useApp((s) => s.closeInspector);
+  const selectedFiles = entries.filter((e) => e.selected && !e.isDir).length;
 
   return (
     <div className="list-tabs" role="tablist" data-testid="list-tabs">
@@ -172,6 +176,19 @@ export function ListTabs() {
           <span className="num" data-testid={`list-tab-count-${tab.key}`}>{tabCount(tab.key, entries)}</span>
         </div>
       ))}
+      <button
+        className={`tabs-dock mini${inspector.open ? ' on' : ''}`}
+        type="button"
+        data-testid="inspector-toggle"
+        aria-expanded={inspector.open}
+        aria-controls="inspector-panel"
+        title={t('inspector.toggleHint')}
+        onClick={() => (inspector.open ? closeInspector() : openInspector())}
+      >
+        <Icon name="grid" size={12} />
+        {t('inspector.title')}
+        <span className="num" data-testid="inspector-toggle-count">{selectedFiles}</span>
+      </button>
     </div>
   );
 }

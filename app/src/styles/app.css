@@ -645,6 +645,16 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   min-width: 0;
 }
 
+/* 工作台：文件列表 + 规则链（.panes）与右侧检查器并排；检查器不参与视图预设 */
+.workbench {
+  flex: 1 1 auto;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+.workbench > .panes { flex: 1 1 auto; }
+
 /* 文件列表与规则链的容器：预设视图只切换方向与尺寸，任何视图都不产生横向滚动 */
 .panes {
   display: flex;
@@ -730,6 +740,94 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
 .panes[data-view="rules-top"] > .splitter.active { cursor: row-resize; }
 .panes[data-view="files-top"] > .splitter.active::after,
 .panes[data-view="rules-top"] > .splitter.active::after { cursor: row-resize; inset: -4px 0; }
+
+/* ---------------- 右侧检查器 ---------------- */
+/* 与文件列表、规则链同屏：内容跟随列表勾选，头部常驻「作用于 N 个文件」 */
+.inspector {
+  flex: 0 0 320px;
+  width: 320px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  animation: inspector-in .18s ease;
+}
+.inspector-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.inspector-head > svg { flex: 0 0 auto; margin-top: 1px; color: var(--accent); }
+.inspector-title { min-width: 0; flex: 1 1 auto; }
+.inspector-title h3 { margin: 0; font-size: 13px; line-height: 1.3; }
+.inspector-scope {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+.inspector-head .btn-icon { margin-left: auto; flex: 0 0 auto; }
+.inspector-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.inspector-tab { height: 25px; gap: 4px; padding: 0 8px; font-size: 12px; }
+.inspector-tab.on {
+  background: var(--accent-weak);
+  border-color: var(--accent-weak-2);
+  color: var(--accent-ink);
+}
+.inspector-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* 复用对话框主体时去掉重复标题与内层滚动，让检查器自己滚动 */
+.inspector .dialog-head { display: none; }
+.inspector .dialog-body { padding: 0; overflow: visible; }
+.inspector .dialog-foot {
+  position: sticky;
+  bottom: 0;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+.inspector .meta-edit-row { grid-template-columns: minmax(0, 1fr); }
+.inspector .meta-edit-row > * { min-width: 0; }
+.inspector .mini-table { overflow-x: auto; }
+.inspector-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 18px 4px;
+  color: var(--muted);
+}
+.inspector-empty svg { color: var(--muted-2); }
+.inspector-empty p { margin: 0; font-size: 12.5px; line-height: 1.65; }
+@keyframes inspector-in { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
+/* ≤1100：检查器降级为右侧抽屉，不挤压工作台 */
+@media (max-width: 1100px) {
+  .inspector {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: min(340px, 92vw);
+    z-index: 30;
+    box-shadow: var(--shadow-lg);
+  }
+}
 
 /* 左侧导航 */
 .nav {
@@ -817,6 +915,8 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   font-family: var(--mono);
 }
 .nav-item.active .count { background: #fff; border-color: var(--accent-weak-2); color: var(--accent-ink); }
+/* 一期：旧的整页入口仍在，用「旧版」标记与右侧检查器区分；二期收敛左栏时删除 */
+.nav-group .nav-label .nav-legacy { margin-left: auto; }
 
 .nav-sep { height: 1px; background: var(--line); margin: 2px 8px; }
 
@@ -885,6 +985,31 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
 }
 .tab.active .num { background: var(--accent-weak); color: var(--accent-ink); border-color: var(--accent-weak-2); }
 .tab.dim { color: var(--muted-2); }
+
+/* 页签行右端的检查器开关：在任一页签下都能打开同一块停靠面板 */
+.list-tabs .tabs-dock {
+  margin-left: auto;
+  align-self: center;
+  height: 24px;
+  gap: 5px;
+  padding: 0 8px;
+  margin-bottom: 3px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.list-tabs .tabs-dock.on {
+  background: var(--accent-weak);
+  border-color: var(--accent-weak-2);
+  color: var(--accent-ink);
+}
+.list-tabs .tabs-dock .num {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted-2);
+  background: none;
+  border: 0;
+  padding: 0;
+}
 
 .list-tools {
   display: flex;

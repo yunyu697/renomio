@@ -1032,6 +1032,8 @@ async function main() {
           count: p.querySelector('[data-testid="page-select-count"]')?.textContent || '',
           back: !!p.querySelector('[data-testid="page-back"]'),
           empty: !!p.querySelector('[data-testid="page-empty"]'),
+          legacy: !!p.querySelector('[data-testid="page-legacy-badge"]'),
+          navLegacy: n.closest('.nav-group')?.querySelector('.nav-legacy')?.textContent?.trim() || '',
         };
       })()`);
       check(
@@ -1039,6 +1041,12 @@ async function main() {
         `侧栏 ${nav} → 打开完整功能页 ${page}（选择区 + 计数 + 返回，不是弹窗）`,
         navState.active && navState.current === 'true' && navState.select && navState.count.length > 0 && navState.back,
         JSON.stringify(navState),
+      );
+      check(
+        'UI',
+        `旧入口有「旧版入口」标记：${nav} 与 ${page} 页头都显式标注`,
+        navState.legacy && navState.navLegacy.length > 0,
+        JSON.stringify({ legacy: navState.legacy, navLegacy: navState.navLegacy }),
       );
       await click('[data-testid="page-back"]');
       await waitFor(`!document.querySelector('[data-testid="${page}"]')`, `${page} 返回列表`, 3000);
@@ -1058,6 +1066,125 @@ async function main() {
     check('UI', '元数据分组标题可点击折叠（aria-expanded=false 且条目隐藏）', groupCollapsed.expanded === 'false' && groupCollapsed.visibleMetaItems === 0, JSON.stringify(groupCollapsed));
     await click('[data-testid="nav-group-meta"]');
     await sleep(250);
+
+    // ---- 一期：右侧检查器与列表勾选共用同一份目标，规则链常驻 ----
+    await click('[data-testid="list-tab-rename"]');
+    await sleep(250);
+    const dockChecked = await evaluate(`document.querySelectorAll('.trow .checkbox[aria-checked="true"]').length`);
+    await click('[data-testid="inspector-toggle"]');
+    await waitFor(`document.querySelector('[data-testid="inspector"]')`, '打开右侧检查器', 4000);
+    const dockOpen = await evaluate(`(() => {
+      const panel = document.querySelector('[data-testid="inspector"]');
+      const scope = document.querySelector('[data-testid="inspector-scope"]')?.textContent || '';
+      return {
+        scope,
+        main: !!document.querySelector('.panes > .main'),
+        rules: !!document.querySelector('[data-testid="rules-module"]'),
+        page: !!document.querySelector('.panes > .feature-page'),
+        width: Math.round(panel.getBoundingClientRect().width),
+        expanded: document.querySelector('[data-testid="inspector-toggle"]')?.getAttribute('aria-expanded'),
+      };
+    })()`);
+    const dockN = Number((dockOpen.scope.match(/(\d+)/) || [0, '0'])[1]);
+    check(
+      'UI',
+      '打开检查器 → 文件列表与规则链仍在同一屏（不整页替换工作台）',
+      dockOpen.main && dockOpen.rules && !dockOpen.page && dockOpen.expanded === 'true',
+      JSON.stringify(dockOpen),
+    );
+    check(
+      'UI',
+      '检查器头部常驻「作用于 N 个文件」，N 与列表勾选一致',
+      dockN === dockChecked && dockChecked > 0,
+      `${dockOpen.scope} / 列表勾选 ${dockChecked}`,
+    );
+    check(
+      'UI',
+      '检查器是右侧停靠面板（宽 320px，不覆盖列表）',
+      dockOpen.width === 320,
+      `${dockOpen.width}px`,
+    );
+
+    // ≤1100：检查器降级为抽屉浮层，不挤压工作台（宽度回到正常后再继续）
+    await viewport(1100, 640, 1);
+    await sleep(350);
+    const dockOverlay = await evaluate(`(() => {
+      const p = document.querySelector('[data-testid="inspector"]');
+      const m = document.querySelector('.panes > .main');
+      return {
+        position: getComputedStyle(p).position,
+        width: Math.round(p.getBoundingClientRect().width),
+        mainWidth: Math.round(m.getBoundingClientRect().width),
+        narrow: document.querySelector('.workspace')?.getAttribute('data-narrow'),
+      };
+    })()`);
+    check(
+      'UI',
+      '≤1100 窄窗：检查器改为右侧抽屉浮层，文件列表不被挤压缩',
+      dockOverlay.position === 'absolute' && dockOverlay.width <= 340 && dockOverlay.mainWidth > 500,
+      JSON.stringify(dockOverlay),
+    );
+    await viewport(1440, 900, 1);
+    await sleep(350);
+
+    // 取消列表里的一行勾选，检查器目标计数必须同步（不是另一套选择状态）
+    await evaluate(`(() => { document.querySelector('.trow .checkbox[aria-checked="true"]')?.click(); })()`);
+    await sleep(300);
+    const dockSync = await evaluate(`(() => ({
+      scope: document.querySelector('[data-testid="inspector-scope"]')?.textContent || '',
+      checked: document.querySelectorAll('.trow .checkbox[aria-checked="true"]').length,
+    }))()`);
+    const dockSyncN = Number((dockSync.scope.match(/(\d+)/) || [0, '0'])[1]);
+    check(
+      'UI',
+      '列表取消勾选一行 → 检查器计数同步减一（同一份选择源）',
+      dockSyncN === dockSync.checked && dockSyncN === dockN - 1,
+      `${dockSync.scope} / 列表勾选 ${dockSync.checked}`,
+    );
+
+    await click('[data-testid="inspector-tab-time"]');
+    await waitFor(
+      `document.querySelectorAll('.inspector [data-testid="ops-row"]').length === ${dockSyncN}`,
+      '检查器时间页签按目标读取',
+      6000,
+    );
+    const dockTimeRows = await evaluate(`document.querySelectorAll('.inspector [data-testid="ops-row"]').length`);
+    check(
+      'UI',
+      '检查器「时间」页签复用真实批量读取，行数与勾选数一致',
+      dockTimeRows === dockSyncN,
+      `${dockTimeRows} 行 / 勾选 ${dockSyncN}`,
+    );
+
+    await click('[data-testid="inspector-tab-meta"]');
+    await waitFor(`document.querySelector('.inspector [data-testid="meta-page-note"]')`, '检查器元数据页签读取现有值', 6000);
+    const dockMetaNote = await evaluate(`document.querySelector('.inspector [data-testid="meta-page-note"]')?.textContent || ''`);
+    check(
+      'UI',
+      '检查器「元数据」页签复用真实编辑器，并说明只写入勾选的文件',
+      dockMetaNote.includes('勾选'),
+      dockMetaNote.slice(0, 70),
+    );
+
+    await click('[data-testid="inspector-tab-organize"]');
+    await waitFor(`document.querySelectorAll('.inspector [data-testid="ops-row"]').length > 0`, '检查器归类页签生成目标预览', 6000);
+    const dockMoveRows = await evaluate(`document.querySelectorAll('.inspector [data-testid="ops-row"]').length`);
+    check('UI', '检查器「归类」页签按勾选生成移动预览', dockMoveRows === dockSyncN, `${dockMoveRows} 行`);
+    await shot('15b-inspector.png');
+
+    await click('[data-testid="inspector-close"]');
+    await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '关闭检查器', 3000);
+    const dockClosed = await evaluate(`(() => ({
+      gone: !document.querySelector('[data-testid="inspector"]'),
+      expanded: document.querySelector('[data-testid="inspector-toggle"]')?.getAttribute('aria-expanded'),
+      main: !!document.querySelector('.panes > .main'),
+    }))()`);
+    check(
+      'UI',
+      '关闭检查器 → 工作台恢复，开关收起状态同步',
+      dockClosed.gone && dockClosed.expanded === 'false' && dockClosed.main,
+      JSON.stringify(dockClosed),
+    );
 
     // 列表未勾选时打开功能页：页面自带全选与计数（不再只弹 toast、不强制改列表勾选）
     await click('[data-testid="list-tab-rename"]');

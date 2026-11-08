@@ -32,6 +32,7 @@ import { Toast } from './components/Toast';
 import { Toolbar } from './components/Toolbar';
 import { Titlebar } from './components/Titlebar';
 import { Icon } from './components/Icon';
+import { Inspector } from './components/Inspector';
 
 export function App() {
   const { t } = useTranslation();
@@ -52,6 +53,7 @@ export function App() {
   const [narrow, setNarrow] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const activePage = useApp((s) => s.activePage);
+  const inspectorOpen = useApp((s) => s.inspector.open);
   const rules = useApp((s) => s.rules);
   const layout = settings.layout;
   const sideView = layout.view === 'files-left' || layout.view === 'rules-left';
@@ -310,6 +312,7 @@ export function App() {
           if (state.previewOpen) state.closePreview();
           else if (state.activePage) state.closePage();
           else if (state.opsMode) state.closeOps();
+          else if (state.inspector.open) state.closeInspector();
           else if (state.drawer) state.closeDrawer();
           else if (state.ruleMenuOpen) useApp.setState({ ruleMenuOpen: false });
         }
@@ -410,17 +413,20 @@ export function App() {
             </div>
           </>
         )}
-        <div
-          className="panes"
-          ref={panesRef}
-          data-view={settings.layout.view}
-          data-dragging={dragSize !== null ? 'true' : 'false'}
-          style={{
-            '--rules-side': `${dragSize ?? presetSize}px`,
-            '--rules-stack': `${dragSize ?? presetSize}px`,
-          } as CSSProperties}
-        >
-          {activePage ? <Pages /> : panes}
+        <div className="workbench">
+          <div
+            className="panes"
+            ref={panesRef}
+            data-view={settings.layout.view}
+            data-dragging={dragSize !== null ? 'true' : 'false'}
+            style={{
+              '--rules-side': `${dragSize ?? presetSize}px`,
+              '--rules-stack': `${dragSize ?? presetSize}px`,
+            } as CSSProperties}
+          >
+            {activePage ? <Pages /> : panes}
+          </div>
+          {!activePage && inspectorOpen && <Inspector />}
         </div>
       </div>
       {!activePage && <ActionBar />}

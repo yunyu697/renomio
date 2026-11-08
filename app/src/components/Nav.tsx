@@ -32,7 +32,7 @@ export function Nav({ onNavigate, open }: { onNavigate?: () => void; open?: bool
   const meta = (tab: ListTab, page: PageId) => ({
     count: tabCount(tab, entries),
     active: activePage === page,
-    hint: t('nav.metaEditHint'),
+    hint: `${t('nav.metaEditHint')} · ${t('page.legacyHint')}`,
     action: () => openPage(page),
   });
 
@@ -41,10 +41,12 @@ export function Nav({ onNavigate, open }: { onNavigate?: () => void; open?: bool
     onNavigate?.();
   };
 
-  const groups: Array<{ id: string; label: string; items: NavEntry[] }> = [
+  // 一期：这两组仍是旧版整页入口，组标题上直接标注；二期收敛为「文件 / 检查器」时删除
+  const groups: Array<{ id: string; label: string; legacy?: boolean; items: NavEntry[] }> = [
     {
       id: 'meta',
       label: t('nav.metaGroup'),
+      legacy: true,
       items: [
         { id: 'music', label: t('nav.music'), icon: 'music', ...meta('music', 'music') },
         { id: 'image', label: t('nav.image'), icon: 'image', ...meta('photo', 'image') },
@@ -55,18 +57,19 @@ export function Nav({ onNavigate, open }: { onNavigate?: () => void; open?: bool
     {
       id: 'ops',
       label: t('nav.opsGroup'),
+      legacy: true,
       items: [
         {
           id: 'attrs', label: t('nav.attrs'), icon: 'grid', count: selected, active: activePage === 'attrs',
-          hint: t('nav.opsAttrsHint'), action: go(() => openPage('attrs')),
+          hint: `${t('nav.opsAttrsHint')} · ${t('page.legacyHint')}`, action: go(() => openPage('attrs')),
         },
         {
           id: 'times', label: t('nav.times'), icon: 'clock', count: selected, active: activePage === 'times',
-          hint: t('nav.opsTimesHint'), action: go(() => openPage('times')),
+          hint: `${t('nav.opsTimesHint')} · ${t('page.legacyHint')}`, action: go(() => openPage('times')),
         },
         {
           id: 'organize', label: t('nav.organize'), icon: 'folder', count: selected, active: activePage === 'organize',
-          hint: t('nav.opsMoveHint'), action: go(() => openPage('organize')),
+          hint: `${t('nav.opsMoveHint')} · ${t('page.legacyHint')}`, action: go(() => openPage('organize')),
         },
       ],
     },
@@ -91,6 +94,9 @@ export function Nav({ onNavigate, open }: { onNavigate?: () => void; open?: bool
               }}
             >
               <span>{group.label}</span>
+              {group.legacy && (
+                <span className="p1-tag nav-legacy" data-testid={`nav-group-legacy-${group.id}`}>{t('page.legacyShort')}</span>
+              )}
               <span className={`chev${isCollapsed ? ' down' : ''}`}>▾</span>
             </div>
             <div

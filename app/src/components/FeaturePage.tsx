@@ -158,7 +158,12 @@ export function PageShell({ page, icon, title, subtitle, children, extra }: Page
         <div className="page-title">
           <Icon name={icon} size={18} />
           <div>
-            <h2>{title}</h2>
+            <h2>
+              {title}
+              <span className="p1-tag page-legacy" data-testid="page-legacy-badge" title={t('page.legacyHint')}>
+                {t('page.legacy')}
+              </span>
+            </h2>
             {subtitle && <p>{subtitle}</p>}
           </div>
         </div>

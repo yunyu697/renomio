@@ -23,7 +23,7 @@ import { splitName, joinName } from './lib/rules';
 import { normalizePath, targetPath } from './lib/validate';
 import type {
   AppSettings, ApplyItemDto, ApplyOutcome, ApplyProgress, Batch, BatchSummary, ConflictPolicy,
-  DuplicateReportDto, Entry, EntryFacts, EnvInfo, LayoutState, ListTab, MetadataInfo, MetaFields, MigrationInfo,
+  DuplicateReportDto, Entry, EntryFacts, EnvInfo, InspectorMode, LayoutState, ListTab, MetadataInfo, MetaFields, MigrationInfo,
   OpsOutcome, PageId, PreviewRow, PrivilegeInfo, Rule, RuleType, ScanEntryDto, SessionDto, SkippedChange,
   SnapshotPlanItemDto, SnapshotProgress, SnapshotRestoreResult, SnapshotSummaryDto, StartupMark, ThemeSetting,
 } from './lib/types';
@@ -157,6 +157,8 @@ interface AppState {
   opsMode: OpsMode | null;
   /** 侧栏功能页：非空时主区域显示完整功能页（自带选择区/空态） */
   activePage: PageId | null;
+  /** 右侧检查器：与列表勾选共享同一份目标，打开时不替换工作台 */
+  inspector: { open: boolean; mode: InspectorMode };
   /** 键位窗（快捷键列表与自定义）是否打开 */
   shortcutOpen: boolean;
   toast: Toast | null;
@@ -272,6 +274,10 @@ interface AppState {
   /** 打开侧栏功能页（音乐标签/图片信息/Office·PDF/文本编码/属性/时间/归类） */
   openPage: (page: PageId) => void;
   closePage: () => void;
+  /** 打开右侧检查器；不传 mode 时沿用上次选择 */
+  openInspector: (mode?: InspectorMode) => void;
+  closeInspector: () => void;
+  setInspectorMode: (mode: InspectorMode) => void;
   openShortcuts: () => void;
   closeShortcuts: () => void;
   /** 设置某条命令的绑定；与其他命令冲突时拒绝并提示，返回是否写入成功 */
@@ -546,6 +552,7 @@ export const useApp = create<AppState>((set, get) => ({
   drawer: null,
   opsMode: null,
   activePage: null,
+  inspector: { open: false, mode: 'attrs' },
   shortcutOpen: false,
   toast: null,
   ruleMenuOpen: false,
@@ -1446,8 +1453,17 @@ export const useApp = create<AppState>((set, get) => ({
     set({ opsMode: mode });
   },
   closeOps: () => set({ opsMode: null }),
-  openPage: (page) => set({ activePage: page, opsMode: null, metaEditor: { open: false, paths: [] } }),
+  openPage: (page) => set((s) => ({
+    activePage: page,
+    // 旧整页会占满工作台，检查器先收起；关闭旧页后不自动弹回，避免两套修改入口同时出现
+    inspector: { ...s.inspector, open: false },
+    opsMode: null,
+    metaEditor: { open: false, paths: [] },
+  })),
   closePage: () => set({ activePage: null }),
+  openInspector: (mode) => set((s) => ({ inspector: { open: true, mode: mode ?? s.inspector.mode } })),
+  closeInspector: () => set((s) => ({ inspector: { ...s.inspector, open: false } })),
+  setInspectorMode: (mode) => set({ inspector: { open: true, mode } }),
 
   openShortcuts: () => set({ shortcutOpen: true }),
   closeShortcuts: () => set({ shortcutOpen: false }),
