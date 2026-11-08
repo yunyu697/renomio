@@ -414,6 +414,7 @@ export function App() {
           className="panes"
           ref={panesRef}
           data-view={settings.layout.view}
+          data-dragging={dragSize !== null ? 'true' : 'false'}
           style={{
             '--rules-side': `${dragSize ?? presetSize}px`,
             '--rules-stack': `${dragSize ?? presetSize}px`,

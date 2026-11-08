@@ -1048,9 +1048,11 @@ async function main() {
     await sleep(250);
     const groupCollapsed = await evaluate(`(() => {
       const label = document.querySelector('[data-testid="nav-group-meta"]');
+      const items = document.querySelector('[data-testid="nav-items-meta"]');
+      const visible = items ? items.getBoundingClientRect().height > 0 : false;
       return {
         expanded: label.getAttribute('aria-expanded'),
-        visibleMetaItems: ['nav-music', 'nav-image', 'nav-office', 'nav-text'].filter((id) => document.querySelector('[data-testid="' + id + '"]')).length,
+        visibleMetaItems: visible ? ['nav-music', 'nav-image', 'nav-office', 'nav-text'].filter((id) => document.querySelector('[data-testid="' + id + '"]')).length : 0,
       };
     })()`);
     check('UI', '元数据分组标题可点击折叠（aria-expanded=false 且条目隐藏）', groupCollapsed.expanded === 'false' && groupCollapsed.visibleMetaItems === 0, JSON.stringify(groupCollapsed));

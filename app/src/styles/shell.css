@@ -160,6 +160,7 @@ body { margin: 0; overflow: hidden; }
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
+  animation: view-in .16s ease;
 }
 
 .list-note {
@@ -494,9 +495,18 @@ body { margin: 0; overflow: hidden; }
 
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slide-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+/* 主要切换：功能页进入、列表/页面内容切换、底部规则面板展开 */
+@keyframes page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes view-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes panel-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   .modal-mask, .drawer { animation: none; }
+  .feature-page, .list-view, .table, .panes > .rules,
+  .nav-items, .nav-item, .tab, .compact-toggle .chev {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 /* 设置页：检查更新 */
@@ -600,6 +610,7 @@ body { margin: 0; overflow: hidden; }
   display: flex;
   flex-direction: column;
   background: var(--bg);
+  animation: page-in .18s ease;
 }
 .feature-page .page-head {
   display: flex;

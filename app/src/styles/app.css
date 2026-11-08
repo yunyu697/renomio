@@ -660,7 +660,10 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
 .panes > .rules {
   flex: 0 0 auto;
   min-width: 0;
+  transition: width .18s ease, height .18s ease, flex-basis .18s ease;
 }
+/* 拖动分隔条时关闭过渡，避免跟手延迟 */
+.panes[data-dragging="true"] > .rules { transition: none; }
 .panes[data-view="files-left"] > .rules,
 .panes[data-view="rules-left"] > .rules {
   flex-basis: var(--rules-side, 400px);
@@ -684,6 +687,7 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   height: clamp(200px, 42vh, 400px);
   border-left: 0;
   border-top: 1px solid var(--line);
+  animation: panel-up .18s ease;
 }
 .panes > .rules.collapsed {
   flex-basis: 48px;
@@ -752,6 +756,15 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   border-radius: 6px;
 }
 .nav-group .nav-label:hover { color: var(--ink-2); background: var(--panel-3); }
+
+/* 分组折叠：用 grid 行高做展开/收起的过渡（内容常驻，折叠时不可聚焦） */
+.nav-items {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows .18s ease;
+}
+.nav-items-inner { min-height: 0; overflow: hidden; }
+.nav-items.collapsed { grid-template-rows: 0fr; }
 .nav-label .chev { font-size: 11px; opacity: .7; transition: transform .15s ease; }
 .nav-label .chev.down { transform: rotate(-90deg); }
 
@@ -776,6 +789,7 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   font-size: 13px;
   cursor: pointer;
   position: relative;
+  transition: background-color .15s ease, color .15s ease;
 }
 
 .nav-item svg { width: 16px; height: 16px; color: var(--muted); flex: 0 0 auto; }
@@ -853,6 +867,7 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   white-space: nowrap;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease;
 }
 .tab:hover { color: var(--ink); background: var(--panel-2); }
 .tab.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
@@ -905,6 +920,7 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   flex: 1 1 auto;
   overflow: auto;
   min-height: 0;
+  animation: view-in .16s ease;
   --cols: 34px minmax(120px, 1.2fr) minmax(88px, .8fr) 56px 84px minmax(120px, 1.1fr) 84px;
 }
 

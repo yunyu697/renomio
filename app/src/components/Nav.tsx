@@ -93,25 +93,32 @@ export function Nav({ onNavigate, open }: { onNavigate?: () => void; open?: bool
               <span>{group.label}</span>
               <span className={`chev${isCollapsed ? ' down' : ''}`}>▾</span>
             </div>
-            {!isCollapsed && group.items.map((item) => (
-              <div
-                key={item.id}
-                className={`nav-item${item.active ? ' active' : ''}`}
-                role="button"
-                tabIndex={0}
-                onClick={item.action ?? (() => undefined)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') item.action?.();
-                }}
-                title={item.hint ?? item.label}
-                aria-current={item.active ? 'true' : undefined}
-                data-testid={`nav-${item.id}`}
-              >
-                <Icon name={item.icon} />
-                <span>{item.label}</span>
-                {item.count !== undefined && <span className="count">{item.count}</span>}
+            <div
+              className={`nav-items${isCollapsed ? ' collapsed' : ''}`}
+              data-testid={`nav-items-${group.id}`}
+            >
+              <div className="nav-items-inner" inert={isCollapsed}>
+                {group.items.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`nav-item${item.active ? ' active' : ''}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={item.action ?? (() => undefined)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') item.action?.();
+                    }}
+                    title={item.hint ?? item.label}
+                    aria-current={item.active ? 'true' : undefined}
+                    data-testid={`nav-${item.id}`}
+                  >
+                    <Icon name={item.icon} />
+                    <span>{item.label}</span>
+                    {item.count !== undefined && <span className="count">{item.count}</span>}
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
         );
       })}
