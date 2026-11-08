@@ -1,6 +1,6 @@
 [package]
 name = "renomio-core"
-version = "1.1.0-alpha2"
+version = "1.1.0-alpha3"
 edition = "2021"
 description = "Renomio 文件系统核心：扫描、校验、两阶段改名、批次撤销"
 license = "MIT"
