@@ -383,6 +383,32 @@ body { margin: 0; overflow: hidden; }
 .settings-label { font-size: 13px; color: var(--ink-2); }
 .settings-hint { font-size: 12px; color: var(--muted); line-height: 1.55; margin-top: 2px; }
 .settings-row > :last-child { margin-left: auto; flex: 0 0 auto; }
+.settings-row.stacked { flex-direction: column; align-items: stretch; gap: 8px; }
+.settings-row.stacked > :last-child { margin-left: 0; flex: 1 1 auto; }
+
+.palette-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.palette-card {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.palette-card:hover { border-color: var(--line-strong); color: var(--ink-2); }
+.palette-card.on { border-color: var(--accent); background: var(--accent-weak); color: var(--ink); }
+.palette-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  flex: 0 0 auto;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
+}
+.palette-dot.p-graphite { background: linear-gradient(135deg, #2f52e0, #0f8ba0); }
+.palette-dot.p-paper { background: linear-gradient(135deg, #a13b2c, #a85f2f); }
+.palette-dot.p-ocean { background: linear-gradient(135deg, #0a6c8c, #0f8ba0); }
+.palette-dot.p-moss { background: linear-gradient(135deg, #3f7537, #6b9a3f); }
 
 .about-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
 .about-brand h3 { margin: 0 0 2px; font-size: 14px; }
@@ -412,7 +438,7 @@ body { margin: 0; overflow: hidden; }
   position: fixed;
   inset: 0;
   z-index: 70;
-  background: rgba(51, 88, 244, .12);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   backdrop-filter: blur(1.5px);
   display: grid;
   place-items: center;
@@ -444,7 +470,7 @@ body { margin: 0; overflow: hidden; }
   font-size: 13px;
   background: var(--bg);
 }
-.boot .tb-mark { display: grid; place-items: center; color: #fff; }
+.boot .tb-mark { display: grid; place-items: center; color: var(--accent-on); }
 
 .boot-error {
   position: fixed;

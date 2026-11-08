@@ -1,10 +1,10 @@
 # 无头浏览器 E2E 报告
 
-- 生成时间：2026-11-08T09:57:37.510Z
+- 生成时间：2026-11-08T11:01:28.907Z
 - 运行方式：无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）
 - 浏览器：`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`
 - 视口：1440×900（默认） / 1100×640@1.5x（最小尺寸）
-- 结果：**240 通过 / 0 失败**
+- 结果：**243 通过 / 0 失败**
 - 截图目录：`app/e2e/screenshots/`（已加入 `.gitignore`，仅本机保留，不随仓库分发）
 
 ## UI 层断言（DOM / 可见性 / 截图）
@@ -28,14 +28,16 @@
 | ✅ 通过 | 应用 → 2 个完成 + 1 个冲突跳过（未改名文件不参与）（{"total":3,"done":2,"skipped":1,"failed":0}） |
 | ✅ 通过 | 冲突文件保持原名 |
 | ✅ 通过 | 撤销 → 4 个原名全部恢复（["旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg","logo.png"]） |
-| ✅ 通过 | 历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略（2026-11-08 17:56 · 更名D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤） |
-| ✅ 通过 | 历史面板：已撤销批次显示「已撤销」并说明原因（{"undoable":"0","state":"已撤销","reason":"该批次已经撤销","text":"2026-11-08 17:56 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销"}） |
+| ✅ 通过 | 历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略（2026-11-08 18:59 · 更名D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤） |
+| ✅ 通过 | 历史面板：已撤销批次显示「已撤销」并说明原因（{"undoable":"0","state":"已撤销","reason":"该批次已经撤销","text":"2026-11-08 18:59 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销"}） |
 | ✅ 通过 | 历史面板：新批次显示「可撤销」（{"undoable":"1","id":"mock-batch-2"}） |
 | ✅ 通过 | 历史面板：撤销后条目变为「已撤销」（{"undoable":"0","state":"已撤销","chip":"已撤销","reason":"该批次已经撤销"}） |
 | ✅ 通过 | 历史面板：较新批次可撤销时，「撤销到此」可用（多级撤销）（{"index":1,"undoable":"1","disabled":false}） |
 | ✅ 通过 | 历史面板：多级撤销后两条批次都变为「已撤销」（[{"undoable":"0","state":"已撤销"},{"undoable":"0","state":"已撤销"}]） |
 | ✅ 通过 | 明暗主题切换 → data-theme=dark 且面板底色变化（{"theme":"dark","panelBg":"rgb(21, 26, 35)"}） |
 | ✅ 通过 | 跟随系统主题：settings.theme=system 且系统配色变化时实时跟随（{"storedTheme":"system","sysDark":"dark","sysLight":"light"}） |
+| ✅ 通过 | 四套配色各自切换：data-palette 生效且背景/表面/文字/强调/悬停/选中/边框整体更换（{"graphite":{"attr":"graphite","theme":"light","bg":"#eef1f6","panel":"#ffffff","ink":"#131a26","accent":"#2f52e0","hover":"#f6f9ff","selected":"#eef3ff","border":"#cfd7e4"},"paper":{"attr":"paper","theme":"light","bg":"#f3efe6","panel":"#fffdf8","ink":"#241d16","accent":"#a13b2c","hover":"#fbf7ef","selected":"#f6eee3","border":"#d8cdba"},"ocean":{"attr":"ocean","theme":"light","bg":"#e8eff4","panel":"#fdfeff","ink":"#0d1c26","accent":"#0a6c8c","hover":"#f2f8fb","selected":"#eaf3f7","border":"#c6d6e0"},"moss":{"attr":"moss","theme":"light","bg":"#eff2ea","panel":"#fbfdf7","ink":"#161d13","accent":"#3f7537","hover":"#f7faf2","selected":"#f1f6eb","border":"#cdd6c1"}}） |
+| ✅ 通过 | 明暗与配色分别持久化：settings 同时记录 moss 与 dark（{"palette":"moss","theme":"dark"}） |
 | ✅ 通过 | 策略面板默认值（255 / 阻止 / 阻止 / 未命名 / 关）（{"max":"255","long":"block","empty":"block","fallback":"未命名","fallbackDisabled":true,"skip":"false"}） |
 | ✅ 通过 | 空名处理切到「备用名」后备用名输入框可用（false） |
 | ✅ 通过 | 元数据弹窗展示图片尺寸与只读标识（只读元数据只读旧照片 001.jpg · D:\e2e\旅行\旧照片 001.jpg图片JPEG 图像尺寸1920 × 1080 px文件大小2.3 MB未发现 EXIF 信息（可能是截图、导出图或已剥离元数据）本面板仅读取展示，不会修改文） |
@@ -184,7 +186,7 @@
 | ✅ 通过 | 冲突命中：同路径包含+排除、前缀/子目录重叠（2 条独立冲突）（{"count":2,"items":["include-exclude","path-overlap"]}） |
 | ✅ 通过 | 冲突命中：动作矛盾与正则等价合并为一条（同一对规则只出现一次）（{"count":1,"items":["regex-overlap,action-contradiction"],"badges":2,"rules":2,"modal":false}） |
 | ✅ 通过 | 冲突不阻断保存：两条规则仍在、无阻断弹窗、两条规则就地标出（{"count":1,"items":["regex-overlap,action-contradiction"],"badges":2,"rules":2,"modal":false}） |
-| ✅ 通过 | 点击冲突汇总可跳转到对应规则（展开并聚焦）（{"firstRuleId":"rmw7nrnhj1","jumpState":{"openId":"rmw7nrnhj1","detail":1,"focused":"rmw7nrnhj1"}}） |
+| ✅ 通过 | 点击冲突汇总可跳转到对应规则（展开并聚焦）（{"firstRuleId":"rmw7q1qee1","jumpState":{"openId":"rmw7q1qee1","detail":1,"focused":"rmw7q1qee1"}}） |
 | ✅ 通过 | 冲突命中：后一条被遮蔽不可达（{"items":2,"hasShadow":true}） |
 | ✅ 通过 | 冲突不命中：模式不重叠且替换互不相干时不提示（{"panel":false,"items":0,"badges":0,"rules":2}） |
 | ✅ 通过 | 列表「下移」立即改变顺序并出现手动顺序标记（{"namesBefore":["旧照片 001.jpg","logo.png","旧照片 002.jpg","旧照片 003.jpg"],"namesAfterDown":["logo.png","旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg"],"manualChip":1}） |
@@ -195,7 +197,7 @@
 | ✅ 通过 | 同名不同路径保留两条并在界面标出重名（{"sameNameCount":2,"dupBadges":2}） |
 | ✅ 通过 | 内容相同的不同路径进入「疑似重复」分组，未静默删除（{"dupPanelBefore":1,"dupGroups":1}） |
 | ✅ 通过 | 一键去重只移除列表中的一条，磁盘文件数不变（{"countBeforeDedupe":7,"countAfterDedupe":6,"filesOnDisk":7,"filesAfterDedupe":7}） |
-| ✅ 通过 | 属性编辑：选中字段写入并回读校验通过（{"text":"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\e2e\\旅行\\旧照片 002.jpg.1794131838765.bak","ok":true,"verified":true}） |
+| ✅ 通过 | 属性编辑：选中字段写入并回读校验通过（{"text":"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\e2e\\旅行\\旧照片 002.jpg.1794135669379.bak","ok":true,"verified":true}） |
 | ✅ 通过 | 属性编辑：重新打开可见写入后的值（{"rereadTitle":"E2E 新标题"}） |
 | ✅ 通过 | 不支持格式（HEIC）明确拒绝并附文件与原因（{"unsupportedShown":1,"heicResult":{"bad":true,"text":"sample.heicHEICFailedHEIC 不支持写入：HEIC/HEIF 解码能力缺失，本版本不支持Backup：No backup"}}） |
 | ✅ 通过 | 未检查：只显示「检查更新」「打开主页」（{"phase":"idle","check":1,"action":0,"save":0,"home":1,"retry":0,"latest":0,"install":0,"size":0,"error":0}） |
@@ -206,7 +208,7 @@
 | ✅ 通过 | 之后显示已最新时仍保留「安装」按钮（{"phase":"latest","check":1,"action":0,"save":0,"home":1,"retry":0,"latest":1,"install":1,"size":0,"error":0}） |
 | ✅ 通过 | 快照：入口真实可用且哈希复选框默认关闭（false） |
 | ✅ 通过 | 快照（仅映射）→ 记录 3 条原名/新名与大小/时间，不含哈希（{"entryCount":3,"hashed":0}） |
-| ✅ 通过 | 快照列表显示「仅映射」（2026/11/8 17:57:243 条 · 仅映射预览还原删除） |
+| ✅ 通过 | 快照列表显示「仅映射」（2026/11/8 19:01:143 条 · 仅映射预览还原删除） |
 | ✅ 通过 | 快照：勾选后开启 SHA-256（true） |
 | ✅ 通过 | 快照（含哈希）→ 3 条 SHA-256 且逐条上报进度（{"id":"mock-snap-2","hashed":3}） |
 | ✅ 通过 | 快照生成 → 进度事件可取消/可观测（hash/done）（hash,done） |
@@ -216,7 +218,7 @@
 | ✅ 通过 | 还原执行 → 2 条还原、1 条跳过，批次 kind=restore 且 policy=skip（{"total":3,"done":2,"skipped":1,"failed":0}） |
 | ✅ 通过 | 还原绝不覆盖：诱饵文件保持原样，冲突条目的新名文件仍在（{"decoyIntact":12345,"afterRestoreFiles":["照片_001.jpg","旧照片 002.jpg","旧照片 003.jpg","logo.png","旧照片 001.jpg"]}） |
 | ✅ 通过 | 还原结果逐条说明跳过原因（还原结果：成功 2 条，跳过/失败 1 条批次 mock-batch-2还原已写入操作记录，可在「操作记录」里整批撤销D:\e2e\旅行\照片_002.jpg→D:\e2e\旅行\旧照片 002.jpg已还原D:\e2e\旅行\照片_003.jpg→D:\e2e\旅行\旧照片 003.jpg已还原D:\e2e\旅行\照） |
-| ✅ 通过 | 操作记录把还原标为「快照还原」且可撤销（2026-11-08 17:57 · 快照还原D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销） |
+| ✅ 通过 | 操作记录把还原标为「快照还原」且可撤销（2026-11-08 19:01 · 快照还原D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销） |
 | ✅ 通过 | 撤销还原 → 2 条回到新名（冲突条目不受影响）（["照片_001.jpg","照片_002.jpg","照片_003.jpg","logo.png","旧照片 001.jpg"]） |
 | ✅ 通过 | 删除快照 → 列表与后端同步只剩 1 条（1） |
 | ✅ 通过 | 勾选一张图片后 EXIF 入口在检查器里可用（作用于勾选文件）（1 / 作用于 1 个文件） |
@@ -230,6 +232,7 @@
 | ✅ 通过 | 非 UTF-8/未确认编码 → 显式提示「需手动指定源编码」且源编码下拉给出 5 种可选（{"confirmed":"未确认","warning":"编码未识别，需手动指定源编码","sourceOptions":["自动检测","UTF-8","UTF-8 with BOM","GB18030","UTF-16 LE","UTF-16 BE"]}） |
 | ✅ 通过 | 源编码未确认且保持「自动」时执行被阻止并提示手动指定（不静默按 UTF-8 写）（{"hasResult":false,"toast":"源编码未确认：请在下拉框手动指定源编码"}） |
 | ✅ 通过 | 文本编码结果提供「还原」按钮并走已有备份还原通路（{"restoreCallsBeforeText":1,"restoreCallsAfterText":2}） |
+| ✅ 通过 | 重启保持：明暗与配色分别持久化，重载后仍为 moss + dark 且首帧底色取自该色板（{"before":{"palette":"moss","theme":"dark"},"after":{"attr":"moss","theme":"dark","bg":"#0e140f"}}） |
 
 ## 真实文件层断言（临时文件 → 改名 → 校验 → 撤销）
 
@@ -269,7 +272,7 @@
 | ✅ 通过 | 模板移动后 → 4 个文件落入两级目录（d:\e2e\归类结果\jpg\2025\旧照片 001.jpg \| d:\e2e\归类结果\jpg\2025\旧照片 002.jpg \| d:\e2e\归类结果\jpg\2025\旧照片 003.jpg \| d:\e2e\归类结果\png\2025\logo.png） |
 | ✅ 通过 | 模板归类可撤销 → 路径全部回到原位置（D:\e2e\旅行\旧照片 001.jpg \| D:\e2e\旅行\旧照片 002.jpg \| D:\e2e\旅行\旧照片 003.jpg \| D:\e2e\设计\logo.png） |
 | ✅ 通过 | 拖放 drop → 调用扫描/添加路径命令，计数正确（+2）（paths=D:\e2e\新拖入\拖入 A.txt,D:\e2e\新拖入\拖入 B.txt, rows=11） |
-| ✅ 通过 | 交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/批量元数据/事件/写文件）（load_rule_history,startup_report,plugin:event\|listen,env_info,privilege_info,migration_info,plugin:event\|unlisten,append_log,plugin:dialog\|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog\|save,write_text_atomic,read_text_file,write_bytes_atomic,read_times,apply_time,read_attrs,meta_read,meta_capabilities,list_snapshots,read_metadata_batch,apply_attrs,apply_move） |
+| ✅ 通过 | 交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/批量元数据/事件/写文件）（load_rule_history,env_info,plugin:event\|listen,startup_report,privilege_info,migration_info,plugin:event\|unlisten,append_log,plugin:dialog\|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog\|save,write_text_atomic,read_text_file,write_bytes_atomic,read_times,apply_time,read_attrs,meta_read,meta_capabilities,list_snapshots,read_metadata_batch,apply_attrs,apply_move） |
 | ✅ 通过 | 右上角窗口按钮 → 实际调用 window API（minimize / toggle_maximize / close）（minimize,toggle_maximize,close） |
 | ✅ 通过 | 手动导入经 Tauri 命令层并回报导入/跳过数量（已导入 2 个文件，跳过 1 个已存在的文件（导入前已备份）。） |
 | ✅ 通过 | 文本编码原地覆盖：请求携带手动源编码 GB18030、目标 UTF-8 BOM，结果含回读校验与备份还原入口（{"ok":true,"verified":true,"stats":"128 → 128 字节 · D:\\e2e\\旅行\\编码样本.txt","restore":true,"call":{"path":"D:\\e2e\\旅行\\编码样本.txt","targetEncoding":"utf8bom","sourceEncoding":"gb18030","saveAs":null,"backup":true}}） |

@@ -77,8 +77,13 @@ export interface LayoutState {
 /** 主题选择：显式浅/深，或跟随系统（运行时随系统切换）。 */
 export type ThemeSetting = 'light' | 'dark' | 'system';
 
+/** 配色方案：完整色板，与明暗基调独立组合。 */
+export type PaletteId = 'graphite' | 'paper' | 'ocean' | 'moss';
+
 export interface AppSettings {
   theme: ThemeSetting;
+  /** 配色方案（默认石墨），与 theme 独立持久化 */
+  palette: PaletteId;
   /** 界面语言：跟随系统或五种受支持语言之一（默认 system） */
   language: LocaleSetting;
   strictWindowsNames: boolean;

@@ -728,6 +728,53 @@ async function main() {
     await click('[data-testid="theme-dark"]');
     await sleep(200);
 
+    // 配色方案：与明暗基调独立，四套完整色板
+    await click('[data-testid="theme-light"]');
+    await sleep(200);
+    const readPalette = () => evaluate(`(() => {
+      const cs = getComputedStyle(document.documentElement);
+      return {
+        attr: document.documentElement.dataset.palette,
+        theme: document.documentElement.dataset.theme,
+        bg: cs.getPropertyValue('--bg').trim(),
+        panel: cs.getPropertyValue('--panel').trim(),
+        ink: cs.getPropertyValue('--ink').trim(),
+        accent: cs.getPropertyValue('--accent').trim(),
+        hover: cs.getPropertyValue('--hover').trim(),
+        selected: cs.getPropertyValue('--selected').trim(),
+        border: cs.getPropertyValue('--line-strong').trim(),
+      };
+    })()`);
+    const paletteIds = ['graphite', 'paper', 'ocean', 'moss'];
+    const swatches = {};
+    for (const id of paletteIds) {
+      await click(`[data-testid="palette-${id}"]`);
+      await sleep(200);
+      swatches[id] = await readPalette();
+    }
+    const everySwatchChanged = paletteIds.every((id) =>
+      id === 'graphite' || ['bg', 'panel', 'ink', 'accent', 'hover', 'selected', 'border']
+        .every((key) => swatches[id][key] !== swatches.graphite[key]));
+    const paletteAttrsOk = paletteIds.every((id) => swatches[id].attr === id && swatches[id].theme === 'light');
+    check(
+      'UI',
+      '四套配色各自切换：data-palette 生效且背景/表面/文字/强调/悬停/选中/边框整体更换',
+      paletteAttrsOk && everySwatchChanged,
+      JSON.stringify(swatches),
+    );
+
+    // 明暗与配色分别持久化在设置里（重启保持的完整验证在套件末尾做真实重载）
+    await click('[data-testid="theme-dark"]');
+    await sleep(200);
+    const storedCombo = await evaluate(`JSON.parse(localStorage.getItem('rename-studio.settings')).data`);
+    check(
+      'UI',
+      '明暗与配色分别持久化：settings 同时记录 moss 与 dark',
+      storedCombo.palette === 'moss' && storedCombo.theme === 'dark',
+      JSON.stringify({ palette: storedCombo.palette, theme: storedCombo.theme }),
+    );
+    await click('[data-testid="palette-graphite"]');
+
     // 智能更名策略面板：默认值与「空名处理」联动
     const policyUi = await evaluate(`(() => {
       const max = document.querySelector('[data-testid="input-name-max-length"]');
@@ -3199,6 +3246,33 @@ async function main() {
     await click('[data-testid="inspector-close"]');
     await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '关闭编码检查器');
     await sleep(250);
+
+    // 真实重载验证「重启保持」：明暗 + 配色两维各自持久化，首帧属性在 React 之前写入
+    await click('[data-testid="open-settings"]');
+    await waitFor(`document.querySelector('.drawer')`, '设置抽屉（重启前）');
+    await click('[data-testid="palette-moss"]');
+    await click('[data-testid="theme-dark"]');
+    await sleep(250);
+    const restartBefore = await evaluate(`JSON.parse(localStorage.getItem('rename-studio.settings')).data`);
+    await evaluate('location.reload()');
+    await sleep(900);
+    await waitFor(`document.querySelector('.workspace')`, '重载后工作区', 15000);
+    await sleep(500);
+    const restartAfter = await evaluate(`(() => {
+      const cs = getComputedStyle(document.documentElement);
+      return {
+        attr: document.documentElement.dataset.palette,
+        theme: document.documentElement.dataset.theme,
+        bg: cs.getPropertyValue('--bg').trim(),
+      };
+    })()`);
+    check(
+      'UI',
+      '重启保持：明暗与配色分别持久化，重载后仍为 moss + dark 且首帧底色取自该色板',
+      restartBefore.palette === 'moss' && restartBefore.theme === 'dark'
+        && restartAfter.attr === 'moss' && restartAfter.theme === 'dark' && restartAfter.bg === '#0e140f',
+      JSON.stringify({ before: { palette: restartBefore.palette, theme: restartBefore.theme }, after: restartAfter }),
+    );
 
     cdp.close();
   } finally {

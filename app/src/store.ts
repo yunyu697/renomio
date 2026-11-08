@@ -26,6 +26,7 @@ import type {
   DuplicateReportDto, Entry, EntryFacts, EnvInfo, InspectorMode, LayoutState, ListTab, MetadataInfo, MetaFields, MigrationInfo,
   OpsOutcome, PreviewRow, PrivilegeInfo, Rule, RuleType, ScanEntryDto, SessionDto, SkippedChange,
   SnapshotPlanItemDto, SnapshotProgress, SnapshotRestoreResult, SnapshotSummaryDto, StartupMark, ThemeSetting,
+  PaletteId,
 } from './lib/types';
 import { logger, queue, settingsStore } from './runtime';
 
@@ -279,6 +280,7 @@ interface AppState {
   showToast: (kind: Toast['kind'], text: string) => void;
   dismissToast: () => void;
   setTheme: (theme: ThemeSetting) => void;
+  setPalette: (palette: PaletteId) => void;
   updateSettings: (patch: Partial<AppSettings>) => void;
   relaunchElevated: () => Promise<void>;
   dismissUipiNotice: () => void;
@@ -324,6 +326,10 @@ export function resolveTheme(theme: ThemeSetting): 'light' | 'dark' {
 
 function applyTheme(theme: ThemeSetting) {
   document.documentElement.dataset.theme = resolveTheme(theme);
+}
+
+function applyPalette(palette: PaletteId) {
+  document.documentElement.dataset.palette = palette;
 }
 
 /** 系统主题变化时，仅在「跟随系统」下生效。 */
@@ -581,6 +587,7 @@ export const useApp = create<AppState>((set, get) => ({
     const settings = themeOverride ? { ...stored, theme: themeOverride } : stored;
     const ruleHistory = (await loadRuleHistory()) ?? emptyHistory();
     applyTheme(settings.theme);
+    applyPalette(settings.palette);
     watchSystemTheme();
     if (settings.language && settings.language !== 'system') setUiLocale(settings.language);
     const reportMark = (name: string) => {
@@ -1508,10 +1515,16 @@ export const useApp = create<AppState>((set, get) => ({
     get().updateSettings({ theme });
   },
 
+  setPalette: (palette) => {
+    applyPalette(palette);
+    get().updateSettings({ palette });
+  },
+
   updateSettings: (patch) => {
     const settings = settingsStore.save(patch);
     set({ settings, applyPolicy: settings.conflictPolicy });
     if (patch.theme) applyTheme(patch.theme);
+    if (patch.palette) applyPalette(patch.palette);
     if (patch.language) {
       setUiLocale(patch.language === 'system' ? detectLocale(navigator.language) : patch.language);
     }

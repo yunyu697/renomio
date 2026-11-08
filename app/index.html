@@ -1,32 +1,49 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="light">
+<html lang="zh-CN" data-theme="light" data-palette="graphite">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Renomio</title>
     <style>
-      /* 样式表加载前就铺好底色，避免首帧白底 */
+      /* 样式表加载前就铺好底色，避免首帧白底或跳色（含各配色方案） */
       html { background: #eef1f6; color-scheme: light; }
       html[data-theme="dark"] { background: #0b0f16; color-scheme: dark; }
+      html[data-palette="paper"] { background: #f3efe6; }
+      html[data-palette="paper"][data-theme="dark"] { background: #171310; }
+      html[data-palette="ocean"] { background: #e8eff4; }
+      html[data-palette="ocean"][data-theme="dark"] { background: #071318; }
+      html[data-palette="moss"] { background: #eff2ea; }
+      html[data-palette="moss"][data-theme="dark"] { background: #0e140f; }
       body { margin: 0; background: inherit; }
     </style>
     <script>
-      /* 在 React / CSS 之前读取本地设置的主题，避免深色用户先看到浅色底 */
+      /* 在 React / CSS 之前读取本地设置的主题与配色，避免首帧闪白或跳色 */
       (function () {
         try {
-          var forced = new URLSearchParams(location.search).get('theme');
+          var params = new URLSearchParams(location.search);
+          var forced = params.get('theme');
           var theme = forced === 'dark' || forced === 'light' ? forced : 'light';
+          var known = { graphite: 1, paper: 1, ocean: 1, moss: 1 };
+          var forcedPalette = params.get('palette');
+          var palette = known[forcedPalette] ? forcedPalette : 'graphite';
           var raw = localStorage.getItem('rename-studio.settings');
-          if (!forced && raw) {
+          if (raw) {
             var env = JSON.parse(raw);
-            var saved = env && env.data && env.data.theme;
-            if (saved === 'dark') theme = 'dark';
-            else if (saved === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) theme = 'dark';
+            var savedPalette = env && env.data && env.data.palette;
+            if (!forcedPalette && known[savedPalette]) palette = savedPalette;
+            if (!forced) {
+              var saved = env && env.data && env.data.theme;
+              if (saved === 'dark') theme = 'dark';
+              else if (saved === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) theme = 'dark';
+            }
           }
           document.documentElement.dataset.theme = theme;
+          document.documentElement.dataset.palette = palette;
           window.__STARTUP_THEME__ = theme;
+          window.__STARTUP_PALETTE__ = palette;
         } catch (err) {
           window.__STARTUP_THEME__ = 'light';
+          window.__STARTUP_PALETTE__ = 'graphite';
         }
       })();
     </script>

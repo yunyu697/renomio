@@ -558,6 +558,7 @@ function SettingsPanel() {
   const settings = useApp((s) => s.settings);
   const updateSettings = useApp((s) => s.updateSettings);
   const setTheme = useApp((s) => s.setTheme);
+  const setPalette = useApp((s) => s.setPalette);
   const env = useApp((s) => s.env);
   const isDemo = useApp((s) => s.isDemo);
   const privilege = useApp((s) => s.privilege);
@@ -590,6 +591,23 @@ function SettingsPanel() {
               <span className={settings.theme === 'dark' ? 'on' : ''} data-testid="theme-dark" onClick={() => setTheme('dark')}>{t('settings.dark')}</span>
               <span className={settings.theme === 'system' ? 'on' : ''} data-testid="theme-system" onClick={() => setTheme('system')}>{t('settings.system')}</span>
             </span>
+          </Row>
+          <Row stacked label={t('settings.palette')} hint={t('settings.paletteHint')}>
+            <div className="palette-grid" role="radiogroup" aria-label={t('settings.palette')}>
+              {(['graphite', 'paper', 'ocean', 'moss'] as const).map((palette) => (
+                <button
+                  key={palette}
+                  type="button"
+                  className={`palette-card${settings.palette === palette ? ' on' : ''}`}
+                  data-testid={`palette-${palette}`}
+                  aria-pressed={settings.palette === palette}
+                  onClick={() => setPalette(palette)}
+                >
+                  <span className={`palette-dot p-${palette}`} aria-hidden="true" />
+                  <span>{t(`palette.${palette}`)}</span>
+                </button>
+              ))}
+            </div>
           </Row>
           <Row label={t('settings.language')} hint={t('settings.languageHint')}>
             <select
@@ -898,9 +916,9 @@ function AboutPanel() {
   );
 }
 
-function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+function Row({ label, hint, children, stacked }: { label: string; hint?: string; children: ReactNode; stacked?: boolean }) {
   return (
-    <div className="settings-row">
+    <div className={`settings-row${stacked ? ' stacked' : ''}`}>
       <div>
         <div className="settings-label">{label}</div>
         {hint && <div className="settings-hint">{hint}</div>}

@@ -18,6 +18,7 @@
     "test:corpus": "node scripts/gen-test-corpus.mjs",
     "test:core": "cargo test --manifest-path src-tauri/renomio-core/Cargo.toml",
     "test:e2e": "node e2e/run.mjs",
+    "test:contrast": "node scripts/check-contrast.mjs",
     "test:drop": "node scripts/test-drop-gate.mjs",
     "test:history": "node scripts/test-rule-history.mjs",
     "test:bundle": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-bundle.ps1",

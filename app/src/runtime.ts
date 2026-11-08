@@ -5,6 +5,7 @@ import { logToDisk } from './lib/bridge';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'light',
+  palette: 'graphite',
   language: 'system',
   strictWindowsNames: true,
   readonlySkip: false,
