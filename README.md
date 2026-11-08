@@ -30,16 +30,16 @@ MIT License — 见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-
 
 ## 下载与安装
 
-源码仓库已公开；**安装包与更新清单直接发布在 [yunyu697/renomio](https://github.com/yunyu697/renomio/releases)**（旧的发行仓库 `yunyu697/renomio-releases` 已于 2026-11-08 归档，仅保留历史下载）。最新发布是预发布 `v1.1.0-alpha2`（稳定版仍为 `v1.0.0`），源码 `VERSION` 与之一致；滚动更新清单 `latest.json` 指向 `1.1.0-alpha2`。下表为该版本的两个包：
+源码仓库已公开；**安装包与更新清单直接发布在 [yunyu697/renomio](https://github.com/yunyu697/renomio/releases)**（旧的发行仓库 `yunyu697/renomio-releases` 已于 2026-11-08 归档，仅保留历史下载）。最新发布是预发布 `v1.1.0-alpha3`（稳定版仍为 `v1.0.0`），源码 `VERSION` 与之一致；滚动更新清单 `latest.json` 指向 `1.1.0-alpha3`。下表为该版本的两个包：
 
-| 包 | 文件 | 大小 | SHA-256（1.1.0-alpha2） |
+| 包 | 文件 | 大小 | SHA-256（1.1.0-alpha3） |
 | --- | --- | --- | --- |
-| NSIS（推荐，可选安装范围） | `Renomio_1.1.0-alpha2_x64-setup.exe` | 2,442,881 字节（2.33 MiB） | `F5E5F4550EA844F855C3735BD97F36719EE6316B03A3FB87FBF2031DB97C9461` |
-| MSI（机器级单一包） | `Renomio_1.1.0-alpha2_x64_en-US.msi` | 3,629,056 字节（3.46 MiB） | `5C6B7A3C167CA25ED6434427F58365CD1E5D038E758ACC1046EE15A896A4B713` |
+| NSIS（推荐，可选安装范围） | `Renomio_1.1.0-alpha3_x64-setup.exe` | 2,440,674 字节（2.33 MiB） | `59995042CEBF061A0A5DF9FA44755342C307C87702E61481569F56AE7AE4FCDC` |
+| MSI（机器级单一包） | `Renomio_1.1.0-alpha3_x64_en-US.msi` | 3,624,960 字节（3.46 MiB） | `E33B4FFA6032C242AD13C6897FF63AB3831BDB92335E54AA5571F10B578C85EE` |
 
-应用内「设置 → 检查更新」读取源码仓库滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；清单与资源地址均指向源码仓库（内置地址的切换已提交到 `main`，随下一版发布生效）。
+应用内「设置 → 检查更新」读取源码仓库滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；清单与资源地址均指向源码仓库，内置默认地址已随本版切换生效。
 
-版本规则：唯一可改的版本号是仓库根 `VERSION`，其余（`app/package.json`、`app/packages/foundation/package.json`、`app/src-tauri/tauri.conf.json`、两个 `Cargo.toml`）由 `npm run version:sync` 注入；tag（如当前 `v1.1.0-alpha2`）必须与 `VERSION` 一致，段位（第二/三段与 alpha 序号）≤ 10。版本闸门按推送类型分档：**分支推送**（含 `main`）只要求 `VERSION` 不低于最新已发布 alpha，等于可通过、低于即拦截；**tag 推送**仍要求严格递增，alpha 复用与倒退一律拦截（`version` job 的 16 条反例自测覆盖这三种情形）。MSI 的 `ProductVersion` 只能是纯数字，故 `wix.version` 由同一 VERSION 的数字核注入（alpha 阶段取 `1.1.0`），包文件名仍带 alpha 号。
+版本规则：唯一可改的版本号是仓库根 `VERSION`，其余（`app/package.json`、`app/packages/foundation/package.json`、`app/src-tauri/tauri.conf.json`、两个 `Cargo.toml`）由 `npm run version:sync` 注入；tag（如当前 `v1.1.0-alpha3`）必须与 `VERSION` 一致，段位（第二/三段与 alpha 序号）≤ 10。版本闸门按推送类型分档：**分支推送**（含 `main`）只要求 `VERSION` 不低于最新已发布 alpha，等于可通过、低于即拦截；**tag 推送**仍要求严格递增，alpha 复用与倒退一律拦截（`version` job 的 16 条反例自测覆盖这三种情形）。MSI 的 `ProductVersion` 只能是纯数字，故 `wix.version` 由同一 VERSION 的数字核注入（alpha 阶段取 `1.1.0`），包文件名仍带 alpha 号。
 
 校验方式（PowerShell）：
 
