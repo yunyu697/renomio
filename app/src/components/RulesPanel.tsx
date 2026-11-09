@@ -350,6 +350,8 @@ export function RulesPanel() {
                 aria-pressed={active}
                 onClick={() => toggleOpen(rule.id)}
                 onKeyDown={(e) => {
+                  // 只有卡片本身获得焦点时才响应快捷键；规则编辑区里的 input 冒泡上来的空格/回车要正常输入
+                  if (e.target !== e.currentTarget) return;
                   const next = Math.min(rules.length - 1, index + 1);
                   const prev = Math.max(0, index - 1);
                   if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
