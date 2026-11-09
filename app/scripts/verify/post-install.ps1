@@ -15,7 +15,7 @@
 #>
 param(
   [string]$Exe = 'C:\Program Files\Renomio\renomio.exe',
-  [string]$OutDir = (Join-Path $PSScriptRoot '..\..\verify-out\post-install-alpha5'),
+  [string]$OutDir = (Join-Path $PSScriptRoot '..\..\verify-out\post-install'),
   [int]$Port = 9444,
   [switch]$KeepExisting
 )
@@ -46,7 +46,8 @@ if ($already) {
 $vi = (Get-Item -LiteralPath $Exe).VersionInfo
 $fileVersion = $vi.ProductVersion
 $result.fileVersion = $fileVersion
-Check 'exe 版本为 1.1.0-alpha5' ($fileVersion -like '1.1.0-alpha5*') "ProductVersion=$fileVersion"
+$expected = (Get-Content -Raw (Join-Path $PSScriptRoot '..\..\..\VERSION')).Trim()
+Check "exe 版本为 $expected" ($fileVersion -like "$expected*") "ProductVersion=$fileVersion"
 $arp = @()
 foreach ($root in @('HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall','HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall','HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')) {
   $arp += Get-ChildItem $root -ErrorAction SilentlyContinue | ForEach-Object { Get-ItemProperty $_.PSPath } | Where-Object { $_.DisplayName -like 'Renomio*' }
