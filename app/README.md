@@ -58,6 +58,9 @@ MIT License — 见仓库根目录的 [LICENSE](../LICENSE)
 
 **1.1.0-alpha5 修 EXIF 子 IFD 写入**：`DateTimeOriginal` 实际落到 `ExifIFD`（0x9003），并与 `ExifIFD:CreateDate`（0x9004）、`IFD0:ModifyDate`（0x0132）、XMP `photoshop:DateCreated` 保持一致；GPS 按 `IFD0 → GPS IFD` 子指针写入并与 XMP 对齐。改型号时按厂商前缀白名单联动 `IFD0:Make` 与 XMP `tiff:Make`（如 `Fujifilm X-T5` → `FUJIFILM`），认不出厂商则保留原 Make、不清空不猜测。
 
+**1.1.0-alpha6 编号增强与元变量表达式**：编号规则支持计数分组（全局 / 每个目录 / 按拍摄时间、相机型号、标题等元数据字段）、排除列表（通配符，命中不占号并在预览标注）、按完整路径取号、序号写入 `USER0`–`USER9`；元变量新增 `<USER0>`、`<<#>>`（等价当前序号）与 `<<#>算式>>` 整数四则、`<IF:条件|真|假>` 条件分支；模板或算式无法求值会显示明确错误、整列预览标红并跳过执行，不会把 `<...>` 原样写进文件名。预览与执行共用同一份取号计划，看到的序号就是写下去的序号。
+
+
 ## 性能（10,000 个文件的真实测量）
 
 压测语料：100 个多级目录 × 100 个文件，混合扩展名（jpg/png/mp3/pdf/txt/docx），含中文名与超长名；生成在系统临时目录，测完整体删除，不写用户目录。
@@ -366,14 +369,14 @@ app/
 
 数据目录：每用户的 `%APPDATA%\app.renomio.desktop`（Tauri `app_data_dir`，随 identifier 变化），不随安装目录走；**切换安装范围不会迁移配置、日志与撤销历史**（同一用户的同一数据目录，两者共享）。**自动更新（alpha5 起）**：设置页「检查更新」读取源码仓库 `yunyu697/renomio` 滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；以 minisign 签名校验为准，支持镜像回退、仅下载与安装后重启。源码仓库已公开，安装包与更新清单与源码同仓发布；旧发行仓库 `renomio-releases` 已归档，仅保留历史下载。
 
-## 产物（本轮构建：1.1.0-alpha5）
+## 产物（本轮构建：1.1.0-alpha6）
 
 | 安装包 | 路径 | 大小 | SHA-256 |
 | --- | --- | --- | --- |
-| NSIS | `src-tauri/target/release/bundle/nsis/Renomio_1.1.0-alpha5_x64-setup.exe` | 2,447,911 字节（2.33 MiB） | `3CD76B620FB6F333C95829AF549B31A4F253BCE9BD4DDB2413E8201EA487A8D0` |
-| MSI | `src-tauri/target/release/bundle/msi/Renomio_1.1.0-alpha5_x64_en-US.msi` | 3,633,152 字节（3.46 MiB） | `30AF9A285554D1284A2B22DFFE25FBD0DE52802240066DFD24FF3D6DC0353C6E` |
+| NSIS | `src-tauri/target/release/bundle/nsis/Renomio_1.1.0-alpha6_x64-setup.exe` | 2,452,337 字节（2.34 MiB） | `6667F0EC26E9E599ABED1C4E8D2D3F872730A45F5F3931811CA02E9EE65F8C5F` |
+| MSI | `src-tauri/target/release/bundle/msi/Renomio_1.1.0-alpha6_x64_en-US.msi` | 3,637,248 字节（3.47 MiB） | `21272E0D0E7C866D8CC3278A7549414899477B49025EF6AB48A11917859E4039` |
 
-两包均未代码签名；更新用 minisign 签名见同目录 `.sig`。`bundle.targets` 已显式设为 `["nsis", "msi"]`，`npm run tauri build` 一次产出两个包。安装范围：NSIS 安装时可选、默认所有用户（`Program Files\Renomio`）；MSI 只有机器级一种（固定 `Program Files\Renomio`、必须管理员、不提供用户级）。**该轮为合并包**：`1.0.0` 之后的快照、多格式导出、属性取反、时间随机化与 EXIF 写入、归类模板、键位窗、`<SUBSTR>` 系列元变量、歌词三载体、IPTC Core 四字段（仅 XMP）与 `ffrn` → `renomio` 改名全部包含在内。主程序为 `renomio.exe`，由 `[[bin]] name = "renomio"` 产出。以上定位由 `npm run test:bundle`（14/14 断言）对实际产物把关。
+两包均未代码签名。**本轮 alpha6 未生成更新用 `.sig`**（构建环境禁止注入私钥），因此 `updates` 的 `latest.json` 仍停留在 alpha5，自动更新到 alpha6 暂不可用；需要时可本地用 minisign 密钥对两个包补签后再更新清单。`bundle.targets` 已显式设为 `["nsis", "msi"]`，`npm run tauri build` 一次产出两个包。安装范围：NSIS 安装时可选、默认所有用户（`Program Files\Renomio`）；MSI 只有机器级一种（固定 `Program Files\Renomio`、必须管理员、不提供用户级）。**该轮为合并包**：`1.0.0` 之后的快照、多格式导出、属性取反、时间随机化与 EXIF 写入、归类模板、键位窗、`<SUBSTR>` 系列元变量、歌词三载体、IPTC Core 四字段（仅 XMP）与 `ffrn` → `renomio` 改名全部包含在内。主程序为 `renomio.exe`，由 `[[bin]] name = "renomio"` 产出。以上定位由 `npm run test:bundle`（14/14 断言）对实际产物把关。
 
 **1.1.0-alpha1 时的真实升级实测**：匿名下载公开 `v1.0.0` NSIS 包并静默安装（`/S`，5.3 s，落到 `C:\Program Files\Renomio`，ARP 显示 `1.0.0`），再用 `1.1.0-alpha1` NSIS 包静默覆盖（6.5 s，ARP 与 `renomio.exe --version` 均变为 `1.1.0-alpha1`，安装路径不变；`uninstall.exe` 重写时间为升级时刻）。卸载、快捷方式落点、两范围交叉安装、旧版并存拦截仍未验证。
 
