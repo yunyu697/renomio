@@ -25,6 +25,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   skipSystemHidden: false,
   /** USER1–USER9：供名称模板 <USERn> 使用；默认全空 */
   userVars: ['', '', '', '', '', '', '', '', ''],
+  /** USER0：供名称模板 <USER0> 使用；默认空 */
+  userVar0: '',
   /** 全局快捷键：默认与旧版硬编码行为一致，可在键位窗里改 */
   shortcuts: { ...DEFAULT_SHORTCUTS },
   columns: {

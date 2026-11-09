@@ -14,6 +14,7 @@ interface Cache {
   meta: Record<string, MetaFields>;
   facts: Record<string, EntryFacts>;
   userVars: string[];
+  user0: string;
   replaceInvalid: boolean;
   invalidReplacement: string;
   nameMaxLength: number;
@@ -36,6 +37,7 @@ export function usePreview(): PreviewResult {
   const meta = useApp((s) => s.metaFields);
   const facts = useApp((s) => s.fileFacts);
   const userVars = useApp((s) => s.settings.userVars);
+  const user0 = useApp((s) => s.settings.userVar0 ?? '');
   const replaceInvalid = useApp((s) => s.settings.replaceInvalid);
   const invalidReplacement = useApp((s) => s.settings.invalidReplacement);
   const nameMaxLength = useApp((s) => s.settings.nameMaxLength ?? 255);
@@ -56,6 +58,7 @@ export function usePreview(): PreviewResult {
       cache.meta === meta &&
       cache.facts === facts &&
       cache.userVars === userVars &&
+      cache.user0 === user0 &&
       cache.replaceInvalid === replaceInvalid &&
       cache.invalidReplacement === invalidReplacement
       && cache.nameMaxLength === nameMaxLength
@@ -74,6 +77,7 @@ export function usePreview(): PreviewResult {
       meta,
       facts,
       userVars,
+      user0,
       replaceInvalid,
       invalidReplacement,
       nameMaxLength,
@@ -83,11 +87,11 @@ export function usePreview(): PreviewResult {
       skipSystemHidden,
     });
     cache = {
-      entries, rules, env, strict, readonly, disk, meta, facts, userVars, replaceInvalid, invalidReplacement,
+      entries, rules, env, strict, readonly, disk, meta, facts, userVars, user0, replaceInvalid, invalidReplacement,
       nameMaxLength, longNameAction, emptyNameAction, emptyNameFallback, skipSystemHidden, result,
     };
     return result;
-  }, [entries, rules, env, strict, readonly, disk, meta, facts, userVars, replaceInvalid, invalidReplacement,
+  }, [entries, rules, env, strict, readonly, disk, meta, facts, userVars, user0, replaceInvalid, invalidReplacement,
     nameMaxLength, longNameAction, emptyNameAction, emptyNameFallback, skipSystemHidden]);
 }
 

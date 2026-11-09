@@ -41,7 +41,17 @@ function Seg<T extends string>({
 
 const EMPTY_HISTORY: string[] = [];
 
-const VAR_TOKENS = ['<FILENAME>', '<NAME>', '<EXT>', '<DOTEXT>', '<SUBSTR>', '<DIFNSUBSTR>', '<DIR>', '<DATE>', '<TIME>', '<SIZE>', '<CRC32>', '<MD5>', '<SHA1>', '<USER1>'];
+const VAR_TOKENS = ['<FILENAME>', '<NAME>', '<EXT>', '<DOTEXT>', '<SUBSTR>', '<DIFNSUBSTR>', '<DIR>', '<DATE>', '<TIME>', '<SIZE>', '<CRC32>', '<MD5>', '<SHA1>', '<USER0>', '<USER1>'];
+
+/** 编号分组可选字段（`field:<键>`）：与「按元数据取名」共用同一批只读字段。 */
+const GROUP_FIELDS: Array<[string, string]> = [
+  ['taken', 'o.metaTaken'],
+  ['camera', 'o.metaCamera'],
+  ['title', 'o.metaTitle'],
+  ['artist', 'o.metaArtist'],
+  ['album', 'o.metaAlbum'],
+  ['track', 'o.metaTrack'],
+];
 
 /**
  * 规则链输入框：historyKey 不为空时，失焦后把填过的内容按字段记入历史，
@@ -191,7 +201,7 @@ function TextInput({
           </div>
           <div className="var-example">
             <span>{t('vars.example')}</span>
-            <code>{expandTemplate(value || '<NAME>_<#><DOTEXT>', { ...SAMPLE_VARS, counter: '1' })}</code>
+            <code>{expandTemplate(value || '<NAME>_<#><DOTEXT>', { ...SAMPLE_VARS, counter: '1', counterRaw: 1 })}</code>
           </div>
         </div>
       )}
@@ -477,8 +487,48 @@ function NumberEditor({ rule, patch }: { rule: NumberRule; patch: Patch }) {
           <TextInput value={rule.padChar} mono small onChange={(padChar) => patch({ padChar: padChar.slice(0, 1) })} />
         </Field>
       </div>
+      <div className="field-row" style={{ marginBottom: 9 }}>
+        <Field label={t('f.groupBy')}>
+          <select
+            className="input"
+            data-testid="number-group"
+            value={rule.groupBy}
+            onChange={(e) => patch({ groupBy: e.target.value })}
+          >
+            <option value="none">{t('f.groupByNone')}</option>
+            <option value="parent">{t('f.groupByParent')}</option>
+            {GROUP_FIELDS.map(([field, label]) => (
+              <option key={field} value={`field:${field}`}>{t('f.groupByFieldOption', { label: t(label) })}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label={t('f.writeVar')}>
+          <select
+            className="input"
+            data-testid="number-write-var"
+            value={rule.writeVar}
+            onChange={(e) => patch({ writeVar: e.target.value })}
+          >
+            <option value="">{t('f.writeVarNone')}</option>
+            {Array.from({ length: 10 }, (_, i) => `USER${i}`).map((name) => (
+              <option key={name} value={name}>{`<${name}>`}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      <Field label={t('f.exclude')}>
+        <TextInput
+          value={rule.exclude}
+          mono
+          onChange={(exclude) => patch({ exclude })}
+          placeholder={t('ph.exclude')}
+          historyKey="number.exclude"
+          testId="number-exclude"
+        />
+      </Field>
+      <div className="hint-line">{t('f.excludeHint')}</div>
       <div className="field-row">
-        <Toggle on={rule.perFolder} label={t('f.perFolder')} onChange={(perFolder) => patch({ perFolder })} />
+        <Toggle on={rule.byPath} label={t('f.byPath')} onChange={(byPath) => patch({ byPath })} />
         <Toggle on={rule.onlyChecked} label={t('f.onlyChecked')} onChange={(onlyChecked) => patch({ onlyChecked })} />
       </div>
     </>

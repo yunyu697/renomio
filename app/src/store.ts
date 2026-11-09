@@ -19,7 +19,7 @@ import { parsePlan, planFilter, serializePlan } from './lib/plan';
 import { detectLocale, setUiLocale, t as translate } from './i18n';
 import { conflictOf, DEFAULT_SHORTCUTS, normalizeBinding, type ShortcutId } from './lib/shortcuts';
 import { createRuleDefaults } from './lib/ruleDefaults';
-import { splitName, joinName } from './lib/rules';
+import { splitName, joinName, normalizeRules } from './lib/rules';
 import { normalizePath, targetPath } from './lib/validate';
 import type {
   AppSettings, ApplyItemDto, ApplyOutcome, ApplyProgress, Batch, BatchSummary, ConflictPolicy,
@@ -628,7 +628,7 @@ export const useApp = create<AppState>((set, get) => ({
           ruleHistory,
           entries: restored ?? demoEntries(),
           manualOrder: !!saved?.manualOrder,
-          rules: settings.rules.length ? settings.rules : demoRules(),
+          rules: normalizeRules(settings.rules.length ? settings.rules : demoRules()),
           applyPolicy: settings.conflictPolicy,
           diskExists: Object.fromEntries(
             demoExistingPaths.map((p) => [normalizePath(p, demoEnv), true]),
@@ -655,7 +655,7 @@ export const useApp = create<AppState>((set, get) => ({
         settings,
         ruleHistory,
         entries: [],
-        rules: settings.rules,
+        rules: normalizeRules(settings.rules),
         applyPolicy: settings.conflictPolicy,
         batches: [],
         lastBatchId: null,
@@ -1211,6 +1211,10 @@ export const useApp = create<AppState>((set, get) => ({
           strictWindowsNames: s.settings.strictWindowsNames,
           readonlySkip: s.settings.readonlySkip,
           diskExists: s.diskExists,
+          meta: get().metaFields,
+          facts: get().fileFacts,
+          userVars: s.settings.userVars,
+          user0: s.settings.userVar0,
         }).rows);
         logger.info('apply.demo', '演示改名', { applied: result.applied.length });
         return;
@@ -1779,7 +1783,7 @@ export const useApp = create<AppState>((set, get) => ({
     const dialog = get().planDialog;
     if (!dialog || dialog.mode !== 'import' || dialog.error) return;
     const replaced = get().rules.length;
-    set({ rules: dialog.rules, openRuleId: null, planDialog: null });
+    set({ rules: normalizeRules(dialog.rules), openRuleId: null, planDialog: null });
     get().showToast(
       dialog.warnings.length ? 'warn' : 'success',
       translate('plan.toastImported', {
@@ -1815,6 +1819,10 @@ export const useApp = create<AppState>((set, get) => ({
       strictWindowsNames: s.settings.strictWindowsNames,
       readonlySkip: s.settings.readonlySkip,
       diskExists: s.diskExists,
+      meta: s.metaFields,
+      facts: s.fileFacts,
+      userVars: s.settings.userVars,
+      user0: s.settings.userVar0,
     }).rows;
     const entries = rows
       .filter((r) => r.entry.selected && r.newName !== r.entry.name && r.status !== 'invalid' && r.status !== 'off')

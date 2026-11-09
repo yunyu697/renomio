@@ -114,7 +114,7 @@ const cases = [
   {
     name: '编号（起始 5 / 步长 2 / 三位补零）',
     files: ['a.txt', 'b.txt', 'c.txt'],
-    rule: { type: 'number', expression: '<NAME>_<#>', start: 5, step: 2, digits: 3, padChar: '0', perFolder: false, onlyChecked: false },
+    rule: { type: 'number', expression: '<NAME>_<#>', start: 5, step: 2, digits: 3, padChar: '0', groupBy: 'none', exclude: '', byPath: false, writeVar: '', onlyChecked: false },
     expected: ['a_005.txt', 'b_007.txt', 'c_009.txt'],
   },
   {

@@ -671,12 +671,13 @@ fn rename_fields(paths: Vec<String>) -> Vec<RenameFields> {
         .iter()
         .map(|path| {
             let info = renomio_core::metadata::read_metadata(path).ok();
+            // 按 labels 的先后顺序取，保证「相机型号」优先于「相机品牌」
             let field = |labels: &[&str]| -> String {
-                info.as_ref()
-                    .and_then(|m| {
-                        m.fields
-                            .iter()
-                            .find(|f| labels.iter().any(|l| f.label == *l))
+                labels
+                    .iter()
+                    .find_map(|label| {
+                        info.as_ref()
+                            .and_then(|m| m.fields.iter().find(|f| f.label == *label))
                             .map(|f| f.value.clone())
                     })
                     .unwrap_or_default()

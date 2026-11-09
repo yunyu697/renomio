@@ -1,7 +1,7 @@
 /** 规则引擎：纯函数，输入原名 + 规则链，输出新名。所有语义在 README 中固化说明。 */
 import { t } from '../i18n';
 import type {
-  AddRule, CaseRule, DeleteRule, ExtRule, MetaFields, MoveRule, NumberRule, ReplaceRule, Rule,
+  AddRule, CaseRule, DeleteRule, ExtRule, MetaFieldKey, MetaFields, MoveRule, NumberRule, ReplaceRule, Rule,
 } from './types';
 import { expandTemplate, scanTemplate, type VarContext } from './vars';
 
@@ -33,13 +33,31 @@ function separatorRegex(seps: string, flags = ''): RegExp {
   return new RegExp(`[${chars.map(regexEscape).join('')}]`, flags);
 }
 
-/** 模板字段的变量校验：未知变量名与非法参数必须显式报错，不能原样输出。 */
+/** 模板字段的变量校验：未知变量名、非法参数与非法算式/条件必须显式报错，不能原样输出。 */
 function templateError(text: string, allowCounter: boolean): string | null {
   const scan = scanTemplate(text);
   if (scan.unknown) return t('ruleErr.unknownVar', { name: scan.unknown });
   if (scan.badArgs) return t('ruleErr.badVarArgs', { name: scan.badArgs });
+  if (scan.counterBad) return t('ruleErr.badCounterExpr');
+  if (scan.condBad) return t('ruleErr.badCondition', { cond: scan.condBad });
   if (scan.counter && !allowCounter) return t('ruleErr.counterOnlyNumber');
   return null;
+}
+
+/** 模板/算式/条件类的错误（与「字段没填完」区分：这类错误会让预览整体标红）。 */
+export function ruleTemplateError(rule: Rule): string | null {
+  switch (rule.type) {
+    case 'add':
+      return rule.mode === 'direct' ? templateError(rule.text, false) : null;
+    case 'replace':
+      return templateError(rule.replace, false);
+    case 'number':
+      return templateError(rule.expression, true);
+    case 'ext':
+      return rule.mode === 'number' ? null : templateError(rule.value, false);
+    default:
+      return null;
+  }
 }
 
 /** 规则配置是否可用；返回本地化错误说明 */
@@ -266,7 +284,7 @@ function applyTitle(stem: string, rule: CaseRule): string {
 }
 
 export interface NumberContext {
-  /** 计数键（规则 + 目录） */
+  /** 计数键（规则 + 分组） */
   key: string;
   counter: number;
   increment: boolean;
@@ -280,7 +298,12 @@ function formatNumber(value: number, digits: number, padChar: string): string {
 
 function applyNumber(rule: NumberRule, counter: number, vars: VarContext): string {
   const formatted = formatNumber(counter, rule.digits, rule.padChar);
-  return expandTemplate(rule.expression, { ...vars, counter: formatted });
+  return expandTemplate(rule.expression, {
+    ...vars,
+    counter: formatted,
+    counterRaw: counter,
+    counterFormat: (value) => formatNumber(value, rule.digits, rule.padChar),
+  });
 }
 
 function applyExt(ext: string, rule: ExtRule, counter: number, vars: VarContext): string {
@@ -304,14 +327,28 @@ function applyExt(ext: string, rule: ExtRule, counter: number, vars: VarContext)
 }
 
 export interface ApplyContext {
-  /** 下一个编号值（已按规则/目录维护） */
-  nextNumber: (rule: NumberRule, parent: string) => number;
+  /** 下一个编号值（已按规则/分组维护） */
+  nextNumber: (rule: NumberRule, key: string) => number;
   /** 不参与计数时使用的当前值 */
-  peekNumber: (rule: NumberRule, parent: string) => number;
+  peekNumber: (rule: NumberRule, key: string) => number;
+  /** 预分配的编号（预览按分组/路径顺序算好后传入）；返回 undefined 时退回 nextNumber */
+  numberFor?: (rule: NumberRule) => number | undefined;
+  /** 该条是否命中本规则的排除列表（命中则跳过编号） */
+  isNumberExcluded?: (rule: NumberRule) => boolean;
   /** 当前文件的只读元数据字段（供「按元数据取名」规则使用；缺失则跳过该规则） */
   meta?: MetaFields;
   /** 当前文件的元变量取值（原文件名、扩展名、目录、时间、大小、哈希、用户文本） */
   vars: VarContext;
+}
+
+/** 编号规则的计数分组键：不分组 / 按目录 / 按元数据字段。 */
+export function numberGroupKey(rule: NumberRule, parent: string, meta?: MetaFields): string {
+  if (rule.groupBy === 'parent') return parent;
+  if (rule.groupBy.startsWith('field:')) {
+    const field = rule.groupBy.slice(6) as keyof MetaFields;
+    return `f:${meta?.[field] ?? ''}`;
+  }
+  return '';
 }
 
 export function applyRules(
@@ -325,25 +362,36 @@ export function applyRules(
   let stem = original.stem;
   let ext = original.ext;
   const numbers: string[] = [];
+  // 编号可写入 USERn，供后续规则引用；每个文件用独立副本，不污染其他条目
+  const vars: VarContext = { ...ctx.vars, users: [...(ctx.vars.users ?? [])] };
 
   for (const rule of rules) {
     if (!rule.enabled || ruleError(rule)) continue;
     switch (rule.type) {
       case 'add':
-        stem = applyAdd(stem, rule, ctx.vars);
+        stem = applyAdd(stem, rule, vars);
         break;
       case 'replace':
-        stem = applyReplace(stem, rule, ctx.vars);
+        stem = applyReplace(stem, rule, vars);
         break;
       case 'delete':
         stem = applyDelete(stem, rule);
         break;
       case 'number': {
-        const value = rule.onlyChecked && !entrySelected
-          ? ctx.peekNumber(rule, rule.perFolder ? parent : '')
-          : ctx.nextNumber(rule, rule.perFolder ? parent : '');
-        stem = applyNumber(rule, value, ctx.vars);
-        numbers.push(formatNumber(value, rule.digits, rule.padChar));
+        if (ctx.isNumberExcluded?.(rule)) break;
+        const planned = ctx.numberFor?.(rule);
+        const key = numberGroupKey(rule, parent, ctx.meta);
+        const value = planned ?? (rule.onlyChecked && !entrySelected
+          ? ctx.peekNumber(rule, key)
+          : ctx.nextNumber(rule, key));
+        stem = applyNumber(rule, value, vars);
+        const formatted = formatNumber(value, rule.digits, rule.padChar);
+        numbers.push(formatted);
+        if (rule.writeVar) {
+          const index = Number(rule.writeVar.slice(4));
+          if (index === 0) vars.user0 = formatted;
+          else if (index >= 1 && index <= 9) vars.users[index - 1] = formatted;
+        }
         break;
       }
       case 'move':
@@ -358,12 +406,12 @@ export function applyRules(
           const probe: NumberRule = {
             id: rule.id, type: 'number', enabled: rule.enabled, expression: '<#>',
             start: 1, step: 1, digits: Math.max(1, Number(rule.value) || 1), padChar: '0',
-            perFolder: false, onlyChecked: false,
+            groupBy: 'none', exclude: '', byPath: false, writeVar: '', onlyChecked: false,
           };
           const value = ctx.nextNumber(probe, '');
-          ext = applyExt(ext, rule, value, ctx.vars);
+          ext = applyExt(ext, rule, value, vars);
         } else {
-          ext = applyExt(ext, rule, 1, ctx.vars);
+          ext = applyExt(ext, rule, 1, vars);
         }
         break;
       case 'meta': {
@@ -380,6 +428,37 @@ export function applyRules(
     }
   }
   return { stem, ext, numbers };
+}
+
+const META_FIELDS: MetaFieldKey[] = ['taken', 'camera', 'title', 'artist', 'album', 'track'];
+
+function metaFieldLabel(field: string): string {
+  const key = (META_FIELDS as string[]).includes(field) ? field : 'taken';
+  return t(`o.meta${key[0].toUpperCase()}${key.slice(1)}`);
+}
+
+/** 兼容旧规则字段：perFolder → groupBy；补齐新增字段的默认值。 */
+export function normalizeRule(rule: Rule): Rule {
+  if (rule.type !== 'number') return rule;
+  const legacy = rule as NumberRule & { perFolder?: boolean };
+  const raw = typeof legacy.groupBy === 'string' && legacy.groupBy
+    ? legacy.groupBy
+    : (legacy.perFolder ? 'parent' : 'none');
+  const groupBy = raw === 'none' || raw === 'parent'
+    || (raw.startsWith('field:') && META_FIELDS.includes(raw.slice(6) as MetaFieldKey))
+    ? raw
+    : 'none';
+  return {
+    ...legacy,
+    groupBy,
+    exclude: legacy.exclude ?? '',
+    byPath: !!legacy.byPath,
+    writeVar: /^USER[0-9]$/.test(legacy.writeVar ?? '') ? legacy.writeVar : '',
+  };
+}
+
+export function normalizeRules(rules: Rule[]): Rule[] {
+  return rules.map(normalizeRule);
 }
 
 /** 规则卡片的一句话摘要 */
@@ -406,11 +485,21 @@ export function ruleSummary(rule: Rule): string {
         return t(rule.keep ? 'ruleSum.charsetKeep' : 'ruleSum.charsetDrop', { chars: rule.chars });
       }
       return t('ruleSum.range', { from: rule.from, count: rule.count, reverse: rule.fromEnd ? t('ruleSum.reverse') : '' });
-    case 'number':
+    case 'number': {
+      const group = rule.groupBy === 'parent'
+        ? t('ruleSum.perFolder')
+        : rule.groupBy.startsWith('field:')
+          ? t('ruleSum.groupField', { label: metaFieldLabel(rule.groupBy.slice(6)) })
+          : '';
+      const extra = [
+        rule.byPath ? t('ruleSum.byPath') : '',
+        rule.writeVar ? t('ruleSum.writeVar', { name: rule.writeVar }) : '',
+        rule.exclude.trim() ? t('ruleSum.exclude', { list: rule.exclude.trim().split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean).join(', ') }) : '',
+      ].join('');
       return t('ruleSum.number', {
-        expr: rule.expression, start: rule.start, step: rule.step, digits: rule.digits,
-        perFolder: rule.perFolder ? t('ruleSum.perFolder') : '',
-      });
+        expr: rule.expression, start: rule.start, step: rule.step, digits: rule.digits, group,
+      }) + extra;
+    }
     case 'move':
       return t('ruleSum.move', {
         from: rule.from, count: rule.count, to: rule.to, reverse: rule.fromEnd ? t('ruleSum.reverse') : '',

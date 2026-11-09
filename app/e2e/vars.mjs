@@ -185,7 +185,7 @@ async function main() {
 
   const sliceNumber = {
     id: 'r3', type: 'number', enabled: true, expression: '<SUBSTR:5:4>_<#>',
-    start: 1, step: 1, digits: 3, padChar: '0', perFolder: false, onlyChecked: false,
+    start: 1, step: 1, digits: 3, padChar: '0', groupBy: 'none', exclude: '', byPath: false, writeVar: '', onlyChecked: false,
   };
   check('编号表达式可用 <SUBSTR>', ruleError(sliceNumber), null);
   const sliceApplied = applyRules(
@@ -212,7 +212,7 @@ async function main() {
   check('SIZE 非法单位报错', ruleError(badArgs).includes('badVarArgs'), true);
   const counterInAdd = { ...addRule, text: '<#>' };
   check('<#> 用在非编号规则里报错', ruleError(counterInAdd).includes('counterOnlyNumber'), true);
-  const numberRule = { id: 'r2', type: 'number', enabled: true, expression: '<NAME>_<#>', start: 5, step: 2, digits: 3, padChar: '0', perFolder: false, onlyChecked: false };
+  const numberRule = { id: 'r2', type: 'number', enabled: true, expression: '<NAME>_<#>', start: 5, step: 2, digits: 3, padChar: '0', groupBy: 'none', exclude: '', byPath: false, writeVar: '', onlyChecked: false };
   check('编号表达式允许 <#>', ruleError(numberRule), null);
   check('编号表达式也允许元变量', ruleError({ ...numberRule, expression: '<NAME>_<DATE>_<#>' }), null);
 

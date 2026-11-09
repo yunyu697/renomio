@@ -54,7 +54,7 @@ const entries = Array.from({ length: 10000 }, (_, i) => {
 
 const rules = [
   { id: 'r1', type: 'replace', enabled: true, find: '照片', replace: '旅行', caseSensitive: false, regex: false, nth: 0 },
-  { id: 'r2', type: 'number', enabled: true, expression: '<#>', start: 1, step: 1, digits: 4, padChar: '0', perFolder: true, onlyChecked: false },
+  { id: 'r2', type: 'number', enabled: true, expression: '<#>', start: 1, step: 1, digits: 4, padChar: '0', groupBy: 'parent', exclude: '', byPath: false, writeVar: '', onlyChecked: false },
   { id: 'r3', type: 'case', enabled: true, mode: 'lower', separators: ' -_' },
   { id: 'r4', type: 'move', enabled: true, from: 1, fromEnd: false, count: 3, to: 5, toEnd: false },
   { id: 'r5', type: 'ext', enabled: true, mode: 'case', value: '', position: 'suffix', caseMode: 'lower' },

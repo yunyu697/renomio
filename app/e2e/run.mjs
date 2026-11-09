@@ -184,6 +184,7 @@ async function main() {
   for (const [script, label] of [
     ['vars.mjs', '元变量真实文件验证'],
     ['rules-fs.mjs', '八规则真实文件端到端（建文件→改名→校验→撤销）'],
+    ['number-advanced.mjs', '编号分组/排除/按路径取号 + 元变量表达式真实验证'],
     ['policy.mjs', '智能更名策略（默认值对照 + 真实文件截断/跳过）'],
   ]) {
     const run = spawnSync(process.execPath, [path.join(HERE, script)], {

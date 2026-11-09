@@ -12,8 +12,10 @@
  * - `<TIME>`  文件修改时间，默认 `HHmmss`；`<TIME:HH-mm-ss>` 自定义格式
  * - `<SIZE>`  字节数；`<SIZE:KB>` 换单位；`<SIZE:KB:6>` 再补零到 6 位
  * - `<CRC32>` / `<MD5>` / `<SHA1>` 内容哈希（小写十六进制）
- * - `<USER1>`–`<USER9>` 用户自定义文本（未设置为空串）
- * - `<#>` 序号，仅在「编号」规则的表达式里有效
+ * - `<USER0>`–`<USER9>` 用户自定义文本（未设置为空串）
+ * - `<#>` 序号（仅编号规则表达式）
+ * - `<<#>>` 当前序号，可做整数四则：`<<#>+10>>`、`<<#> * 2 - 1>>`
+ * - `<IF:条件|真|假>` 条件表达式，条件如 `#>=3`、`EXT=JPG`；假分支可省略
  */
 
 import type { Rule } from './types';
@@ -42,8 +44,14 @@ export interface VarContext {
   hashes: HashValues;
   /** USER1–USER9（长度 9，缺失为空串） */
   users: string[];
-  /** 仅编号规则的表达式会传入 */
+  /** USER0（可选，未设置为空串） */
+  user0?: string;
+  /** 仅编号规则的表达式会传入（已按位数/补齐字符格式化） */
   counter?: string;
+  /** 仅编号规则的表达式会传入（原始数值，供 <<#>> 运算） */
+  counterRaw?: number;
+  /** <<#>> 运算结果的格式化函数（缺省用十进制原样输出） */
+  counterFormat?: (value: number) => string;
 }
 
 export interface TemplateScan {
@@ -51,16 +59,23 @@ export interface TemplateScan {
   unknown: string;
   /** 参数不合法时的变量名 */
   badArgs: string;
-  /** 使用了 `<#>` */
+  /** 使用了 `<#>` / `<<#>>` / 条件里引用了 `#` */
   counter: boolean;
+  /** `<<#>>` 内的算式无法求值 */
+  counterBad: boolean;
+  /** 条件表达式不合法（原文） */
+  condBad: string;
   /** 需要的哈希算法（去重、仅返回实际引用到的） */
   hashes: HashAlgo[];
-  /** 引用了 USERn */
+  /** 引用了 USERn（1–9） */
   users: number[];
+  /** 引用了 USER0 */
+  user0: boolean;
 }
 
 const BASE_NAMES = new Set([
   'FILENAME', 'NAME', 'EXT', 'DOTEXT', 'SUBSTR', 'DIFNSUBSTR', 'DIR', 'DATE', 'TIME', 'SIZE', 'CRC32', 'MD5', 'SHA1',
+  'USER0',
   ...Array.from({ length: 9 }, (_, i) => `USER${i + 1}`),
 ]);
 
@@ -96,37 +111,274 @@ function validArgs(name: string, args: string[]): boolean {
   return args.length === 0;
 }
 
-/** 扫描模板：找未知变量、非法参数与依赖项。不会修改文本。 */
-export function scanTemplate(text: string): TemplateScan {
-  const scan: TemplateScan = { unknown: '', badArgs: '', counter: false, hashes: [], users: [] };
-  const re = /<([^<>]+)>/g;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(text))) {
-    const inner = match[1];
-    if (inner === '#') {
+/* ------------------------------------------------------------------ *
+ * 模板解析：文本 / 变量 / <#> / <<#表达式>> / <IF:条件|真|假>
+ * ------------------------------------------------------------------ */
+
+type Token =
+  | { kind: 'text'; text: string }
+  | { kind: 'var'; inner: string }
+  | { kind: 'counter' }
+  | { kind: 'expr'; expr: string }
+  | { kind: 'if'; cond: string; yes: string; no: string };
+
+/** `<IF:` 内部允许出现 `>` 与 `<`（比较运算符）与嵌套变量，按层数找真正的结束尖括号。 */
+function findIfEnd(text: string, from: number): number {
+  let depth = 0;
+  for (let j = from; j < text.length; j += 1) {
+    const c = text[j];
+    if (c === '<' && text[j + 1] !== '=') {
+      depth += 1;
+      continue;
+    }
+    if (c !== '>') continue;
+    if (depth > 0) {
+      depth -= 1;
+      continue;
+    }
+    // `>=` / `>` 运算符：紧跟 `=` 时不作为标签结束
+    if (text[j + 1] === '=') continue;
+    return j;
+  }
+  return -1;
+}
+
+/** `<IF:条件|真|假>`：只按前两个 `|` 切分，假分支可省略。 */
+function splitIfBody(body: string): [string, string, string] {
+  const a = body.indexOf('|');
+  if (a < 0) return [body, '', ''];
+  const b = body.indexOf('|', a + 1);
+  if (b < 0) return [body.slice(0, a), body.slice(a + 1), ''];
+  return [body.slice(0, a), body.slice(a + 1, b), body.slice(b + 1)];
+}
+
+function parseTemplate(text: string): Token[] {
+  const tokens: Token[] = [];
+  let buf = '';
+  let i = 0;
+  const flush = () => {
+    if (buf) {
+      tokens.push({ kind: 'text', text: buf });
+      buf = '';
+    }
+  };
+  while (i < text.length) {
+    const lt = text.indexOf('<', i);
+    if (lt < 0) {
+      buf += text.slice(i);
+      break;
+    }
+    if (lt > i) buf += text.slice(i, lt);
+    if (text.startsWith('<<#>', lt)) {
+      const close = text.indexOf('>>', lt + 4);
+      // 简写 `<<#>>` 只有一层收尾尖括号；带算式时写作 `<<#>+10>>`
+      if (close < 0 && text[lt + 4] === '>') {
+        flush();
+        tokens.push({ kind: 'expr', expr: '' });
+        i = lt + 5;
+        continue;
+      }
+      if (close < 0) {
+        buf += text.slice(lt);
+        break;
+      }
+      flush();
+      tokens.push({ kind: 'expr', expr: text.slice(lt + 4, close).trim() });
+      i = close + 2;
+      continue;
+    }
+    if (text.slice(lt + 1, lt + 4).toUpperCase() === 'IF:') {
+      const end = findIfEnd(text, lt + 4);
+      if (end < 0) {
+        buf += text.slice(lt);
+        break;
+      }
+      const [cond, yes, no] = splitIfBody(text.slice(lt + 4, end));
+      flush();
+      tokens.push({ kind: 'if', cond, yes, no });
+      i = end + 1;
+      continue;
+    }
+    const gt = text.indexOf('>', lt + 1);
+    if (gt < 0) {
+      buf += text.slice(lt);
+      break;
+    }
+    const inner = text.slice(lt + 1, gt);
+    flush();
+    tokens.push(inner === '#' ? { kind: 'counter' } : { kind: 'var', inner });
+    i = gt + 1;
+  }
+  flush();
+  return tokens;
+}
+
+/* ------------------------------------------------------------------ *
+ * 序号四则运算：只支持整数、+ - * / 与括号；除不尽向零取整
+ * ------------------------------------------------------------------ */
+
+export function evalIntegerExpr(src: string, base: number): number | null {
+  const body = src.replace(/\s+/g, '');
+  if (!body) return base;
+  // `<<#>` 就是当前序号本身，后面的内容接在它后面：
+  // `<<#>+10>>` → `1+10`，`<<#> * 2 - 1>>` → `1*2-1`
+  const s = `${Math.trunc(base)}${body}`;
+  let i = 0;
+  const term = (): number | null => {
+    let value = factor();
+    if (value === null) return null;
+    while (i < s.length && (s[i] === '*' || s[i] === '/')) {
+      const op = s[i];
+      i += 1;
+      const right = factor();
+      if (right === null) return null;
+      if (op === '/' && right === 0) return null;
+      value = op === '*' ? value * right : value / right;
+    }
+    return value;
+  };
+  const expr = (): number | null => {
+    let value = term();
+    if (value === null) return null;
+    while (i < s.length && (s[i] === '+' || s[i] === '-')) {
+      const op = s[i];
+      i += 1;
+      const right = term();
+      if (right === null) return null;
+      value = op === '+' ? value + right : value - right;
+    }
+    return value;
+  };
+  const factor = (): number | null => {
+    if (s[i] === '+' || s[i] === '-') {
+      const op = s[i];
+      i += 1;
+      const value = factor();
+      if (value === null) return null;
+      return op === '-' ? -value : value;
+    }
+    if (s[i] === '(') {
+      i += 1;
+      const value = expr();
+      if (value === null || s[i] !== ')') return null;
+      i += 1;
+      return value;
+    }
+    const match = /^\d+/.exec(s.slice(i));
+    if (!match) return null;
+    i += match[0].length;
+    return Number(match[0]);
+  };
+  const value = expr();
+  if (value === null || i !== s.length || !Number.isFinite(value)) return null;
+  return value;
+}
+
+/* ------------------------------------------------------------------ *
+ * 条件表达式：`#>=3`、`EXT=JPG`、`# ge 3`（gt/ge/lt/le/eq/ne）
+ * ------------------------------------------------------------------ */
+
+const WORD_OPS: Record<string, string> = { eq: '=', ne: '!=', gt: '>', ge: '>=', lt: '<', le: '<=' };
+
+interface Condition {
+  left: string;
+  op: string;
+  right: string;
+}
+
+function parseCondition(text: string): Condition | null {
+  const t = text.trim();
+  if (!t) return null;
+  const word = /^(.*?)\s+(eq|ne|gt|ge|lt|le)\s+(.*)$/i.exec(t);
+  if (word) return { left: word[1].trim(), op: WORD_OPS[word[2].toLowerCase()], right: word[3].trim() };
+  for (const op of ['!=', '>=', '<=', '=', '>', '<']) {
+    const at = t.indexOf(op);
+    if (at > 0) return { left: t.slice(0, at).trim(), op, right: t.slice(at + op.length).trim() };
+  }
+  return null;
+}
+
+function evalCondition(cond: Condition, ctx: VarContext): boolean {
+  const left = cond.left === '#'
+    ? String(ctx.counterRaw ?? Number(ctx.counter ?? 0))
+    : expandVar(cond.left, ctx) ?? '';
+  const a = left.toLowerCase();
+  const b = cond.right.toLowerCase();
+  const an = /^-?\d+(\.\d+)?$/.test(a) ? Number(a) : null;
+  const bn = /^-?\d+(\.\d+)?$/.test(b) ? Number(b) : null;
+  const numeric = an !== null && bn !== null;
+  switch (cond.op) {
+    case '=': return a === b;
+    case '!=': return a !== b;
+    case '>': return numeric ? an > bn : a > b;
+    case '>=': return numeric ? an >= bn : a >= b;
+    case '<': return numeric ? an < bn : a < b;
+    case '<=': return numeric ? an <= bn : a <= b;
+    default: return false;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * 扫描与展开
+ * ------------------------------------------------------------------ */
+
+function scanVar(inner: string, scan: TemplateScan): void {
+  const sep = inner.indexOf(':');
+  const rawName = sep < 0 ? inner : inner.slice(0, sep);
+  const args = sep < 0 ? [] : inner.slice(sep + 1).split(':');
+  const name = rawName.toUpperCase();
+  if (!BASE_NAMES.has(name)) {
+    if (!scan.unknown) scan.unknown = rawName;
+    return;
+  }
+  if (!validArgs(name, args)) {
+    if (!scan.badArgs) scan.badArgs = rawName;
+    return;
+  }
+  if (name === 'CRC32') { if (!scan.hashes.includes('crc32')) scan.hashes.push('crc32'); }
+  if (name === 'MD5') { if (!scan.hashes.includes('md5')) scan.hashes.push('md5'); }
+  if (name === 'SHA1') { if (!scan.hashes.includes('sha1')) scan.hashes.push('sha1'); }
+  if (name === 'USER0') scan.user0 = true;
+  if (isUser(name)) {
+    const index = Number(name.slice(4));
+    if (!scan.users.includes(index)) scan.users.push(index);
+  }
+}
+
+function scanTokens(tokens: Token[], scan: TemplateScan): void {
+  for (const token of tokens) {
+    if (token.kind === 'text') continue;
+    if (token.kind === 'var') {
+      scanVar(token.inner, scan);
+      continue;
+    }
+    if (token.kind === 'counter') {
       scan.counter = true;
       continue;
     }
-    const sep = inner.indexOf(':');
-    const rawName = sep < 0 ? inner : inner.slice(0, sep);
-    const args = sep < 0 ? [] : inner.slice(sep + 1).split(':');
-    const name = rawName.toUpperCase();
-    if (!BASE_NAMES.has(name)) {
-      if (!scan.unknown) scan.unknown = rawName;
+    if (token.kind === 'expr') {
+      scan.counter = true;
+      if (evalIntegerExpr(token.expr, 1) === null) scan.counterBad = true;
       continue;
     }
-    if (!validArgs(name, args)) {
-      if (!scan.badArgs) scan.badArgs = rawName;
+    const cond = parseCondition(token.cond);
+    if (!cond) {
+      if (!scan.condBad) scan.condBad = token.cond.trim() || '(empty)';
       continue;
     }
-    if (name === 'CRC32') { if (!scan.hashes.includes('crc32')) scan.hashes.push('crc32'); }
-    if (name === 'MD5') { if (!scan.hashes.includes('md5')) scan.hashes.push('md5'); }
-    if (name === 'SHA1') { if (!scan.hashes.includes('sha1')) scan.hashes.push('sha1'); }
-    if (isUser(name)) {
-      const index = Number(name.slice(4));
-      if (!scan.users.includes(index)) scan.users.push(index);
-    }
+    if (cond.left === '#') scan.counter = true;
+    else scanVar(cond.left, scan);
+    scanTokens(parseTemplate(token.yes), scan);
+    scanTokens(parseTemplate(token.no), scan);
   }
+}
+
+/** 扫描模板：找未知变量、非法参数、非法算式/条件与依赖项。不会修改文本。 */
+export function scanTemplate(text: string): TemplateScan {
+  const scan: TemplateScan = {
+    unknown: '', badArgs: '', counter: false, counterBad: false, condBad: '', hashes: [], users: [], user0: false,
+  };
+  scanTokens(parseTemplate(text), scan);
   return scan;
 }
 
@@ -176,43 +428,76 @@ function sliceRange(total: number, args: string[]): { from: number; to: number }
   return { from, to };
 }
 
-/** 展开模板；调用前应先用 scanTemplate 校验。未知变量按空串展开（预览会拦截应用）。 */
-export function expandTemplate(text: string, ctx: VarContext): string {
-  return text.replace(/<([^<>]+)>/g, (whole, inner: string) => {
-    if (inner === '#') return ctx.counter ?? '';
-    const sep = inner.indexOf(':');
-    const rawName = sep < 0 ? inner : inner.slice(0, sep);
-    const args = sep < 0 ? [] : inner.slice(sep + 1).split(':');
-    const name = rawName.toUpperCase();
-    if (!BASE_NAMES.has(name) || !validArgs(name, args)) return whole;
-    switch (name) {
-      case 'FILENAME': return fullNameOf(ctx);
-      case 'NAME': return ctx.stem;
-      case 'EXT': return ctx.ext;
-      case 'DOTEXT': return ctx.ext ? `.${ctx.ext}` : '';
-      case 'SUBSTR': {
-        const chars = Array.from(ctx.stem);
-        const { from, to } = sliceRange(chars.length, args);
-        return chars.slice(from, to).join('');
+/** 展开单个变量；未知变量/非法参数返回 null（调用方保留原文）。 */
+function expandVar(inner: string, ctx: VarContext): string | null {
+  const sep = inner.indexOf(':');
+  const rawName = sep < 0 ? inner : inner.slice(0, sep);
+  const args = sep < 0 ? [] : inner.slice(sep + 1).split(':');
+  const name = rawName.toUpperCase();
+  if (!BASE_NAMES.has(name) || !validArgs(name, args)) return null;
+  switch (name) {
+    case 'FILENAME': return fullNameOf(ctx);
+    case 'NAME': return ctx.stem;
+    case 'EXT': return ctx.ext;
+    case 'DOTEXT': return ctx.ext ? `.${ctx.ext}` : '';
+    case 'SUBSTR': {
+      const chars = Array.from(ctx.stem);
+      const { from, to } = sliceRange(chars.length, args);
+      return chars.slice(from, to).join('');
+    }
+    case 'DIFNSUBSTR': {
+      const chars = Array.from(ctx.stem);
+      const { from, to } = sliceRange(chars.length, args);
+      return [...chars.slice(0, from), ...chars.slice(to)].join('');
+    }
+    case 'DIR': return ctx.dirName;
+    case 'DATE': return formatStamp(ctx.modified, args[0] || 'yyyyMMdd');
+    case 'TIME': return formatStamp(ctx.modified, args[0] || 'HHmmss');
+    case 'SIZE': return formatSize(ctx.size, args[0] || 'B', args[1] ? Number(args[1]) : 0);
+    case 'CRC32': return ctx.hashes.crc32 ?? '';
+    case 'MD5': return ctx.hashes.md5 ?? '';
+    case 'SHA1': return ctx.hashes.sha1 ?? '';
+    case 'USER0': return ctx.user0 ?? '';
+    default: {
+      if (!isUser(name)) return null;
+      return ctx.users[Number(name.slice(4)) - 1] ?? '';
+    }
+  }
+}
+
+/** 展开模板；调用前应先用 scanTemplate 校验。未知变量按原文保留（预览会拦截应用）。 */
+export function expandTemplate(text: string, ctx: VarContext, depth = 0): string {
+  if (depth > 4) return text;
+  let out = '';
+  for (const token of parseTemplate(text)) {
+    switch (token.kind) {
+      case 'text':
+        out += token.text;
+        break;
+      case 'counter':
+        out += ctx.counter ?? '';
+        break;
+      case 'expr': {
+        const value = evalIntegerExpr(token.expr, ctx.counterRaw ?? 0);
+        if (value === null) break;
+        const rounded = Math.trunc(value);
+        out += ctx.counterFormat ? ctx.counterFormat(rounded) : String(rounded);
+        break;
       }
-      case 'DIFNSUBSTR': {
-        const chars = Array.from(ctx.stem);
-        const { from, to } = sliceRange(chars.length, args);
-        return [...chars.slice(0, from), ...chars.slice(to)].join('');
+      case 'if': {
+        const cond = parseCondition(token.cond);
+        const picked = cond && evalCondition(cond, ctx) ? token.yes : token.no;
+        out += expandTemplate(picked, ctx, depth + 1);
+        break;
       }
-      case 'DIR': return ctx.dirName;
-      case 'DATE': return formatStamp(ctx.modified, args[0] || 'yyyyMMdd');
-      case 'TIME': return formatStamp(ctx.modified, args[0] || 'HHmmss');
-      case 'SIZE': return formatSize(ctx.size, args[0] || 'B', args[1] ? Number(args[1]) : 0);
-      case 'CRC32': return ctx.hashes.crc32 ?? '';
-      case 'MD5': return ctx.hashes.md5 ?? '';
-      case 'SHA1': return ctx.hashes.sha1 ?? '';
       default: {
-        const index = Number(name.slice(4));
-        return ctx.users[index - 1] ?? '';
+        const value = expandVar(token.inner, ctx);
+        out += value === null ? `<${token.inner}>` : value;
+        break;
       }
     }
-  });
+  }
+  return out;
 }
 
 /** 从目录路径取最后一段；根目录/空路径返回空串。 */
@@ -231,6 +516,7 @@ export const SAMPLE_VARS: VarContext = {
   size: 1048576,
   hashes: { crc32: '1a2b3c4d', md5: '0123456789abcdef0123456789abcdef', sha1: '0123456789abcdef0123456789abcdef01234567' },
   users: ['示例文本', '', '', '', '', '', '', '', ''],
+  user0: '零号文本',
 };
 
 /** 规则的模板字段（只有这些字段里的 `<...>` 会被展开）。 */

@@ -587,6 +587,7 @@ export function MoveBody({ onClose, targets }: { onClose: () => void; targets: E
   const [capture, setCapture] = useState('1');
   const [template, setTemplate] = useState('<EXT>');
   const userVars = useApp((s) => s.settings.userVars);
+  const user0 = useApp((s) => s.settings.userVar0 ?? '');
   const [existing, setExisting] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<OpsOutcome | null>(null);
@@ -600,11 +601,12 @@ export function MoveBody({ onClose, targets }: { onClose: () => void; targets: E
     capture: Number(capture) || 0,
     template,
     users: userVars,
+    user0,
   };
   const rows = useMemo(
     () => buildMoveRows(targets, cfg, env, existing),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [targets, kind, root, keepStructure, granularity, pattern, capture, template, userVars, existing, env],
+    [targets, kind, root, keepStructure, granularity, pattern, capture, template, userVars, user0, existing, env],
   );
 
   const signature = rows.map((r) => r.target).filter(Boolean).join('\n');

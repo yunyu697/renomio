@@ -176,11 +176,14 @@ export function App() {
     void init();
   }, [init]);
 
-  // 「按元数据取名」需要先把 EXIF / ID3 字段读进来；只在规则启用时读，避免无谓 I/O
+  // 「按元数据取名」与「按字段分组编号」需要先把 EXIF / ID3 字段读进来；只在规则启用时读，避免无谓 I/O
   const entries = useApp((s) => s.entries);
   const loadMetaFields = useApp((s) => s.loadMetaFields);
   useEffect(() => {
-    if (!rules.some((r) => r.type === 'meta' && r.enabled)) return;
+    const needMeta = rules.some(
+      (r) => r.enabled && (r.type === 'meta' || (r.type === 'number' && r.groupBy.startsWith('field:'))),
+    );
+    if (!needMeta) return;
     const paths = entries.map((e) => e.path);
     if (paths.length) void loadMetaFields(paths);
   }, [rules, entries, loadMetaFields]);

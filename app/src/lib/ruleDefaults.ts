@@ -33,7 +33,7 @@ export function createRuleDefaults(type: RuleType, id: string): Rule {
       const rule: NumberRule = {
         id, type: 'number', enabled: true,
         expression: '<#>', start: 1, step: 1, digits: 3, padChar: '0',
-        perFolder: true, onlyChecked: false,
+        groupBy: 'parent', exclude: '', byPath: false, writeVar: '', onlyChecked: false,
       };
       return rule;
     }

@@ -23,6 +23,8 @@ export interface MoveConfig {
   template?: string;
   /** USER1–USER9 的取值 */
   users?: string[];
+  /** USER0 的取值 */
+  user0?: string;
 }
 
 export interface MovePreviewRow {
@@ -122,6 +124,7 @@ function bucketFor(entry: Entry, cfg: MoveConfig): { ok: true; value: string } |
         size: entry.size,
         hashes: {},
         users: cfg.users ?? [],
+        user0: cfg.user0 ?? '',
       };
       const expanded = expandTemplate(raw, ctx);
       const parts = expanded.replace(/[\\/]+/g, '/').split('/').filter((p) => p !== '' && p !== '.');

@@ -733,6 +733,17 @@ function SettingsPanel() {
           <h4>{t('settings.userVars')}</h4>
           <div className="drawer-note">{t('settings.userVarsHint')}</div>
           <div className="user-vars-grid">
+            <label className="user-var-cell">
+              <span>USER0</span>
+              <input
+                className="input small"
+                data-testid="input-user-var-0"
+                value={settings.userVar0 ?? ''}
+                maxLength={64}
+                placeholder={t('settings.userVarEmpty')}
+                onChange={(e) => updateSettings({ userVar0: e.target.value })}
+              />
+            </label>
             {(settings.userVars ?? []).concat(Array(9).fill('')).slice(0, 9).map((text, index) => (
               <label key={index} className="user-var-cell">
                 <span>{`USER${index + 1}`}</span>

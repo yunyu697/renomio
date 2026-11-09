@@ -107,6 +107,8 @@ export interface AppSettings {
   skipSystemHidden: boolean;
   /** USER1–USER9：名称模板里 <USERn> 展开为对应文本（默认全空） */
   userVars: string[];
+  /** USER0：名称模板里 <USER0> 展开的文本（默认空） */
+  userVar0: string;
   /** 全局快捷键绑定（命令 id → `Ctrl+Shift+K` 形式），可自定义 */
   shortcuts: Record<ShortcutId, string>;
   columns: Record<ColumnKey, boolean>;
@@ -229,8 +231,20 @@ export interface NumberRule extends RuleBase {
   step: number;
   digits: number;
   padChar: string;
-  perFolder: boolean;
+  /**
+   * 计数分组：`none` 全局连续 / `parent` 每个目录 / `field:<字段>` 按元数据字段
+   * （taken / camera / title / artist / album / track）。
+   */
+  groupBy: string;
+  /** 排除列表：通配符（`*` `?`），换行或逗号分隔；命中的条目不参与本规则编号 */
+  exclude: string;
+  /** 按完整路径升序取号（关闭时按列表顺序） */
+  byPath: boolean;
+  /** 把序号写入指定元变量（`''` 不写；`USER0`–`USER9`） */
+  writeVar: string;
   onlyChecked: boolean;
+  /** 兼容旧方案：perFolder=true 等价 groupBy='parent' */
+  perFolder?: boolean;
 }
 
 export interface MoveRule extends RuleBase {

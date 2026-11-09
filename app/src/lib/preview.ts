@@ -1,6 +1,6 @@
 import { t } from '../i18n';
-import { applyRules } from './rules';
-import type { EntryFacts, EnvInfo, Entry, MetaFields, PreviewRow, Rule } from './types';
+import { applyRules, numberGroupKey, ruleError, ruleTemplateError } from './rules';
+import type { EntryFacts, EnvInfo, Entry, MetaFields, NumberRule, PreviewRow, Rule } from './types';
 import { normalizePath, pathLengthCheck, sanitizeInvalid, targetPath, validateName } from './validate';
 import { splitName, joinName } from './rules';
 import { dirNameOf, scanTemplate, varFieldsOf, type VarContext } from './vars';
@@ -16,6 +16,8 @@ export interface PreviewOptions {
   facts?: Record<string, EntryFacts>;
   /** USER1–USER9 */
   userVars?: string[];
+  /** USER0 */
+  user0?: string;
   /** 是否自动替换 Windows 非法字符 */
   replaceInvalid?: boolean;
   invalidReplacement?: string;
@@ -67,19 +69,82 @@ export function diffNames(before: string, after: string): Diff {
   };
 }
 
+/** 排除列表里的通配符（`*` 任意长度、`?` 单字符），大小写不敏感。 */
+export function wildcardMatch(pattern: string, name: string): boolean {
+  const escaped = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '.*')
+    .replace(/\?/g, '.');
+  try {
+    return new RegExp(`^${escaped}$`, 'i').test(name);
+  } catch {
+    return false;
+  }
+}
+
+function splitPatterns(text: string): string[] {
+  return text.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
+}
+
+interface NumberPlan {
+  /** entry.id → 该条在此规则下的序号 */
+  values: Map<string, number>;
+  /** 命中排除列表、不参与编号的条目 */
+  excluded: Set<string>;
+}
+
+/**
+ * 预分配编号：按分组累计计数，按路径取号时改用完整路径升序；
+ * 排除列表命中的条目跳过且不占号，未勾选且 onlyChecked 的条目取值但不占号。
+ */
+function buildNumberPlans(entries: Entry[], rules: Rule[], opts: PreviewOptions): Map<string, NumberPlan> {
+  const plans = new Map<string, NumberPlan>();
+  for (const rule of rules) {
+    if (rule.type !== 'number' || !rule.enabled || ruleError(rule)) continue;
+    const numberRule: NumberRule = rule;
+    const patterns = splitPatterns(numberRule.exclude);
+    const order = numberRule.byPath
+      ? [...entries].sort((a, b) => {
+          const left = opts.env.caseSensitive ? a.path : a.path.toLowerCase();
+          const right = opts.env.caseSensitive ? b.path : b.path.toLowerCase();
+          return left < right ? -1 : left > right ? 1 : 0;
+        })
+      : entries;
+    const counters = new Map<string, number>();
+    const values = new Map<string, number>();
+    const excluded = new Set<string>();
+    for (const entry of order) {
+      if (patterns.length && patterns.some((pattern) => wildcardMatch(pattern, entry.name))) {
+        excluded.add(entry.id);
+        continue;
+      }
+      const key = numberGroupKey(numberRule, entry.parent, opts.meta?.[entry.path]);
+      const current = counters.get(key) ?? numberRule.start;
+      values.set(entry.id, current);
+      if (numberRule.onlyChecked && !entry.selected) continue;
+      counters.set(key, current + numberRule.step);
+    }
+    plans.set(numberRule.id, { values, excluded });
+  }
+  return plans;
+}
+
 export function computePreview(entries: Entry[], rules: Rule[], opts: PreviewOptions): PreviewResult {
   const counters = new Map<string, number>();
-  const nextNumber = (rule: { id: string; start: number; step: number }, parent: string): number => {
-    const key = `${rule.id}::${parent}`;
-    const value = counters.get(key) ?? rule.start;
-    counters.set(key, value + rule.step);
+  const nextNumber = (rule: { id: string; start: number; step: number }, key: string): number => {
+    const counterKey = `${rule.id}::${key}`;
+    const value = counters.get(counterKey) ?? rule.start;
+    counters.set(counterKey, value + rule.step);
     return value;
   };
-  const peekNumber = (rule: { id: string; start: number }, parent: string): number => {
-    const key = `${rule.id}::${parent}`;
-    return counters.get(key) ?? rule.start;
+  const peekNumber = (rule: { id: string; start: number }, key: string): number => {
+    const counterKey = `${rule.id}::${key}`;
+    return counters.get(counterKey) ?? rule.start;
   };
   const userVars = opts.userVars ?? [];
+  const plans = buildNumberPlans(entries, rules, opts);
+  // 变量/算式/条件无法求值时，规则会被跳过；整列标红提示，避免误以为「没生效」
+  const badTemplate = rules.reduce<string | null>((found, rule) => found ?? (rule.enabled ? ruleTemplateError(rule) : null), null);
 
   const rows: PreviewRow[] = [];
   for (const entry of entries) {
@@ -93,6 +158,7 @@ export function computePreview(entries: Entry[], rules: Rule[], opts: PreviewOpt
       size: entry.size,
       hashes: facts ?? {},
       users: userVars,
+      user0: opts.user0,
     };
     const pendingHash = entry.selected && rules.some((rule) => {
       // 扩展名规则对目录无效；未勾选的行不参与执行，也不需要哈希
@@ -104,7 +170,14 @@ export function computePreview(entries: Entry[], rules: Rule[], opts: PreviewOpt
       entry.isDir,
       rules,
       entry.parent,
-      { nextNumber, peekNumber, meta: opts.meta?.[entry.path], vars },
+      {
+        nextNumber,
+        peekNumber,
+        numberFor: (rule) => plans.get(rule.id)?.values.get(entry.id),
+        isNumberExcluded: (rule) => plans.get(rule.id)?.excluded.has(entry.id) ?? false,
+        meta: opts.meta?.[entry.path],
+        vars,
+      },
       entry.selected,
     );
     let stem = applied.stem;
@@ -147,6 +220,9 @@ export function computePreview(entries: Entry[], rules: Rule[], opts: PreviewOpt
     if (replacedInvalid) warn.push(t('v.replaced', { char: opts.invalidReplacement || '_' }));
     if (usedFallback) warn.push(t('v.emptyFallback', { name: stem }));
     if (truncated) warn.push(t('v.truncated', { limit }));
+    const excludedByRule = entry.selected
+      && rules.some((rule) => rule.type === 'number' && (plans.get(rule.id)?.excluded.has(entry.id) ?? false));
+    if (excludedByRule) warn.push(t('v.numberExcluded'));
 
     let status: PreviewRow['status'];
     const reasons: string[] = [];
@@ -158,6 +234,7 @@ export function computePreview(entries: Entry[], rules: Rule[], opts: PreviewOpt
     } else if (newName === entry.name) {
       status = 'unchanged';
       reasons.push(t('v.unchanged'));
+      if (excludedByRule) reasons.push(t('v.numberExcluded'));
     } else if (warn.length) {
       status = 'warn';
       reasons.push(...warn);
@@ -175,15 +252,20 @@ export function computePreview(entries: Entry[], rules: Rule[], opts: PreviewOpt
       status = 'invalid';
       reasons.length = 0;
       reasons.push(facts?.error ? t('v.varFailed', { message: facts.error }) : t('v.varPending'));
+    } else if (entry.selected && badTemplate) {
+      status = 'invalid';
+      reasons.length = 0;
+      reasons.push(badTemplate);
     }
 
+    const uniqueReasons = Array.from(new Set(reasons));
     rows.push({
       entry,
       stem,
       ext: applied.ext,
       newName,
       status,
-      reasons,
+      reasons: uniqueReasons,
       pathTooLong: pathCheck.block.length > 0 || pathCheck.warn.length > 0,
       diff: diffNames(entry.name, newName),
     });
