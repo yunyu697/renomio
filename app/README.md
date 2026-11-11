@@ -369,14 +369,14 @@ app/
 
 数据目录：每用户的 `%APPDATA%\app.renomio.desktop`（Tauri `app_data_dir`，随 identifier 变化），不随安装目录走；**切换安装范围不会迁移配置、日志与撤销历史**（同一用户的同一数据目录，两者共享）。**自动更新（alpha5 起）**：设置页「检查更新」读取源码仓库 `yunyu697/renomio` 滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；以 minisign 签名校验为准，支持镜像回退、仅下载与安装后重启。源码仓库已公开，安装包与更新清单与源码同仓发布；旧发行仓库 `renomio-releases` 已归档，仅保留历史下载。
 
-## 产物（本轮构建：1.1.0-alpha6）
+## 产物（本轮构建：1.1.0-alpha7）
 
 | 安装包 | 路径 | 大小 | SHA-256 |
 | --- | --- | --- | --- |
-| NSIS | `src-tauri/target/release/bundle/nsis/Renomio_1.1.0-alpha6_x64-setup.exe` | 2,452,337 字节（2.34 MiB） | `6667F0EC26E9E599ABED1C4E8D2D3F872730A45F5F3931811CA02E9EE65F8C5F` |
-| MSI | `src-tauri/target/release/bundle/msi/Renomio_1.1.0-alpha6_x64_en-US.msi` | 3,637,248 字节（3.47 MiB） | `21272E0D0E7C866D8CC3278A7549414899477B49025EF6AB48A11917859E4039` |
+| NSIS | `src-tauri/target/release/bundle/nsis/Renomio_1.1.0-alpha7_x64-setup.exe` | 2,487,921 字节（2.37 MiB） | `83A90904DFE7E6EF2AA66CC5721C03168D7F2AEC4509B3AF302F30219A695E17` |
+| MSI | `src-tauri/target/release/bundle/msi/Renomio_1.1.0-alpha7_x64_en-US.msi` | 3,678,208 字节（3.51 MiB） | `1B2C07D1715AF9AA0B24B778726C5BD59E0751541509323BAFF06A7FCC1292FB` |
 
-两包均未代码签名。**本轮 alpha6 未生成更新用 `.sig`**（构建环境禁止注入私钥），因此 `updates` 的 `latest.json` 仍停留在 alpha5，自动更新到 alpha6 暂不可用；需要时可本地用 minisign 密钥对两个包补签后再更新清单。`bundle.targets` 已显式设为 `["nsis", "msi"]`，`npm run tauri build` 一次产出两个包。安装范围：NSIS 安装时可选、默认所有用户（`Program Files\Renomio`）；MSI 只有机器级一种（固定 `Program Files\Renomio`、必须管理员、不提供用户级）。**该轮为合并包**：`1.0.0` 之后的快照、多格式导出、属性取反、时间随机化与 EXIF 写入、归类模板、键位窗、`<SUBSTR>` 系列元变量、歌词三载体、IPTC Core 四字段（仅 XMP）与 `ffrn` → `renomio` 改名全部包含在内。主程序为 `renomio.exe`，由 `[[bin]] name = "renomio"` 产出。以上定位由 `npm run test:bundle`（14/14 断言）对实际产物把关。
+两包均未代码签名。**alpha7 未生成更新用 `.sig`**（构建环境没有 `TAURI_SIGNING_PRIVATE_KEY`，`tauri build` 在产出两个安装包后以该错误退出），因此 `updates` 的 `latest.json` 仍停留在 alpha5，自动更新到 alpha7 暂不可用；需要时可本地用 minisign 密钥对两个包补签后再更新清单。`bundle.targets` 已显式设为 `["nsis", "msi"]`，`npm run tauri build` 一次产出两个包。安装范围：NSIS 安装时可选、默认所有用户（`Program Files\Renomio`）；MSI 只有机器级一种（固定 `Program Files\Renomio`、必须管理员、不提供用户级）。**该轮新增**：方案库与最近记录（F2）、SYSTEM/ARCHIVE 属性（F3）、文本编码批量转换（F4）、表格自动列宽与系统文件类型图标（U3），并包含 alpha6 之后规则卡片底部按钮贴边的间距修复。主程序为 `renomio.exe`，由 `[[bin]] name = "renomio"` 产出。以上定位由 `npm run test:bundle`（26 条断言）对实际产物把关。
 
 **1.1.0-alpha1 时的真实升级实测**：匿名下载公开 `v1.0.0` NSIS 包并静默安装（`/S`，5.3 s，落到 `C:\Program Files\Renomio`，ARP 显示 `1.0.0`），再用 `1.1.0-alpha1` NSIS 包静默覆盖（6.5 s，ARP 与 `renomio.exe --version` 均变为 `1.1.0-alpha1`，安装路径不变；`uninstall.exe` 重写时间为升级时刻）。卸载、快捷方式落点、两范围交叉安装、旧版并存拦截仍未验证。
 

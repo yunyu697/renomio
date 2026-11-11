@@ -1,6 +1,6 @@
 [package]
 name = "rename-studio"
-version = "1.1.0-alpha6"
+version = "1.1.0-alpha7"
 edition = "2021"
 description = "Renomio · 跨平台批量文件更名工具"
 authors = ["Renomio"]
@@ -27,6 +27,16 @@ reqwest = { version = "0.13", features = ["blocking", "json"] }
 minisign-verify = "0.3"
 semver = "1"
 base64 = "0.23"
+png = "0.18.1"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62.2", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_Storage_FileSystem",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }
 
 [profile.release]
 panic = "abort"
