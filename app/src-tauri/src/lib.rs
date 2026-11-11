@@ -19,6 +19,7 @@ use renomio_core::{Core, EnvInfo};
 use tauri::window::Color;
 use tauri::{Emitter, Manager};
 
+mod icons;
 mod migrate;
 mod update;
 
@@ -636,6 +637,15 @@ async fn find_duplicates(paths: Vec<String>) -> Result<DuplicateReport, String> 
         .map_err(|e| format!("重复检测线程异常：{e}"))
 }
 
+/// 系统文件类型图标（Windows 与资源管理器一致的 16×16）：按扩展名（或 `folder`）批量提取。
+/// 在阻塞线程里调用 Shell API，取不到的条目直接不出现在结果中，由前端回退内置图标。
+#[tauri::command]
+async fn file_type_icons(exts: Vec<String>) -> Result<Vec<crate::icons::FileTypeIcon>, String> {
+    tauri::async_runtime::spawn_blocking(move || icons::icons_for(&exts))
+        .await
+        .map_err(|e| format!("文件图标提取线程异常：{e}"))
+}
+
 /// 批量只读元数据（九类列表页签）；单条失败逐条返回，不中断整批。
 #[tauri::command]
 fn read_metadata_batch(
@@ -826,6 +836,16 @@ async fn text_save(
     tauri::async_runtime::spawn_blocking(move || renomio_core::textedit::save(&req))
         .await
         .map_err(|e| format!("文本编码转换线程异常：{e}"))
+}
+
+/// 批量文本编码转换：逐条结果，单条失败不影响其余。
+#[tauri::command]
+async fn text_save_batch(
+    req: renomio_core::textedit::TextBatchRequest,
+) -> Result<renomio_core::textedit::TextBatchResult, String> {
+    tauri::async_runtime::spawn_blocking(move || renomio_core::textedit::save_batch(&req))
+        .await
+        .map_err(|e| format!("文本编码批量转换线程异常：{e}"))
 }
 
 static EXPORT_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -1286,6 +1306,7 @@ pub fn run() {
             pending_batches,
             read_metadata,
             read_metadata_batch,
+            file_type_icons,
             meta_capabilities,
             meta_read,
             meta_edit,
@@ -1304,6 +1325,7 @@ pub fn run() {
             read_text_file,
             text_detect,
             text_save,
+            text_save_batch,
             write_text_atomic,
             write_bytes_atomic,
             load_rule_history,

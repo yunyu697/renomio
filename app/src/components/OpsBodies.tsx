@@ -407,6 +407,8 @@ export function AttrBody({ onClose, targets }: { onClose: () => void; targets: E
   const [loading, setLoading] = useState(true);
   const [readonly, setReadonly] = useState<AttrChoice>('keep');
   const [hidden, setHidden] = useState<AttrChoice>('keep');
+  const [system, setSystem] = useState<AttrChoice>('keep');
+  const [archive, setArchive] = useState<AttrChoice>('keep');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<OpsOutcome | null>(null);
 
@@ -440,16 +442,35 @@ export function AttrBody({ onClose, targets }: { onClose: () => void; targets: E
     const item = info[entry.path];
     const oldR = item?.readonly ?? false;
     const oldH = item?.hidden ?? false;
+    const oldS = item?.system ?? false;
+    const oldA = item?.archive ?? false;
     const newR = desired(readonly, oldR);
     const newH = desired(hidden, oldH);
+    const newS = desired(system, oldS);
+    const newA = desired(archive, oldA);
+    const winOnly = hidden !== 'keep' || system !== 'keep' || archive !== 'keep';
     const invalid =
-      item?.error ?? (hidden !== 'keep' && env.os !== 'windows' ? t('ops.hiddenBlocked') : null);
-    return { entry, oldR, oldH, newR, newH, invalid: invalid ?? null };
+      item?.error ?? (winOnly && env.os !== 'windows' ? t('ops.hiddenBlocked') : null);
+    const changed = oldR !== newR || oldH !== newH || oldS !== newS || oldA !== newA;
+    return { entry, oldR, oldH, oldS, oldA, newR, newH, newS, newA, changed, invalid: invalid ?? null };
   });
-  const actionable = rows.filter((r) => !r.invalid && (r.oldR !== r.newR || r.oldH !== r.newH));
+  const actionable = rows.filter((r) => !r.invalid && r.changed);
+
+  const attrText = (r: { oldR: boolean; oldH: boolean; oldS: boolean; oldA: boolean; newR: boolean; newH: boolean; newS: boolean; newA: boolean }, side: 'old' | 'new') => {
+    const ro = side === 'old' ? r.oldR : r.newR;
+    const hi = side === 'old' ? r.oldH : r.newH;
+    const sy = side === 'old' ? r.oldS : r.newS;
+    const ar = side === 'old' ? r.oldA : r.newA;
+    return [
+      ro ? t('ops.readonly') : t('ops.writable'),
+      hi ? t('ops.hidden') : t('ops.visible'),
+      sy ? t('ops.system') : t('ops.sysNormal'),
+      ar ? t('ops.archive') : t('ops.archNormal'),
+    ].join(' / ');
+  };
 
   const apply = async () => {
-    if (readonly === 'keep' && hidden === 'keep') {
+    if (readonly === 'keep' && hidden === 'keep' && system === 'keep' && archive === 'keep') {
       showToast('warn', t('ops.needAttr'));
       return;
     }
@@ -460,6 +481,8 @@ export function AttrBody({ onClose, targets }: { onClose: () => void; targets: E
     const spec: AttrSpecDto = {
       readonly: readonly === 'keep' ? null : readonly,
       hidden: hidden === 'keep' ? null : hidden,
+      system: system === 'keep' ? null : system,
+      archive: archive === 'keep' ? null : archive,
     };
     setBusy(true);
     try {
@@ -524,6 +547,36 @@ export function AttrBody({ onClose, targets }: { onClose: () => void; targets: E
                 </div>
                 {!env.os.startsWith('windows') && <span className="ops-tag">{t('ops.hiddenOnlyWin')}</span>}
               </div>
+              <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ width: 62 }}>{t('ops.system')}</span>
+                <div className="seg-ctrl" data-testid="ops-system-ctrl">
+                  {choices.map((c) => (
+                    <span
+                      key={c.id}
+                      className={system === c.id ? 'on' : ''}
+                      data-testid={`ops-system-${c.id}`}
+                      onClick={() => setSystem(c.id)}
+                    >
+                      {c.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ width: 62 }}>{t('ops.archive')}</span>
+                <div className="seg-ctrl" data-testid="ops-archive-ctrl">
+                  {choices.map((c) => (
+                    <span
+                      key={c.id}
+                      className={archive === c.id ? 'on' : ''}
+                      data-testid={`ops-archive-${c.id}`}
+                      onClick={() => setArchive(c.id)}
+                    >
+                      {c.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="mini-table ops-table" data-testid="ops-preview">
               <div className="mini-row head">
@@ -543,11 +596,11 @@ export function AttrBody({ onClose, targets }: { onClose: () => void; targets: E
                   >
                     <span className="n" title={row.entry.path}>{row.entry.name}</span>
                     <span className="n ops-change">
-                      <span className="old">{row.oldR ? t('ops.readonly') : t('ops.writable')} / {row.oldH ? t('ops.hidden') : t('ops.visible')}</span>
+                      <span className="old">{attrText(row, 'old')}</span>
                       <span className="ops-arrow">→</span>
-                      <span className="new">{row.newR ? t('ops.readonly') : t('ops.writable')} / {row.newH ? t('ops.hidden') : t('ops.visible')}</span>
+                      <span className="new">{attrText(row, 'new')}</span>
                     </span>
-                    <span className="mini-status">{row.invalid ?? (row.oldR !== row.newR || row.oldH !== row.newH ? t('ops.pending') : t('ops.unchanged'))}</span>
+                    <span className="mini-status">{row.invalid ?? (row.changed ? t('ops.pending') : t('ops.unchanged'))}</span>
                   </div>
                 ))}
             </div>

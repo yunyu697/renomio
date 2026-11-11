@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-08T11:26:12.022Z",
+  "generatedAt": "2026-11-11T10:46:05.677Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
-  "passed": 243,
+  "passed": 244,
   "failed": 0,
   "results": [
     {
@@ -17,6 +17,12 @@
       "name": "八规则真实文件端到端（建文件→改名→校验→撤销）",
       "ok": true,
       "detail": "RESULT 41/41 passed, 0 failed"
+    },
+    {
+      "layer": "REAL-FS",
+      "name": "编号分组/排除/按路径取号 + 元变量表达式真实验证",
+      "ok": true,
+      "detail": "RESULT 93/93 passed, 0 failed"
     },
     {
       "layer": "REAL-FS",
@@ -142,13 +148,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-08 19:24 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-11 18:44 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-08 19:24 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-11 18:44 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -286,7 +292,7 @@
       "layer": "UI",
       "name": "HTML 导出 → 完整文档 + 转义表格 + 中文表头",
       "ok": true,
-      "detail": "1654 字符"
+      "detail": "1655 字符"
     },
     {
       "layer": "UI",
@@ -490,7 +496,7 @@
       "layer": "UI",
       "name": "属性预览 → 可写 → 只读（原值 → 新值）",
       "ok": true,
-      "detail": "文件只读 / 隐藏（原 → 新）状态旧照片 001.jpg可写 / 可见→只读 / 可见待写入旧照片 002.jpg可写 / 可见→只读 / 可见待写入旧照片 003.jpg只读 / 可见→只读 / 可见未变更logo.png可写 / 可见→只读 / 可见待写入"
+      "detail": "文件只读 / 隐藏 / 系统 / 存档（原 → 新）状态旧照片 001.jpg可写 / 可见 / 非系统 / 未存档→只读 / 可见 / 非系统 / 未存档待写入旧照片 002.jpg可写 / 可见 / 非系统 / 未存档→只读 / 可见 / 非系统 / 未存档待写入旧照片 003.jpg只读 / 可见 / 非系统 /"
     },
     {
       "layer": "UI-triggered mock",
@@ -514,7 +520,7 @@
       "layer": "UI",
       "name": "取反预览 → 可写变只读、只读变可写（逐行原值→取反值）",
       "ok": true,
-      "detail": "文件只读 / 隐藏（原 → 新）状态旧照片 001.jpg可写 / 可见→只读 / 可见待写入旧照片 002.jpg可写 / 可见→只读 / 可见待写入旧照片 003.jpg只读 / 可见→可写 / 可见待写入logo.png可写 / 可见→只读 / 可见待写入"
+      "detail": "文件只读 / 隐藏 / 系统 / 存档（原 → 新）状态旧照片 001.jpg可写 / 可见 / 非系统 / 未存档→只读 / 可见 / 非系统 / 未存档待写入旧照片 002.jpg可写 / 可见 / 非系统 / 未存档→只读 / 可见 / 非系统 / 未存档待写入旧照片 003.jpg只读 / 可见 / 非系统 /"
     },
     {
       "layer": "UI-triggered mock",
@@ -772,7 +778,7 @@
       "layer": "UI-triggered mock",
       "name": "交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/批量元数据/事件/写文件）",
       "ok": true,
-      "detail": "load_rule_history,startup_report,env_info,plugin:event|listen,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_times,apply_time,read_attrs,meta_read,meta_capabilities,list_snapshots,read_metadata_batch,apply_attrs,apply_move"
+      "detail": "load_rule_history,env_info,plugin:event|listen,startup_report,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_times,apply_time,read_attrs,meta_read,meta_capabilities,list_snapshots,file_type_icons,read_metadata_batch,apply_attrs,apply_move"
     },
     {
       "layer": "UI-triggered mock",
@@ -910,7 +916,7 @@
       "layer": "UI",
       "name": "变量插入面板列出常用元变量（FILENAME/NAME/EXT/SUBSTR/DIFNSUBSTR/CRC32/USER1/#）",
       "ok": true,
-      "detail": "var-toggle,var-panel,var-FILENAME,var-NAME,var-EXT,var-DOTEXT,var-SUBSTR,var-DIFNSUBSTR,var-DIR,var-DATE,var-TIME,var-SIZE,var-CRC32,var-MD5,var-SHA1,var-USER1,var-#"
+      "detail": "var-toggle,var-panel,var-FILENAME,var-NAME,var-EXT,var-DOTEXT,var-SUBSTR,var-DIFNSUBSTR,var-DIR,var-DATE,var-TIME,var-SIZE,var-CRC32,var-MD5,var-SHA1,var-USER0,var-USER1,var-#"
     },
     {
       "layer": "UI",
@@ -1180,7 +1186,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmw7qxjnj1\",\"jumpState\":{\"openId\":\"rmw7qxjnj1\",\"detail\":1,\"focused\":\"rmw7qxjnj1\"}}"
+      "detail": "{\"firstRuleId\":\"rmwbztk151\",\"jumpState\":{\"openId\":\"rmwbztk151\",\"detail\":1,\"focused\":\"rmwbztk151\"}}"
     },
     {
       "layer": "UI",
@@ -1246,7 +1252,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1794137152517.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1794393947625.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -1312,7 +1318,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/8 19:25:583 条 · 仅映射预览还原删除"
+      "detail": "2026/11/11 18:45:543 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -1372,7 +1378,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-08 19:26 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-11 18:45 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",

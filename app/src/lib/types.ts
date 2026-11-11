@@ -473,6 +473,19 @@ export interface TextSaveResultDto {
   error: string | null;
 }
 
+export interface TextBatchRequestDto {
+  paths: string[];
+  targetEncoding: string;
+  sourceEncoding?: string | null;
+  backup: boolean;
+}
+
+export interface TextBatchResultDto {
+  results: TextSaveResultDto[];
+  ok: number;
+  failed: number;
+}
+
 export interface DuplicateReportDto {
   groups: DuplicateGroupDto[];
   scanned: number;
@@ -670,6 +683,8 @@ export interface AttrInfo {
   name: string;
   readonly: boolean;
   hidden: boolean;
+  system: boolean;
+  archive: boolean;
   hiddenSupported: boolean;
   error?: string | null;
 }
@@ -700,6 +715,8 @@ export type AttrAction = 'set' | 'clear' | 'invert';
 export interface AttrSpecDto {
   readonly?: AttrAction | null;
   hidden?: AttrAction | null;
+  system?: AttrAction | null;
+  archive?: AttrAction | null;
 }
 
 export interface MoveItemDto {
@@ -830,6 +847,12 @@ export interface BatchMetadata {
 
 /** 九类列表页签。 */
 export type ListTab = 'rename' | 'attrs' | 'music' | 'photo' | 'image' | 'office' | 'pdf' | 'text' | 'organize';
+
+/** 系统文件类型图标（Rust `file_type_icons`）：`ext` 为小写扩展名或 `folder`，`png` 为 base64 的 16×16 PNG。 */
+export interface FileTypeIconDto {
+  ext: string;
+  png: string;
+}
 
 /** 方案文件（规则链快照）的磁盘格式。 */
 export interface PlanFile {

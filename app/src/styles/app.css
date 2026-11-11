@@ -1085,6 +1085,10 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   user-select: none;
 }
 
+/* 九类只读视图：列宽由内容自动计算，横向超出时整行一起滚动 */
+.list-view .thead,
+.list-view .trow { width: max-content; min-width: 100%; }
+
 .thead .th { display: flex; align-items: center; gap: 4px; padding-right: 8px; overflow: hidden; white-space: nowrap; }
 .thead svg { width: 11px; height: 11px; opacity: .7; }
 
@@ -1130,6 +1134,7 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
 .file-ico.jpg { background: var(--success-weak); color: var(--success); }
 .file-ico.pdf { background: var(--danger-weak); color: var(--danger); }
 .file-ico.txt { background: var(--panel-3); color: var(--muted); }
+.sys-ico { width: 16px; height: 16px; flex: 0 0 auto; object-fit: contain; }
 
 .dims { color: var(--muted); font-family: var(--mono); font-size: 12px; }
 
@@ -2553,6 +2558,40 @@ html[data-theme="dark"] .state-head .idx { background: var(--accent); color: var
 .plan-rule-id { font-family: var(--mono); color: var(--muted-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plan-more { padding: 6px 10px; font-size: 12px; color: var(--muted); }
 .plan-note { font-size: 12px; color: var(--muted-2); line-height: 1.6; }
+
+/* 方案库：保存当前规则链 + 已保存方案 + 最近 10 条 */
+.plans-save { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; }
+.plans-save .input { flex: 1 1 auto; min-width: 0; }
+.plans-section-title { font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 10px 0 6px; }
+.plans-list {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.plans-list .foot-note { padding: 8px 10px; }
+.plans-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 12px;
+}
+.plans-item:last-child { border-bottom: 0; }
+.plans-item-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--ink-2);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plans-item-meta { flex: 0 0 auto; color: var(--muted-2); font-family: var(--mono); }
 
 /* P1 第二梯队：时间 / 属性 / 归类移动面板 */
 .ops-form { margin-bottom: 12px; display: flex; flex-direction: column; gap: 9px; }

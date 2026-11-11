@@ -1,7 +1,7 @@
 /** 九类列表页签：更名列表之外的只读视图（属性 / 音乐 / 照片 / 图像 / Office / PDF / 文本 / 归类）。
  *  所有视图只读，不写文件；无法读取的字段逐项显示「暂不支持」或错误原因，不做假入口。 */
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { readAttrs, readMetadataBatch, readTimes } from '../lib/bridge';
+import { fileTypeIcons, readAttrs, readMetadataBatch, readTimes } from '../lib/bridge';
 import { formatSize, formatTime } from '../lib/format';
 import { defaultMoveRoot, buildMoveRows } from '../lib/moveRules';
 import { fileKind } from '../lib/rules';
@@ -113,9 +113,43 @@ function metaKindIcon(tab: ListTab): IconName {
   return 'doc';
 }
 
+/** 系统图标 key：目录为 folder，文件取小写扩展名；无扩展名（含 .gitignore 这类）返回空串，走内置图标。 */
+function iconKeyOf(entry: Entry): string {
+  if (entry.isDir) return 'folder';
+  const dot = entry.name.lastIndexOf('.');
+  if (dot <= 0 || dot === entry.name.length - 1) return '';
+  return entry.name.slice(dot + 1).toLowerCase();
+}
+
+/** 模块级缓存：同一扩展名只向系统取一次图标（跨页签、跨挂载复用）。 */
+const sysIconCache = new Map<string, string>();
+
 function fieldOf(info: MetadataInfo | null, field: string): string {
   const hit = info?.fields.find((f) => f.label === field);
   return hit ? hit.value : '—';
+}
+
+/** 估算一段文字的像素宽度（中文按全角、其余按半角），用于自动列宽。 */
+function textWidth(text: string): number {
+  let width = 0;
+  for (const ch of text) width += ch.charCodeAt(0) > 0xff ? 12.5 : 7.2;
+  return width;
+}
+
+/** 自动列宽：按表头与内容长度取最大值并夹在上下限内，超长值仍省略号截断。 */
+function autoCols(headers: ColDef[], rows: ViewRow[], t: (key: string) => string): string {
+  return headers
+    .map((def, index) => {
+      const min = index === 0 ? 200 : 76;
+      const max = index === 0 ? 440 : 300;
+      let width = textWidth(t(`lc.${def.key}`)) + (index === 0 ? 46 : 20);
+      for (const row of rows.slice(0, 300)) {
+        width = Math.max(width, textWidth(row.values[index] ?? '') + (index === 0 ? 46 : 16));
+      }
+      const fixed = Math.round(Math.min(Math.max(width, min), max));
+      return index === 0 ? `minmax(${fixed}px, 2fr)` : `minmax(${fixed}px, ${fixed}px)`;
+    })
+    .join(' ');
 }
 
 function rowType(entry: Entry, t: (key: string) => string): string {
@@ -211,6 +245,46 @@ export function ListView({ tab }: { tab: Exclude<ListTab, 'rename'> }) {
     [entries, tab],
   );
   const pathKey = files.map((f) => f.path).join('|');
+
+  const [sysIcons, setSysIcons] = useState<Record<string, string>>({});
+  const iconKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const entry of files) {
+      const key = iconKeyOf(entry);
+      if (key) keys.add(key);
+    }
+    return [...keys];
+  }, [files]);
+  const iconKeyStr = iconKeys.join('|');
+
+  // 系统图标只在 key 集合变化时取一次；已取过的走模块级缓存，取不到就保留内置图标。
+  useEffect(() => {
+    if (!iconKeys.length) return;
+    const apply = () => {
+      const next: Record<string, string> = {};
+      for (const key of iconKeys) {
+        const png = sysIconCache.get(key);
+        if (png) next[key] = png;
+      }
+      setSysIcons(next);
+    };
+    const missing = iconKeys.filter((key) => !sysIconCache.has(key));
+    if (!missing.length) {
+      apply();
+      return;
+    }
+    let cancelled = false;
+    void fileTypeIcons(missing)
+      .then((list) => {
+        for (const item of list) sysIconCache.set(item.ext, item.png);
+        if (!cancelled) apply();
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [iconKeyStr]);
 
   useEffect(() => {
     if (!files.length) {
@@ -331,7 +405,7 @@ export function ListView({ tab }: { tab: Exclude<ListTab, 'rename'> }) {
   }, [tab, files, meta, times, attrs, organizeRows, t]);
 
   const headers = COLUMNS[tab];
-  const cols = `${headers.length > 1 ? 'minmax(0, 1.4fr)' : '1fr'} ${headers.slice(1).map(() => 'minmax(0, 1fr)').join(' ')}`;
+  const cols = useMemo(() => autoCols(headers, rows, t), [headers, rows, t]);
   const noteKey = TAB_NOTE_KEY[tab];
   // 页签行的动作不再另开整页/弹窗：统一指向右侧检查器，目标就是列表勾选。
   const selectedCount = entries.filter((e) => e.selected && !e.isDir).length;
@@ -370,34 +444,41 @@ export function ListView({ tab }: { tab: Exclude<ListTab, 'rename'> }) {
             <div className="th" key={`${def.key}-${index}`} title={t(`lc.${def.key}`)}>{t(`lc.${def.key}`)}</div>
           ))}
         </div>
-        {rows.map((row) => (
-          <div
-            className={`trow ${row.note ? 'warnrow' : ''}`}
-            key={row.id}
-            role="row"
-            data-testid="meta-row"
-            title={row.note ? `${row.entry.path}\n${row.note}` : row.entry.path}
-            onDoubleClick={() => {
-              if (isDemo) return;
-              void import('../lib/bridge').then(({ revealPath }) => revealPath(row.entry.path).catch(() => undefined));
-            }}
-          >
-            {row.values.map((value, index) => (
-              <div className={`cell ${index === 0 ? '' : 'mono'}`} key={`${row.id}-${index}`}>
-                {index === 0 ? (
-                  <>
-                    <span className={`file-ico ${fileKind(row.entry.name, row.entry.isDir)}`}>
-                      <Icon name={row.icon} />
-                    </span>
+        {rows.map((row) => {
+          const sysIcon = sysIcons[iconKeyOf(row.entry)];
+          return (
+            <div
+              className={`trow ${row.note ? 'warnrow' : ''}`}
+              key={row.id}
+              role="row"
+              data-testid="meta-row"
+              title={row.note ? `${row.entry.path}\n${row.note}` : row.entry.path}
+              onDoubleClick={() => {
+                if (isDemo) return;
+                void import('../lib/bridge').then(({ revealPath }) => revealPath(row.entry.path).catch(() => undefined));
+              }}
+            >
+              {row.values.map((value, index) => (
+                <div className={`cell ${index === 0 ? '' : 'mono'}`} key={`${row.id}-${index}`}>
+                  {index === 0 ? (
+                    <>
+                      {sysIcon ? (
+                        <img className="sys-ico" src={`data:image/png;base64,${sysIcon}`} width={16} height={16} alt="" />
+                      ) : (
+                        <span className={`file-ico ${fileKind(row.entry.name, row.entry.isDir)}`}>
+                          <Icon name={row.icon} />
+                        </span>
+                      )}
+                      <span className="txt" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
+                    </>
+                  ) : (
                     <span className="txt" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
-                  </>
-                ) : (
-                  <span className="txt" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
-                )}
-              </div>
-            ))}
-          </div>
-        ))}
+                  )}
+                </div>
+              ))}
+            </div>
+          );
+        })}
         {!rows.length && (
           <div className="no-rows" data-testid="meta-empty">
             {loading ? t('list.reading') : tab === 'organize' ? t('list.noOrganize') : t('list.noType', { type: t(LIST_TABS.find((item) => item.key === tab)?.labelKey ?? 'tab.rename') })}

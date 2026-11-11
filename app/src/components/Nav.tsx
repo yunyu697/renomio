@@ -25,7 +25,7 @@ export function Nav({ onNavigate, open }: { onNavigate?: () => void; open?: bool
   const inspector = useApp((s) => s.inspector);
   const openInspector = useApp((s) => s.openInspector);
   const openDrawer = useApp((s) => s.openDrawer);
-  const openPlanExport = useApp((s) => s.openPlanExport);
+  const openPlans = useApp((s) => s.openPlans);
   const openSnapshots = useApp((s) => s.openSnapshots);
   const selected = entries.filter((e) => e.selected && !e.isDir).length;
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -70,7 +70,7 @@ export function Nav({ onNavigate, open }: { onNavigate?: () => void; open?: bool
         },
         {
           id: 'plan', label: t('nav.plan'), icon: 'save',
-          hint: t('nav.planHint'), action: go(openPlanExport),
+          hint: t('nav.planHint'), action: go(openPlans),
         },
       ],
     },

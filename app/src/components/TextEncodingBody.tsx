@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../store';
 import { useTranslation } from '../i18n';
-import { metaRestoreBackup, textDetect, textSave } from '../lib/bridge';
-import type { Entry, TextDetectDto, TextEncodingId, TextSaveResultDto } from '../lib/types';
+import { metaRestoreBackup, textDetect, textSave, textSaveBatch } from '../lib/bridge';
+import type { Entry, TextBatchResultDto, TextDetectDto, TextEncodingId, TextSaveResultDto } from '../lib/types';
 import { baseName } from '../lib/format';
 import { Icon } from './Icon';
 
@@ -38,6 +38,9 @@ export function TextEncodingBody({ targets }: { targets: Entry[] }) {
   const [applying, setApplying] = useState(false);
   const [result, setResult] = useState<TextSaveResultDto | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [batch, setBatch] = useState<TextBatchResultDto | null>(null);
+  const [batchApplying, setBatchApplying] = useState(false);
+  const [restoringPath, setRestoringPath] = useState<string | null>(null);
 
   const current = useMemo(
     () => targets.find((f) => f.path === active) ?? targets[0] ?? null,
@@ -54,6 +57,7 @@ export function TextEncodingBody({ targets }: { targets: Entry[] }) {
     setDetecting(true);
     setDetected(null);
     setResult(null);
+    setBatch(null);
     void textDetect(current.path)
       .then((info) => {
         if (!alive) return;
@@ -118,6 +122,49 @@ export function TextEncodingBody({ targets }: { targets: Entry[] }) {
       showToast('error', err instanceof Error ? err.message : String(err));
     } finally {
       setRestoring(false);
+    }
+  };
+
+  /** 批量转换：原地覆盖（逐条自动 .bak），源编码取当前下拉；单条失败不影响其余。 */
+  const applyBatch = async () => {
+    if (targets.length < 2) return;
+    setBatchApplying(true);
+    setBatch(null);
+    try {
+      const out = await textSaveBatch({
+        paths: targets.map((f) => f.path),
+        targetEncoding: target,
+        sourceEncoding: source === 'auto' ? null : source,
+        backup: true,
+      });
+      setBatch(out);
+      const summary = t('text.batchDone', { ok: out.ok, failed: out.failed });
+      if (!out.failed) showToast('success', summary);
+      else showToast(out.ok ? 'warn' : 'error', summary);
+      void refresh(targets.map((f) => f.path));
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : String(err));
+    } finally {
+      setBatchApplying(false);
+    }
+  };
+
+  const restoreBatch = async (item: TextSaveResultDto) => {
+    if (!item.backup) return;
+    setRestoringPath(item.path);
+    try {
+      await metaRestoreBackup(item.backup, item.path);
+      showToast('success', t('text.restored'));
+      setBatch((prev) =>
+        prev
+          ? { ...prev, results: prev.results.map((r) => (r.path === item.path ? { ...r, backup: null } : r)) }
+          : prev,
+      );
+      void refresh([item.path]);
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : String(err));
+    } finally {
+      setRestoringPath(null);
     }
   };
 
@@ -200,11 +247,57 @@ export function TextEncodingBody({ targets }: { targets: Entry[] }) {
       </div>
 
       <div className="text-actions">
-        <span className="foot-note">{t('text.backupNote')}</span>
+        <span className="foot-note">{targets.length > 1 ? t('text.batchNote') : t('text.backupNote')}</span>
+        {targets.length > 1 && (
+          <button
+            className="btn"
+            type="button"
+            data-testid="text-batch-apply"
+            disabled={batchApplying || applying}
+            onClick={() => void applyBatch()}
+          >
+            <Icon name="save" size={13} />
+            {batchApplying ? t('text.batchApplying') : t('text.batchApply', { count: targets.length })}
+          </button>
+        )}
         <button className="btn btn-primary" type="button" data-testid="text-apply" disabled={applying || detecting} onClick={() => void apply()}>
           <Icon name="save" size={13} />{applying ? t('text.applying') : t('text.apply')}
         </button>
       </div>
+
+      {batch && (
+        <div className="text-batch" data-testid="text-batch-result">
+          <div className="text-batch-sum">
+            <Icon name={batch.failed ? 'alert' : 'check'} size={12} />
+            <strong>{t('text.batchDone', { ok: batch.ok, failed: batch.failed })}</strong>
+          </div>
+          {batch.results.map((item, index) => (
+            <div className={`text-result ${item.ok ? 'ok' : 'bad'}`} key={item.path} data-testid={`text-batch-row-${index}`}>
+              <div className="meta-result-line">
+                <Icon name={item.ok ? 'check' : 'alert'} size={12} />
+                <strong>{baseName(item.path)}</strong>
+                <span className="meta-format">
+                  {item.sourceEncodingLabel || '—'} → {item.targetEncodingLabel}
+                </span>
+                <span className="meta-result-state">{item.ok ? t('text.resultOk') : t('text.resultFail')}</span>
+                {item.ok && item.verified && <span className="meta-verified">{t('meta.verified')}</span>}
+                {item.ok && item.backup && (
+                  <button
+                    className="mini"
+                    type="button"
+                    data-testid={`text-batch-restore-${index}`}
+                    disabled={restoringPath === item.path}
+                    onClick={() => void restoreBatch(item)}
+                  >
+                    {restoringPath === item.path ? t('meta.restoring') : t('meta.restore')}
+                  </button>
+                )}
+              </div>
+              {item.error && <div className="meta-result-msg">{item.error}</div>}
+            </div>
+          ))}
+        </div>
+      )}
 
       {result && (
         <div className={`text-result ${result.ok ? 'ok' : 'bad'}`} data-testid="text-result">

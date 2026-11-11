@@ -1134,9 +1134,9 @@ async function main() {
     await click('[data-testid="snapshot-close"]');
     await waitFor(`!document.querySelector('[data-testid="snapshot-dialog"]')`, '快照对话框关闭');
     await click('[data-testid="nav-plan"]');
-    await waitFor(`document.querySelector('[data-testid="plan-dialog"]')`, '方案对话框');
+    await waitFor(`document.querySelector('[data-testid="plans-dialog"]')`, '方案库对话框');
     await evaluate(`document.querySelector('.modal-mask')?.click()`);
-    await waitFor(`!document.querySelector('[data-testid="plan-dialog"]')`, '方案对话框关闭');
+    await waitFor(`!document.querySelector('[data-testid="plans-dialog"]')`, '方案库对话框关闭');
 
     // 分组标题可交互（折叠/展开），不是死标签
     await click('[data-testid="nav-group-inspector"]');
@@ -1361,7 +1361,8 @@ async function main() {
     check(
       'UI',
       '取反预览 → 可写变只读、只读变可写（逐行原值→取反值）',
-      invertPreview.includes('可写 / 可见→只读 / 可见') && invertPreview.includes('只读 / 可见→可写 / 可见'),
+      invertPreview.includes('可写 / 可见 / 非系统 / 未存档→只读 / 可见 / 非系统 / 未存档') &&
+        invertPreview.includes('只读 / 可见 / 非系统 / 未存档→可写 / 可见 / 非系统 / 未存档'),
       invertPreview.slice(0, 160),
     );
     await click('[data-testid="ops-apply"]');

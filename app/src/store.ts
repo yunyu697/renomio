@@ -16,6 +16,7 @@ import { matchesAny, splitPatterns } from './lib/glob';
 import { isPermissionRelated } from './lib/permission';
 import { computePreview } from './lib/preview';
 import { parsePlan, planFilter, serializePlan } from './lib/plan';
+import { pushRecentDir, pushRecentPlan } from './lib/plans';
 import { detectLocale, setUiLocale, t as translate } from './i18n';
 import { conflictOf, DEFAULT_SHORTCUTS, normalizeBinding, type ShortcutId } from './lib/shortcuts';
 import { createRuleDefaults } from './lib/ruleDefaults';
@@ -166,6 +167,8 @@ interface AppState {
   ruleHistory: RuleHistory;
   metadata: MetadataView;
   planDialog: PlanDialogState | null;
+  /** 方案库（已保存方案 + 最近 10 条）是否打开 */
+  plansOpen: boolean;
   snapshotOpen: boolean;
   snapshots: SnapshotSummaryDto[];
   snapshotBusy: boolean;
@@ -302,6 +305,10 @@ interface AppState {
   closePlanDialog: () => void;
   confirmPlanExport: () => Promise<void>;
   confirmPlanImport: () => void;
+  openPlans: () => void;
+  closePlans: () => void;
+  /** 从方案库一键载入：替换规则链并触发预览。 */
+  loadSavedPlan: (name: string, rules: Rule[]) => void;
 
   openSnapshots: () => Promise<void>;
   closeSnapshots: () => void;
@@ -556,6 +563,7 @@ export const useApp = create<AppState>((set, get) => ({
   ruleHistory: emptyHistory(),
   metadata: { open: false, loading: false, path: '', name: '', info: null, error: null },
   planDialog: null,
+  plansOpen: false,
   snapshotOpen: false,
   snapshots: [],
   snapshotBusy: false,
@@ -768,6 +776,15 @@ export const useApp = create<AppState>((set, get) => ({
           added += 1;
         }
         set({ entries: merged, scanning: false });
+        // 最近目录：输入路径是目录时记一条（子项 parent 等于该路径即可判定）
+        for (const path of paths) {
+          const key = normalizePath(path, state.env);
+          const isDir = res.entries.some((e: ScanEntryDto) =>
+            (e.isDir && normalizePath(e.path, state.env) === key) ||
+            (!e.isDir && normalizePath(e.parent, state.env) === key),
+          );
+          if (isDir) void pushRecentDir(path);
+        }
         if (res.truncated) {
           get().showToast('warn', translate('toast.scanTruncated', { count: res.entries.length }));
         }
@@ -1794,6 +1811,24 @@ export const useApp = create<AppState>((set, get) => ({
       }),
     );
     logger.info('plan.import.done', '导入方案', { rules: dialog.rules.length, replaced });
+    void pushRecentPlan(dialog.name || translate('plan.defaultName'), dialog.rules);
+  },
+
+  openPlans: () => set({ plansOpen: true }),
+
+  closePlans: () => set({ plansOpen: false }),
+
+  loadSavedPlan: (name, rules) => {
+    const normalized = normalizeRules(rules);
+    if (!normalized.length) {
+      get().showToast('warn', translate('plans.empty'));
+      return;
+    }
+    const replaced = get().rules.length;
+    set({ rules: normalized, openRuleId: null, plansOpen: false });
+    void pushRecentPlan(name, normalized);
+    get().showToast('success', translate('plans.loaded', { name, count: normalized.length, replaced }));
+    logger.info('plans.loaded', '从方案库载入', { name, rules: normalized.length, replaced });
   },
 
   openSnapshots: async () => {

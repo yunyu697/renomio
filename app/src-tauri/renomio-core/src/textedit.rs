@@ -371,6 +371,48 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
     result
 }
 
+/// 批量转换：逐条复用 save()，单条失败不影响其余条目。
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TextBatchRequest {
+    pub paths: Vec<String>,
+    pub target_encoding: String,
+    #[serde(default)]
+    pub source_encoding: Option<String>,
+    #[serde(default = "default_true")]
+    pub backup: bool,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TextBatchResult {
+    pub results: Vec<TextSaveResult>,
+    pub ok: usize,
+    pub failed: usize,
+}
+
+pub fn save_batch(req: &TextBatchRequest) -> TextBatchResult {
+    let results: Vec<TextSaveResult> = req
+        .paths
+        .iter()
+        .map(|path| {
+            save(&TextSaveRequest {
+                path: path.clone(),
+                target_encoding: req.target_encoding.clone(),
+                source_encoding: req.source_encoding.clone(),
+                save_as: None,
+                backup: req.backup,
+            })
+        })
+        .collect();
+    let ok = results.iter().filter(|r| r.ok).count();
+    TextBatchResult {
+        failed: results.len() - ok,
+        ok,
+        results,
+    }
+}
+
 pub fn save(req: &TextSaveRequest) -> TextSaveResult {
     let mut out = TextSaveResult {
         path: req.path.clone(),
@@ -588,5 +630,42 @@ mod tests {
         assert!(fs::read(&path).unwrap().starts_with(&[0xFF, 0xFE]));
         let _ = fs::remove_file(&path);
         let _ = fs::remove_file(&backup);
+    }
+
+    #[test]
+    fn batch_isolates_failures_and_keeps_backups() {
+        let a = temp("batch-a.txt", "甲".as_bytes());
+        let b = temp("batch-b.txt", "乙".as_bytes());
+        let missing = std::env::temp_dir().join("renomio-text-batch-missing-does-not-exist.txt");
+        let _ = fs::remove_file(&missing);
+        let req = TextBatchRequest {
+            paths: vec![
+                a.to_string_lossy().to_string(),
+                missing.to_string_lossy().to_string(),
+                b.to_string_lossy().to_string(),
+            ],
+            target_encoding: UTF16LE.to_string(),
+            source_encoding: Some(UTF8.to_string()),
+            backup: true,
+        };
+        let out = save_batch(&req);
+        assert_eq!(out.results.len(), 3);
+        assert_eq!((out.ok, out.failed), (2, 1));
+        assert!(out.results[0].ok, "{:?}", out.results[0].error);
+        assert!(!out.results[1].ok);
+        assert!(out.results[1].error.is_some(), "失败条目必须带原因");
+        assert!(out.results[2].ok, "{:?}", out.results[2].error);
+        let backup_a = out.results[0].backup.clone().expect("成功条目必须有备份");
+        let backup_b = out.results[2].backup.clone().expect("成功条目必须有备份");
+        assert_eq!(fs::read_to_string(&backup_a).unwrap(), "甲");
+        assert_eq!(fs::read_to_string(&backup_b).unwrap(), "乙");
+        assert!(fs::read(&a).unwrap().starts_with(&[0xFF, 0xFE]));
+        assert!(fs::read(&b).unwrap().starts_with(&[0xFF, 0xFE]));
+        for path in [a, b] {
+            let _ = fs::remove_file(path);
+        }
+        for path in [backup_a, backup_b] {
+            let _ = fs::remove_file(path);
+        }
     }
 }

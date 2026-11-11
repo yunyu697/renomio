@@ -731,6 +731,8 @@ body { margin: 0; overflow: hidden; }
 .text-result { border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; background: var(--panel-2); }
 .text-result.ok { border-color: rgba(26, 138, 74, .3); }
 .text-result.bad { border-color: rgba(217, 45, 32, .3); background: var(--danger-weak); }
+.text-batch { display: flex; flex-direction: column; gap: 6px; }
+.text-batch-sum { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
 .ok-chip {
   font-size: 11px; padding: 1px 6px; border-radius: 999px;
   background: var(--success-weak, rgba(26, 138, 74, .1));

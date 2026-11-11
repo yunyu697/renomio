@@ -383,6 +383,7 @@ fn attrs_readonly_set_and_undo() {
     let spec = AttrSpec {
         readonly: Some(AttrAction::Set),
         hidden: None,
+        ..Default::default()
     };
     let outcome = core.apply_attrs(vec![target(&file)], &spec).unwrap();
     assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
@@ -404,7 +405,7 @@ fn attrs_invert_and_undo_restores_original() {
     let set = core
         .apply_attrs(
             vec![target(&file)],
-            &AttrSpec { readonly: Some(AttrAction::Set), hidden: None },
+            &AttrSpec { readonly: Some(AttrAction::Set), hidden: None, system: None, archive: None },
         )
         .unwrap();
     assert!(core.read_attrs(&[path_str.clone()])[0].readonly);
@@ -413,7 +414,7 @@ fn attrs_invert_and_undo_restores_original() {
     let invert = core
         .apply_attrs(
             vec![target(&file)],
-            &AttrSpec { readonly: Some(AttrAction::Invert), hidden: None },
+            &AttrSpec { readonly: Some(AttrAction::Invert), hidden: None, system: None, archive: None },
         )
         .unwrap();
     assert_eq!(invert.applied.len(), 1, "{:?}", invert.failed);
@@ -426,7 +427,7 @@ fn attrs_invert_and_undo_restores_original() {
     let again = core
         .apply_attrs(
             vec![target(&file)],
-            &AttrSpec { readonly: Some(AttrAction::Invert), hidden: None },
+            &AttrSpec { readonly: Some(AttrAction::Invert), hidden: None, system: None, archive: None },
         )
         .unwrap();
     assert!(core.read_attrs(&[path_str.clone()])[0].readonly);
@@ -442,7 +443,7 @@ fn attrs_invert_and_undo_restores_original() {
     let keep = core
         .apply_attrs(
             vec![target(&file)],
-            &AttrSpec { readonly: Some(AttrAction::Invert), hidden: None },
+            &AttrSpec { readonly: Some(AttrAction::Invert), hidden: None, system: None, archive: None },
         )
         .unwrap();
     assert!(!core.read_attrs(&[file.to_string_lossy().to_string()])[0].readonly);
@@ -456,7 +457,7 @@ fn attrs_invert_and_undo_restores_original() {
         let hide = core
             .apply_attrs(
                 vec![target(&file)],
-                &AttrSpec { readonly: None, hidden: Some(AttrAction::Invert) },
+                &AttrSpec { readonly: None, hidden: Some(AttrAction::Invert), system: None, archive: None },
             )
             .unwrap();
         let path_str = file.to_string_lossy().to_string();
@@ -475,6 +476,7 @@ fn attrs_hidden_set_and_undo() {
     let spec = AttrSpec {
         readonly: None,
         hidden: Some(AttrAction::Set),
+        ..Default::default()
     };
     let outcome = core.apply_attrs(vec![target(&file)], &spec).unwrap();
     assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
@@ -482,6 +484,58 @@ fn attrs_hidden_set_and_undo() {
 
     core.undo(&outcome.batch.id).unwrap();
     assert!(!core.read_attrs(&[file.to_string_lossy().to_string()])[0].hidden);
+}
+
+#[cfg(windows)]
+#[test]
+fn attrs_system_and_archive_set_and_undo() {
+    let t = Temp::new("attrs-system-archive");
+    let file = t.file("sys.txt", "s");
+    let path_str = file.to_string_lossy().to_string();
+    let core = t.core();
+    // NTFS 新建文件默认带 ARCHIVE，先记录初始值，撤销后应回到它
+    let initial_archive = core.read_attrs(&[path_str.clone()])[0].archive;
+
+    let outcome = core
+        .apply_attrs(
+            vec![target(&file)],
+            &AttrSpec {
+                system: Some(AttrAction::Set),
+                archive: Some(AttrAction::Set),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
+    let info = &core.read_attrs(&[path_str.clone()])[0];
+    assert!(info.system);
+    assert!(info.archive);
+
+    // 取反：系统 → 非系统，存档 → 未存档；撤销回到初始值
+    let invert = core
+        .apply_attrs(
+            vec![target(&file)],
+            &AttrSpec {
+                system: Some(AttrAction::Invert),
+                archive: Some(AttrAction::Invert),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    assert_eq!(invert.applied.len(), 1, "{:?}", invert.failed);
+    let info = &core.read_attrs(&[path_str.clone()])[0];
+    assert!(!info.system);
+    assert!(!info.archive);
+
+    core.undo(&invert.batch.id).unwrap();
+    let info = &core.read_attrs(&[path_str.clone()])[0];
+    assert!(info.system);
+    assert!(info.archive);
+
+    core.undo(&outcome.batch.id).unwrap();
+    let info = &core.read_attrs(&[path_str])[0];
+    assert!(!info.system);
+    assert_eq!(info.archive, initial_archive);
 }
 
 #[test]

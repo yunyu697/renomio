@@ -21,6 +21,7 @@ import { MetadataDialog } from './components/MetadataDialog';
 import { MetaEditDialog } from './components/MetaEditDialog';
 import { Nav } from './components/Nav';
 import { PlanDialog } from './components/PlanDialog';
+import { PlansDialog } from './components/PlansDialog';
 import { PathBar } from './components/PathBar';
 import { PreviewDialog } from './components/PreviewDialog';
 import { ShortcutDialog } from './components/ShortcutDialog';
@@ -442,6 +443,7 @@ export function App() {
       <MetadataDialog />
       <MetaEditDialog />
       <PlanDialog />
+      <PlansDialog />
       <SnapshotDialog />
       <ShortcutDialog />
       <Drawer />

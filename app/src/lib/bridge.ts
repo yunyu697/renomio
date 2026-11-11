@@ -2,11 +2,12 @@
 import type {
   ApplyItemDto, ApplyOptionsDto, ApplyOutcome, ApplyProgress, AttrInfo, AttrSpecDto, BatchMetadata,
   BatchSummary, DuplicateReportDto, EnvInfo, Entry, ExifClearRequestDto, ExifClearResultDto,
-  ExifInventoryDto, LegacyImportReport, MetaCapabilityDto,
+  ExifInventoryDto, FileTypeIconDto, LegacyImportReport, MetaCapabilityDto,
   MetaEditRequestDto, MetaEditResultDto, MetadataInfo, MetaFields, MetaSnapshotDto, MigrationInfo,
   MoveItemDto, MoveSpecDto, OpTargetDto, OpsOutcome,
   PrivilegeInfo, SavedUpdate, ScanResultDto, SnapshotDto, SnapshotPlanItemDto, SnapshotProgress,
-  SnapshotRestoreResult, SnapshotSummaryDto, StartupMark, TextDetectDto, TextSaveRequestDto,
+  SnapshotRestoreResult, SnapshotSummaryDto, StartupMark, TextBatchRequestDto, TextBatchResultDto,
+  TextDetectDto, TextSaveRequestDto,
   TextSaveResultDto, TimeInfo, TimeSpecDto, UndoOutcome,
   UpdateInfo, UpdateProgress,
 } from './types';
@@ -344,6 +345,12 @@ export async function textSave(req: TextSaveRequestDto): Promise<TextSaveResultD
   return invoke<TextSaveResultDto>('text_save', { req });
 }
 
+/** 批量文本编码转换：逐条结果，单条失败不影响其余。 */
+export async function textSaveBatch(req: TextBatchRequestDto): Promise<TextBatchResultDto> {
+  if (!isDesktop) throw new Error('浏览器演示模式：未连接桌面端');
+  return invoke<TextBatchResultDto>('text_save_batch', { req });
+}
+
 /** 内容完全相同（不同路径）的疑似重复组；只读，不删除文件。 */
 export async function findDuplicates(paths: string[]): Promise<DuplicateReportDto> {
   if (!isDesktop) {
@@ -626,6 +633,16 @@ export async function logToDisk(level: string, event: string, message?: string):
 export async function readMetadata(path: string): Promise<MetadataInfo> {
   if (!isDesktop) return demoMetadata(path);
   return invoke<MetadataInfo>('read_metadata', { path });
+}
+
+/** 系统文件类型图标：按扩展名（或 `folder`）取与资源管理器一致的 16×16 图标；取不到返回空数组。 */
+export async function fileTypeIcons(exts: string[]): Promise<FileTypeIconDto[]> {
+  if (!isDesktop || !exts.length) return [];
+  try {
+    return await invoke<FileTypeIconDto[]>('file_type_icons', { exts });
+  } catch {
+    return [];
+  }
 }
 
 /** 批量只读元数据：九类列表页签一次加载，单条失败逐条返回。 */

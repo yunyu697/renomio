@@ -115,6 +115,40 @@ pub struct AttrSpec {
     /// None = 保持原状
     pub readonly: Option<AttrAction>,
     pub hidden: Option<AttrAction>,
+    pub system: Option<AttrAction>,
+    pub archive: Option<AttrAction>,
+}
+
+/// 四个属性的一次快照，用于批次日志与撤销。
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct AttrValues {
+    readonly: bool,
+    hidden: bool,
+    system: bool,
+    archive: bool,
+}
+
+impl AttrValues {
+    fn to_json(self) -> String {
+        json!({
+            "readonly": self.readonly,
+            "hidden": self.hidden,
+            "system": self.system,
+            "archive": self.archive,
+        })
+        .to_string()
+    }
+
+    fn from_json(raw: &str) -> Self {
+        let value: Value = serde_json::from_str(raw).unwrap_or(Value::Null);
+        let flag = |key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
+        Self {
+            readonly: flag("readonly"),
+            hidden: flag("hidden"),
+            system: flag("system"),
+            archive: flag("archive"),
+        }
+    }
 }
 
 fn resolve_attr(action: Option<AttrAction>, old: bool) -> bool {
@@ -159,6 +193,8 @@ pub struct AttrInfo {
     pub name: String,
     pub readonly: bool,
     pub hidden: bool,
+    pub system: bool,
+    pub archive: bool,
     pub hidden_supported: bool,
     pub error: Option<String>,
 }
@@ -236,6 +272,8 @@ pub fn read_attrs(paths: &[String]) -> Vec<AttrInfo> {
                 name: name_of(&path),
                 readonly: false,
                 hidden: false,
+                system: false,
+                archive: false,
                 hidden_supported: cfg!(windows),
                 error: None,
             };
@@ -243,6 +281,8 @@ pub fn read_attrs(paths: &[String]) -> Vec<AttrInfo> {
                 Ok(meta) => AttrInfo {
                     readonly: is_readonly(&meta),
                     hidden: is_hidden(&path).unwrap_or(false),
+                    system: has_system(&path),
+                    archive: has_archive(&path),
                     ..base
                 },
                 Err(err) => AttrInfo {
@@ -651,9 +691,14 @@ pub fn apply_attrs(
     let mut skipped: Vec<SkippedChange> = Vec::new();
     let mut failed: Vec<SkippedChange> = Vec::new();
 
-    if spec.readonly.is_none() && spec.hidden.is_none() {
+    if spec.readonly.is_none()
+        && spec.hidden.is_none()
+        && spec.system.is_none()
+        && spec.archive.is_none()
+    {
         return Err("未选择任何属性".into());
     }
+    let windows_only = spec.hidden.is_some() || spec.system.is_some() || spec.archive.is_some();
 
     for item in items {
         let path = PathBuf::from(&item.path);
@@ -680,14 +725,22 @@ pub fn apply_attrs(
                 continue;
             }
         };
-        let old_readonly = is_readonly(&meta);
-        let old_hidden = is_hidden(&path).unwrap_or(false);
-        let new_readonly = resolve_attr(spec.readonly, old_readonly);
-        let new_hidden = resolve_attr(spec.hidden, old_hidden);
-        let before = json!({ "readonly": old_readonly, "hidden": old_hidden }).to_string();
+        let old = AttrValues {
+            readonly: is_readonly(&meta),
+            hidden: is_hidden(&path).unwrap_or(false),
+            system: has_system(&path),
+            archive: has_archive(&path),
+        };
+        let new = AttrValues {
+            readonly: resolve_attr(spec.readonly, old.readonly),
+            hidden: resolve_attr(spec.hidden, old.hidden),
+            system: resolve_attr(spec.system, old.system),
+            archive: resolve_attr(spec.archive, old.archive),
+        };
+        let before = old.to_json();
 
-        if spec.hidden.is_some() && !cfg!(windows) {
-            let reason = "当前平台不支持隐藏属性（仅 Windows）".to_string();
+        if windows_only && !cfg!(windows) {
+            let reason = "当前平台不支持隐藏/系统/存档属性（仅 Windows）".to_string();
             failed.push(base_fail(reason.clone()));
             ops.push(BatchOp {
                 id: item.id.clone(),
@@ -702,7 +755,7 @@ pub fn apply_attrs(
             continue;
         }
 
-        if new_readonly == old_readonly && new_hidden == old_hidden {
+        if new == old {
             let reason = "属性未变更".to_string();
             skipped.push(base_fail(reason.clone()));
             ops.push(BatchOp {
@@ -718,7 +771,7 @@ pub fn apply_attrs(
             continue;
         }
 
-        let after = json!({ "readonly": new_readonly, "hidden": new_hidden }).to_string();
+        let after = new.to_json();
         ops.push(BatchOp {
             id: item.id.clone(),
             kind: "attrs".into(),
@@ -770,16 +823,10 @@ pub fn apply_attrs(
         if op.state != "planned" {
             continue;
         }
-        let (before_readonly, before_hidden) = parse_attr_values(&op.before);
-        let (want_readonly, want_hidden) = parse_attr_bool(&op.after);
+        let before_values = AttrValues::from_json(&op.before);
+        let want_values = AttrValues::from_json(&op.after);
         let path = PathBuf::from(&op.path);
-        if let Err(reason) = apply_attr_values(
-            &path,
-            want_readonly,
-            want_hidden,
-            before_readonly,
-            before_hidden,
-        ) {
+        if let Err(reason) = apply_attr_values(&path, want_values, before_values) {
             op.state = "failed".into();
             op.reason = Some(reason.clone());
             failed.push(SkippedChange {
@@ -814,57 +861,39 @@ pub fn apply_attrs(
     })
 }
 
-fn parse_attr_values(raw: &str) -> (bool, bool) {
-    let value: Value = serde_json::from_str(raw).unwrap_or(Value::Null);
-    (
-        value
-            .get("readonly")
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
-        value
-            .get("hidden")
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
-    )
-}
-
-fn parse_attr_bool(raw: &str) -> (bool, bool) {
-    parse_attr_values(raw)
-}
-
-/// 只读与隐藏一起写入；隐藏失败时回滚只读，保证条目要么全成功要么保持原状。
-fn apply_attr_values(
-    path: &Path,
-    readonly: bool,
-    hidden: bool,
-    old_readonly: bool,
-    old_hidden: bool,
-) -> Result<(), String> {
+/// 四个属性一起写入；任何一步失败都回滚已改的属性，保证条目要么全成功要么保持原状。
+fn apply_attr_values(path: &Path, want: AttrValues, old: AttrValues) -> Result<(), String> {
     let native = native_path(path);
-    if readonly != old_readonly {
-        let meta = fs::metadata(&native).map_err(|e| format!("读取属性失败：{e}"))?;
-        let mut perms = meta.permissions();
-        perms.set_readonly(readonly);
-        fs::set_permissions(&native, perms).map_err(|e| format!("设置只读属性失败：{e}"))?;
-    }
-    if hidden != old_hidden {
-        #[cfg(windows)]
-        {
-            if let Err(err) = set_hidden(path, hidden) {
-                if readonly != old_readonly {
-                    if let Ok(meta) = fs::metadata(&native) {
-                        let mut perms = meta.permissions();
-                        perms.set_readonly(old_readonly);
-                        let _ = fs::set_permissions(&native, perms);
-                    }
-                }
-                return Err(format!("设置隐藏属性失败（已回滚只读）：{err}"));
-            }
+    let flags_changed = want.hidden != old.hidden
+        || want.system != old.system
+        || want.archive != old.archive;
+    let mut flags_written = false;
+
+    #[cfg(windows)]
+    if flags_changed {
+        if let Err(err) = set_win_flags(path, want.hidden, want.system, want.archive) {
+            return Err(format!("设置隐藏/系统/存档属性失败：{err}"));
         }
-        #[cfg(not(windows))]
-        {
-            let _ = (hidden, old_hidden);
-            return Err("当前平台不支持隐藏属性（仅 Windows）".into());
+        flags_written = true;
+    }
+    #[cfg(not(windows))]
+    if flags_changed {
+        let _ = (want, old);
+        return Err("当前平台不支持隐藏/系统/存档属性（仅 Windows）".into());
+    }
+
+    if want.readonly != old.readonly {
+        let written = fs::metadata(&native).and_then(|meta| {
+            let mut perms = meta.permissions();
+            perms.set_readonly(want.readonly);
+            fs::set_permissions(&native, perms)
+        });
+        if let Err(err) = written {
+            #[cfg(windows)]
+            if flags_written {
+                let _ = set_win_flags(path, old.hidden, old.system, old.archive);
+            }
+            return Err(format!("设置只读属性失败（已回滚隐藏/系统/存档）：{err}"));
         }
     }
     Ok(())
@@ -1202,22 +1231,17 @@ pub fn undo_ops(store: &BatchStore, id: &str) -> Result<UndoOutcome, String> {
                 }
             }
             "attrs" => {
-                let (readonly, hidden) = parse_attr_values(&op.before);
-                let (cur_readonly, cur_hidden) = fs::metadata(native_path(Path::new(&op.path)))
-                    .map(|m| {
-                        (
-                            is_readonly(&m),
-                            is_hidden(Path::new(&op.path)).unwrap_or(false),
-                        )
+                let want = AttrValues::from_json(&op.before);
+                let path = Path::new(&op.path);
+                let current = fs::metadata(native_path(path))
+                    .map(|m| AttrValues {
+                        readonly: is_readonly(&m),
+                        hidden: is_hidden(path).unwrap_or(false),
+                        system: has_system(path),
+                        archive: has_archive(path),
                     })
-                    .unwrap_or((readonly, hidden));
-                match apply_attr_values(
-                    Path::new(&op.path),
-                    readonly,
-                    hidden,
-                    cur_readonly,
-                    cur_hidden,
-                ) {
+                    .unwrap_or(want);
+                match apply_attr_values(path, want, current) {
                     Ok(()) => restored.push(AppliedChange {
                         id: op.id.clone(),
                         from: op.path.clone(),
@@ -1525,9 +1549,8 @@ fn move_path(
 }
 
 #[cfg(windows)]
-fn is_hidden(path: &Path) -> std::io::Result<bool> {
+fn win_flags(path: &Path) -> std::io::Result<u32> {
     use std::os::windows::ffi::OsStrExt;
-    const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
     extern "system" {
         fn GetFileAttributesW(name: *const u16) -> u32;
     }
@@ -1537,7 +1560,29 @@ fn is_hidden(path: &Path) -> std::io::Result<bool> {
     if attrs == u32::MAX {
         return Err(std::io::Error::last_os_error());
     }
-    Ok(attrs & FILE_ATTRIBUTE_HIDDEN != 0)
+    Ok(attrs)
+}
+
+#[cfg(windows)]
+const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
+#[cfg(windows)]
+const FILE_ATTRIBUTE_SYSTEM: u32 = 0x4;
+#[cfg(windows)]
+const FILE_ATTRIBUTE_ARCHIVE: u32 = 0x20;
+
+#[cfg(windows)]
+fn is_hidden(path: &Path) -> std::io::Result<bool> {
+    Ok(win_flags(path)? & FILE_ATTRIBUTE_HIDDEN != 0)
+}
+
+#[cfg(windows)]
+fn has_system(path: &Path) -> bool {
+    win_flags(path).map(|f| f & FILE_ATTRIBUTE_SYSTEM != 0).unwrap_or(false)
+}
+
+#[cfg(windows)]
+fn has_archive(path: &Path) -> bool {
+    win_flags(path).map(|f| f & FILE_ATTRIBUTE_ARCHIVE != 0).unwrap_or(false)
 }
 
 #[cfg(not(windows))]
@@ -1545,37 +1590,44 @@ fn is_hidden(_path: &Path) -> std::io::Result<bool> {
     Ok(false)
 }
 
+#[cfg(not(windows))]
+fn has_system(_path: &Path) -> bool {
+    false
+}
+
+#[cfg(not(windows))]
+fn has_archive(_path: &Path) -> bool {
+    false
+}
+
+/// 一次性写入隐藏/系统/存档，保留只读等其它标志位。
 #[cfg(windows)]
-fn set_hidden(path: &Path, hidden: bool) -> std::io::Result<()> {
+fn set_win_flags(path: &Path, hidden: bool, system: bool, archive: bool) -> std::io::Result<()> {
     use std::os::windows::ffi::OsStrExt;
-    const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
     extern "system" {
-        fn GetFileAttributesW(name: *const u16) -> u32;
         fn SetFileAttributesW(name: *const u16, attrs: u32) -> i32;
     }
+    const MASK: u32 = FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_ARCHIVE;
     let native = native_path(path);
     let wide: Vec<u16> = native.as_os_str().encode_wide().chain(Some(0)).collect();
-    let old = unsafe { GetFileAttributesW(wide.as_ptr()) };
-    if old == u32::MAX {
-        return Err(std::io::Error::last_os_error());
+    let old = win_flags(path)?;
+    let mut next = old & !MASK;
+    if hidden {
+        next |= FILE_ATTRIBUTE_HIDDEN;
     }
-    let next = if hidden {
-        old | FILE_ATTRIBUTE_HIDDEN
-    } else {
-        old & !FILE_ATTRIBUTE_HIDDEN
-    };
+    if system {
+        next |= FILE_ATTRIBUTE_SYSTEM;
+    }
+    if archive {
+        next |= FILE_ATTRIBUTE_ARCHIVE;
+    }
+    if next == old {
+        return Ok(());
+    }
     if unsafe { SetFileAttributesW(wide.as_ptr(), next) } == 0 {
         return Err(std::io::Error::last_os_error());
     }
     Ok(())
-}
-
-#[cfg(not(windows))]
-fn set_hidden(_path: &Path, _hidden: bool) -> std::io::Result<()> {
-    Err(std::io::Error::new(
-        std::io::ErrorKind::Unsupported,
-        "当前平台不支持隐藏属性",
-    ))
 }
 
 #[cfg(windows)]
