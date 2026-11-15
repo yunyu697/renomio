@@ -1,0 +1,285 @@
+{
+  "generatedBy": "npm run tokens:update",
+  "themePairs": [
+    "light",
+    "dark"
+  ],
+  "tokens": {
+    "--accent-2": {
+      "light": "#0f8ba0",
+      "dark": "#4fc0d6"
+    },
+    "--actionbar": {
+      "light": "58px",
+      "dark": "58px"
+    },
+    "--ds-border-hairline": {
+      "light": "1px",
+      "dark": "1px"
+    },
+    "--ds-color-accent": {
+      "light": "#2f52e0",
+      "dark": "#829bff"
+    },
+    "--ds-color-accent-hover": {
+      "light": "#2543c9",
+      "dark": "#a7b8ff"
+    },
+    "--ds-color-accent-weak": {
+      "light": "#edf1ff",
+      "dark": "#1b2440"
+    },
+    "--ds-color-accent-weak-2": {
+      "light": "#dde5ff",
+      "dark": "#222e52"
+    },
+    "--ds-color-bg": {
+      "light": "#eef1f6",
+      "dark": "#0b0f16"
+    },
+    "--ds-color-danger": {
+      "light": "#c0261c",
+      "dark": "#ff7b72"
+    },
+    "--ds-color-danger-weak": {
+      "light": "#feebea",
+      "dark": "#331917"
+    },
+    "--ds-color-line": {
+      "light": "#e1e6ef",
+      "dark": "#242c3a"
+    },
+    "--ds-color-line-strong": {
+      "light": "#cfd7e4",
+      "dark": "#333d4e"
+    },
+    "--ds-color-on-accent": {
+      "light": "#ffffff",
+      "dark": "#0b0f16"
+    },
+    "--ds-color-success": {
+      "light": "#0b7a4d",
+      "dark": "#35d398"
+    },
+    "--ds-color-success-weak": {
+      "light": "#e6f7ef",
+      "dark": "#12291f"
+    },
+    "--ds-color-surface": {
+      "light": "#ffffff",
+      "dark": "#151a23"
+    },
+    "--ds-color-surface-2": {
+      "light": "#f2f5fa",
+      "dark": "#1d2331"
+    },
+    "--ds-color-surface-3": {
+      "light": "#e7ecf6",
+      "dark": "#252c3b"
+    },
+    "--ds-color-surface-selected": {
+      "light": "#eef3ff",
+      "dark": "#1e2636"
+    },
+    "--ds-color-text": {
+      "light": "#131a26",
+      "dark": "#e8eef9"
+    },
+    "--ds-color-text-2": {
+      "light": "#344055",
+      "dark": "#c2cbdb"
+    },
+    "--ds-color-text-muted": {
+      "light": "#5b6880",
+      "dark": "#93a0b4"
+    },
+    "--ds-color-warn": {
+      "light": "#9a5c00",
+      "dark": "#f0b34a"
+    },
+    "--ds-color-warn-weak": {
+      "light": "#fff4e2",
+      "dark": "#2b2212"
+    },
+    "--ds-control-h-lg": {
+      "light": "32px",
+      "dark": "32px"
+    },
+    "--ds-control-h-md": {
+      "light": "28px",
+      "dark": "28px"
+    },
+    "--ds-control-h-sm": {
+      "light": "24px",
+      "dark": "24px"
+    },
+    "--ds-control-h-xs": {
+      "light": "20px",
+      "dark": "20px"
+    },
+    "--ds-dur-2": {
+      "light": "120ms",
+      "dark": "120ms"
+    },
+    "--ds-elevation-1": {
+      "light": "0 1px 2px rgba(0,0,0,.06)",
+      "dark": "0 1px 2px rgba(0,0,0,.06)"
+    },
+    "--ds-elevation-3": {
+      "light": "0 12px 32px rgba(0,0,0,.14), 0 2px 6px rgba(0,0,0,.06)",
+      "dark": "0 12px 32px rgba(0,0,0,.14), 0 2px 6px rgba(0,0,0,.06)"
+    },
+    "--ds-elevation-4": {
+      "light": "0 24px 64px rgba(0,0,0,.20)",
+      "dark": "0 24px 64px rgba(0,0,0,.20)"
+    },
+    "--ds-font-mono": {
+      "light": "\"JetBrains Mono\", \"Cascadia Mono\", \"SFMono-Regular\", Consolas, \"Liberation Mono\", monospace",
+      "dark": "\"JetBrains Mono\", \"Cascadia Mono\", \"SFMono-Regular\", Consolas, \"Liberation Mono\", monospace"
+    },
+    "--ds-font-sans": {
+      "light": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Source Han Sans SC\", \"Noto Sans CJK SC\", sans-serif",
+      "dark": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Source Han Sans SC\", \"Noto Sans CJK SC\", sans-serif"
+    },
+    "--ds-font-size-20": {
+      "light": "20px",
+      "dark": "20px"
+    },
+    "--ds-font-weight-500": {
+      "light": "500",
+      "dark": "500"
+    },
+    "--ds-font-weight-600": {
+      "light": "600",
+      "dark": "600"
+    },
+    "--ds-font-weight-700": {
+      "light": "700",
+      "dark": "700"
+    },
+    "--ds-icon-lg": {
+      "light": "20px",
+      "dark": "20px"
+    },
+    "--ds-icon-md": {
+      "light": "16px",
+      "dark": "16px"
+    },
+    "--ds-icon-sm": {
+      "light": "14px",
+      "dark": "14px"
+    },
+    "--ds-icon-xs": {
+      "light": "12px",
+      "dark": "12px"
+    },
+    "--ds-layout-toolbar-sm": {
+      "light": "40px",
+      "dark": "40px"
+    },
+    "--ds-leading-base": {
+      "light": "1.5",
+      "dark": "1.5"
+    },
+    "--ds-leading-loose": {
+      "light": "1.7",
+      "dark": "1.7"
+    },
+    "--ds-leading-tight": {
+      "light": "1.25",
+      "dark": "1.25"
+    },
+    "--ds-radius-hairline": {
+      "light": "2px",
+      "dark": "2px"
+    },
+    "--ds-radius-role-card": {
+      "light": "10px",
+      "dark": "10px"
+    },
+    "--ds-radius-role-control": {
+      "light": "8px",
+      "dark": "8px"
+    },
+    "--ds-radius-role-panel": {
+      "light": "14px",
+      "dark": "14px"
+    },
+    "--ds-radius-role-pill": {
+      "light": "999px",
+      "dark": "999px"
+    },
+    "--ds-radius-sm": {
+      "light": "6px",
+      "dark": "6px"
+    },
+    "--ds-radius-tag": {
+      "light": "4px",
+      "dark": "4px"
+    },
+    "--ds-row-h-header": {
+      "light": "32px",
+      "dark": "32px"
+    },
+    "--ds-row-h-touch": {
+      "light": "44px",
+      "dark": "44px"
+    },
+    "--ds-space-1": {
+      "light": "2px",
+      "dark": "2px"
+    },
+    "--ds-space-2": {
+      "light": "4px",
+      "dark": "4px"
+    },
+    "--ds-space-3": {
+      "light": "6px",
+      "dark": "6px"
+    },
+    "--ds-space-4": {
+      "light": "8px",
+      "dark": "8px"
+    },
+    "--ds-space-5": {
+      "light": "12px",
+      "dark": "12px"
+    },
+    "--ds-space-6": {
+      "light": "16px",
+      "dark": "16px"
+    },
+    "--ds-space-7": {
+      "light": "24px",
+      "dark": "24px"
+    },
+    "--ds-space-8": {
+      "light": "32px",
+      "dark": "32px"
+    },
+    "--ds-space-9": {
+      "light": "48px",
+      "dark": "48px"
+    },
+    "--ds-type-role-body": {
+      "light": "12px",
+      "dark": "12px"
+    },
+    "--ds-type-role-caption": {
+      "light": "11px",
+      "dark": "11px"
+    },
+    "--ds-type-role-card": {
+      "light": "14px",
+      "dark": "14px"
+    },
+    "--ds-type-role-micro": {
+      "light": "10px",
+      "dark": "10px"
+    },
+    "--ds-type-role-section": {
+      "light": "16px",
+      "dark": "16px"
+    }
+  }
+}

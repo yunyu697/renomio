@@ -75,7 +75,7 @@
         <div class="state-grid">
           <div class="dialog">
             <div class="dialog-head">
-              <h4><svg width="16" height="16" fill="none" style="color:var(--warn)"><use href="#i-alert"/></svg>应用前确认 · 预览结果</h4>
+              <h4><svg width="16" height="16" fill="none" style="color:var(--ds-color-warn)"><use href="#i-alert"/></svg>应用前确认 · 预览结果</h4>
               <p>120 个对象 · 规则链 4 条 · 预演耗时 38 ms · 目标目录 E:\照片\2024 旅行</p>
             </div>
             <div class="dialog-body">
@@ -90,37 +90,37 @@
                 <div class="mini-row">
                   <span class="n old">DSC_0101.JPG</span>
                   <span class="n new">旅行_DSC_0101.JPG</span>
-                  <span style="color:var(--success);font-size:10.5px">可执行</span>
+                  <span style="color:var(--ds-color-success);font-size:var(--ds-type-role-micro)">可执行</span>
                 </div>
                 <div class="mini-row">
                   <span class="n old">DSC_0102.JPG</span>
                   <span class="n new">旅行_DSC_0102.JPG</span>
-                  <span style="color:var(--success);font-size:10.5px">可执行</span>
+                  <span style="color:var(--ds-color-success);font-size:var(--ds-type-role-micro)">可执行</span>
                 </div>
                 <div class="mini-row bad">
                   <span class="n old">DSC_0103.JPG</span>
                   <span class="n new">旅行_DSC_0103.JPG</span>
-                  <span style="color:var(--danger);font-size:10.5px">与磁盘同名</span>
+                  <span style="color:var(--ds-color-danger);font-size:var(--ds-type-role-micro)">与磁盘同名</span>
                 </div>
                 <div class="mini-row bad">
                   <span class="n old">IMG_20240105.jpg</span>
                   <span class="n new">旅行_IMG_20240105.jpg</span>
-                  <span style="color:var(--danger);font-size:10.5px">规则间同名</span>
+                  <span style="color:var(--ds-color-danger);font-size:var(--ds-type-role-micro)">规则间同名</span>
                 </div>
                 <div class="mini-row">
                   <span class="n old">Scan_0007.pdf</span>
                   <span class="n new">旅行_Scan_0007.pdf</span>
-                  <span style="color:var(--warn);font-size:10.5px">只读跳过</span>
+                  <span style="color:var(--ds-color-warn);font-size:var(--ds-type-role-micro)">只读跳过</span>
                 </div>
                 <div class="mini-row">
                   <span class="n old">说明.txt</span>
                   <span class="n new">旅行_说明.txt</span>
-                  <span style="color:var(--muted);font-size:10.5px">未变更</span>
+                  <span style="color:var(--ds-color-text-muted);font-size:var(--ds-type-role-micro)">未变更</span>
                 </div>
               </div>
             </div>
             <div class="dialog-foot">
-              <span style="font-size:11px;color:var(--muted)">冲突项默认不执行，不会覆盖任何文件</span>
+              <span style="font-size:var(--ds-type-role-caption);color:var(--ds-color-text-muted)">冲突项默认不执行，不会覆盖任何文件</span>
               <div class="right">
                 <button class="btn btn-ghost" type="button">取消</button>
                 <button class="btn btn-soft" type="button">仅执行无冲突项</button>
@@ -129,33 +129,33 @@
             </div>
           </div>
 
-          <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;flex-direction:column;gap:var(--ds-space-5)">
             <div class="dialog">
               <div class="dialog-head">
-                <h4><svg width="15" height="15" fill="none" style="color:var(--accent)"><use href="#i-shield"/></svg>冲突处理策略</h4>
+                <h4><svg width="15" height="15" fill="none" style="color:var(--ds-color-accent)"><use href="#i-shield"/></svg>冲突处理策略</h4>
                 <p>本次会话生效，可写入方案复用</p>
               </div>
-              <div class="dialog-body" style="display:flex;flex-direction:column;gap:8px">
+              <div class="dialog-body" style="display:flex;flex-direction:column;gap:var(--ds-space-4)">
                 <div class="undo-item current">
-                  <svg width="15" height="15" fill="none" style="color:var(--accent)"><use href="#i-check-circle"/></svg>
+                  <svg width="15" height="15" fill="none" style="color:var(--ds-color-accent)"><use href="#i-check-circle"/></svg>
                   <div style="min-width:0">
                     <b>自动追加序号</b>
-                    <div style="font-size:10.5px;color:var(--muted);margin-top:2px">旅行_DSC_0103 (2).JPG —— 保留全部文件</div>
+                    <div style="font-size:var(--ds-type-role-micro);color:var(--ds-color-text-muted);margin-top:var(--ds-space-1)">旅行_DSC_0103 (2).JPG —— 保留全部文件</div>
                   </div>
                   <span class="cnt">推荐</span>
                 </div>
                 <div class="undo-item">
-                  <svg width="15" height="15" fill="none" style="color:var(--muted)"><use href="#i-ban"/></svg>
+                  <svg width="15" height="15" fill="none" style="color:var(--ds-color-text-muted)"><use href="#i-ban"/></svg>
                   <div style="min-width:0">
                     <b>跳过冲突项</b>
-                    <div style="font-size:10.5px;color:var(--muted);margin-top:2px">其余 117 项正常执行，冲突项保留原名</div>
+                    <div style="font-size:var(--ds-type-role-micro);color:var(--ds-color-text-muted);margin-top:var(--ds-space-1)">其余 117 项正常执行，冲突项保留原名</div>
                   </div>
                 </div>
                 <div class="undo-item">
-                  <svg width="15" height="15" fill="none" style="color:var(--muted)"><use href="#i-undo"/></svg>
+                  <svg width="15" height="15" fill="none" style="color:var(--ds-color-text-muted)"><use href="#i-undo"/></svg>
                   <div style="min-width:0">
                     <b>停止并回到规则</b>
-                    <div style="font-size:10.5px;color:var(--muted);margin-top:2px">不改动磁盘，先修改规则链</div>
+                    <div style="font-size:var(--ds-type-role-micro);color:var(--ds-color-text-muted);margin-top:var(--ds-space-1)">不改动磁盘，先修改规则链</div>
                   </div>
                 </div>
               </div>
@@ -186,7 +186,7 @@
         <div class="state-grid">
           <div class="dialog">
             <div class="dialog-head">
-              <h4><svg width="15" height="15" fill="none" style="color:var(--accent)"><use href="#i-play"/></svg>正在更名 · 2024 旅行</h4>
+              <h4><svg width="15" height="15" fill="none" style="color:var(--ds-color-accent)"><use href="#i-play"/></svg>正在更名 · 2024 旅行</h4>
               <p>已用时 1.5 秒 · 预计剩余不足 1 秒 · 失败 0 项</p>
             </div>
             <div class="dialog-body">
@@ -203,7 +203,7 @@
               </div>
             </div>
             <div class="dialog-foot">
-              <span style="font-size:11px;color:var(--muted)">Ctrl+Z 可在完成后整批撤销</span>
+              <span style="font-size:var(--ds-type-role-caption);color:var(--ds-color-text-muted)">Ctrl+Z 可在完成后整批撤销</span>
               <div class="right">
                 <button class="btn btn-ghost" type="button">后台继续</button>
                 <button class="btn btn-outline" type="button">暂停</button>
@@ -212,7 +212,7 @@
             </div>
           </div>
 
-          <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;flex-direction:column;gap:var(--ds-space-5)">
             <div class="toasts">
               <div class="toast success">
                 <svg class="ic" fill="none"><use href="#i-check-circle"/></svg>
@@ -220,7 +220,7 @@
               </div>
               <div class="toast warn">
                 <svg class="ic" fill="none"><use href="#i-alert"/></svg>
-                <div class="body"><b>1 个文件被跳过</b><br><span style="font-family:var(--mono);font-size:10.5px">Scan_0007.pdf</span> 为只读属性，未参与更名。</div>
+                <div class="body"><b>1 个文件被跳过</b><br><span style="font-family:var(--ds-font-mono);font-size:var(--ds-type-role-micro)">Scan_0007.pdf</span> 为只读属性，未参与更名。</div>
               </div>
               <div class="toast info">
                 <svg class="ic" fill="none"><use href="#i-history"/></svg>
@@ -232,9 +232,9 @@
               <div class="dialog-body">
                 <div class="kv">
                   <span>规则</span><b>添加与补齐 / 替换 / 自动编号 / 扩展名</b>
-                  <span>成功</span><b style="color:var(--success)">116</b>
-                  <span>跳过</span><b style="color:var(--warn)">1</b>
-                  <span>冲突</span><b style="color:var(--danger)">3（未执行）</b>
+                  <span>成功</span><b style="color:var(--ds-color-success)">116</b>
+                  <span>跳过</span><b style="color:var(--ds-color-warn)">1</b>
+                  <span>冲突</span><b style="color:var(--ds-color-danger)">3（未执行）</b>
                   <span>可撤销</span><b>是 · 完整 116 项</b>
                 </div>
               </div>
@@ -256,19 +256,19 @@
         <div class="state-grid">
           <div class="dialog">
             <div class="dialog-head">
-              <h4><svg width="16" height="16" fill="none" style="color:var(--danger)"><use href="#i-alert"/></svg>无法重命名：目标位于受保护目录</h4>
+              <h4><svg width="16" height="16" fill="none" style="color:var(--ds-color-danger)"><use href="#i-alert"/></svg>无法重命名：目标位于受保护目录</h4>
               <p>Windows · 错误码 ERROR_ACCESS_DENIED (5)</p>
             </div>
             <div class="dialog-body">
-              <div class="kv" style="margin-bottom:12px">
-                <span>文件</span><b style="font-family:var(--mono);font-size:10.5px">C:\Program Files\旅行\DSC_0104.JPG</b>
+              <div class="kv" style="margin-bottom:var(--ds-space-5)">
+                <span>文件</span><b style="font-family:var(--ds-font-mono);font-size:var(--ds-type-role-micro)">C:\Program Files\旅行\DSC_0104.JPG</b>
                 <span>操作</span><b>Rename(temp) → Rename(final)</b>
                 <span>原因</span><b>目录需要管理员权限，当前进程为普通权限（asInvoker）</b>
                 <span>影响</span><b>仅此 1 项，其余 115 项可继续</b>
               </div>
-              <div class="tip-card" style="margin-bottom:8px">
+              <div class="tip-card" style="margin-bottom:var(--ds-space-4)">
                 <svg fill="none"><use href="#i-info"/></svg>
-                <div><b>建议。</b>把文件复制到用户目录（如 <span style="font-family:var(--mono)">~/Pictures</span>）后更名；或以管理员权限重新启动应用处理该目录。</div>
+                <div><b>建议。</b>把文件复制到用户目录（如 <span style="font-family:var(--ds-font-mono)">~/Pictures</span>）后更名；或以管理员权限重新启动应用处理该目录。</div>
               </div>
               <div class="tip-card warn" style="margin-bottom:0">
                 <svg fill="none"><use href="#i-shield"/></svg>
@@ -276,7 +276,7 @@
               </div>
             </div>
             <div class="dialog-foot">
-              <span style="font-size:11px;color:var(--muted)">该错误已记录到日志，可在“历史”中复查</span>
+              <span style="font-size:var(--ds-type-role-caption);color:var(--ds-color-text-muted)">该错误已记录到日志，可在“历史”中复查</span>
               <div class="right">
                 <button class="btn btn-ghost" type="button">查看日志</button>
                 <button class="btn btn-soft" type="button">跳过此项</button>
@@ -285,10 +285,10 @@
             </div>
           </div>
 
-          <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;flex-direction:column;gap:var(--ds-space-4)">
             <div class="toast error">
               <svg class="ic" fill="none"><use href="#i-ban"/></svg>
-              <div class="body"><b>文件名含平台保留字符</b><br>“2024:旅行”在 macOS / Linux 中 <span style="font-family:var(--mono);font-size:10.5px">:</span> 非法；预览已标红，替换为 <span style="font-family:var(--mono);font-size:10.5px">_</span> 后可继续。</div>
+              <div class="body"><b>文件名含平台保留字符</b><br>“2024:旅行”在 macOS / Linux 中 <span style="font-family:var(--ds-font-mono);font-size:var(--ds-type-role-micro)">:</span> 非法；预览已标红，替换为 <span style="font-family:var(--ds-font-mono);font-size:var(--ds-type-role-micro)">_</span> 后可继续。</div>
             </div>
             <div class="toast warn">
               <svg class="ic" fill="none"><use href="#i-alert"/></svg>
@@ -296,11 +296,11 @@
             </div>
             <div class="toast error">
               <svg class="ic" fill="none"><use href="#i-lock"/></svg>
-              <div class="body"><b>文件被其他程序占用</b><br><span style="font-family:var(--mono);font-size:10.5px">报告.docx</span> 正被 Word 打开（共享冲突），关闭后可重试。</div>
+              <div class="body"><b>文件被其他程序占用</b><br><span style="font-family:var(--ds-font-mono);font-size:var(--ds-type-role-micro)">报告.docx</span> 正被 Word 打开（共享冲突），关闭后可重试。</div>
             </div>
             <div class="toast info">
               <svg class="ic" fill="none"><use href="#i-info"/></svg>
-              <div class="body"><b>大小写敏感性差异</b><br>本次仅将 <span style="font-family:var(--mono);font-size:10.5px">.JPG</span> 改为 <span style="font-family:var(--mono);font-size:10.5px">.jpg</span>：Windows 视为同名，macOS 需先改成临时名再落盘。</div>
+              <div class="body"><b>大小写敏感性差异</b><br>本次仅将 <span style="font-family:var(--ds-font-mono);font-size:var(--ds-type-role-micro)">.JPG</span> 改为 <span style="font-family:var(--ds-font-mono);font-size:var(--ds-type-role-micro)">.jpg</span>：Windows 视为同名，macOS 需先改成临时名再落盘。</div>
             </div>
             <div class="tip-card" style="margin-bottom:0">
               <svg fill="none"><use href="#i-info"/></svg>
@@ -323,26 +323,26 @@
         <div class="state-grid">
           <div class="dialog">
             <div class="dialog-head">
-              <h4><svg width="16" height="16" fill="none" style="color:var(--accent)"><use href="#i-undo"/></svg>撤销上一次更名？</h4>
+              <h4><svg width="16" height="16" fill="none" style="color:var(--ds-color-accent)"><use href="#i-undo"/></svg>撤销上一次更名？</h4>
               <p>日志 #A31F · 11:42 · 116 个对象 · 全部可恢复</p>
             </div>
             <div class="dialog-body">
-              <div class="mini-table" style="margin-bottom:12px">
+              <div class="mini-table" style="margin-bottom:var(--ds-space-5)">
                 <div class="mini-row head"><span>当前名</span><span>恢复为</span><span>状态</span></div>
                 <div class="mini-row">
                   <span class="n old">旅行_DSC_0001.JPG</span>
                   <span class="n new">DSC_0001.JPG</span>
-                  <span style="color:var(--success);font-size:10.5px">可恢复</span>
+                  <span style="color:var(--ds-color-success);font-size:var(--ds-type-role-micro)">可恢复</span>
                 </div>
                 <div class="mini-row">
                   <span class="n old">旅行_DSC_0002.JPG</span>
                   <span class="n new">DSC_0002.JPG</span>
-                  <span style="color:var(--success);font-size:10.5px">可恢复</span>
+                  <span style="color:var(--ds-color-success);font-size:var(--ds-type-role-micro)">可恢复</span>
                 </div>
                 <div class="mini-row">
                   <span class="n old">旅行_说明.txt</span>
                   <span class="n new">说明.txt</span>
-                  <span style="color:var(--success);font-size:10.5px">可恢复</span>
+                  <span style="color:var(--ds-color-success);font-size:var(--ds-type-role-micro)">可恢复</span>
                 </div>
               </div>
               <div class="kv">
@@ -351,7 +351,7 @@
               </div>
             </div>
             <div class="dialog-foot">
-              <span style="font-size:11px;color:var(--muted)">撤销后仍可再次查看该批次的完整记录</span>
+              <span style="font-size:var(--ds-type-role-caption);color:var(--ds-color-text-muted)">撤销后仍可再次查看该批次的完整记录</span>
               <div class="right">
                 <button class="btn btn-ghost" type="button">取消</button>
                 <button class="btn btn-soft" type="button">查看日志</button>
@@ -360,7 +360,7 @@
             </div>
           </div>
 
-          <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;flex-direction:column;gap:var(--ds-space-5)">
             <div class="dialog">
               <div class="dialog-head"><h4>最近操作</h4><p>按批次记录，可逐条回滚</p></div>
               <div class="dialog-body">
@@ -407,8 +407,8 @@
       <div class="state-body">
         <div class="theme-pair">
           <div>
-            <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);margin-bottom:7px">
-              <span class="sw"><i style="background:#ffffff"></i></span><b style="color:var(--ink-2)">浅色 · Light</b><span>默认（跟随系统）</span>
+            <div style="display:flex;align-items:center;gap:var(--ds-space-4);font-size:var(--ds-type-role-caption);color:var(--ds-color-text-muted);margin-bottom:var(--ds-space-4)">
+              <span class="sw"><i style="background:#ffffff" data-token-exempt="palette-swatch"></i></span><b style="color:var(--ds-color-text-2)">浅色 · Light</b><span>默认（跟随系统）</span>
             </div>
             <div class="mini-win">
               <div class="titlebar">
@@ -436,17 +436,17 @@
                   <div class="ln" style="height:14px"></div>
                   <div class="ln c" style="height:14px"></div>
                   <div class="ln" style="height:14px"></div>
-                  <div class="ln b" style="height:22px;width:38%;margin-top:auto"></div>
+                  <div class="ln b" style="height:var(--ds-control-h-xs);width:38%;margin-top:auto"></div>
                 </div>
               </div>
             </div>
           </div>
 
           <div>
-            <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);margin-bottom:7px">
-              <span class="sw"><i style="background:#151a23"></i></span><b style="color:var(--ink-2)">深色 · Dark</b><span>低光环境 / 手动切换</span>
+            <div style="display:flex;align-items:center;gap:var(--ds-space-4);font-size:var(--ds-type-role-caption);color:var(--ds-color-text-muted);margin-bottom:var(--ds-space-4)">
+              <span class="sw"><i style="background:#151a23" data-token-exempt="palette-swatch"></i></span><b style="color:var(--ds-color-text-2)">深色 · Dark</b><span>低光环境 / 手动切换</span>
             </div>
-            <div class="theme-dark">
+            <div data-theme="dark">
               <div class="mini-win">
                 <div class="titlebar">
                   <span class="tb-mark"><svg width="12" height="12" fill="none"><use href="#i-mark"/></svg></span>
@@ -473,7 +473,7 @@
                     <div class="ln" style="height:14px"></div>
                     <div class="ln c" style="height:14px"></div>
                     <div class="ln" style="height:14px"></div>
-                    <div class="ln b" style="height:22px;width:38%;margin-top:auto"></div>
+                    <div class="ln b" style="height:var(--ds-control-h-xs);width:38%;margin-top:auto"></div>
                   </div>
                 </div>
               </div>
@@ -482,15 +482,15 @@
         </div>
 
         <div class="swatches">
-          <span class="sw"><i style="background:var(--accent)"></i>--accent</span>
-          <span class="sw"><i style="background:var(--success)"></i>--success</span>
-          <span class="sw"><i style="background:var(--warn)"></i>--warn</span>
-          <span class="sw"><i style="background:var(--danger)"></i>--danger</span>
-          <span class="sw"><i style="background:var(--panel)"></i>--panel</span>
-          <span class="sw"><i style="background:var(--panel-2)"></i>--panel-2</span>
-          <span class="sw"><i style="background:var(--panel-3)"></i>--panel-3</span>
-          <span class="sw"><i style="background:var(--line)"></i>--line</span>
-          <span class="sw"><i style="background:var(--ink)"></i>--ink</span>
+          <span class="sw"><i style="background:var(--ds-color-accent)"></i>--accent</span>
+          <span class="sw"><i style="background:var(--ds-color-success)"></i>--success</span>
+          <span class="sw"><i style="background:var(--ds-color-warn)"></i>--warn</span>
+          <span class="sw"><i style="background:var(--ds-color-danger)"></i>--danger</span>
+          <span class="sw"><i style="background:var(--ds-color-surface)"></i>--panel</span>
+          <span class="sw"><i style="background:var(--ds-color-surface-2)"></i>--panel-2</span>
+          <span class="sw"><i style="background:var(--ds-color-surface-3)"></i>--panel-3</span>
+          <span class="sw"><i style="background:var(--ds-color-line)"></i>--line</span>
+          <span class="sw"><i style="background:var(--ds-color-text)"></i>--ink</span>
         </div>
       </div>
     </section>

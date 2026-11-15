@@ -68,6 +68,13 @@ jobs:
       - name: 输入历史逻辑自测（26 条）
         run: npm run test:history
 
+      # 设计稿必须与实现共用同一套 --ds-* 令牌；令牌值变了但 design/ 未重新确认则失败
+      - name: 设计稿令牌反例自测
+        run: npm run tokens:selftest
+
+      - name: 设计稿令牌同步校验（引用 / 裸值 / 快照）
+        run: npm run tokens:check
+
       - name: 生产构建（vite build）
         run: npx vite build
 

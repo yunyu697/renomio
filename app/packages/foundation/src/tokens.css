@@ -37,31 +37,8 @@
   --danger-weak: #feebea;
   --info: #0a6b80;
 
-  /* 语义色槽 · 只做转发，不写色值。组件只写 var(--ds-color-*)，见 SPEC §1.12。
-     调色板换了这套转发不用动：色值永远来自上面的 --bg/--panel/… */
-  --ds-color-bg: var(--bg);
-  --ds-color-surface: var(--panel);
-  --ds-color-surface-2: var(--panel-2);
-  --ds-color-surface-3: var(--panel-3);
-  --ds-color-surface-hover: var(--hover);
-  --ds-color-surface-selected: var(--selected);
-  --ds-color-text: var(--ink);
-  --ds-color-text-2: var(--ink-2);
-  --ds-color-text-muted: var(--faint);
-  --ds-color-line: var(--line);
-  --ds-color-line-strong: var(--line-strong);
-  --ds-color-accent: var(--accent);
-  --ds-color-on-accent: var(--accent-on);
-  --ds-color-accent-hover: var(--accent-ink);
-  --ds-color-accent-weak: var(--accent-weak);
-  --ds-color-accent-weak-2: var(--accent-weak-2);
-  --ds-color-success: var(--success);
-  --ds-color-success-weak: var(--success-weak);
-  --ds-color-warn: var(--warn);
-  --ds-color-warn-weak: var(--warn-weak);
-  --ds-color-danger: var(--danger);
-  --ds-color-danger-weak: var(--danger-weak);
-  --ds-color-info: var(--info);
+  /* 语义色槽的转发见文件末尾：它挂在「任何主题作用域」上，
+     这样嵌套的 [data-theme="dark"] 也能按自己的色板重算，而不是继承外层已算好的值。 */
 
   /* 间距 · 值来自 design-system 令牌（--ds-space-*），这里只保留语义别名。
      本项目禁止在这一层写数值：新增间距请直接用 --ds-space-*，规范见 design-system/SPEC.md */
@@ -111,8 +88,9 @@
   --dur-base: var(--ds-dur-5);
 }
 
-/* 暗色基调（石墨配色）：html[data-theme="dark"] */
-html[data-theme="dark"] {
+/* 暗色基调（石墨配色）：[data-theme="dark"]
+   不限定在 html 上，设计稿可用它做「局部暗色预览」；应用里仍落在 documentElement。 */
+[data-theme="dark"] {
   color-scheme: dark;
   --bg: #0b0f16;
   --panel: #151a23;
@@ -313,4 +291,36 @@ html[data-palette="moss"][data-theme="dark"] {
   --danger: #f08d82;
   --danger-weak: #3a1e1b;
   --info: #79cfc4;
+}
+
+/* 语义色槽 · 只做转发，不写色值。组件只写 var(--ds-color-*)，见 SPEC §1.12。
+   这里同时覆盖 :root 与任何带主题属性的元素：自定义属性在「声明它的元素」上完成
+   替换后才会向下继承，所以嵌套的 [data-theme="dark"] / [data-palette] 作用域
+   必须在自身重算一次，否则会拿到外层（通常是浅色）已经算好的值。 */
+:root,
+[data-theme],
+[data-palette] {
+  --ds-color-bg: var(--bg);
+  --ds-color-surface: var(--panel);
+  --ds-color-surface-2: var(--panel-2);
+  --ds-color-surface-3: var(--panel-3);
+  --ds-color-surface-hover: var(--hover);
+  --ds-color-surface-selected: var(--selected);
+  --ds-color-text: var(--ink);
+  --ds-color-text-2: var(--ink-2);
+  --ds-color-text-muted: var(--faint);
+  --ds-color-line: var(--line);
+  --ds-color-line-strong: var(--line-strong);
+  --ds-color-accent: var(--accent);
+  --ds-color-on-accent: var(--accent-on);
+  --ds-color-accent-hover: var(--accent-ink);
+  --ds-color-accent-weak: var(--accent-weak);
+  --ds-color-accent-weak-2: var(--accent-weak-2);
+  --ds-color-success: var(--success);
+  --ds-color-success-weak: var(--success-weak);
+  --ds-color-warn: var(--warn);
+  --ds-color-warn-weak: var(--warn-weak);
+  --ds-color-danger: var(--danger);
+  --ds-color-danger-weak: var(--danger-weak);
+  --ds-color-info: var(--info);
 }

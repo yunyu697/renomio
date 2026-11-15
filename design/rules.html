@@ -78,7 +78,7 @@
       <span class="tb-crumb">
         <span>›</span>
         <span class="pill-scheme"><svg width="11" height="11" fill="none"><use href="#i-bolt"/></svg>常规规则</span>
-        <span style="color:var(--muted-2)">120 个对象 · 4 条规则</span>
+        <span style="color:var(--ds-color-text-muted)">120 个对象 · 4 条规则</span>
       </span>
       <div class="tb-spacer"></div>
       <div class="win-controls">
@@ -95,17 +95,17 @@
       <button class="btn btn-ghost" type="button"><svg fill="none"><use href="#i-save"/></svg>保存方案</button>
       <div style="flex:1"></div>
       <span class="switch-row"><span class="lbl">编辑时自动预演</span><span class="switch on" role="switch" aria-checked="true"></span></span>
-      <span class="sep" style="width:1px;height:20px;background:var(--line)"></span>
+      <span class="sep" style="width:1px;height:20px;background:var(--ds-color-line)"></span>
       <button class="btn btn-icon" type="button" title="展开预览侧栏"><svg fill="none"><use href="#i-eye"/></svg></button>
       <button class="btn btn-icon" type="button" title="帮助"><svg fill="none"><use href="#i-help"/></svg></button>
     </div>
 
     <div class="pathbar">
-      <span class="path"><svg width="14" height="14" fill="none" style="color:var(--accent)"><use href="#i-folder"/></svg>E:\照片\2024 旅行</span>
+      <span class="path"><svg width="14" height="14" fill="none" style="color:var(--ds-color-accent)"><use href="#i-folder"/></svg>E:\照片\2024 旅行</span>
       <span class="chip chip-accent">作用范围：全部 120 个对象</span>
       <span class="chip">勾选行优先</span>
       <span class="chip chip-ghost">查看规则说明</span>
-      <div class="right"><span>当前规则 <b style="color:var(--ink);font-family:var(--mono)">4</b> 条 · 顺序即执行顺序</span></div>
+      <div class="right"><span>当前规则 <b style="color:var(--ds-color-text);font-family:var(--ds-font-mono)">4</b> 条 · 顺序即执行顺序</span></div>
     </div>
 
     <div class="rulepage">
@@ -144,7 +144,7 @@
           <div class="subtab">高级规则</div>
           <div class="subtab">扩展名</div>
           <div class="subtab">特定文件类型</div>
-          <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+          <div style="margin-left:auto;display:flex;gap:var(--ds-space-3);align-items:center">
             <span class="mini on"><svg fill="none"><use href="#i-eye"/></svg>预览列</span>
             <span class="mini"><svg fill="none"><use href="#i-history"/></svg>命令列表</span>
           </div>
@@ -164,7 +164,7 @@
 
           <div class="tip-card">
             <svg fill="none"><use href="#i-info"/></svg>
-            <div>插入位置的「第 n 个字符」支持从后计算（如 <b style="font-family:var(--mono)">-2</b> 表示倒数第 2 个字符）；插入到字符串时可选包含间隔符。修改后列表即时刷新，不会写入磁盘。</div>
+            <div>插入位置的「第 n 个字符」支持从后计算（如 <b style="font-family:var(--ds-font-mono)">-2</b> 表示倒数第 2 个字符）；插入到字符串时可选包含间隔符。修改后列表即时刷新，不会写入磁盘。</div>
           </div>
 
           <div class="big-card">
@@ -181,48 +181,48 @@
             <div class="big-card-body">
               <div class="form-section span2">
                 <h5>添加内容 <span class="tag">支持元变量</span></h5>
-                <div class="field-row" style="margin-bottom:8px">
+                <div class="field-row" style="margin-bottom:var(--ds-space-4)">
                   <input class="input mono" value="旅行_" aria-label="添加内容">
-                  <button class="btn btn-soft" type="button" style="height:28px"><svg fill="none"><use href="#i-file"/></svg>插入元变量</button>
+                  <button class="btn btn-soft" type="button" style="height:var(--ds-control-h-md)"><svg fill="none"><use href="#i-file"/></svg>插入元变量</button>
                 </div>
-                <div class="field-row" style="flex-wrap:wrap;gap:5px">
-                  <span class="chip chip-ghost" style="height:22px;font-size:10.5px">原文件名 &lt;NAME&gt;</span>
-                  <span class="chip chip-ghost" style="height:22px;font-size:10.5px">扩展名 &lt;EXT&gt;</span>
-                  <span class="chip chip-ghost" style="height:22px;font-size:10.5px">目录名 &lt;DIR&gt;</span>
-                  <span class="chip chip-ghost" style="height:22px;font-size:10.5px">计数器 &lt;#&gt;</span>
-                  <span class="chip chip-ghost" style="height:22px;font-size:10.5px">修改日期 &lt;DATE&gt;</span>
-                  <span class="chip chip-ghost" style="height:22px;font-size:10.5px">+ 更多</span>
+                <div class="field-row" style="flex-wrap:wrap;gap:var(--ds-space-2)">
+                  <span class="chip chip-ghost" style="height:var(--ds-control-h-xs);font-size:var(--ds-type-role-micro)">原文件名 &lt;NAME&gt;</span>
+                  <span class="chip chip-ghost" style="height:var(--ds-control-h-xs);font-size:var(--ds-type-role-micro)">扩展名 &lt;EXT&gt;</span>
+                  <span class="chip chip-ghost" style="height:var(--ds-control-h-xs);font-size:var(--ds-type-role-micro)">目录名 &lt;DIR&gt;</span>
+                  <span class="chip chip-ghost" style="height:var(--ds-control-h-xs);font-size:var(--ds-type-role-micro)">计数器 &lt;#&gt;</span>
+                  <span class="chip chip-ghost" style="height:var(--ds-control-h-xs);font-size:var(--ds-type-role-micro)">修改日期 &lt;DATE&gt;</span>
+                  <span class="chip chip-ghost" style="height:var(--ds-control-h-xs);font-size:var(--ds-type-role-micro)">+ 更多</span>
                 </div>
                 <div class="preview-inline">
                   <span class="old">DSC_0101.JPG</span>
                   <svg fill="none"><use href="#i-arrow-right"/></svg>
                   <span class="new">旅行_DSC_0101.JPG</span>
-                  <span style="margin-left:auto;font-family:var(--font);color:var(--muted);font-size:10.5px">实时预览</span>
+                  <span style="margin-left:auto;font-family:var(--ds-font-sans);color:var(--ds-color-text-muted);font-size:var(--ds-type-role-micro)">实时预览</span>
                 </div>
               </div>
 
               <div class="form-section">
                 <h5>添加方式</h5>
-                <div class="mini-radio" style="gap:14px">
+                <div class="mini-radio" style="gap:var(--ds-space-5)">
                   <span class="on"><i></i>直接添加</span>
                   <span><i></i>补齐添加（按长度）</span>
                 </div>
-                <div class="field" style="margin-top:10px">
+                <div class="field" style="margin-top:var(--ds-space-4)">
                   <label>补齐目标长度</label>
                   <div class="field-row">
                     <input class="input mono small" value="12" disabled>
-                    <span style="font-size:10.5px;color:var(--muted-2)">仅「补齐添加」可用</span>
+                    <span style="font-size:var(--ds-type-role-micro);color:var(--ds-color-text-muted)">仅「补齐添加」可用</span>
                   </div>
                 </div>
               </div>
 
               <div class="form-section">
                 <h5>插入位置</h5>
-                <div class="mini-radio" style="gap:14px">
+                <div class="mini-radio" style="gap:var(--ds-space-5)">
                   <span class="on"><i></i>文件名之前</span>
                   <span><i></i>文件名之后</span>
                 </div>
-                <div class="field" style="margin-top:10px">
+                <div class="field" style="margin-top:var(--ds-space-4)">
                   <label>插入到字符串</label>
                   <div class="field-row">
                     <div class="seg-ctrl"><span class="on">开头</span><span>第 n 个字符</span><span>从后计算</span></div>
@@ -257,16 +257,16 @@
               </div>
             </div>
 
-            <div class="rule-foot" style="margin:0;padding:10px 14px;border-top:1px solid var(--line)">
+            <div class="rule-foot" style="margin:0;padding:var(--ds-space-4) var(--ds-space-5);border-top:1px solid var(--ds-color-line)">
               <button class="btn btn-primary" type="button"><svg fill="none"><use href="#i-check"/></svg>应用此规则到规则链</button>
               <button class="btn btn-ghost" type="button">重置</button>
-              <span style="margin-left:auto;font-size:10.5px;color:var(--muted)">对应快捷键 <span class="kbd">Ctrl ⏎</span></span>
+              <span style="margin-left:auto;font-size:var(--ds-type-role-micro);color:var(--ds-color-text-muted)">对应快捷键 <span class="kbd">Ctrl ⏎</span></span>
             </div>
           </div>
 
           <div class="big-card">
             <div class="big-card-head">
-              <span class="idx" style="background:var(--panel-3);color:var(--accent-ink)">2</span>
+              <span class="idx" style="background:var(--ds-color-surface-3);color:var(--ds-color-accent-hover)">2</span>
               <span class="t">替换</span>
               <span class="sub">查找“副本” → 替换为空 · 全部替换 · 区分大小写</span>
               <div class="right"><span class="switch on" role="switch"></span><span class="rule-chev"><svg fill="none"><use href="#i-chevron-down"/></svg></span></div>
@@ -275,7 +275,7 @@
 
           <div class="big-card">
             <div class="big-card-head">
-              <span class="idx" style="background:var(--panel-3);color:var(--accent-ink)">3</span>
+              <span class="idx" style="background:var(--ds-color-surface-3);color:var(--ds-color-accent-hover)">3</span>
               <span class="t">自动编号</span>
               <span class="sub">表达式“旅行_&lt;#&gt;” · 始于 1 · 步长 1 · 3 位补零 · 仅勾选行</span>
               <div class="right"><span class="switch on" role="switch"></span><span class="rule-chev"><svg fill="none"><use href="#i-chevron-down"/></svg></span></div>
@@ -284,14 +284,14 @@
 
           <div class="big-card">
             <div class="big-card-head">
-              <span class="idx" style="background:var(--panel-3);color:var(--accent-ink)">4</span>
+              <span class="idx" style="background:var(--ds-color-surface-3);color:var(--ds-color-accent-hover)">4</span>
               <span class="t">扩展名</span>
               <span class="sub">统一为小写 · 保留原扩展名 · 不处理文件夹</span>
               <div class="right"><span class="switch on" role="switch"></span><span class="rule-chev"><svg fill="none"><use href="#i-chevron-down"/></svg></span></div>
             </div>
           </div>
 
-          <div class="tip-card warn" style="margin-top:12px">
+          <div class="tip-card warn" style="margin-top:var(--ds-space-5)">
             <svg fill="none"><use href="#i-alert"/></svg>
             <div><b>未加入规则链的修改不会生效。</b>编辑中的规则只影响右侧预演；点击「应用此规则」后才写入命令列表，并可随时关闭或调整顺序。</div>
           </div>
@@ -337,23 +337,23 @@
             <div class="to"><span class="del">副本</span> → <span class="add">旅行_</span>003.jpg</div>
           </div>
           <div class="preview-item err">
-            <div class="file" style="color:var(--danger)"><svg width="11" height="11" fill="none"><use href="#i-alert"/></svg>DSC_0103.JPG · 冲突</div>
-            <div class="to">旅行_003.jpg<span style="font-family:var(--font);font-size:10.5px;color:var(--danger);display:block;margin-top:3px">目标与上一个文件重复</span></div>
+            <div class="file" style="color:var(--ds-color-danger)"><svg width="11" height="11" fill="none"><use href="#i-alert"/></svg>DSC_0103.JPG · 冲突</div>
+            <div class="to">旅行_003.jpg<span style="font-family:var(--ds-font-sans);font-size:var(--ds-type-role-micro);color:var(--ds-color-danger);display:block;margin-top:var(--ds-space-2)">目标与上一个文件重复</span></div>
           </div>
           <div class="preview-item">
             <div class="file"><svg width="11" height="11" fill="none"><use href="#i-folder"/></svg>2024 旅行照片</div>
             <div class="to"><span class="add">旅行_</span>2024 旅行照片</div>
           </div>
 
-          <div class="tip-card" style="margin:2px 0 0">
+          <div class="tip-card" style="margin:var(--ds-space-1) 0 0">
             <svg fill="none"><use href="#i-info"/></svg>
             <div><b>关于命名顺序</b><br>规则按 1 → 2 → 3 → 4 依次作用于「原文件名」，编号只统计勾选行；扩展名规则最后执行，不影响文件名主体。</div>
           </div>
         </div>
 
         <div class="preview-foot">
-          <span><span style="color:var(--success);font-weight:600">117</span> 个可执行 · <span style="color:var(--danger);font-weight:600">3</span> 个冲突</span>
-          <span class="right"><button class="btn btn-outline" type="button" style="height:28px"><svg fill="none"><use href="#i-eye"/></svg>完整预演</button></span>
+          <span><span style="color:var(--ds-color-success);font-weight:600">117</span> 个可执行 · <span style="color:var(--ds-color-danger);font-weight:600">3</span> 个冲突</span>
+          <span class="right"><button class="btn btn-outline" type="button" style="height:var(--ds-control-h-md)"><svg fill="none"><use href="#i-eye"/></svg>完整预演</button></span>
         </div>
       </aside>
     </div>
@@ -361,11 +361,11 @@
     <div class="actionbar">
       <div class="selection">规则 <b>4</b> 条 · 作用 <b>120</b> 个对象</div>
       <div class="conflict-chip"><svg fill="none"><use href="#i-alert"/></svg>3 处冲突</div>
-      <span style="font-size:11.5px;color:var(--muted)">冲突不会阻止预览，只会阻止该项写入磁盘</span>
+      <span style="font-size:var(--ds-type-role-caption);color:var(--ds-color-text-muted)">冲突不会阻止预览，只会阻止该项写入磁盘</span>
       <div class="spacer"></div>
       <div class="btns">
         <button class="btn btn-soft" type="button"><svg fill="none"><use href="#i-undo"/></svg>撤销上次</button>
-        <button class="btn btn-primary" type="button"><svg fill="none"><use href="#i-play"/></svg>应用更名 <span class="kbd" style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.25);color:#fff">Ctrl ⏎</span></button>
+        <button class="btn btn-primary" type="button"><svg fill="none"><use href="#i-play"/></svg>应用更名 <span class="kbd kbd-on-accent">Ctrl ⏎</span></button>
       </div>
     </div>
 

@@ -57,7 +57,7 @@ if (!rootBlock) {
   process.exit(1);
 }
 
-const darkBlocks = find((b) => b.selector === 'html[data-theme="dark"]');
+const darkBlocks = find((b) => b.selector.replace(/^html/, '') === '[data-theme="dark"]');
 const paletteBlocks = find((b) => b.selector.includes('data-palette="'));
 
 const palettes = [...new Set(paletteBlocks.map((b) => b.selector.match(/data-palette="([^"]+)"/)[1]))];
