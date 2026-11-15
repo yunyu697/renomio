@@ -439,10 +439,12 @@ jobs:
             echo ''
             echo '```'
             ls -l src-tauri/target/release/bundle/dmg/* \
-                  src-tauri/target/release/bundle/macos/*.app.zip
+                  src-tauri/target/release/bundle/macos/*.app.zip \
+                  src-tauri/target/release/bundle/macos/*.app.tar.gz*
             echo ''
             shasum -a 256 src-tauri/target/release/bundle/dmg/* \
-                          src-tauri/target/release/bundle/macos/*.app.zip
+                          src-tauri/target/release/bundle/macos/*.app.zip \
+                          src-tauri/target/release/bundle/macos/*.app.tar.gz*
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -453,6 +455,8 @@ jobs:
             app/src-tauri/target/release/bundle/dmg/*.dmg
             app/src-tauri/target/release/bundle/dmg/*.sig
             app/src-tauri/target/release/bundle/macos/*.app.zip
+            app/src-tauri/target/release/bundle/macos/*.app.tar.gz
+            app/src-tauri/target/release/bundle/macos/*.app.tar.gz.sig
           if-no-files-found: error
 
   # Windows 安装包：此前只在本地构建，现在由 CI 与 Linux/macOS 同源产出，并生成 updater 签名。
