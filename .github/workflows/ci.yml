@@ -419,3 +419,58 @@ jobs:
             app/src-tauri/target/release/bundle/dmg/*.dmg
             app/src-tauri/target/release/bundle/macos/*.app.zip
           if-no-files-found: error
+
+  # Windows 安装包：此前只在本地构建。发版需要一个与 Linux/macOS 同源的 CI 产物，
+  # 同样不生成 updater 产物（仓库无 minisign 私钥），因此也没有 .sig。
+  bundle-windows:
+    name: bundle-windows (msi / nsis，未签名)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            app/src-tauri -> target
+            app/src-tauri/renomio-core -> target
+
+      - name: npm ci
+        run: npm ci
+
+      - name: 构建 MSI + NSIS
+        run: npm run tauri build -- --bundles msi,nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: 产物清单与 SHA-256
+        shell: pwsh
+        run: |
+          $files = @(
+            Get-ChildItem 'src-tauri/target/release/bundle/msi/*.msi'
+            Get-ChildItem 'src-tauri/target/release/bundle/nsis/*-setup.exe'
+          )
+          if ($files.Count -eq 0) { throw '未找到 msi / setup.exe 产物' }
+          $lines = @('## Windows 产物（未签名，未进 Release）', '', '```')
+          foreach ($f in $files) {
+            $h = (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash.ToLower()
+            $lines += ('{0}  {1}  {2}' -f $h, $f.Length, $f.Name)
+          }
+          $lines += '```'
+          $lines | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: renomio-windows-x64-unsigned
+          path: |
+            app/src-tauri/target/release/bundle/msi/*.msi
+            app/src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error

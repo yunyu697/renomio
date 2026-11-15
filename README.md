@@ -168,7 +168,7 @@ macOS 无证书时用 `./app/scripts/sign/build-macos.sh`：构建后自动 ad-h
 
 ## 持续集成
 
-[.github/workflows/ci.yml](.github/workflows/ci.yml) 六个 job，push 到 `main`、PR 或手动 `workflow_dispatch` 时触发：
+[.github/workflows/ci.yml](.github/workflows/ci.yml) 七个 job，push 到 `main`、PR 或手动 `workflow_dispatch` 时触发：
 
 | job | runner | 内容 |
 | --- | --- | --- |
@@ -178,8 +178,9 @@ macOS 无证书时用 `./app/scripts/sign/build-macos.sh`：构建后自动 ad-h
 | `bundle-checks` | windows | 离线组 13 条（读配置，每次都跑）+ 产物组 14 条（有构建产物时才跑） |
 | `bundle-linux` | ubuntu | 真实 `tauri build` 产出 `.deb` + `.AppImage`，并在 Xvfb + openbox 下启动 AppImage 做冒烟，产物上传为 artifact |
 | `bundle-macos` | macos-latest | 真实 `tauri build` 产出 `.app` + `.dmg`，ad-hoc 签名后重打 dmg，`codesign --verify` 校验，产物上传为 artifact |
+| `bundle-windows` | windows | 真实 `tauri build` 产出 `.msi` + `-setup.exe`（未签名），产物上传为 artifact |
 
-`bundle-linux` / `bundle-macos` **不写 Release、不改 `latest.json`**，只提供可下载的未签名 artifact。
+`bundle-linux` / `bundle-macos` / `bundle-windows` **不写 Release、不改 `latest.json`**，只提供可下载的未签名 artifact。
 
 `bundle-checks` 分两组断言（`scripts/check-bundle.ps1`）：
 
