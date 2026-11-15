@@ -988,12 +988,20 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   display: flex;
   align-items: center;
   gap: var(--ds-space-role-inline);
-  height: 100%;
+  /* 高度按角色取值，不再写 100%：九类只读页签里它是 .main 的直接子项，
+     百分比会按整块主区高度解析，把页签条撑成半屏、把表格挤到底部（SP-1） */
+  height: var(--ds-control-h-lg);
   padding: 0 var(--ds-space-role-field);
   overflow-x: auto;
   scrollbar-width: none;
   flex: 0 1 auto;
   min-width: 0;
+}
+
+/* 直接挂在 .main 下（九类只读页签 / 空列表）时不参与剩余高度分配，并自己补一条分隔线 */
+.main > .list-tabs {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--ds-color-line);
 }
 .list-tabs::-webkit-scrollbar { display: none; }
 

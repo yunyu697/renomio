@@ -1556,7 +1556,7 @@ async function main() {
       `scan=${scanOn}, visible=${hiddenVisible}`,
     );
 
-    // ---- 九类列表页签（UI 层，mock 后端） ----
+    // ---- 八类列表页签（UI 层，mock 后端） ----
     await evaluate(`(() => {
       const now = 1735689600000;
       window.__E2E__.files.push(
@@ -1574,7 +1574,6 @@ async function main() {
       attrs: { min: 9, text: '只读' },
       music: { min: 1, text: '夜曲' },
       photo: { min: 4, text: '相机型号' },
-      image: { min: 4, text: 'IPTC / XMP' },
       office: { min: 1, text: '会议记录' },
       pdf: { min: 1, text: '产品说明' },
       text: { min: 1, text: 'UTF-8' },
@@ -1604,6 +1603,14 @@ async function main() {
         info.th > 1 && (info.empty ? !loaded : info.rows >= expect.min && info.text.includes(expect.text)),
         `rows=${info.rows}, th=${info.th}, note=${info.note}, action=${info.action}`,
       );
+      // 错位回归：页签条曾因 height:100% 吃掉半块主区，把表格压到底部
+      const geom = await evaluate(`(() => {
+        const tabs = document.querySelector('.main > .list-tabs');
+        const table = document.querySelector('.list-view .table');
+        if (!tabs || !table) return null;
+        return { tabs: +tabs.getBoundingClientRect().height.toFixed(1), table: +table.getBoundingClientRect().height.toFixed(1) };
+      })()`);
+      check('UI', `页签「${key}」页签条只占角色高度、表格拿满剩余空间`, !!geom && geom.tabs <= 48 && geom.table >= 200, JSON.stringify(geom));
     }
     // 页签行「打开归类移动」改指检查器；先让列表有勾选目标
     await click('[data-testid="list-tab-rename"]');
@@ -1636,9 +1643,39 @@ async function main() {
     await click('[data-testid="list-tab-text"]');
     await sleep(300);
     check('UI', '文本页签展示编码 / 行数 / 字符数 / 摘要', (await textOf('[data-testid="list-view-text"]')).includes('UTF-8') && (await textOf('[data-testid="list-view-text"]')).includes('行数'), ``);
-    await click('[data-testid="list-tab-image"]');
+    // 照片 / 图像已合并为一个页签（入口叫「图像」）：列分组切换，默认「拍摄参数」，切到「描述信息」不丢字段
+    await click('[data-testid="list-tab-photo"]');
     await sleep(300);
-    check('UI', '图像页签明确标注 IPTC / XMP 暂不支持（不伪装成功）', (await textOf('[data-testid="list-note-image"]')).includes('暂不支持'), ``);
+    const photoLabels = await evaluate(`(() => {
+      const tab = document.querySelector('[data-testid="list-tab-photo"]');
+      const head = document.querySelector('.main-head h1, .page-head h1, .main-head');
+      return {
+        tab: tab?.textContent?.trim() || '',
+        head: (document.querySelector('[data-testid="main-title"]')?.textContent || head?.textContent || '').trim(),
+        exif: document.querySelector('[data-testid="photo-group-exif"]')?.textContent?.trim(),
+        desc: document.querySelector('[data-testid="photo-group-desc"]')?.textContent?.trim(),
+      };
+    })()`);
+    check('UI', '入口页签与分组用「图像 / 拍摄参数 / 描述信息」，不再出现「照片」', photoLabels.tab.replace(/\d+$/, '').trim() === '图像' && photoLabels.exif === '拍摄参数' && photoLabels.desc === '描述信息' && !photoLabels.head.includes('照片'), JSON.stringify(photoLabels));
+    const photoExif = await evaluate(`(() => {
+      const root = document.querySelector('[data-testid="list-view-photo"]');
+      return { pressed: root.querySelector('[data-testid="photo-group-exif"]')?.getAttribute('aria-pressed'), th: [...root.querySelectorAll('.th')].map((x) => x.textContent) };
+    })()`);
+    check('UI', '图像页签默认停在「拍摄参数」分组且表头是 EXIF 列', photoExif.pressed === 'true' && photoExif.th.includes('相机型号') && !photoExif.th.includes('版权'), JSON.stringify(photoExif.th));
+    await click('[data-testid="photo-group-desc"]');
+    await sleep(300);
+    const photoDesc = await evaluate(`(() => {
+      const root = document.querySelector('[data-testid="list-view-photo"]');
+      return { pressed: root.querySelector('[data-testid="photo-group-desc"]')?.getAttribute('aria-pressed'), th: [...root.querySelectorAll('.th')].map((x) => x.textContent), note: root.querySelector('[data-testid="list-note-photo"]')?.textContent || '' };
+    })()`);
+    check('UI', '切到「描述信息」分组后表头换成描述列、页签仍是同一个', photoDesc.pressed === 'true' && photoDesc.th.includes('版权') && photoDesc.th.includes('作者') && !photoDesc.th.includes('相机型号'), JSON.stringify(photoDesc.th));
+    check('UI', '描述信息分组明确标注 IPTC / XMP 暂不支持（不伪装成功）', photoDesc.note.includes('暂不支持'), ``);
+    check('UI', '照片 / 图像合并后页签条只剩一个图像入口', (await evaluate(`document.querySelectorAll('[data-testid="list-tab-image"]').length`)) === 0
+      && (await evaluate(`document.querySelectorAll('[data-testid="list-tab-photo"]').length`)) === 1, ``);
+    await click('[data-testid="photo-group-exif"]');
+    await sleep(200);
+    check('UI', '切回「拍摄参数」分组', (await evaluate(`document.querySelector('[data-testid="photo-group-exif"]')?.getAttribute('aria-pressed')`)) === 'true', ``);
+
     await click('[data-testid="list-tab-rename"]');
     await sleep(300);
     check('UI', '切回更名列表', (await countOf('.trow')) === 9, `rows=${await countOf('.trow')}`);
@@ -1712,7 +1749,7 @@ async function main() {
     check('UI', '1100×640 @150% DPI 操作条与工具栏未被裁切', layout.actionBottom <= 641 && layout.actionRight <= 1101 && layout.toolbarBottom <= 641, JSON.stringify(layout));
     await shot('14-min-1100x640-150dpi.png');
 
-    // 最小尺寸 + 150% DPI 下九类页签：页面不溢出、页签条可读
+    // 最小尺寸 + 150% DPI 下八类页签：页面不溢出、页签条可读
     await click('[data-testid="list-tab-attrs"]');
     await sleep(400);
     const tabLayout = await evaluate(`(() => {
@@ -1744,7 +1781,7 @@ async function main() {
     })()`);
     check(
       'UI',
-      '1100×640 @150% DPI：九类页签不撑破页面，页签条与数据行可读',
+      '1100×640 @150% DPI：八类页签不撑破页面，页签条与数据行可读',
       tabLayout.scrollWidth <= tabLayout.innerWidth + 1 &&
         tabLayout.tabsScroll <= tabLayout.tabsClient + 1 &&
         tabLayout.viewBottom <= tabLayout.innerHeight + 1 &&

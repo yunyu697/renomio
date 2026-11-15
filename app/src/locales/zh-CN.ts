@@ -241,8 +241,7 @@ export const zhCN: Dict = {
   'tab.rename': '更名',
   'tab.attrs': '属性',
   'tab.music': '音乐',
-  'tab.photo': '照片',
-  'tab.image': '图像',
+  'tab.photo': '图像',
   'tab.office': 'Office',
   'tab.pdf': 'PDF',
   'tab.text': '文本',
@@ -250,12 +249,16 @@ export const zhCN: Dict = {
   'tabFull.rename': '更名列表',
   'tabFull.attrs': '属性列表',
   'tabFull.music': '音乐标签',
-  'tabFull.photo': '照片信息',
-  'tabFull.image': '图像信息',
+  'tabFull.photo': '图像信息',
   'tabFull.office': 'Office 属性',
   'tabFull.pdf': 'PDF 属性',
   'tabFull.text': '文本编码',
   'tabFull.organize': '归类列表',
+
+  // 图像页签的列分组（原「照片 / 图像」两个页签合并，筛的是同一批文件）
+  'photo.groupLabel': '列分组',
+  'photo.groupExif': '拍摄参数',
+  'photo.groupDesc': '描述信息',
 
   // 列表视图表头
   'lc.name': '名称',
@@ -913,7 +916,7 @@ export const zhCN: Dict = {
   'about.scope3': '原名 / 新名实时预览与冲突检测（跳过 / 后缀 / 备份覆盖）',
   'about.scope4': '两段式改名、原子替换、批次历史与跨重启撤销',
   'about.scope5': '非法字符、保留名、超长路径、只读、重名警告',
-  'about.scope6': '九类列表页签（属性 / 音乐 / 照片 / 图像 / Office / PDF / 文本 / 归类）、方案导入导出、CSV、列设置',
+  'about.scope6': '八类列表页签（属性 / 音乐 / 图像 / Office / PDF / 文本 / 归类，图像页签内含拍摄参数与描述信息两个列分组）、方案导入导出、CSV、列设置',
   'about.notImplemented': '明确未实现（不提供假入口）',
   'about.not1': 'EXIF / IPTC / XMP 写入（只读展示，界面已标注暂不支持）',
   'about.not2': '快照（暂不提供入口）',

@@ -154,7 +154,16 @@ body { margin: 0; overflow: hidden; }
 }
 .list-note .note-text + button { margin-left: var(--ds-space-role-field); }
 
-/* 最小窗口（1100px）下隐藏页签计数，保证九类页签完整可读、页签条不横向溢出 */
+/* 照片页签的列分组切换：拍摄信息 / 描述信息，两个 24px 小按钮贴在同一行左侧 */
+.list-note .photo-groups {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+  flex: 0 0 auto;
+}
+.list-note .photo-groups button { margin-left: 0; }
+
+/* 最小窗口（1100px）下隐藏页签计数，保证八类页签完整可读、页签条不横向溢出 */
 @media (max-width: 1280px) {
   .list-tabs .num { display: none; }
   .list-tabs { gap: 0; padding: 0 var(--ds-space-role-inline); }

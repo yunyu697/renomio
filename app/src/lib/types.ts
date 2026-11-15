@@ -853,8 +853,11 @@ export interface BatchMetadata {
   error?: string | null;
 }
 
-/** 九类列表页签。 */
-export type ListTab = 'rename' | 'attrs' | 'music' | 'photo' | 'image' | 'office' | 'pdf' | 'text' | 'organize';
+/** 八类列表页签。「照片」「图像」原为两个页签、筛的是同一批文件，已合并为一个页签 + 列分组切换。 */
+export type ListTab = 'rename' | 'attrs' | 'music' | 'photo' | 'office' | 'pdf' | 'text' | 'organize';
+
+/** 照片页签的列分组：拍摄信息（EXIF）/ 描述信息（IPTC / XMP）。 */
+export type PhotoGroup = 'exif' | 'desc';
 
 /** 系统文件类型图标（Rust `file_type_icons`）：`ext` 为小写扩展名或 `folder`，`png` 为 base64 的 16×16 PNG。 */
 export interface FileTypeIconDto {

@@ -26,7 +26,7 @@ import { normalizePath, targetPath } from './lib/validate';
 import type {
   AppSettings, ApplyItemDto, ApplyOutcome, ApplyProgress, Batch, BatchSummary, ConflictPolicy,
   DuplicateReportDto, Entry, EntryFacts, EnvInfo, InspectorMode, LayoutState, ListTab, MetadataInfo, MetaFields, MigrationInfo,
-  OpsOutcome, PreviewRow, PrivilegeInfo, Rule, RuleType, ScanEntryDto, SessionDto, SkippedChange,
+  OpsOutcome, PhotoGroup, PreviewRow, PrivilegeInfo, Rule, RuleType, ScanEntryDto, SessionDto, SkippedChange,
   SnapshotPlanItemDto, SnapshotProgress, SnapshotRestoreResult, SnapshotSummaryDto, StartupMark, ThemeSetting,
   PaletteId,
 } from './lib/types';
@@ -141,6 +141,7 @@ interface AppState {
   search: string;
   statusFilter: StatusFilter;
   listTab: ListTab;
+  photoGroup: PhotoGroup;
   includePattern: string;
   excludePattern: string;
   recursive: boolean;
@@ -256,6 +257,7 @@ interface AppState {
   setSearch: (value: string) => void;
   setStatusFilter: (value: StatusFilter) => void;
   setListTab: (tab: ListTab) => void;
+  setPhotoGroup: (group: PhotoGroup) => void;
   setIncludePattern: (value: string) => void;
   setExcludePattern: (value: string) => void;
   setRecursive: (value: boolean) => void;
@@ -565,6 +567,7 @@ export const useApp = create<AppState>((set, get) => ({
   search: '',
   statusFilter: 'all',
   listTab: 'rename',
+  photoGroup: 'exif',
   includePattern: '',
   excludePattern: '',
   recursive: true,
@@ -1182,6 +1185,7 @@ export const useApp = create<AppState>((set, get) => ({
   setSearch: (value) => set({ search: value }),
   setStatusFilter: (value) => set({ statusFilter: value }),
   setListTab: (tab) => set({ listTab: tab }),
+  setPhotoGroup: (group) => set({ photoGroup: group }),
   setIncludePattern: (value) => set({ includePattern: value }),
   setExcludePattern: (value) => set({ excludePattern: value }),
   setRecursive: (value) => set({ recursive: value }),

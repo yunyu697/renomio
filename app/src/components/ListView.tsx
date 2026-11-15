@@ -6,7 +6,7 @@ import { formatSize, formatTime } from '../lib/format';
 import { defaultMoveRoot, buildMoveRows } from '../lib/moveRules';
 import { fileKind } from '../lib/rules';
 import { useTranslation } from '../i18n';
-import type { AttrInfo, BatchMetadata, Entry, ListTab, MetadataInfo, TimeInfo } from '../lib/types';
+import type { AttrInfo, BatchMetadata, Entry, ListTab, MetadataInfo, PhotoGroup, TimeInfo } from '../lib/types';
 import { useApp } from '../store';
 import { Icon, type IconName } from './Icon';
 
@@ -15,7 +15,6 @@ export const LIST_TABS: Array<{ key: ListTab; labelKey: string }> = [
   { key: 'attrs', labelKey: 'tab.attrs' },
   { key: 'music', labelKey: 'tab.music' },
   { key: 'photo', labelKey: 'tab.photo' },
-  { key: 'image', labelKey: 'tab.image' },
   { key: 'office', labelKey: 'tab.office' },
   { key: 'pdf', labelKey: 'tab.pdf' },
   { key: 'text', labelKey: 'tab.text' },
@@ -27,7 +26,6 @@ export const TAB_FULL_KEY: Record<ListTab, string> = {
   attrs: 'tabFull.attrs',
   music: 'tabFull.music',
   photo: 'tabFull.photo',
-  image: 'tabFull.image',
   office: 'tabFull.office',
   pdf: 'tabFull.pdf',
   text: 'tabFull.text',
@@ -39,7 +37,6 @@ const TAB_ACCEPT: Record<ListTab, (entry: Entry) => boolean> = {
   attrs: () => true,
   music: (e) => fileKind(e.name, e.isDir) === 'music',
   photo: (e) => fileKind(e.name, e.isDir) === 'jpg',
-  image: (e) => fileKind(e.name, e.isDir) === 'jpg',
   office: (e) => fileKind(e.name, e.isDir) === 'doc',
   pdf: (e) => fileKind(e.name, e.isDir) === 'pdf',
   text: (e) => fileKind(e.name, e.isDir) === 'txt',
@@ -52,6 +49,21 @@ interface ColDef {
   field?: string;
 }
 
+/** 照片页签的两个列分组：字段本身一个不丢，只是分开显示。 */
+const PHOTO_GROUPS: Record<PhotoGroup, ColDef[]> = {
+  exif: [
+    { key: 'name' }, { key: 'format' }, { key: 'dimensions', field: '尺寸' }, { key: 'taken', field: '拍摄时间' },
+    { key: 'cameraMake', field: '相机品牌' }, { key: 'cameraModel', field: '相机型号' },
+    { key: 'orientation', field: '方向' }, { key: 'iso', field: 'ISO' }, { key: 'shutter', field: '快门' },
+    { key: 'aperture', field: '光圈' }, { key: 'focal', field: '焦距' }, { key: 'lens', field: '镜头' },
+  ],
+  desc: [
+    { key: 'name' }, { key: 'format' }, { key: 'dimensions', field: '尺寸' }, { key: 'title', field: '标题' },
+    { key: 'author', field: '作者' }, { key: 'copyright', field: '版权' }, { key: 'software', field: '软件' },
+    { key: 'comment', field: '备注' },
+  ],
+};
+
 const COLUMNS: Record<Exclude<ListTab, 'rename'>, ColDef[]> = {
   attrs: [
     { key: 'name' }, { key: 'type' }, { key: 'readonly' }, { key: 'hidden' },
@@ -63,17 +75,7 @@ const COLUMNS: Record<Exclude<ListTab, 'rename'>, ColDef[]> = {
     { key: 'genre', field: '流派' }, { key: 'sampleRate', field: '采样率' }, { key: 'duration', field: '时长' },
     { key: 'bitrate', field: '码率' },
   ],
-  photo: [
-    { key: 'name' }, { key: 'format' }, { key: 'dimensions', field: '尺寸' }, { key: 'taken', field: '拍摄时间' },
-    { key: 'cameraMake', field: '相机品牌' }, { key: 'cameraModel', field: '相机型号' },
-    { key: 'orientation', field: '方向' }, { key: 'iso', field: 'ISO' }, { key: 'shutter', field: '快门' },
-    { key: 'aperture', field: '光圈' }, { key: 'focal', field: '焦距' }, { key: 'lens', field: '镜头' },
-  ],
-  image: [
-    { key: 'name' }, { key: 'format' }, { key: 'dimensions', field: '尺寸' }, { key: 'title', field: '标题' },
-    { key: 'author', field: '作者' }, { key: 'copyright', field: '版权' }, { key: 'software', field: '软件' },
-    { key: 'comment', field: '备注' },
-  ],
+  photo: PHOTO_GROUPS.exif,
   office: [
     { key: 'name' }, { key: 'format' }, { key: 'title', field: '标题' }, { key: 'subject', field: '主题' },
     { key: 'author', field: '作者' }, { key: 'lastBy', field: '最后修改者' }, { key: 'revision', field: '修订号' },
@@ -94,20 +96,24 @@ const COLUMNS: Record<Exclude<ListTab, 'rename'>, ColDef[]> = {
   ],
 };
 
-const META_TABS = new Set<ListTab>(['music', 'photo', 'image', 'office', 'pdf', 'text']);
+const META_TABS = new Set<ListTab>(['music', 'photo', 'office', 'pdf', 'text']);
 
 /** 只保留「能力边界」说明（写不了 / 读不到），写在标题行内，一行截断，全文进 tooltip（§1.18）。 */
 const TAB_NOTE_KEY: Partial<Record<ListTab, string>> = {
   attrs: 'list.attrsNote',
-  image: 'list.imageNote',
   office: 'list.officeNote',
-  photo: 'list.photoNote',
   text: 'list.textNote',
+};
+
+/** 照片页签的说明随列分组走：拍摄信息讲保护项，描述信息讲 IPTC / XMP 的边界。 */
+const PHOTO_NOTE_KEY: Record<PhotoGroup, string> = {
+  exif: 'list.photoNote',
+  desc: 'list.imageNote',
 };
 
 function metaKindIcon(tab: ListTab): IconName {
   if (tab === 'music') return 'music';
-  if (tab === 'photo' || tab === 'image') return 'image';
+  if (tab === 'photo') return 'image';
   if (tab === 'pdf') return 'pdf';
   if (tab === 'text') return 'text';
   return 'doc';
@@ -217,6 +223,8 @@ export function ListView({ tab }: { tab: Exclude<ListTab, 'rename'> }) {
   const diskExists = useApp((s) => s.diskExists);
   const isDemo = useApp((s) => s.isDemo);
   const openInspector = useApp((s) => s.openInspector);
+  const photoGroup = useApp((s) => s.photoGroup);
+  const setPhotoGroup = useApp((s) => s.setPhotoGroup);
   const [meta, setMeta] = useState<Record<string, BatchMetadata>>({});
   const [times, setTimes] = useState<Record<string, TimeInfo>>({});
   const [attrs, setAttrs] = useState<Record<string, AttrInfo>>({});
@@ -329,6 +337,9 @@ export function ListView({ tab }: { tab: Exclude<ListTab, 'rename'> }) {
     }));
   }, [tab, files, env, diskExists]);
 
+  // 照片页签按列分组切换（拍摄信息 / 描述信息），字段并集不变，只换显示哪一组。
+  const group = tab === 'photo' ? PHOTO_GROUPS[photoGroup] : COLUMNS[tab];
+
   const rows = useMemo<ViewRow[]>(() => {
     if (tab === 'organize') {
       return organizeRows.map((row) => ({
@@ -371,7 +382,7 @@ export function ListView({ tab }: { tab: Exclude<ListTab, 'rename'> }) {
     return files.map((entry) => {
       const item = meta[entry.path];
       const info = item?.info ?? null;
-      const defs = COLUMNS[tab];
+      const defs = group;
       const values = defs.map((def) => {
         if (def.key === 'name') return entry.name;
         if (def.key === 'format') return info?.format ?? '—';
@@ -385,11 +396,11 @@ export function ListView({ tab }: { tab: Exclude<ListTab, 'rename'> }) {
         note: item?.error ?? info?.warnings[0] ?? undefined,
       };
     });
-  }, [tab, files, meta, times, attrs, organizeRows, t]);
+  }, [tab, files, meta, times, attrs, organizeRows, t, group]);
 
-  const headers = COLUMNS[tab];
+  const headers = group;
   const cols = useMemo(() => autoCols(headers, rows, t), [headers, rows, t]);
-  const noteKey = TAB_NOTE_KEY[tab];
+  const noteKey = tab === 'photo' ? PHOTO_NOTE_KEY[photoGroup] : TAB_NOTE_KEY[tab];
   // 页签行的动作不再另开整页/弹窗：统一指向右侧检查器，目标就是列表勾选。
   const selectedCount = entries.filter((e) => e.selected && !e.isDir).length;
 
@@ -397,6 +408,22 @@ export function ListView({ tab }: { tab: Exclude<ListTab, 'rename'> }) {
     <div className="list-view" data-testid={`list-view-${tab}`}>
       {(noteKey || META_TABS.has(tab) || tab === 'organize' || tab === 'attrs') && (
         <div className="list-note" data-testid={`list-note-${tab}`}>
+          {tab === 'photo' && (
+            <div className="photo-groups" role="group" aria-label={t('photo.groupLabel')} data-testid="photo-group">
+              {(['exif', 'desc'] as PhotoGroup[]).map((g) => (
+                <button
+                  key={g}
+                  className={`mini ${photoGroup === g ? 'on' : ''}`}
+                  type="button"
+                  aria-pressed={photoGroup === g}
+                  data-testid={`photo-group-${g}`}
+                  onClick={() => setPhotoGroup(g)}
+                >
+                  {t(g === 'exif' ? 'photo.groupExif' : 'photo.groupDesc')}
+                </button>
+              ))}
+            </div>
+          )}
           {noteKey && <span className="note-text" title={t(noteKey)}>{t(noteKey)}</span>}
           {META_TABS.has(tab) && (
             <button
