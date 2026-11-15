@@ -24,10 +24,12 @@ function Assert($name, $ok, $detail) {
   }
 }
 
-# --- 离线组（11 条）：只读源码配置与安装钩子，不依赖构建产物；CI 每次真实执行 ---
+# --- 离线组（13 条）：只读源码配置与安装钩子，不依赖构建产物；CI 每次真实执行 ---
 $confPath = Join-Path $app 'src-tauri\tauri.conf.json'
+$linuxConfPath = Join-Path $app 'src-tauri\tauri.linux.conf.json'
+$macConfPath = Join-Path $app 'src-tauri\tauri.macos.conf.json'
 $hooksPath = Join-Path $app 'src-tauri\installer-hooks.nsh'
-$offlineTotal = 11
+$offlineTotal = 13
 $conf = $null
 
 Assert 'tauri.conf.json 存在' (Test-Path -LiteralPath $confPath) $confPath
@@ -41,6 +43,30 @@ if ($conf) { $targets = @($conf.bundle.targets) }
 Assert 'bundle.targets 覆盖 nsis 与 msi' `
   (($targets -contains 'all') -or (($targets -contains 'nsis') -and ($targets -contains 'msi'))) `
   "实际值：$($targets -join ',')"
+
+# 非 Windows 目标放在平台覆盖配置里（tauri.<platform>.conf.json 由 CLI 自动合并），
+# 主配置保持 nsis+msi，避免 Windows 本地构建被无关 target 影响。
+$linuxTargets = @()
+if (Test-Path -LiteralPath $linuxConfPath) {
+  try {
+    $linuxConf = Get-Content -LiteralPath $linuxConfPath -Raw | ConvertFrom-Json
+    if ($linuxConf.bundle) { $linuxTargets = @($linuxConf.bundle.targets) }
+  } catch { }
+}
+Assert 'Linux 覆盖配置 targets 含 deb 与 appimage' `
+  (($linuxTargets -contains 'deb') -and ($linuxTargets -contains 'appimage')) `
+  "$linuxConfPath 实际值：$($linuxTargets -join ',')"
+
+$macTargets = @()
+if (Test-Path -LiteralPath $macConfPath) {
+  try {
+    $macConf = Get-Content -LiteralPath $macConfPath -Raw | ConvertFrom-Json
+    if ($macConf.bundle) { $macTargets = @($macConf.bundle.targets) }
+  } catch { }
+}
+Assert 'macOS 覆盖配置 targets 含 app 与 dmg' `
+  (($macTargets -contains 'app') -and ($macTargets -contains 'dmg')) `
+  "$macConfPath 实际值：$($macTargets -join ',')"
 
 $productName = if ($conf) { $conf.productName } else { '<缺失>' }
 Assert 'productName = Renomio' ($productName -eq 'Renomio') "实际值：$productName"
