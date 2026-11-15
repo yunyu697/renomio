@@ -1,6 +1,6 @@
 /** 预览计算入口：模块级缓存，避免多个组件重复跑规则链 */
 import { useEffect, useMemo } from 'react';
-import { computePreview, type PreviewResult } from '../lib/preview';
+import { buildPreviewRows, finalizePreview, previewDependsOnOrder, type BuiltRow, type PreviewResult } from '../lib/preview';
 import type { EntryFacts, EnvInfo, Entry, MetaFields, Rule } from '../lib/types';
 import { useApp } from '../store';
 
@@ -23,6 +23,8 @@ interface Cache {
   emptyNameFallback: string;
   skipSystemHidden: boolean;
   nameOverrides: Record<string, string>;
+  /** 逐条结果：上下文不变时，纯换序可直接复用，不必重跑规则链 */
+  built: BuiltRow[];
   result: PreviewResult;
 }
 
@@ -49,30 +51,28 @@ export function usePreview(): PreviewResult {
   const nameOverrides = useApp((s) => s.nameOverrides);
 
   return useMemo(() => {
-    if (
-      cache &&
-      cache.entries === entries &&
-      cache.rules === rules &&
-      cache.env === env &&
-      cache.strict === strict &&
-      cache.readonly === readonly &&
-      cache.disk === disk &&
-      cache.meta === meta &&
-      cache.facts === facts &&
-      cache.userVars === userVars &&
-      cache.user0 === user0 &&
-      cache.replaceInvalid === replaceInvalid &&
-      cache.invalidReplacement === invalidReplacement
+    const sameContext = !!cache
+      && cache.rules === rules
+      && cache.env === env
+      && cache.strict === strict
+      && cache.readonly === readonly
+      && cache.disk === disk
+      && cache.meta === meta
+      && cache.facts === facts
+      && cache.userVars === userVars
+      && cache.user0 === user0
+      && cache.replaceInvalid === replaceInvalid
+      && cache.invalidReplacement === invalidReplacement
       && cache.nameMaxLength === nameMaxLength
       && cache.longNameAction === longNameAction
       && cache.emptyNameAction === emptyNameAction
       && cache.emptyNameFallback === emptyNameFallback
       && cache.skipSystemHidden === skipSystemHidden
-      && cache.nameOverrides === nameOverrides
-    ) {
-      return cache.result;
-    }
-    const result = computePreview(entries, rules, {
+      && cache.nameOverrides === nameOverrides;
+
+    if (sameContext && cache && cache.entries === entries) return cache.result;
+
+    const opts = {
       env,
       strictWindowsNames: strict,
       readonlySkip: readonly,
@@ -89,10 +89,26 @@ export function usePreview(): PreviewResult {
       emptyNameFallback,
       skipSystemHidden,
       nameOverrides,
-    });
+    };
+
+    // 纯换序（拖拽排序、上移/下移、恢复添加顺序）：逐条结果原样复用，只重跑顺序相关的收尾。
+    // 逐条对象身份必须一致，勾选、改名等改动仍然整套重算。
+    if (sameContext && cache && !previewDependsOnOrder(rules)) {
+      const byId = new Map(cache.built.map((item) => [item.id, item]));
+      const built = entries.map((entry) => byId.get(entry.id));
+      if (built.length === entries.length && built.every((item, i) => item && item.row.entry === entries[i])) {
+        const rows = built as BuiltRow[];
+        const result = finalizePreview(rows, opts);
+        cache = { ...cache, entries, built: rows, result };
+        return result;
+      }
+    }
+
+    const built = buildPreviewRows(entries, rules, opts);
+    const result = finalizePreview(built, opts);
     cache = {
       entries, rules, env, strict, readonly, disk, meta, facts, userVars, user0, replaceInvalid, invalidReplacement,
-      nameMaxLength, longNameAction, emptyNameAction, emptyNameFallback, skipSystemHidden, nameOverrides, result,
+      nameMaxLength, longNameAction, emptyNameAction, emptyNameFallback, skipSystemHidden, nameOverrides, built, result,
     };
     return result;
   }, [entries, rules, env, strict, readonly, disk, meta, facts, userVars, user0, replaceInvalid, invalidReplacement,

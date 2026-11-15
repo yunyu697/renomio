@@ -131,7 +131,20 @@ function buildNumberPlans(entries: Entry[], rules: Rule[], opts: PreviewOptions)
   return plans;
 }
 
-export function computePreview(entries: Entry[], rules: Rule[], opts: PreviewOptions): PreviewResult {
+/** 逐条结果：批次内重名、磁盘冲突等顺序相关的判定留给 finalizePreview */
+export interface BuiltRow {
+  id: string;
+  row: PreviewRow;
+  status: PreviewRow['status'];
+  reasons: string[];
+}
+
+/** 只有 byPath=false 的编号规则会按列表顺序取号；其余逐条计算与顺序无关 */
+export function previewDependsOnOrder(rules: Rule[]): boolean {
+  return rules.some((rule) => rule.type === 'number' && rule.enabled && !(rule as NumberRule).byPath);
+}
+
+export function buildPreviewRows(entries: Entry[], rules: Rule[], opts: PreviewOptions): BuiltRow[] {
   const counters = new Map<string, number>();
   const nextNumber = (rule: { id: string; start: number; step: number }, key: string): number => {
     const counterKey = `${rule.id}::${key}`;
@@ -148,7 +161,7 @@ export function computePreview(entries: Entry[], rules: Rule[], opts: PreviewOpt
   // 变量/算式/条件无法求值时，规则会被跳过；整列标红提示，避免误以为「没生效」
   const badTemplate = rules.reduce<string | null>((found, rule) => found ?? (rule.enabled ? ruleTemplateError(rule) : null), null);
 
-  const rows: PreviewRow[] = [];
+  const built: BuiltRow[] = [];
   for (const entry of entries) {
     const original = splitName(entry.name, entry.isDir);
     const facts = opts.facts?.[entry.path];
@@ -263,17 +276,28 @@ export function computePreview(entries: Entry[], rules: Rule[], opts: PreviewOpt
     }
 
     const uniqueReasons = Array.from(new Set(reasons));
-    rows.push({
-      entry,
-      stem,
-      ext: applied.ext,
-      newName,
+    built.push({
+      id: entry.id,
+      row: {
+        entry,
+        stem,
+        ext: applied.ext,
+        newName,
+        status,
+        reasons: uniqueReasons,
+        pathTooLong: pathCheck.block.length > 0 || pathCheck.warn.length > 0,
+        diff: diffNames(entry.name, newName),
+      },
       status,
       reasons: uniqueReasons,
-      pathTooLong: pathCheck.block.length > 0 || pathCheck.warn.length > 0,
-      diff: diffNames(entry.name, newName),
     });
   }
+  return built;
+}
+
+/** 顺序相关的收尾：批次内重名、目标已存在、计数。逐条结果可跨顺序复用，这里每次都基于副本重算 */
+export function finalizePreview(built: BuiltRow[], opts: PreviewOptions): PreviewResult {
+  const rows: PreviewRow[] = built.map((item) => ({ ...item.row, status: item.status, reasons: [...item.reasons] }));
 
   // 批次内重名（先勾选、已变更、合法者优先占位）
   const claimed = new Map<string, number>();
@@ -320,6 +344,10 @@ export function computePreview(entries: Entry[], rules: Rule[], opts: PreviewOpt
     off: rows.filter((r) => r.status === 'off').length,
   };
   return { rows, counts };
+}
+
+export function computePreview(entries: Entry[], rules: Rule[], opts: PreviewOptions): PreviewResult {
+  return finalizePreview(buildPreviewRows(entries, rules, opts), opts);
 }
 
 export function statusLabel(status: PreviewRow['status']): string {
