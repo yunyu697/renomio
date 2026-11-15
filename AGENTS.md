@@ -46,7 +46,7 @@ npm run tauri build    # 产出 NSIS + MSI
 已知缺口：
 - 更新用 `.sig` 未生成（无 `TAURI_SIGNING_PRIVATE_KEY`），`updates` 的 `latest.json` 仍指向 alpha5。
 - 安装包未代码签名（无证书），SmartScreen 会警告。
-- macOS/Linux 未构建未验证；繁中/日/西译文未经母语审校。
+- macOS/Linux 已由 CI 构建未签名产物（macOS 为 ad-hoc 签名），但未在真机桌面验证、未进 Release；繁中/日/西译文未经母语审校。
 - `renomio-core` 的 `rename::tests::directory_junction_is_renamed_as_a_link` 在部分环境因联接点权限失败，属环境问题。
 
 ## 发布要点
@@ -54,8 +54,9 @@ npm run tauri build    # 产出 NSIS + MSI
 1. 改 `VERSION` → `npm run version:sync`。
 2. `npm run tauri build`。若日志出现「A public key has been found, but no private key」，说明未配置签名私钥；两个安装包**已经产出**，但命令会以退出码 1 结束，这不是打包失败。
 3. `npm run test:bundle`；计算 SHA-256；更新根 `README.md` 与 `app/README.md` 产物表。
-4. 提交 → `git tag -a v<版本>` → 推 `main` 与 tag → `gh release create <tag> --prerelease` 上传两个包与 `SHA256SUMS`。
-5. 完整步骤与签名说明见 `docs/交接说明.md` 第 7 节、`docs/签名与打包流程.md`。
+4. macOS/Linux 产物由 CI `bundle-linux` / `bundle-macos` 构建并上传 artifact（未签名，不改 Release 与 `latest.json`）。
+5. 提交 → `git tag -a v<版本>` → 推 `main` 与 tag → `gh release create <tag> --prerelease` 上传两个包与 `SHA256SUMS`。
+6. 完整步骤与签名说明见 `docs/交接说明.md` 第 7 节、`docs/签名与打包流程.md`。
 
 ## 常见坑
 

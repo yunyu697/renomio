@@ -39,7 +39,7 @@ MIT License — 见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-
 
 应用内「设置 → 检查更新」读取源码仓库滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；清单与资源地址均指向源码仓库，内置默认地址已随本版切换生效。
 
-版本规则：唯一可改的版本号是仓库根 `VERSION`，其余（`app/package.json`、`app/packages/foundation/package.json`、`app/src-tauri/tauri.conf.json`、两个 `Cargo.toml`）由 `npm run version:sync` 注入；tag（如当前 `v1.1.0-alpha7`）必须与 `VERSION` 一致，段位（第二/三段与 alpha 序号）≤ 10。版本闸门按推送类型分档：**分支推送**（含 `main`）只要求 `VERSION` 不低于最新已发布 alpha，等于可通过、低于即拦截；**tag 推送**仍要求严格递增，alpha 复用与倒退一律拦截（`version` job 的 16 条反例自测覆盖这三种情形）。MSI 的 `ProductVersion` 只能是纯数字，故 `wix.version` 由同一 VERSION 的数字核注入（alpha 阶段取 `1.1.0`），包文件名仍带 alpha 号。
+版本规则：唯一可改的版本号是仓库根 `VERSION`，其余（`app/package.json`、`app/packages/foundation/package.json`、`app/src-tauri/tauri.conf.json`、两个 `Cargo.toml`）由 `npm run version:sync` 注入；tag（如 `v1.1.0-alpha8`）必须与 `VERSION` 一致，段位（第二/三段与 alpha 序号）≤ 10。版本闸门按推送类型分档：**分支推送**（含 `main`）只要求 `VERSION` 不低于最新已发布 alpha，等于可通过、低于即拦截；**tag 推送**仍要求严格递增，alpha 复用与倒退一律拦截（`version` job 的 16 条反例自测覆盖这三种情形）。MSI 的 `ProductVersion` 只能是纯数字，故 `wix.version` 由同一 VERSION 的数字核注入（alpha 阶段取 `1.1.0`），包文件名仍带 alpha 号。
 
 校验方式（PowerShell）：
 
@@ -61,8 +61,8 @@ Get-FileHash .\Renomio_<版本>_x64-setup.exe -Algorithm SHA256
 ### 已知限制
 
 - **旧版 Rename Studio 必须先卸载。** 新版 identifier 与 MSI UpgradeCode 均已变更，不是原地升级。安装器会按「旧显示名 + 旧 UpgradeCode」检测旧版，命中后给出卸载命令并中止。**卸载旧版时不要勾选「删除应用数据」**，否则新版无法导入你的配置与撤销历史。
-- **两个安装包都未做代码签名**，首次运行会触发 Windows SmartScreen（「Windows 已保护你的电脑」）。请核对上面的 SHA-256 后再选择「仍要运行」。本轮没有签名证书，签名与时间戳流程尚未执行。
-- **当前只发布 Windows x64 产物。** macOS / Linux 的打包配置尚在代码中，但本轮未构建、未验证，也没有对应安装包。
+- **Windows 安装包未做代码签名**，首次运行会触发 Windows SmartScreen（「Windows 已保护你的电脑」）。请核对上面的 SHA-256 后再选择「仍要运行」。本轮没有签名证书，签名与时间戳流程尚未执行。
+- **Windows 仍是唯一进入 GitHub Release 的平台。** macOS（`.app` / `.dmg`）与 Linux（`.deb` / `.AppImage`）现在由 CI 真实构建并作为 **Actions artifact** 提供下载，但都**未签名、未公证、未发布到 Release**，也未更新 `latest.json`——详见下方 [Linux 与 macOS 产物](#linux-与-macos-产物未签名)。
 - 安装向导界面、需要 UAC 的安装/卸载、安装后首次启动的真实窗口交互，本轮均未在自动化中执行（按项目约定不在会话里启动带 GUI 或会弹 UAC 的进程）；因此「装到 `Program Files` 的落点、卸载残留、快捷方式位置、旧版并存拦截弹窗」属于**静态核验**结论，不是真机验收。
 - 真实 Explorer 拖放、提权后的拖放（UIPI 会拦截）、真实物理跨盘移动、EXIF 拍摄时间写入在真实相机样张上的表现（功能已实现，本机只用自造 JPEG 结构测试）、快照窗在桌面端真实 UI 上的操作（Rust 真实文件测试与浏览器 mock 均已覆盖）均未完成或未验证。
 - 繁中 / 日 / 西三套译文本工具产出，**未经母语审校**。
@@ -78,17 +78,67 @@ Get-FileHash .\Renomio_<版本>_x64-setup.exe -Algorithm SHA256
 - **跳过是「部分成功」，不会让整批撤销失败。** 被跳过的字段进入返回结构的 `skippedFields`（字段名 + 原因），**不计入** `failed`；批次仍记为已撤销，已经恢复的 mtime / atime 也不会被回滚。
 - **UI 与日志都明示，不静默。** 撤销完成后界面提示「已撤销 N 项；创建时间在 Linux 上不支持恢复，已跳过」，同时向 `<dataDir>/logs/undo.log` **追加**一行 `undo\t<ts>\tbatch=<id>\tfield=creation\tpath=…\treason=…`（只记元数据，不写文件内容）。
 
+## Linux 与 macOS 产物（未签名）
+
+**来源**：CI 的 `bundle-linux` / `bundle-macos` job 会真实执行 `tauri build`，产物以 Actions artifact 形式提供（`renomio-linux-x64-unsigned`、`renomio-macos-arm64-unsigned`）。**两者都没有签名/公证，也没有进入 GitHub Release，也没有更新 `latest.json`**，所以应用内的「检查更新」在这些平台上不会工作。
+
+| 平台 | 产物 | 架构 | 签名状态 |
+| --- | --- | --- | --- |
+| Linux | `.deb`、`.AppImage` | x86_64 | 未签名（Linux 无强制签名要求） |
+| macOS | `.dmg`、`.app.zip` | arm64（Apple Silicon） | **ad-hoc 签名**（`codesign -s -`），未公证 |
+| Windows | `.msi`、`-setup.exe` | x64 | 未签名（见上） |
+
+### Linux 安装
+
+```bash
+# Debian / Ubuntu：用 apt 装可以自动补 webkit2gtk 依赖
+sudo apt install ./Renomio_<版本>_amd64.deb
+
+# 或直接跑 AppImage（需要 FUSE；没有 FUSE 时用 --appimage-extract-and-run）
+chmod +x Renomio_<版本>_amd64.AppImage
+./Renomio_<版本>_amd64.AppImage
+```
+
+AppImage 的可用性取决于发行版的 WebKitGTK 版本（需要 4.1）。**尚未在真实 Linux 桌面上验证**（CI 只在 Xvfb + openbox 下验证了进程能启动、窗口能创建），窗口拖动/缩放、文件管理器拖放、输入法等仍需真机确认。
+
+### macOS 安装（ad-hoc 签名，无 Apple 身份）
+
+1. 打开 `.dmg`，把 `Renomio` 拖进「应用程序」。
+2. **首次打开会被 Gatekeeper 拦截**（提示「无法验证开发者」或「已损坏，无法打开」）。任选一种放行方式：
+   - 在「应用程序」里 **右键 → 打开 → 打开**（只需一次，之后正常双击）；
+   - 或 系统设置 → 隐私与安全性 → 底部「仍要打开」；
+   - 或终端清除隔离属性：`xattr -dr com.apple.quarantine /Applications/Renomio.app`。
+3. 若提示「已损坏」，通常是下载工具附加了隔离属性，用上面第 3 条命令即可；**ad-hoc 签名本身是自洽的**（CI 里 `codesign --verify --deep --strict` 必须通过才会产出）。
+
+> ad-hoc 签名只保证包内签名完整，**不代表 Apple 认可**：`spctl` 会显示 rejected，也无法公证。要消除拦截只能购买 Apple Developer 账号（Developer ID 证书），流程见 [docs/签名与打包流程.md](docs/签名与打包流程.md)。
+
+### 平台功能差异（不要当作功能对等）
+
+| 功能 | Windows | Linux | macOS |
+| --- | --- | --- | --- |
+| GB18030 文本转换 | 支持（系统代码页 54936） | **不可用**（直接报错，不做静默降级） | **不可用** |
+| 隐藏 / 系统 / 存档属性 | 读写 | **不可用**（属性位不存在，相关操作 no-op） | **不可用** |
+| 创建时间（btime）写回 | 可写 | 只读，撤销时跳过并记录 | 标 unsupported，跳过 |
+| 系统文件类型图标 | 支持 | **不提供**（回退内置图标） | **不提供** |
+| 窗口标题栏 | 自绘（`decorations:false`） | 系统原生（`tauri.linux.conf.json` 覆盖为 `decorations:true`，避免 GTK 下无边框窗口无法拖边缩放） | 系统原生（`tauri.macos.conf.json`） |
+| 应用内自动更新 | 支持 | **不可用**（`latest.json` 无 Linux 条目，且代码里安装步骤仅 Windows 实现） | **不可用**（同上） |
+
+macOS 上的提权（以管理员身份重启）在代码里是 Windows-only，macOS 根本不触发；Linux 侧同理。
+
+
+
 ## 卸载
 
 - **NSIS 安装的**：设置 → 应用 → 已安装的应用 → `Renomio` → 卸载；或运行安装目录下的 `uninstall.exe`。
 - **MSI 安装的**：设置 → 应用 → 已安装的应用 → `Renomio` → 卸载；或 `msiexec /x <ProductCode>`（ProductCode 可在该应用属性页或注册表 `Uninstall` 项中查到）。
 - 卸载程序**只移除程序文件、快捷方式与 ARP 项**，不会自动删除 `%APPDATA%\app.renomio.desktop`（配置、撤销历史、迁移备份）。需要彻底清理时再手动删除该目录。
 - 卸载**旧版 Rename Studio** 时不要勾选「删除应用数据」，否则新版无法导入配置与撤销历史（见上）。
+- **Linux（deb）**：`sudo apt remove renomio`。**Linux（AppImage）/ macOS**：直接删除 AppImage 文件，或把 `/Applications/Renomio.app` 移到废纸篓。
 
 ## 仓库结构
 
 ```
-.github/workflows/    CI（frontend / backend / bundle-checks）
+.github/workflows/    CI（frontend / backend / bundle-checks / bundle-linux / bundle-macos）
 app/                  Tauri 2 + React 应用源码
   src/                前端（React + TypeScript）
   src-tauri/          Rust 桌面壳、打包配置、NSIS 安装钩子
@@ -110,25 +160,33 @@ npm run dev            # 前端
 npm run tauri dev      # 桌面壳（会打开窗口）
 npm run test:core      # 核心 Rust 测试
 npm run test:e2e       # 无头 E2E
-npm run tauri build    # 产出 NSIS + MSI 到 src-tauri/target/release/bundle/
+npm run tauri build    # Windows：产出 NSIS + MSI 到 src-tauri/target/release/bundle/
+                       # Linux：产出 deb + AppImage；macOS：产出 app + dmg（由 tauri.<platform>.conf.json 覆盖 targets）
 ```
+
+macOS 无证书时用 `./app/scripts/sign/build-macos.sh`：构建后自动 ad-hoc 签名（`codesign -s -`）并重打 dmg，不公证。
 
 ## 持续集成
 
-[.github/workflows/ci.yml](.github/workflows/ci.yml) 三个 job，push 到 `main` 与 PR 时触发：
+[.github/workflows/ci.yml](.github/workflows/ci.yml) 五个 job，push 到 `main`、PR 或手动 `workflow_dispatch` 时触发：
 
 | job | runner | 内容 |
 | --- | --- | --- |
+| `version` | ubuntu | 版本规则反例自测（16 条）+ VERSION/清单/tag 一致性 |
 | `frontend` | ubuntu | `npm ci` → `tsc --noEmit` → `vite build` |
 | `backend` | ubuntu | 安装 Tauri v2 Linux 依赖 → `cargo fmt --check`（阻断）→ `cargo clippy`（只暴露警告，不加 `-D warnings`）→ `cargo test`（renomio-core + Tauri 壳，含 `migrate.rs` 迁移单测） |
-| `bundle-checks` | windows | 离线组 11 条（读配置，每次都跑）+ 产物组 14 条（有构建产物时才跑） |
+| `bundle-checks` | windows | 离线组 13 条（读配置，每次都跑）+ 产物组 14 条（有构建产物时才跑） |
+| `bundle-linux` | ubuntu | 真实 `tauri build` 产出 `.deb` + `.AppImage`，并在 Xvfb + openbox 下启动 AppImage 做冒烟，产物上传为 artifact |
+| `bundle-macos` | macos-14 | 真实 `tauri build` 产出 `.app` + `.dmg`，ad-hoc 签名后重打 dmg，`codesign --verify` 校验，产物上传为 artifact |
+
+`bundle-linux` / `bundle-macos` **不写 Release、不改 `latest.json`**，只提供可下载的未签名 artifact。
 
 `bundle-checks` 分两组断言（`scripts/check-bundle.ps1`）：
 
-- **离线组 11 条**：只读 `tauri.conf.json` / `installer-hooks.nsh` 判定 productName、identifier、version、`bundle.targets`、NSIS `installMode=both`、旧版检测与中止逻辑。CI **每次都真实执行**（`-Offline`），任一不成立即红。
-- **产物组 14 条**：读 MSI、NSIS 安装包与 WiX/NSIS 生成的脚本，**必须 `npm run tauri build` 后才有**。CI 不构建安装包（托管 runner 上完整打包约 8–12 分钟，还要下载 NSIS/WiX 工具链，且安装包尚未签名），所以无产物时该组会**显式跳过，并在 Job Summary 列出跳过原因与逐条依赖**，不把跳过伪装成通过。发布前的产物合规仍由本地 `npm run test:bundle` 逐条执行。
+- **离线组 13 条**：只读 `tauri.conf.json` / `tauri.linux.conf.json` / `tauri.macos.conf.json` / `installer-hooks.nsh` 判定 productName、identifier、version、Windows `bundle.targets`（nsis+msi）、Linux targets（deb+appimage）、macOS targets（app+dmg）、NSIS `installMode=both`、旧版检测与中止逻辑。CI **每次都真实执行**（`-Offline`），任一不成立即红。
+- **产物组 14 条**：读 MSI、NSIS 安装包与 WiX/NSIS 生成的脚本，**必须 `npm run tauri build` 后才有**。CI 不构建 Windows 安装包（托管 runner 上完整打包约 8–12 分钟，还要下载 NSIS/WiX 工具链，且安装包尚未签名），所以无产物时该组会**显式跳过，并在 Job Summary 列出跳过原因与逐条依赖**，不把跳过伪装成通过。发布前的产物合规仍由本地 `npm run test:bundle` 逐条执行。
 
-两组的边界：**每次 push 真实执行的是 11 条离线断言**（结果在 `bundle-checks` 日志里，任一失败即红）；**14 条产物断言只读构建产物**，CI 未构建时不执行，二者互不重叠、也不互相代替。因此「CI 绿」只能证明配置层面的 11 条成立，**不能**证明安装包的 14 条成立。
+两组的边界：**每次 push 真实执行的是 13 条离线断言**（结果在 `bundle-checks` 日志里，任一失败即红）；**14 条产物断言只读构建产物**，CI 未构建时不执行，二者互不重叠、也不互相代替。因此「CI 绿」只能证明配置层面的 13 条成立，**不能**证明安装包的 14 条成立。
 
 ## 许可
 

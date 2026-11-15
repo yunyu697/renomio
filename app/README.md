@@ -295,7 +295,7 @@ app/
 │  ├─ renomio-core/            Rust 核心（扫描、校验、两阶段改名、时间/属性/移动、日志、撤销）
 │  ├─ src/lib.rs            Tauri commands
 │  ├─ entitlements.plist    macOS Hardened Runtime 权限
-│  └─ tauri.conf.json       窗口 / 打包配置（macOS 用 tauri.macos.conf.json 恢复原生标题栏）
+│  └─ tauri.conf.json       窗口 / 打包配置（Windows 目标；macOS / Linux 分别由 tauri.macos.conf.json、tauri.linux.conf.json 覆盖原生标题栏与 targets）
 ├─ e2e/
 │  ├─ run.mjs               无头浏览器 E2E（CDP 驱动 + 断言 + 截图 + 报告）
 │  ├─ mock-backend.js       注入页面的内存版 Tauri 后端
