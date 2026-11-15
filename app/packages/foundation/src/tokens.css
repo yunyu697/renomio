@@ -37,38 +37,39 @@
   --danger-weak: #feebea;
   --info: #0a6b80;
 
-  /* 间距（4 的倍数） */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
+  /* 间距 · 值来自 design-system 令牌（--ds-space-*），这里只保留语义别名。
+     本项目禁止在这一层写数值：新增间距请直接用 --ds-space-*，规范见 design-system/SPEC.md */
+  --space-1: var(--ds-space-2);
+  --space-2: var(--ds-space-4);
+  --space-3: var(--ds-space-5);
+  --space-4: var(--ds-space-6);
+  --space-5: var(--ds-space-7);
+  --space-6: var(--ds-space-7);
+  --space-8: var(--ds-space-8);
 
-  /* 字阶 */
-  --text-xs: 10.5px;
-  --text-sm: 11.5px;
-  --text-base: 12.5px;
-  --text-md: 13px;
-  --text-lg: 15px;
-  --text-xl: 18px;
-  --leading-tight: 1.25;
-  --leading-base: 1.45;
-  --leading-loose: 1.7;
+  /* 字阶 · 正文基准 12（compact），13 为强调档 */
+  --text-xs: var(--ds-font-size-10);
+  --text-sm: var(--ds-font-size-11);
+  --text-base: var(--ds-font-size-12);
+  --text-md: var(--ds-font-size-13);
+  --text-lg: var(--ds-font-size-14);
+  --text-xl: var(--ds-font-size-16);
+  --leading-tight: var(--ds-leading-tight);
+  --leading-base: var(--ds-leading-base);
+  --leading-loose: var(--ds-leading-loose);
 
-  /* 控件与布局 */
-  --control-h: 32px;
-  --control-h-sm: 26px;
+  /* 控件与布局 · 控件高按 SPEC §4.2 声明为 32（control-h-lg） */
+  --control-h: var(--ds-control-h-lg);
+  --control-h-sm: var(--ds-control-h-sm);
   --topbar: 46px;
   --actionbar: 58px;
   --nav-w: 218px;
   --rules-w: 342px;
 
-  /* 圆角与阴影 */
-  --radius-lg: 14px;
-  --radius-md: 10px;
-  --radius-sm: 7px;
+  /* 圆角与阴影 · 圆角取 --ds-radius-*，阴影保留本项目配色相关的 rgba */
+  --radius-lg: var(--ds-radius-xl);
+  --radius-md: var(--ds-radius-lg);
+  --radius-sm: var(--ds-radius-sm);
   --shadow-lg: 0 24px 60px rgba(21, 32, 56, .16), 0 2px 6px rgba(21, 32, 56, .06);
   --shadow-md: 0 8px 24px rgba(21, 32, 56, .08);
   --shadow-sm: 0 1px 2px rgba(21, 32, 56, .05);
@@ -78,9 +79,9 @@
   --mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", "Noto Sans Mono CJK SC", "Noto Sans CJK SC", "WenQuanYi Micro Hei Mono", monospace;
 
   /* 动效 */
-  --ease: cubic-bezier(.4, 0, .2, 1);
-  --dur-fast: .15s;
-  --dur-base: .2s;
+  --ease: var(--ds-ease-standard);
+  --dur-fast: var(--ds-dur-3);
+  --dur-base: var(--ds-dur-5);
 }
 
 /* 暗色基调（石墨配色）：html[data-theme="dark"] */

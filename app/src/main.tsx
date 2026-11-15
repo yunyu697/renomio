@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import './styles/design-system-tokens.css';
 import '@foundation/tokens.css';
 import './styles/app.css';
 import './styles/shell.css';
