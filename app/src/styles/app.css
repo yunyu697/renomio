@@ -242,7 +242,8 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
 /* 不可用就必须看得出来：整颗按钮压到 40%，不做「点了没反应」的假可用 */
 .btn:disabled { opacity: .4; cursor: default; transform: none; }
 
-.btn svg { width: var(--ds-icon-sm); height: var(--ds-icon-sm); flex: 0 0 auto; }
+/* 图标按按钮尺寸取档：32px 按钮配 16px 图形，图形本身铺满 92% 视框（见 Icon.tsx 的 viewBox） */
+.btn svg { width: var(--ds-icon-md); height: var(--ds-icon-md); flex: 0 0 auto; }
 
 .btn-primary {
   background: var(--ds-color-accent);
@@ -282,6 +283,7 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   color: var(--ds-color-text-2);
   cursor: pointer;
 }
+.btn-icon svg { width: var(--ds-icon-md); height: var(--ds-icon-md); }
 .btn-icon:hover { color: var(--ds-color-text); border-color: var(--ds-color-line-strong); background: var(--ds-color-surface-2); }
 
 .btn-icon.active { background: var(--ds-color-accent-weak); color: var(--ds-color-accent-hover); border-color: var(--ds-color-accent-weak-2); }
@@ -308,7 +310,9 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   min-width: 0;
 }
 .search input::placeholder { color: var(--ds-color-text-muted); }
-.search .kbd { opacity: .8; flex: 0 0 auto; }
+.search .kbd { flex: 0 0 auto; }
+/* 搜索框的键位提示同样不常驻：悬停 / 聚焦时才显示 */
+.search:hover .kbd, .search:focus-within .kbd { opacity: .8; }
 
 .kbd {
   display: inline-grid;
@@ -325,6 +329,17 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   line-height: var(--ds-leading-tight);
   white-space: nowrap;
 }
+
+/* 快捷键提示不常驻：默认隐藏，悬停 / 键盘聚焦时才露出来（键位窗里始终可见） */
+.kbd {
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+:is(button, label, .menuitem, .trow):hover .kbd,
+:is(button, label, .menuitem, .trow):focus-visible .kbd,
+:is(button, label, .menuitem, .trow):focus-within .kbd,
+.shortcut-dialog .kbd { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .kbd { transition: none; } }
 
 /* ---------------- 键位窗 ---------------- */
 .shortcut-dialog {
@@ -1157,11 +1172,35 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
 .thead svg { width: var(--ds-icon-xs); height: var(--ds-icon-xs); opacity: .7; }
 
 .trow {
+  position: relative;
   height: var(--ds-row-h-md);
   font-size: var(--ds-type-role-body);
   color: var(--ds-color-text);
   background: var(--ds-color-surface);
 }
+
+/* 行内快捷键提示：浮在行尾，不参与网格布局，悬停 / 聚焦才出现。
+   背后垫一层同色渐隐，盖住状态列文字时不会生硬切断 */
+.row-keys {
+  position: absolute;
+  right: var(--ds-space-role-field);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+  padding-left: var(--ds-space-6);
+  background: linear-gradient(to right, transparent, var(--ds-color-surface) 28%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s ease;
+}
+.trow:hover .row-keys,
+.trow:focus-visible .row-keys { opacity: 1; }
+.trow:hover .row-keys { background: linear-gradient(to right, transparent, var(--ds-color-surface-hover) 28%); }
+.trow.selected .row-keys { background: linear-gradient(to right, transparent, var(--ds-color-surface-selected) 28%); }
+.row-keys .kbd { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .row-keys { transition: none; } }
 .trow:hover { background: var(--ds-color-surface-hover); }
 .trow.selected { background: var(--ds-color-surface-selected); }
 /* 冲突/警告不再用渐变铺底，改左侧 2px 色条 + 文字色，避免整行变色抢注意力 */

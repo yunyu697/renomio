@@ -303,6 +303,8 @@ export function App() {
       return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
     };
     const onKey = (e: KeyboardEvent) => {
+      // 中文输入法组字期间（含 macOS 输入法拦截的 ⌘ 组合）不当作快捷键，避免抢字
+      if (e.isComposing || e.keyCode === 229) return;
       const state = useApp.getState();
       // 键位窗打开时由其自行处理 Esc 与录制，避免误触全局命令
       if (state.shortcutOpen) return;
@@ -315,6 +317,10 @@ export function App() {
           else if (state.inspector.open) state.closeInspector();
           else if (state.drawer) state.closeDrawer();
           else if (state.ruleMenuOpen) useApp.setState({ ruleMenuOpen: false });
+        } else if (e.key === '/' && !isTyping(e.target)) {
+          // `/` 聚焦搜索；输入框内不拦，保证能正常打字
+          e.preventDefault();
+          document.getElementById('global-search')?.focus();
         }
         return;
       }

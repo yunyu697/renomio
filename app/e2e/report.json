@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-15T12:54:00.220Z",
+  "generatedAt": "2026-11-15T16:51:53.678Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
-  "passed": 257,
+  "passed": 274,
   "failed": 0,
   "results": [
     {
@@ -94,7 +94,7 @@
       "layer": "UI",
       "name": "列头排序只改变显示顺序（首行变为 logo.png）",
       "ok": true,
-      "detail": "logo.png元数据D:\\e2e\\设计86 KB2025-01-04 09:00logo.png未变更"
+      "detail": "logo.png元数据D:\\e2e\\设计86 KB2025-01-04 09:00logo.png未变更SpaceF2D"
     },
     {
       "layer": "UI",
@@ -148,13 +148,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-15 20:52 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-16 00:50 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-15 20:52 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-16 00:50 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -644,9 +644,21 @@
     },
     {
       "layer": "UI",
+      "name": "页签「attrs」页签条只占角色高度、表格拿满剩余空间",
+      "ok": true,
+      "detail": "{\"tabs\":32,\"table\":595}"
+    },
+    {
+      "layer": "UI",
       "name": "页签「music」渲染表格 / 表头 / 数据行且无空壳",
       "ok": true,
       "detail": "rows=1, th=11, note=true, action=true"
+    },
+    {
+      "layer": "UI",
+      "name": "页签「music」页签条只占角色高度、表格拿满剩余空间",
+      "ok": true,
+      "detail": "{\"tabs\":32,\"table\":595}"
     },
     {
       "layer": "UI",
@@ -656,9 +668,9 @@
     },
     {
       "layer": "UI",
-      "name": "页签「image」渲染表格 / 表头 / 数据行且无空壳",
+      "name": "页签「photo」页签条只占角色高度、表格拿满剩余空间",
       "ok": true,
-      "detail": "rows=4, th=8, note=true, action=true"
+      "detail": "{\"tabs\":32,\"table\":595}"
     },
     {
       "layer": "UI",
@@ -668,9 +680,21 @@
     },
     {
       "layer": "UI",
+      "name": "页签「office」页签条只占角色高度、表格拿满剩余空间",
+      "ok": true,
+      "detail": "{\"tabs\":32,\"table\":595}"
+    },
+    {
+      "layer": "UI",
       "name": "页签「pdf」渲染表格 / 表头 / 数据行且无空壳",
       "ok": true,
       "detail": "rows=1, th=9, note=true, action=true"
+    },
+    {
+      "layer": "UI",
+      "name": "页签「pdf」页签条只占角色高度、表格拿满剩余空间",
+      "ok": true,
+      "detail": "{\"tabs\":32,\"table\":595}"
     },
     {
       "layer": "UI",
@@ -680,9 +704,21 @@
     },
     {
       "layer": "UI",
+      "name": "页签「text」页签条只占角色高度、表格拿满剩余空间",
+      "ok": true,
+      "detail": "{\"tabs\":32,\"table\":595}"
+    },
+    {
+      "layer": "UI",
       "name": "页签「organize」渲染表格 / 表头 / 数据行且无空壳",
       "ok": true,
       "detail": "rows=9, th=5, note=true, action=true"
+    },
+    {
+      "layer": "UI",
+      "name": "页签「organize」页签条只占角色高度、表格拿满剩余空间",
+      "ok": true,
+      "detail": "{\"tabs\":32,\"table\":595}"
     },
     {
       "layer": "UI",
@@ -704,7 +740,73 @@
     },
     {
       "layer": "UI",
-      "name": "图像页签明确标注 IPTC / XMP 暂不支持（不伪装成功）",
+      "name": "入口页签与分组用「图像 / 拍摄参数 / 描述信息」，不再出现「照片」",
+      "ok": true,
+      "detail": "{\"tab\":\"图像4\",\"head\":\"图像信息\",\"exif\":\"拍摄参数\",\"desc\":\"描述信息\"}"
+    },
+    {
+      "layer": "UI",
+      "name": "图像页签默认停在「拍摄参数」分组且表头是 EXIF 列",
+      "ok": true,
+      "detail": "[\"名称\",\"格式\",\"尺寸\",\"拍摄时间\",\"相机品牌\",\"相机型号\",\"方向\",\"ISO\",\"快门\",\"光圈\",\"焦距\",\"镜头\"]"
+    },
+    {
+      "layer": "UI",
+      "name": "切到「描述信息」分组后表头换成描述列、页签仍是同一个",
+      "ok": true,
+      "detail": "[\"名称\",\"格式\",\"尺寸\",\"标题\",\"作者\",\"版权\",\"软件\",\"备注\"]"
+    },
+    {
+      "layer": "UI",
+      "name": "描述信息分组明确标注 IPTC / XMP 暂不支持（不伪装成功）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "layer": "UI",
+      "name": "照片 / 图像合并后页签条只剩一个图像入口",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "layer": "UI",
+      "name": "切回「拍摄参数」分组",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "layer": "UI",
+      "name": "快捷键提示默认不常驻（kbd 默认 opacity 0）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "layer": "UI",
+      "name": "`/` 聚焦搜索框",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "layer": "UI",
+      "name": "Space 取消当前行勾选",
+      "ok": true,
+      "detail": "before=9 after=8"
+    },
+    {
+      "layer": "UI",
+      "name": "Space 再按一次回到原勾选状态",
+      "ok": true,
+      "detail": "before=9 after=9"
+    },
+    {
+      "layer": "UI",
+      "name": "F2 打开行内改名输入框并聚焦",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "layer": "UI",
+      "name": "Esc 退出行内改名",
       "ok": true,
       "detail": ""
     },
@@ -770,7 +872,7 @@
     },
     {
       "layer": "UI",
-      "name": "1100×640 @150% DPI：九类页签不撑破页面，页签条与数据行可读",
+      "name": "1100×640 @150% DPI：八类页签不撑破页面，页签条与数据行可读",
       "ok": true,
       "detail": "{\"innerWidth\":1100,\"scrollWidth\":1100,\"innerHeight\":640,\"tabsClient\":700,\"tabsScroll\":700,\"tabsDir\":\"row\",\"tabsWrap\":\"nowrap\",\"tabRect\":{\"x\":0,\"w\":700},\"mainW\":700,\"rulesW\":400,\"navW\":262,\"panesW\":1100,\"panesX\":0,\"rulesX\":700,\"panesKids\":[\"main:700@0\",\"rules:400@700\"],\"viewBottom\":554,\"rowHeight\":44}"
     },
@@ -778,7 +880,7 @@
       "layer": "UI-triggered mock",
       "name": "交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/批量元数据/事件/写文件）",
       "ok": true,
-      "detail": "load_rule_history,startup_report,env_info,plugin:event|listen,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_times,apply_time,read_attrs,meta_read,meta_capabilities,list_snapshots,file_type_icons,read_metadata_batch,apply_attrs,apply_move"
+      "detail": "load_rule_history,env_info,plugin:event|listen,startup_report,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_times,apply_time,read_attrs,meta_read,meta_capabilities,list_snapshots,file_type_icons,read_metadata_batch,apply_attrs,apply_move"
     },
     {
       "layer": "UI-triggered mock",
@@ -928,7 +1030,7 @@
       "layer": "UI",
       "name": "元变量与序号组合的实时预览（logo.png → logo_001.png）",
       "ok": true,
-      "detail": "logo.pngMetadata86 KB2025-01-04 09:00logo_001.png.pngReady"
+      "detail": "logo.pngMetadata86 KB2025-01-04 09:00logo_001.png.pngReadySpaceF2Del"
     },
     {
       "layer": "UI",
@@ -1186,7 +1288,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmwhu57pp1\",\"jumpState\":{\"openId\":\"rmwhu57pp1\",\"detail\":1,\"focused\":\"rmwhu57pp1\"}}"
+      "detail": "{\"firstRuleId\":\"rmwi2n5301\",\"jumpState\":{\"openId\":\"rmwi2n5301\",\"detail\":1,\"focused\":\"rmwi2n5301\"}}"
     },
     {
       "layer": "UI",
@@ -1252,7 +1354,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1794747211145.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1794761484532.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -1318,7 +1420,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/15 20:53:363 条 · 仅映射预览还原删除"
+      "detail": "2026/11/16 00:51:303 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -1378,7 +1480,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-15 20:53 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-16 00:51 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",

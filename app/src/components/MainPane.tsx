@@ -323,6 +323,24 @@ export function MainPane() {
     [nameOverrides],
   );
 
+  /** 行内快捷键：Space 勾选、F2 改名、Delete 移除选中；输入框 / 输入法组字期间一律放行。 */
+  const onRowKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, row: PreviewRow) => {
+    const target = event.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
+    if (event.key === ' ') {
+      event.preventDefault();
+      toggleSelect(row.entry.id);
+    } else if (event.key === 'F2') {
+      event.preventDefault();
+      startRename(row);
+    } else if (event.key === 'Delete') {
+      event.preventDefault();
+      if (!row.entry.selected) toggleSelect(row.entry.id);
+      removeSelected();
+    }
+  };
+
   /** 落下：先把可见落点换算成真实插入位，再清掉视图排序回到手动顺序。 */
   const handleDrop = (ids: string[], slot: number) => {
     const beforeId = rows[slot]?.entry.id ?? null;
@@ -827,10 +845,17 @@ export function MainPane() {
                 className={`trow ${row.entry.selected ? 'selected' : ''} ${selection.focusId === row.entry.id ? 'focused' : ''} ${row.status === 'conflict' || row.status === 'invalid' ? 'conflict' : ''} ${row.status === 'warn' ? 'warnrow' : ''} ${row.status === 'unchanged' ? 'unchanged' : ''} ${isDragged ? 'dragging-row' : ''}`}
                 key={row.entry.id}
                 role="row"
+                tabIndex={selection.focusId === row.entry.id ? 0 : -1}
+                aria-keyshortcuts="Space F2 Delete"
                 data-id={row.entry.id}
                 data-index={entryIdx}
                 title={row.reasons.length ? row.reasons.join(' · ') : row.entry.path}
-                onPointerDown={(event) => beginRowPress(event, row)}
+                onKeyDown={(event) => onRowKeyDown(event, row)}
+                onPointerDown={(event) => {
+                  // 键盘快捷键要有焦点落点：按下即把焦点收到行上（输入框 / 勾选框自己会拦下）
+                  event.currentTarget.focus({ preventScroll: true });
+                  beginRowPress(event, row);
+                }}
                 onDoubleClick={() => {
                   if (Date.now() - dragApi.droppedAt.current < 300) return;
                   reveal(row.entry.path);
@@ -971,6 +996,12 @@ export function MainPane() {
                     </span>
                   </div>
                 )}
+                {/* 行内快捷键提示：默认不占位，悬停 / 键盘聚焦时才浮出来 */}
+                <span className="row-keys" aria-hidden="true">
+                  <span className="kbd">Space</span>
+                  <span className="kbd">F2</span>
+                  <span className="kbd">Del</span>
+                </span>
               </div>
             );
           })}

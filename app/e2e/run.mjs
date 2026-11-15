@@ -1676,8 +1676,49 @@ async function main() {
     await sleep(200);
     check('UI', '切回「拍摄参数」分组', (await evaluate(`document.querySelector('[data-testid="photo-group-exif"]')?.getAttribute('aria-pressed')`)) === 'true', ``);
 
+    // 键位提示不常驻；`/` 聚焦搜索（任何页签都生效）
+    const pressKey = async (key, init = {}) => {
+      await evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', ${JSON.stringify({ key, bubbles: true, ...init })}))`);
+      await sleep(250);
+    };
+    const keyOn = async (sel, key, init = {}) => {
+      await evaluate(`(() => { const el = document.querySelector(${JSON.stringify(sel)}); if (!el) throw new Error('no ${sel}'); el.focus(); el.dispatchEvent(new KeyboardEvent('keydown', ${JSON.stringify({ key, bubbles: true, ...init })})); })()`);
+      await sleep(220);
+    };
+    check('UI', '快捷键提示默认不常驻（kbd 默认 opacity 0）', (await evaluate(`getComputedStyle(document.querySelector('.btn .kbd')).opacity`)) === '0', ``);
+    await pressKey('/');
+    check('UI', '`/` 聚焦搜索框', (await evaluate(`document.activeElement?.id`)) === 'global-search', ``);
+    await evaluate(`document.activeElement.blur()`);
+    await sleep(150);
     await click('[data-testid="list-tab-rename"]');
     await sleep(300);
+
+    // 行内快捷键只在更名列表生效：Space 勾选、F2 改名
+    // 前面用例可能已经留下勾选，这里以当前勾选数为基线，只验证「这一行」被切换
+    const selBefore = await countOf('.trow.selected');
+    const spaceRow = async (idx) => {
+      await evaluate(`(() => {
+        const rows = [...document.querySelectorAll('.trow')];
+        const row = rows[${idx}];
+        if (!row) throw new Error('没有可勾选的行');
+        row.focus();
+        row.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+        return true;
+      })()`);
+      await sleep(220);
+    };
+    // 全选中时改成验证「取消勾选」，空选中时验证「勾选」，两种情况都覆盖得住
+    const unselectedIdx = await evaluate(`[...document.querySelectorAll('.trow')].findIndex((x) => !x.classList.contains('selected'))`);
+    const rowIdx = unselectedIdx >= 0 ? unselectedIdx : 0;
+    const expectAfter = unselectedIdx >= 0 ? selBefore + 1 : selBefore - 1;
+    await spaceRow(rowIdx);
+    check('UI', unselectedIdx >= 0 ? 'Space 勾选当前行' : 'Space 取消当前行勾选', (await countOf('.trow.selected')) === expectAfter, `before=${selBefore} after=${await countOf('.trow.selected')}`);
+    await spaceRow(rowIdx);
+    check('UI', 'Space 再按一次回到原勾选状态', (await countOf('.trow.selected')) === selBefore, `before=${selBefore} after=${await countOf('.trow.selected')}`);
+    await keyOn('.trow', 'F2');
+    check('UI', 'F2 打开行内改名输入框并聚焦', (await evaluate(`(() => { const el = document.querySelector('[data-testid^="rename-input-"]'); return !!el && document.activeElement === el; })()`)), ``);
+    await keyOn('[data-testid^="rename-input-"]', 'Escape');
+    check('UI', 'Esc 退出行内改名', (await evaluate(`document.querySelectorAll('[data-testid^="rename-input-"]').length`)) === 0, ``);
     check('UI', '切回更名列表', (await countOf('.trow')) === 9, `rows=${await countOf('.trow')}`);
 
     // ---- Explorer 拖放：事件 → 添加路径命令（mock 断言） ----
@@ -2221,10 +2262,6 @@ async function main() {
     check('UI', '重启后折叠状态保留（仍为 0 个展开编辑器）', collapsedReload === 0, String(collapsedReload));
 
     // --- 1.9) 键位窗：列表 / 录制 / 冲突 / 生效 / 持久化 / 恢复默认 ---
-    const pressKey = async (key, init = {}) => {
-      await evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', ${JSON.stringify({ key, bubbles: true, ...init })}))`);
-      await sleep(250);
-    };
     const shortcutValue = (id) => textOf(`[data-testid="shortcut-value-${id}"]`);
     const openShortcuts = async () => {
       await click('[data-testid="open-shortcuts"]');

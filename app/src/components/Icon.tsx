@@ -71,7 +71,7 @@ export function Icon({
     <svg
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      viewBox="2 2 20 20"
       fill="none"
       className={className}
       style={style}
