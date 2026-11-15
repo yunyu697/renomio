@@ -588,14 +588,146 @@ fn launch_outcome_message(
     }
 }
 
-/// 启动安装程序。Windows 上唯一路径是 `ShellExecuteW(runas)`，不再直接 spawn（否则 740）。
-fn launch_installer(path: &Path) -> Result<(), String> {
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+fn file_ext_lower(path: &Path) -> String {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase()
+}
+
+/// macOS：只打开 dmg，由用户自己把 Renomio 拖进「应用程序」，不静默替换 .app。
+#[cfg(target_os = "macos")]
+fn launch_macos(path: &Path) -> Result<&'static str, String> {
+    let ext = file_ext_lower(path);
+    if ext != "dmg" {
+        return Err(format!(
+            "macOS 只支持打开 dmg 安装包，当前文件类型是 .{ext}"
+        ));
+    }
+    std::process::Command::new("open")
+        .arg(path)
+        .spawn()
+        .map(|_| "已打开 dmg，请把 Renomio 拖入「应用程序」后重新启动")
+        .map_err(|e| format!("打开 dmg 失败：{e}"))
+}
+
+/// Linux：用系统默认程序打开已下载的包（提权失败或无法自替换时的兜底）。
+#[cfg(target_os = "linux")]
+fn open_downloaded(path: &Path) -> Result<(), String> {
+    std::process::Command::new("xdg-open")
+        .arg(path)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("打开下载的文件失败：{e}"))
+}
+
+/// 当前进程是否由 AppImage 运行：是则返回 AppImage 文件本身（`APPIMAGE` 由运行时注入）。
+#[cfg(target_os = "linux")]
+fn current_appimage() -> Option<PathBuf> {
+    std::env::var_os("APPIMAGE")
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute() && path.is_file())
+}
+
+/// 就地替换正在运行的 AppImage：同目录临时文件 → 755 → 原子 rename。
+/// 不提权；目录不可写时返回错误，由调用方回退到「打开下载的文件」。
+#[cfg(target_os = "linux")]
+fn replace_appimage(current: &Path, downloaded: &Path) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = current
+        .parent()
+        .ok_or_else(|| "无法定位当前 AppImage 所在目录".to_string())?;
+    let name = current
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("Renomio.AppImage");
+    let temp = dir.join(format!(".{name}.new-{}", std::process::id()));
+
+    let outcome = (|| -> Result<(), String> {
+        let copied = fs::copy(downloaded, &temp)
+            .map_err(|e| format!("写入新版本失败，所在目录可能不可写：{e}"))?;
+        let expected = fs::metadata(downloaded)
+            .map_err(|e| format!("读取安装包大小失败：{e}"))?
+            .len();
+        if copied != expected {
+            return Err(format!("复制不完整：{copied}/{expected} 字节"));
+        }
+        fs::set_permissions(&temp, fs::Permissions::from_mode(0o755))
+            .map_err(|e| format!("设置可执行权限失败：{e}"))?;
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&temp)
+            .and_then(|file| file.sync_all())
+            .map_err(|e| format!("临时文件落盘失败：{e}"))?;
+        fs::rename(&temp, current).map_err(|e| format!("替换 AppImage 失败：{e}"))
+    })();
+
+    if outcome.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    outcome
+}
+
+/// deb 提权安装：`pkexec dpkg -i`；未装 pkexec、用户取消授权或 dpkg 失败都返回错误。
+#[cfg(target_os = "linux")]
+fn install_deb(path: &Path) -> Result<(), String> {
+    let status = std::process::Command::new("pkexec")
+        .arg("dpkg")
+        .arg("-i")
+        .arg(path)
+        .status()
+        .map_err(|e| format!("无法启动 pkexec：{e}"))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("dpkg 安装未完成（{status}）"))
+    }
+}
+
+/// Linux 双路径：AppImage 就地自替换（不提权），deb 提权 dpkg -i；两者失败都回退打开下载的文件。
+#[cfg(target_os = "linux")]
+fn launch_linux(path: &Path) -> Result<&'static str, String> {
+    let ext = file_ext_lower(path);
+    if ext == "appimage" {
+        if let Some(current) = current_appimage() {
+            return match replace_appimage(&current, path) {
+                Ok(()) => Ok("已替换为新版本，请重新启动应用"),
+                Err(err) => open_downloaded(path)
+                    .map(|_| "无法自动替换，已打开下载的安装包，请手动替换")
+                    .map_err(|e| format!("{err}；{e}")),
+            };
+        }
+        // 不是由 AppImage 运行（解包目录 / 其它安装方式）：不覆盖二进制，交给用户。
+        return open_downloaded(path).map(|_| "当前不是 AppImage 运行方式，已打开下载的安装包");
+    }
+    if ext == "deb" && install_deb(path).is_ok() {
+        return Ok("deb 安装完成，请重新启动应用");
+    }
+    open_downloaded(path)?;
+    Ok("已打开下载的安装包，请按系统提示完成安装")
+}
+
+/// 启动安装动作；成功时返回给用户的最后一条提示。
+/// Windows 走安装器（UAC 提权）；macOS 打开 dmg 让用户拖动；Linux 见 `launch_linux`。
+fn launch_installer(path: &Path) -> Result<&'static str, String> {
     #[cfg(target_os = "windows")]
     {
+        // Windows 上唯一路径是 `ShellExecuteW(runas)`，不再直接 spawn（否则 740）。
         let (program, params) = installer_invocation(path)?;
-        launch_outcome_message(crate::win_elevation::run_elevated(&program, Some(&params)))
+        launch_outcome_message(crate::win_elevation::run_elevated(&program, Some(&params)))?;
+        Ok("安装程序已启动，应用即将退出")
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    {
+        launch_macos(path)
+    }
+    #[cfg(target_os = "linux")]
+    {
+        launch_linux(path)
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     {
         let _ = path;
         Err("当前平台暂不支持应用内自动安装，请手动打开下载的文件".to_string())
@@ -614,19 +746,14 @@ fn discard_owned_install(path: &Path, owned_temp: bool) {
 
 fn finish_install(app: &AppHandle, path: &Path, owned_temp: bool) -> Result<(), String> {
     emit_progress(app, "installing", 0, 0, "local", 0, "正在启动安装程序");
-    if let Err(err) = launch_installer(path) {
-        discard_owned_install(path, owned_temp);
-        return Err(err);
-    }
-    emit_progress(
-        app,
-        "restarting",
-        0,
-        0,
-        "local",
-        0,
-        "安装程序已启动，应用即将退出",
-    );
+    let message = match launch_installer(path) {
+        Ok(message) => message,
+        Err(err) => {
+            discard_owned_install(path, owned_temp);
+            return Err(err);
+        }
+    };
+    emit_progress(app, "restarting", 0, 0, "local", 0, message);
     std::thread::sleep(Duration::from_millis(250));
     app.exit(0);
     Ok(())
@@ -690,7 +817,8 @@ pub async fn check_update(app: AppHandle, mirror: Option<String>) -> Result<Upda
             notes: manifest.notes,
             pub_date: manifest.pub_date,
             source,
-            installable: cfg!(target_os = "windows"),
+            // 三平台都有应用内安装路径：Windows 安装器、macOS 打开 dmg、Linux AppImage/deb。
+            installable: true,
             asset_name: asset_file_name(&asset.url),
             asset_size: asset.size,
         })
@@ -938,6 +1066,52 @@ mod tests {
             src.contains(entry),
             "安装器启动应统一走 ShellExecuteW(runas)"
         );
+    }
+
+    /// Linux AppImage 自替换：字节完整、可执行位保留、同目录临时文件不改名残留。
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn appimage_self_replace_swaps_file_atomically() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = std::env::temp_dir().join(format!("renomio-appimage-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let current = dir.join("Renomio.AppImage");
+        fs::write(&current, b"old-version").unwrap();
+        let downloaded = dir.join("Renomio_1.1.0_amd64.AppImage");
+        fs::write(&downloaded, b"new-version-bytes").unwrap();
+
+        replace_appimage(&current, &downloaded).expect("同目录可写时应替换成功");
+        assert_eq!(fs::read(&current).unwrap(), b"new-version-bytes");
+        assert!(fs::metadata(&current).unwrap().permissions().mode() & 0o111 != 0);
+        assert!(!fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .any(|e| e.file_name().to_string_lossy().contains(".new-")));
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// 复制失败时返回错误，且不留下半截临时文件。
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn appimage_replace_failure_leaves_no_leftover() {
+        let dir = std::env::temp_dir().join(format!("renomio-appimage-err-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let current = dir.join("Renomio.AppImage");
+        fs::write(&current, b"old").unwrap();
+
+        let err = replace_appimage(&current, &dir.join("missing.AppImage")).unwrap_err();
+        assert!(err.contains("写入新版本失败"), "{err}");
+        assert_eq!(fs::read(&current).unwrap(), b"old");
+        assert!(!fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .any(|e| e.file_name().to_string_lossy().contains(".new-")));
+
+        let _ = fs::remove_dir_all(&dir);
     }
 
     /// 真实产物反例（需手动提供路径，CI 跳过）：
