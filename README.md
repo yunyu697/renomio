@@ -62,7 +62,7 @@ Get-FileHash .\Renomio_<版本>_x64-setup.exe -Algorithm SHA256
 
 - **旧版 Rename Studio 必须先卸载。** 新版 identifier 与 MSI UpgradeCode 均已变更，不是原地升级。安装器会按「旧显示名 + 旧 UpgradeCode」检测旧版，命中后给出卸载命令并中止。**卸载旧版时不要勾选「删除应用数据」**，否则新版无法导入你的配置与撤销历史。
 - **Windows 安装包未做代码签名**，首次运行会触发 Windows SmartScreen（「Windows 已保护你的电脑」）。请核对上面的 SHA-256 后再选择「仍要运行」。本轮没有签名证书，签名与时间戳流程尚未执行。
-- **Windows 仍是唯一进入 GitHub Release 的平台。** macOS（`.app` / `.dmg`）与 Linux（`.deb` / `.AppImage`）现在由 CI 真实构建并作为 **Actions artifact** 提供下载，但都**未签名、未公证、未发布到 Release**，也未更新 `latest.json`——详见下方 [Linux 与 macOS 产物](#linux-与-macos-产物未签名)。
+- **Windows 仍是唯一进入 GitHub Release 的平台。** macOS（`.app` / `.dmg`）与 Linux（`.deb` / `.AppImage`）现在由 CI 真实构建、并生成与 `plugins.updater.pubkey` 配对的 updater 签名（`.sig`）后作为 **Actions artifact** 提供下载，但仍**未公证、未发布到 Release**，`updates` 的 `latest.json` 目前也只有 `windows-x86_64` 一个键——详见下方 [Linux 与 macOS 产物](#linux-与-macos-产物ad-hoc--updater-签名)。
 - **Linux 需要系统中文字体。** 界面不自带字体，系统缺 Noto CJK 等中文字体时，所有中文会渲染成空心方块（豆腐块）。安装方式见 [中文字体依赖](#中文字体依赖linux)。
 - 安装向导界面、需要 UAC 的安装/卸载、安装后首次启动的真实窗口交互，本轮均未在自动化中执行（按项目约定不在会话里启动带 GUI 或会弹 UAC 的进程）；因此「装到 `Program Files` 的落点、卸载残留、快捷方式位置、旧版并存拦截弹窗」属于**静态核验**结论，不是真机验收。
 - 真实 Explorer 拖放、提权后的拖放（UIPI 会拦截）、真实物理跨盘移动、EXIF 拍摄时间写入在真实相机样张上的表现（功能已实现，本机只用自造 JPEG 结构测试）、快照窗在桌面端真实 UI 上的操作（Rust 真实文件测试与浏览器 mock 均已覆盖）均未完成或未验证。
@@ -79,15 +79,15 @@ Get-FileHash .\Renomio_<版本>_x64-setup.exe -Algorithm SHA256
 - **跳过是「部分成功」，不会让整批撤销失败。** 被跳过的字段进入返回结构的 `skippedFields`（字段名 + 原因），**不计入** `failed`；批次仍记为已撤销，已经恢复的 mtime / atime 也不会被回滚。
 - **UI 与日志都明示，不静默。** 撤销完成后界面提示「已撤销 N 项；创建时间在 Linux 上不支持恢复，已跳过」，同时向 `<dataDir>/logs/undo.log` **追加**一行 `undo\t<ts>\tbatch=<id>\tfield=creation\tpath=…\treason=…`（只记元数据，不写文件内容）。
 
-## Linux 与 macOS 产物（未签名）
+## Linux 与 macOS 产物（ad-hoc / updater 签名）
 
-**来源**：CI 的 `bundle-linux` / `bundle-macos` job 会真实执行 `tauri build`，产物以 Actions artifact 形式提供（`renomio-linux-x64-unsigned`、`renomio-macos-arm64-unsigned`）。**两者都没有签名/公证，也没有进入 GitHub Release，也没有更新 `latest.json`**，所以应用内的「检查更新」在这些平台上不会工作。
+**来源**：CI 的 `bundle-linux` / `bundle-macos` / `bundle-windows` job 会真实执行 `tauri build`，产物以 Actions artifact 形式提供（`renomio-linux-x64`、`renomio-macos-arm64`、`renomio-windows-x64`）。构建时用仓库 secret `TAURI_SIGNING_PRIVATE_KEY` 为安装包生成 updater 签名（`.sig`，与 `tauri.conf.json` 的 `plugins.updater.pubkey` 配对，应用内下载后会验签）。**三者都没有进入 GitHub Release，`latest.json` 目前只含 `windows-x86_64`**，所以 macOS / Linux 的应用内「检查更新」要等下一次发布把对应键写进清单后才可用。
 
 | 平台 | 产物 | 架构 | 签名状态 |
 | --- | --- | --- | --- |
-| Linux | `.deb`、`.AppImage` | x86_64 | 未签名（Linux 无强制签名要求） |
-| macOS | `.dmg`、`.app.zip` | arm64（Apple Silicon） | **ad-hoc 签名**（`codesign -s -`），未公证 |
-| Windows | `.msi`、`-setup.exe` | x64 | 未签名（见上） |
+| Linux | `.deb`、`.AppImage` | x86_64 | 无 OS 级签名（Linux 无强制要求）；有 updater `.sig` |
+| macOS | `.dmg`、`.app.zip` | arm64（Apple Silicon） | **ad-hoc 签名**（`codesign -s -`），未公证；dmg 另有 updater `.sig`（重打 dmg 后重新生成） |
+| Windows | `.msi`、`-setup.exe` | x64 | 未做 Authenticode 代码签名（见上）；有 updater `.sig` |
 
 ### Linux 安装
 
@@ -139,7 +139,7 @@ sudo zypper install google-noto-sans-cjk-fonts
 | 创建时间（btime）写回 | 可写 | 只读，撤销时跳过并记录 | 标 unsupported，跳过 |
 | 系统文件类型图标 | 支持 | **不提供**（回退内置图标） | **不提供** |
 | 窗口标题栏 | 自绘（`decorations:false`） | 系统原生（`tauri.linux.conf.json` 覆盖为 `decorations:true`，避免 GTK 下无边框窗口无法拖边缩放） | 系统原生（`tauri.macos.conf.json`） |
-| 应用内自动更新 | 支持 | **不可用**（`latest.json` 无 Linux 条目，且代码里安装步骤仅 Windows 实现） | **不可用**（同上） |
+| 应用内自动更新 | 支持 | 代码已实现（AppImage 就地自替换 / deb 走 `pkexec dpkg -i`，失败回退打开下载文件），但 `latest.json` 暂无 Linux 键 | 代码已实现（打开 dmg 由用户拖入「应用程序」），但 `latest.json` 暂无 darwin 键 |
 
 macOS 上的提权（以管理员身份重启）在代码里是 Windows-only，macOS 根本不触发；Linux 侧同理。
 
@@ -194,11 +194,11 @@ macOS 无证书时用 `./app/scripts/sign/build-macos.sh`：构建后自动 ad-h
 | `frontend` | ubuntu | `npm ci` → `tsc --noEmit` → `vite build` |
 | `backend` | ubuntu | 安装 Tauri v2 Linux 依赖 → `cargo fmt --check`（阻断）→ `cargo clippy`（只暴露警告，不加 `-D warnings`）→ `cargo test`（renomio-core + Tauri 壳，含 `migrate.rs` 迁移单测） |
 | `bundle-checks` | windows | 离线组 13 条（读配置，每次都跑）+ 产物组 14 条（有构建产物时才跑） |
-| `bundle-linux` | ubuntu | 真实 `tauri build` 产出 `.deb` + `.AppImage`，并在 Xvfb + openbox 下启动 AppImage 做冒烟，产物上传为 artifact |
-| `bundle-macos` | macos-latest | 真实 `tauri build` 产出 `.app` + `.dmg`，ad-hoc 签名后重打 dmg，`codesign --verify` 校验，产物上传为 artifact |
-| `bundle-windows` | windows | 真实 `tauri build` 产出 `.msi` + `-setup.exe`（未签名），产物上传为 artifact |
+| `bundle-linux` | ubuntu | 真实 `tauri build` 产出 `.deb` + `.AppImage` 与 updater `.sig`，并在 Xvfb + openbox 下启动 AppImage 做冒烟，产物上传为 artifact |
+| `bundle-macos` | macos-latest | 真实 `tauri build` 产出 `.app` + `.dmg`，ad-hoc 签名后重打 dmg 并对最终 dmg 重新生成 updater `.sig`，`codesign --verify` 校验，产物上传为 artifact |
+| `bundle-windows` | windows | 真实 `tauri build` 产出 `.msi` + `-setup.exe` 与 updater `.sig`，产物上传为 artifact |
 
-`bundle-linux` / `bundle-macos` / `bundle-windows` **不写 Release、不改 `latest.json`**，只提供可下载的未签名 artifact。
+`bundle-linux` / `bundle-macos` / `bundle-windows` **不写 Release、不改 `latest.json`**，只提供带 updater 签名的可下载 artifact。
 
 `bundle-checks` 分两组断言（`scripts/check-bundle.ps1`）：
 
