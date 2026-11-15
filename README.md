@@ -63,6 +63,7 @@ Get-FileHash .\Renomio_<版本>_x64-setup.exe -Algorithm SHA256
 - **旧版 Rename Studio 必须先卸载。** 新版 identifier 与 MSI UpgradeCode 均已变更，不是原地升级。安装器会按「旧显示名 + 旧 UpgradeCode」检测旧版，命中后给出卸载命令并中止。**卸载旧版时不要勾选「删除应用数据」**，否则新版无法导入你的配置与撤销历史。
 - **Windows 安装包未做代码签名**，首次运行会触发 Windows SmartScreen（「Windows 已保护你的电脑」）。请核对上面的 SHA-256 后再选择「仍要运行」。本轮没有签名证书，签名与时间戳流程尚未执行。
 - **Windows 仍是唯一进入 GitHub Release 的平台。** macOS（`.app` / `.dmg`）与 Linux（`.deb` / `.AppImage`）现在由 CI 真实构建并作为 **Actions artifact** 提供下载，但都**未签名、未公证、未发布到 Release**，也未更新 `latest.json`——详见下方 [Linux 与 macOS 产物](#linux-与-macos-产物未签名)。
+- **Linux 需要系统中文字体。** 界面不自带字体，系统缺 Noto CJK 等中文字体时，所有中文会渲染成空心方块（豆腐块）。安装方式见 [中文字体依赖](#中文字体依赖linux)。
 - 安装向导界面、需要 UAC 的安装/卸载、安装后首次启动的真实窗口交互，本轮均未在自动化中执行（按项目约定不在会话里启动带 GUI 或会弹 UAC 的进程）；因此「装到 `Program Files` 的落点、卸载残留、快捷方式位置、旧版并存拦截弹窗」属于**静态核验**结论，不是真机验收。
 - 真实 Explorer 拖放、提权后的拖放（UIPI 会拦截）、真实物理跨盘移动、EXIF 拍摄时间写入在真实相机样张上的表现（功能已实现，本机只用自造 JPEG 结构测试）、快照窗在桌面端真实 UI 上的操作（Rust 真实文件测试与浏览器 mock 均已覆盖）均未完成或未验证。
 - 繁中 / 日 / 西三套译文本工具产出，**未经母语审校**。
@@ -100,6 +101,23 @@ chmod +x Renomio_<版本>_amd64.AppImage
 ```
 
 AppImage 的可用性取决于发行版的 WebKitGTK 版本（需要 4.1）。**尚未在真实 Linux 桌面上验证**（CI 只在 Xvfb + openbox 下验证了进程能启动、窗口能创建），窗口拖动/缩放、文件管理器拖放、输入法等仍需真机确认。
+
+#### 中文字体依赖（Linux）
+
+界面**不内嵌字体**，中文字形完全依赖系统字体：字体栈优先 macOS/Windows 自带字体（苹方、微软雅黑等），Linux 上回落到 Noto Sans CJK / 思源黑体 / 文泉驿。桌面发行版的中文环境通常自带 Noto CJK；**最小化安装、容器或纯英文环境可能一个中文字体都没有，此时界面里的中文会全部显示为空心方块（豆腐块），英文与数字正常**——数据没有损坏，只是没有字形可渲染。
+
+```bash
+# Debian / Ubuntu
+sudo apt install fonts-noto-cjk
+# Fedora
+sudo dnf install google-noto-sans-cjk-fonts
+# Arch
+sudo pacman -S noto-fonts-cjk
+# openSUSE
+sudo zypper install google-noto-sans-cjk-fonts
+```
+
+`.deb` 已把 `fonts-noto-cjk` 声明为 `Recommends`，`apt install ./Renomio_*.deb` 时默认会一并装上；AppImage 不带任何依赖，字体需自行安装。CI 的 `bundle-linux` 冒烟显式安装 `fonts-noto-cjk`，并在截图前用 `fc-list :lang=zh-cn` 断言中文字体存在（缺失即失败），避免再产出豆腐块截图。
 
 ### macOS 安装（ad-hoc 签名，无 Apple 身份）
 

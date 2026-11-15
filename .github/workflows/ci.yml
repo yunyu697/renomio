@@ -245,7 +245,8 @@ jobs:
             pkg-config \
             libssl-dev \
             patchelf \
-            xvfb openbox xdotool imagemagick
+            xvfb openbox xdotool imagemagick \
+            fontconfig fonts-noto-cjk
           # Ubuntu 24.04 起 libfuse2 拆成 libfuse2t64；AppImage 打包工具需要 FUSE
           sudo apt-get install -y --no-install-recommends libfuse2t64 \
             || sudo apt-get install -y --no-install-recommends libfuse2
@@ -265,6 +266,16 @@ jobs:
         env:
           APPIMAGE_EXTRACT_AND_RUN: '1' # runner 无 FUSE 时让 appimagetool 自解压运行
         run: npm run tauri build -- --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: 校验冒烟环境具备中文字体（缺字体会让截图出现豆腐块）
+        run: |
+          set -euo pipefail
+          echo "系统字体数：$(fc-list | wc -l)"
+          if ! fc-list :lang=zh-cn | grep -q .; then
+            echo '::error title=缺少中文字体::fc-list :lang=zh-cn 为空，冒烟截图中的中文会渲染成方块'
+            exit 1
+          fi
+          fc-list :lang=zh-cn family | sort -u | head -n 10
 
       - name: 冒烟：Xvfb + openbox 启动 AppImage（验证 WebKitGTK 可加载、窗口可创建）
         run: |
