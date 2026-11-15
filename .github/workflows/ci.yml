@@ -327,15 +327,17 @@ jobs:
       - name: 产物清单与 SHA-256
         run: |
           set -euo pipefail
+          mapfile -t files < <(
+            find src-tauri/target/release/bundle/deb src-tauri/target/release/bundle/appimage \
+              -maxdepth 1 -type f | sort
+          )
           {
             echo '## Linux 产物（含 updater 签名，未进 Release）'
             echo ''
             echo '```'
-            ls -l src-tauri/target/release/bundle/deb/* \
-                  src-tauri/target/release/bundle/appimage/*
+            ls -l "${files[@]}"
             echo ''
-            sha256sum src-tauri/target/release/bundle/deb/* \
-                      src-tauri/target/release/bundle/appimage/*
+            sha256sum "${files[@]}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
