@@ -168,7 +168,7 @@ macOS 无证书时用 `./app/scripts/sign/build-macos.sh`：构建后自动 ad-h
 
 ## 持续集成
 
-[.github/workflows/ci.yml](.github/workflows/ci.yml) 五个 job，push 到 `main`、PR 或手动 `workflow_dispatch` 时触发：
+[.github/workflows/ci.yml](.github/workflows/ci.yml) 六个 job，push 到 `main`、PR 或手动 `workflow_dispatch` 时触发：
 
 | job | runner | 内容 |
 | --- | --- | --- |
