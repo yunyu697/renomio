@@ -134,20 +134,21 @@ jobs:
         run: cargo test --manifest-path app/src-tauri/Cargo.toml
 
   bundle-checks:
-    name: bundle-checks (windows / 14 条打包断言)
+    name: bundle-checks (windows / 14 条产物断言 + 13 条离线断言)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
       # 断言分两组：
-      #   离线组（11 条）：只读 tauri.conf.json / installer-hooks.nsh，CI 每次真实执行；
+      #   离线组（13 条）：只读 tauri.conf.json / tauri.linux.conf.json / tauri.macos.conf.json /
+      #     installer-hooks.nsh，CI 每次真实执行；
       #   产物组（14 条）：读已构建的 MSI、NSIS、WiX/NSIS 生成脚本，需 `npm run tauri build` 之后才有。
       #   MSI（bundle/msi/*.msi）、NSIS 安装包（bundle/nsis/*-setup.exe）、
       #   WiX 生成脚本（target/release/wix/x64/main.wxs）、
       #   NSIS 生成脚本（target/release/nsis/x64/installer.nsi）。
-      # 这些文件只有 `npm run tauri build` 之后才存在，CI 不构建安装包（原因见 README / 下方 summary），
+      # 这些文件只有 `npm run tauri build` 之后才存在，CI 不构建 Windows 安装包（原因见 README / 下方 summary），
       # 所以本步只做「产物是否就位」判定：就位才跑断言，否则显式跳过并写明原因，不伪造通过。
-      - name: 离线断言（11 条，不依赖构建产物）
+      - name: 离线断言（13 条，不依赖构建产物）
         shell: pwsh
         run: ./app/scripts/check-bundle.ps1 -Offline
 
@@ -178,9 +179,9 @@ jobs:
         shell: pwsh
         run: |
           @'
-          ## 产物组：已跳过（0/14 条产物断言执行；离线组 11 条已在上一步真实执行）
+          ## 产物组：已跳过（0/14 条产物断言执行；离线组 13 条已在上一步真实执行）
 
-          原因：产物组的 **14 条断言全部依赖已构建产物**（离线组 11 条已在「离线断言」步骤真实执行并通过）。
+          原因：产物组的 **14 条断言全部依赖已构建产物**（离线组 13 条已在「离线断言」步骤真实执行并通过）。
 
           | # | 断言 | 依赖 |
           | --- | --- | --- |
@@ -201,12 +202,213 @@ jobs:
 
           CI 未纳入 Windows 打包（原因：GitHub 托管的 windows runner 上跑完整 Tauri release 构建 + NSIS/WiX 工具下载
           约需 8–12 分钟，且安装包仍未代码签名；发布前在本地以 `npm run test:bundle` 逐条执行）。
+          Linux / macOS 的出包见 `bundle-linux` / `bundle-macos` job（产物上传为 artifact，未签名、不进 Release）。
+
           因此本 job 在此次运行中 **只验证了产物缺失这一事实**，没有任何断言被判为 PASS。
           '@ >> $env:GITHUB_STEP_SUMMARY
-          Write-Host '::warning title=bundle-checks skipped::14 条断言依赖构建产物，CI 未构建安装包，已跳过并在 step summary 说明原因'
+          Write-Host '::warning title=bundle-checks skipped::14 条断言依赖构建产物，CI 未构建 Windows 安装包，已跳过并在 step summary 说明原因'
 
       - name: 执行 check-bundle.ps1（14 条断言）
         if: steps.artifacts.outputs.present == 'true'
         shell: pwsh
         run: |
           ./app/scripts/check-bundle.ps1
+
+  # 以下两个 job 只产出「未签名」安装包并上传为可下载 artifact：
+  #   - 不更新 GitHub Release，也不改 updates/latest.json；
+  #   - 不生成 updater 产物（仓库无 minisign 私钥），故用 --config 关掉 createUpdaterArtifacts，
+  #     否则 tauri build 会在产出安装包后以「有公钥无私钥」退出码 1 结束。
+  bundle-linux:
+    name: bundle-linux (deb / AppImage，未签名)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: 安装 Tauri v2 Linux 依赖（同 backend）+ 冒烟测试工具
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            build-essential \
+            pkg-config \
+            libssl-dev \
+            patchelf \
+            xvfb openbox xdotool imagemagick
+          # Ubuntu 24.04 起 libfuse2 拆成 libfuse2t64；AppImage 打包工具需要 FUSE
+          sudo apt-get install -y --no-install-recommends libfuse2t64 \
+            || sudo apt-get install -y --no-install-recommends libfuse2
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            app/src-tauri -> target
+            app/src-tauri/renomio-core -> target
+
+      - name: npm ci
+        run: npm ci
+
+      - name: 构建 deb + AppImage
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1' # runner 无 FUSE 时让 appimagetool 自解压运行
+        run: npm run tauri build -- --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: 冒烟：Xvfb + openbox 启动 AppImage（验证 WebKitGTK 可加载、窗口可创建）
+        run: |
+          set -euo pipefail
+          APPIMAGE="$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' -print -quit)"
+          test -n "$APPIMAGE"
+          chmod +x "$APPIMAGE"
+
+          Xvfb :99 -screen 0 1440x900x24 >/tmp/xvfb.log 2>&1 &
+          export DISPLAY=:99
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          export WEBKIT_DISABLE_COMPOSITING_MODE=1
+          export LIBGL_ALWAYS_SOFTWARE=1
+          sleep 2
+          openbox >/tmp/openbox.log 2>&1 &
+          sleep 1
+
+          "$APPIMAGE" >/tmp/appimage-run.log 2>&1 &
+          APP_PID=$!
+          FOUND=0
+          for _ in $(seq 1 30); do
+            sleep 2
+            if ! kill -0 "$APP_PID" 2>/dev/null; then
+              echo '::error title=AppImage 启动失败::进程在 60 秒内退出'
+              tail -n 80 /tmp/appimage-run.log
+              exit 1
+            fi
+            if xdotool search --name 'Renomio' >/dev/null 2>&1; then FOUND=1; break; fi
+          done
+          if [ "$FOUND" = "1" ]; then
+            echo '窗口已创建：'
+            xdotool search --name 'Renomio' | head -n 5
+          else
+            echo '::warning title=未发现 Renomio 窗口::进程存活但 60 秒内未匹配到窗口标题，见截图与日志'
+          fi
+          import -window root linux-smoke.png || true
+          cp /tmp/appimage-run.log appimage-run.log || true
+          kill "$APP_PID" 2>/dev/null || true
+
+      - name: 产物清单与 SHA-256
+        run: |
+          set -euo pipefail
+          {
+            echo '## Linux 产物（未签名，未进 Release）'
+            echo ''
+            echo '```'
+            ls -l src-tauri/target/release/bundle/deb/*.deb \
+                  src-tauri/target/release/bundle/appimage/*.AppImage
+            echo ''
+            sha256sum src-tauri/target/release/bundle/deb/*.deb \
+                      src-tauri/target/release/bundle/appimage/*.AppImage
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: renomio-linux-x64-unsigned
+          path: |
+            app/src-tauri/target/release/bundle/deb/*.deb
+            app/src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: renomio-linux-smoke
+          path: |
+            app/linux-smoke.png
+            app/appimage-run.log
+          if-no-files-found: warn
+
+  bundle-macos:
+    name: bundle-macos (app / dmg，ad-hoc 未公证)
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            app/src-tauri -> target
+            app/src-tauri/renomio-core -> target
+
+      - name: npm ci
+        run: npm ci
+
+      - name: 构建 app + dmg
+        run: npm run tauri build -- --bundles app,dmg --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: ad-hoc 签名并重打 dmg（无 Apple 证书，不做公证）
+        run: ./scripts/sign/build-macos.sh --no-build
+
+      - name: 打包 .app 为 zip（保留符号链接与可执行权限）
+        run: |
+          set -euo pipefail
+          VER="$(cat ../VERSION)"
+          ARCH="$(uname -m)"
+          ditto -c -k --keepParent \
+            src-tauri/target/release/bundle/macos/Renomio.app \
+            "src-tauri/target/release/bundle/macos/Renomio_${VER}_${ARCH}.app.zip"
+
+      - name: 校验签名与 Gatekeeper 判定（如实记录）
+        run: |
+          set -euo pipefail
+          APP=src-tauri/target/release/bundle/macos/Renomio.app
+          echo '== codesign --verify（必须通过：ad-hoc 也应自洽）=='
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          echo '== 签名信息 =='
+          codesign -dvv "$APP" 2>&1 | head -n 12 || true
+          echo '== spctl（预期 rejected：无 Apple 身份）=='
+          spctl -a -vvv -t exec "$APP" 2>&1 || true
+          echo '== dmg 校验 =='
+          hdiutil verify src-tauri/target/release/bundle/dmg/*.dmg
+
+      - name: 产物清单与 SHA-256
+        run: |
+          set -euo pipefail
+          {
+            echo '## macOS 产物（ad-hoc 未公证，未进 Release）'
+            echo ''
+            echo '```'
+            ls -l src-tauri/target/release/bundle/dmg/*.dmg \
+                  src-tauri/target/release/bundle/macos/*.app.zip
+            echo ''
+            shasum -a 256 src-tauri/target/release/bundle/dmg/*.dmg \
+                          src-tauri/target/release/bundle/macos/*.app.zip
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: renomio-macos-arm64-unsigned
+          path: |
+            app/src-tauri/target/release/bundle/dmg/*.dmg
+            app/src-tauri/target/release/bundle/macos/*.app.zip
+          if-no-files-found: error
