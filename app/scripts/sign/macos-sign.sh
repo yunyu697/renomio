@@ -1,27 +1,53 @@
 #!/usr/bin/env bash
-# macOS 应用签名（Hardened Runtime + 时间戳），并处理 sidecar 二进制的签名链。
+# macOS 应用签名（从内到外），支持两种模式：
+#   - 有 APPLE_SIGNING_IDENTITY：Developer ID 签名（Hardened Runtime + 时间戳），可继续公证
+#   - 无 APPLE_SIGNING_IDENTITY：ad-hoc 签名（codesign -s -），供无证书环境分发/自测，**不能公证**
 #
 # 用法：
+#   ./scripts/sign/macos-sign.sh "src-tauri/target/release/bundle/macos/Renomio.app"
 #   APPLE_SIGNING_IDENTITY="Developer ID Application: Your Team (TEAMID)" \
 #   APPLE_TEAM_ID="TEAMID" \
 #   ./scripts/sign/macos-sign.sh "src-tauri/target/release/bundle/macos/Renomio.app"
+#   ./scripts/sign/macos-sign.sh --no-sign "…/Renomio.app"     # 完全跳过
 #
 # 签名顺序（必须从内到外，否则公证会报 “signature invalid”）：
 #   1. Contents/Frameworks 里的 dylib / framework
 #   2. Contents/MacOS 里的 sidecar 可执行文件
 #   3. 主可执行文件
 #   4. .app 外层 Bundle
-# 没有证书时打印接入说明并以退出码 3 结束，不会伪造签名成功。
+#
+# ad-hoc 签名能保证包内签名自洽（codesign --verify 通过），但没有 Apple 身份，
+# 因此 Gatekeeper 仍会拦（spctl 显示 rejected），用户需手动放行，见 README。
 
 set -euo pipefail
 
-APP="${1:-}"
+APP=""
+DO_SIGN=1
+for arg in "$@"; do
+  case "$arg" in
+    --no-sign) DO_SIGN=0 ;;
+    -*) echo "未知参数：$arg" >&2; exit 2 ;;
+    *)
+      if [[ -n "$APP" ]]; then
+        echo "只接受一个 .app 路径（多余参数：$arg）" >&2
+        exit 2
+      fi
+      APP="$arg"
+      ;;
+  esac
+done
+
 IDENTITY="${APPLE_SIGNING_IDENTITY:-}"
 TEAM_ID="${APPLE_TEAM_ID:-}"
 ENTITLEMENTS="${ENTITLEMENTS:-$(cd "$(dirname "$0")/../.." && pwd)/src-tauri/entitlements.plist}"
 
+if [[ "$DO_SIGN" == "0" ]]; then
+  echo "已指定 --no-sign，跳过签名（产物未签名，分发后会被 Gatekeeper 拦截）。"
+  exit 0
+fi
+
 if [[ -z "$APP" ]]; then
-  echo "用法：macos-sign.sh <path/to/App.app>" >&2
+  echo "用法：macos-sign.sh [--no-sign] <path/to/App.app>" >&2
   exit 2
 fi
 if [[ ! -d "$APP" ]]; then
@@ -33,26 +59,28 @@ if [[ ! -f "$ENTITLEMENTS" ]]; then
   exit 2
 fi
 
+ADHOC=0
 if [[ -z "$IDENTITY" ]]; then
+  ADHOC=1
   cat >&2 <<'EOF'
-未检测到 APPLE_SIGNING_IDENTITY，跳过 macOS 签名。
-接入点：
-  1) 在 Apple Developer 账号创建 “Developer ID Application” 证书并安装到钥匙串；
-  2) security find-identity -v -p codesigning 查看完整身份名；
-  3) export APPLE_SIGNING_IDENTITY="Developer ID Application: xxx (TEAMID)"；
-  4) 公证另见 scripts/sign/macos-notarize.sh（notarytool 需要 App Store Connect API Key 或 Apple ID 应用专用密码）。
-未签名的 .app 只能在本机运行，分发给他人会被 Gatekeeper 拦截。
+未检测到 APPLE_SIGNING_IDENTITY，改用 ad-hoc 签名（codesign -s -）。
+  - 产物可被 codesign --verify 校验通过，但 Gatekeeper 仍会拦截，用户需手动放行（见 README）。
+  - 不能公证（macos-notarize.sh 需要 Apple 凭据）。
+  - 若要正式分发：Apple Developer 账号申请 “Developer ID Application” 证书，安装到钥匙串后
+    export APPLE_SIGNING_IDENTITY="Developer ID Application: xxx (TEAMID)" 再重跑本脚本。
 EOF
-  exit 3
 fi
 
 codesign_one() {
   local target="$1"
-  local extra="${2:-}"
-  echo "签名：$target"
-  # shellcheck disable=SC2086
-  codesign --force --timestamp --options runtime \
-    --entitlements "$ENTITLEMENTS" ${extra} --sign "$IDENTITY" "$target"
+  echo "签名（$([[ "$ADHOC" == "1" ]] && echo ad-hoc || echo "$IDENTITY")）：$target"
+  if [[ "$ADHOC" == "1" ]]; then
+    # ad-hoc 不接受 --timestamp（没有可信时间源），也不带 Hardened Runtime
+    codesign --force --entitlements "$ENTITLEMENTS" --sign - "$target"
+  else
+    codesign --force --timestamp --options runtime \
+      --entitlements "$ENTITLEMENTS" --sign "$IDENTITY" "$target"
+  fi
 }
 
 APP_BIN="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")"
@@ -85,15 +113,20 @@ echo "== 3/4 签名主可执行文件 =="
 codesign_one "$MAIN_BIN"
 
 echo "== 4/4 签名 App Bundle =="
-codesign --force --timestamp --options runtime \
-  --entitlements "$ENTITLEMENTS" --sign "$IDENTITY" "$APP"
+codesign_one "$APP"
 
 echo "== 校验 =="
 codesign --verify --deep --strict --verbose=2 "$APP"
-codesign -dvvv --entitlements :- "$APP" 2>&1 | head -n 30 || true
+codesign -dvvv "$APP" 2>&1 | head -n 20 || true
 
-if [[ -n "$TEAM_ID" ]]; then
+if [[ -n "$TEAM_ID" && "$ADHOC" != "1" ]]; then
   echo "Team ID：$TEAM_ID"
 fi
 
-echo "签名完成。下一步：scripts/sign/macos-notarize.sh \"$APP\""
+if [[ "$ADHOC" == "1" ]]; then
+  echo "ad-hoc 签名完成（无 Apple 身份）。Gatekeeper 校验预期为 rejected："
+  spctl -a -vvv -t exec "$APP" 2>&1 || true
+  echo "下一步：直接分发 dmg/zip，用户按 README 的 Gatekeeper 放行步骤安装。"
+else
+  echo "签名完成。下一步：scripts/sign/macos-notarize.sh \"$APP\""
+fi
