@@ -2738,3 +2738,97 @@ html[data-theme="dark"] .state-head .idx { background: var(--accent); color: var
 .meta-cap-format { font-weight: var(--ds-font-weight-600); color: var(--ink-2); min-width: 110px; }
 .meta-cap-note { flex-basis: 100%; color: var(--muted-2); font-size: var(--ds-font-size-11); }
 .trow .row-sub { color: var(--warn); }
+
+/* ===== 列表交互：视图排序 / 拖拽 / 框选 / 右键菜单 / 就地重命名 ===== */
+.tbody { position: relative; padding-bottom: var(--ds-space-8); }
+.trow { height: var(--row-h, 43px); cursor: default; }
+.table[data-density="compact"] .trow { height: var(--row-h, var(--ds-row-h-lg)); }
+
+/* 选中态与焦点态分开：选中改底色，焦点加内描边 */
+.trow.focused { box-shadow: inset 0 0 0 2px var(--accent); }
+.trow.selected.focused { box-shadow: inset 0 0 0 2px var(--accent-ink); }
+.trow.dragging-row { opacity: .55; }
+.table.dragging-rows { cursor: grabbing; }
+.table.dragging-rows .trow { cursor: grabbing; }
+.table:focus { outline: none; }
+
+body.row-drag-active, body.row-drag-active * { user-select: none; }
+body.row-drag-active { cursor: grabbing; }
+body.row-drag-active * { cursor: grabbing; }
+body.marquee-active, body.marquee-active * { user-select: none; }
+
+.drop-line {
+  position: absolute; left: 0; right: 0; top: var(--drop-top, 0);
+  height: 2px; background: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-weak);
+  pointer-events: none; z-index: 6;
+}
+.drop-line::before {
+  content: ''; position: absolute; left: 0; top: -2px;
+  width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+}
+
+.drag-ghost {
+  position: fixed; left: var(--ghost-x, 0); top: var(--ghost-y, 0);
+  transform: translate(12px, 10px);
+  display: inline-flex; align-items: center; gap: var(--ds-space-2);
+  padding: var(--ds-space-2) var(--ds-space-4);
+  border: 1px solid var(--accent-weak-2);
+  border-radius: var(--ds-radius-sm);
+  background: var(--panel); color: var(--ink);
+  font-size: var(--ds-font-size-11);
+  box-shadow: var(--ds-elevation-2);
+  pointer-events: none; z-index: 70;
+}
+
+.marquee {
+  position: fixed; left: var(--m-left, 0); top: var(--m-top, 0);
+  width: var(--m-width, 0); height: var(--m-height, 0);
+  border: 1px solid var(--accent); background: var(--accent-weak);
+  pointer-events: none; z-index: 40;
+}
+
+.ctx-menu {
+  position: fixed; z-index: 90; min-width: 168px;
+  padding: var(--ds-space-2);
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--ds-radius-sm); box-shadow: var(--ds-elevation-3);
+  outline: none;
+}
+.ctx-list { display: flex; flex-direction: column; }
+.ctx-item {
+  display: flex; align-items: center; gap: var(--ds-space-3);
+  padding: var(--ds-space-2) var(--ds-space-4);
+  border-radius: var(--ds-radius-tag);
+  color: var(--ink-2); font-size: var(--ds-font-size-12);
+  white-space: nowrap; cursor: default;
+}
+.ctx-item.on { background: var(--accent-weak); color: var(--accent-ink); }
+.ctx-item.disabled { color: var(--muted-2); opacity: .55; }
+.ctx-ico { display: inline-flex; width: 14px; justify-content: center; color: var(--muted); }
+.ctx-item.on .ctx-ico { color: var(--accent-ink); }
+.ctx-label { flex: 1 1 auto; }
+.ctx-arrow { color: var(--muted-2); }
+.ctx-sep { height: 1px; margin: var(--ds-space-2) 0; background: var(--line); }
+.ctx-sub { position: absolute; left: 100%; top: 0; padding-left: var(--ds-space-1); }
+.ctx-menu.flip-sub .ctx-sub { left: auto; right: 100%; padding-left: 0; padding-right: var(--ds-space-1); }
+
+.rename-input {
+  flex: 1 1 auto; min-width: 0;
+  height: var(--ds-control-h-sm);
+  padding: 0 var(--ds-space-2);
+  border: 1px solid var(--accent); border-radius: var(--ds-radius-tag);
+  background: var(--panel); color: var(--ink);
+  font-size: var(--ds-font-size-12);
+  outline: none;
+}
+.custom-badge {
+  flex: 0 0 auto; padding: 0 var(--ds-space-2);
+  border-radius: var(--ds-radius-tag);
+  background: var(--accent-weak); color: var(--accent-ink);
+  font-size: var(--ds-font-size-10);
+}
+
+.preview-nav { display: flex; align-items: center; gap: var(--ds-space-3); margin-top: var(--ds-space-2); }
+.preview-nav [data-testid="preview-pos"] { color: var(--muted); font-size: var(--ds-font-size-11); }
+.mini-row.current { background: var(--selected); box-shadow: inset 0 0 0 1px var(--accent); }

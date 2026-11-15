@@ -2689,27 +2689,26 @@ async function main() {
     const namesReloaded = await rowNames();
     check('UI', '手动顺序在重载后仍然保留（localStorage 会话）', JSON.stringify(namesReloaded) === JSON.stringify(namesAfterDown), JSON.stringify({ namesAfterDown, namesReloaded }));
 
-    // 合成 HTML5 拖放：row0 拖到 row2
-    await evaluate(`(() => {
-      const dt = new DataTransfer();
-      window.__E2E_DT__ = dt;
-      document.querySelector('[data-testid="row-handle-0"]').dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }));
-      return true;
+    // 指针拖拽：按住第 1 行拖到第 3 行下缘（CDP 真实鼠标事件，走 pointer events）
+    const dragFrom = await evaluate(`(() => {
+      const r = document.querySelectorAll('.trow')[0].getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     })()`);
-    await sleep(200);
-    await evaluate(`(() => {
-      const row = document.querySelectorAll('.trow')[2];
-      row.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: window.__E2E_DT__ }));
-      return true;
+    const dragTo = await evaluate(`(() => {
+      const r = document.querySelectorAll('.trow')[2].getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.bottom - 6 };
     })()`);
-    await sleep(200);
-    await evaluate(`(() => {
-      const row = document.querySelectorAll('.trow')[2];
-      row.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: window.__E2E_DT__ }));
-      document.querySelector('[data-testid="row-handle-0"]').dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: window.__E2E_DT__ }));
-      return true;
-    })()`);
-    await sleep(250);
+    // 先单击第 1 行把选择收敛成单行，否则重载前残留的多选会让整块拖动变成空操作
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: dragFrom.x, y: dragFrom.y, button: 'left', buttons: 1, clickCount: 1 });
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: dragFrom.x, y: dragFrom.y, button: 'left', buttons: 0, clickCount: 1 });
+    await sleep(220);
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: dragFrom.x, y: dragFrom.y, button: 'left', buttons: 1, clickCount: 1 });
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: dragFrom.x, y: dragFrom.y + 10, button: 'left', buttons: 1 });
+    await sleep(120);
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: dragTo.x, y: dragTo.y, button: 'left', buttons: 1 });
+    await sleep(180);
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: dragTo.x, y: dragTo.y, button: 'left', buttons: 0, clickCount: 1 });
+    await sleep(350);
     const namesDragged = await rowNames();
     check(
       'UI',
@@ -3274,6 +3273,347 @@ async function main() {
       restartBefore.palette === 'moss' && restartBefore.theme === 'dark'
         && restartAfter.attr === 'moss' && restartAfter.theme === 'dark' && restartAfter.bg === '#0e140f',
       JSON.stringify({ before: { palette: restartBefore.palette, theme: restartBefore.theme }, after: restartAfter }),
+    );
+
+    // ===== 列表交互：视图排序 / 多选与框选 / 右键菜单 / 就地重命名 / 行高 =====
+    await evaluate('location.reload()');
+    await waitFor(`document.querySelector('.trow')`, '交互用例的列表', 15000);
+    // 前面的用例可能已把部分文件移出列表，这里把 mock 的默认文件全部补回，保证有足够行可交互
+    await evaluate(`window.__E2E__.emitDrag('drop', window.__E2E__.files.map((f) => f.path))`);
+    await waitFor(`document.querySelectorAll('.trow').length >= 4`, '交互用例的列表（4 行）', 8000);
+    await sleep(400);
+    await click('[data-testid="list-tab-rename"]');
+    await sleep(300);
+
+    const pointOf = (selector, index = 0, dy = 0) =>
+      evaluate(`(() => {
+        const el = document.querySelectorAll(${JSON.stringify(selector)})[${index}];
+        if (!el) throw new Error('找不到元素');
+        const r = el.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 + ${dy}, h: r.height };
+      })()`);
+    const mouseClick = async (x, y, modifiers = 0) => {
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1, modifiers });
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1, modifiers });
+      await sleep(180);
+    };
+    const rightClick = async (x, y) => {
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'right', buttons: 2, clickCount: 1 });
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'right', buttons: 0, clickCount: 1 });
+      await sleep(220);
+    };
+    const typeKey = async (key, code, vk, modifiers = 0) => {
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk, modifiers });
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk, modifiers });
+      await sleep(140);
+    };
+    const visibleNames = () => evaluate(`[...document.querySelectorAll('.trow .cell.name-cell .txt')].map((e) => e.textContent)`);
+    const upOrder = () => evaluate(`[...document.querySelectorAll('.trow [data-testid^="row-up-"]')].map((e) => e.getAttribute('data-testid'))`);
+    const selectedNow = () => evaluate(`document.querySelectorAll('.trow .checkbox[aria-checked="true"]').length`);
+    const clearSelection = async () => {
+      const on = await selectedNow();
+      if (!on) return;
+      const t = await evaluate(`(() => { const el = document.querySelector('[data-testid="file-table"]'); el?.focus(); return true; })()`);
+      void t;
+      await typeKey('Escape', 'Escape', 27);
+      await sleep(150);
+    };
+
+    const namesBeforeSort = await visibleNames();
+    const upsBeforeSort = await upOrder();
+    await click('.th.sortable');
+    await sleep(300);
+    const sorted = await evaluate(`(() => {
+      const table = document.querySelector('[data-testid="file-table"]');
+      const names = [...document.querySelectorAll('.trow .cell.name-cell .txt')].map((e) => e.textContent);
+      const asc = [...names].sort((a, b) => a.localeCompare(b, 'zh-CN'));
+      return {
+        key: table.dataset.sort,
+        dir: table.dataset.sortDir,
+        sortedOk: JSON.stringify(names) === JSON.stringify(asc),
+        chip: !!document.querySelector('[data-testid="sort-chip"]'),
+        names,
+      };
+    })()`);
+    const upsAfterSort = await upOrder();
+    check(
+      'UI',
+      '列头排序只改显示顺序：按名称升序显示，真实编号（entry 下标）不重编号',
+      sorted.key === 'name' && sorted.dir === '1' && sorted.sortedOk && sorted.chip
+        && JSON.stringify(upsBeforeSort) !== JSON.stringify(upsAfterSort),
+      JSON.stringify({ key: sorted.key, dir: sorted.dir, sortedOk: sorted.sortedOk, upsBeforeSort, upsAfterSort }),
+    );
+
+    await click('[data-testid="sort-reset"]');
+    await sleep(250);
+    const afterReset = await visibleNames();
+    const resetSortKey = await evaluate(`document.querySelector('[data-testid="file-table"]').dataset.sort`);
+    check(
+      'UI',
+      '「恢复手动顺序」退回真实列表顺序且不残留排序状态',
+      JSON.stringify(afterReset) === JSON.stringify(namesBeforeSort) && resetSortKey === 'none',
+      JSON.stringify({ afterReset, namesBeforeSort, resetSortKey }),
+    );
+
+    await clearSelection();
+    const row0 = await pointOf('.trow', 0);
+    const row1 = await pointOf('.trow', 1);
+    const row2 = await pointOf('.trow', 2);
+    await mouseClick(row0.x, row0.y);
+    const selOne = await selectedNow();
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: row2.x, y: row2.y, button: 'left', buttons: 1, clickCount: 1, modifiers: 8 });
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: row2.x, y: row2.y, button: 'left', buttons: 0, clickCount: 1, modifiers: 8 });
+    await sleep(200);
+    const selRange = await selectedNow();
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: row1.x, y: row1.y, button: 'left', buttons: 1, clickCount: 1, modifiers: 2 });
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: row1.x, y: row1.y, button: 'left', buttons: 0, clickCount: 1, modifiers: 2 });
+    await sleep(200);
+    const selCtrl = await selectedNow();
+    const statusText = await evaluate(`document.querySelector('[data-testid="status-selected"]')?.textContent || ''`);
+    check(
+      'UI',
+      'Ctrl 点击单项切换、Shift 点击按锚点范围选择，状态栏给出「已选 N 项」',
+      selOne === 1 && selRange === 3 && selCtrl === 2 && statusText.includes('已选 2 项'),
+      JSON.stringify({ selOne, selRange, selCtrl, statusText }),
+    );
+
+    /** 滚到底部，取最后一行下方的空白带（tbody 有 32px 底部留白）。 */
+    const blankPoint = async () => {
+      await evaluate(`(() => {
+        const t = document.querySelector('[data-testid="file-table"]');
+        t.scrollTop = t.scrollHeight;
+        return true;
+      })()`);
+      await sleep(250);
+      return evaluate(`(() => {
+        const t = document.querySelector('[data-testid="file-table"]');
+        const rows = t.querySelectorAll('.trow');
+        const last = rows[rows.length - 1].getBoundingClientRect();
+        const r = t.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: Math.min(r.bottom - 6, last.bottom + 16) };
+      })()`);
+    };
+    const blank = await blankPoint();
+    await mouseClick(blank.x, blank.y);
+    const selBlank = await selectedNow();
+    check('UI', '点击列表空白清除选择', selBlank === 0, String(selBlank));
+
+    // 框选：从空白处向上拖过末尾两行
+    const lastRowCount = await evaluate(`document.querySelectorAll('.trow').length`);
+    const lastRow = await pointOf('.trow', lastRowCount - 1);
+    const prevRow = await pointOf('.trow', lastRowCount - 2);
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: blank.x, y: blank.y, button: 'left', buttons: 1, clickCount: 1 });
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: lastRow.x, y: lastRow.y, button: 'left', buttons: 1 });
+    await sleep(120);
+    const marqueeShown = await evaluate(`!!document.querySelector('[data-testid="marquee"]')`);
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: prevRow.x, y: prevRow.y - 2, button: 'left', buttons: 1 });
+    await sleep(150);
+    const selMarquee = await selectedNow();
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: prevRow.x, y: prevRow.y - 2, button: 'left', buttons: 0, clickCount: 1 });
+    await sleep(150);
+    check(
+      'UI',
+      '空白处按下拖动为框选：实时出现选框并命中拖过的行',
+      marqueeShown && selMarquee >= 2,
+      JSON.stringify({ marqueeShown, selMarquee }),
+    );
+
+    // 右键：点在已选中行上保留多选
+    const selBeforeMenu = await selectedNow();
+    const rcRow = await pointOf('.trow', lastRowCount - 2);
+    await rightClick(rcRow.x, rcRow.y);
+    const menuInfo = await evaluate(`(() => {
+      const menu = document.querySelector('[data-testid="context-menu"]');
+      return {
+        open: !!menu,
+        ids: [...document.querySelectorAll('[data-menu-id]')].map((e) => e.getAttribute('data-menu-id')),
+        selected: document.querySelectorAll('.trow .checkbox[aria-checked="true"]').length,
+      };
+    })()`);
+    check(
+      'UI',
+      '右键点在已选中行上保留多选，菜单项只给列表语义（复制/剪切/粘贴/移出列表）',
+      menuInfo.open && menuInfo.selected === selBeforeMenu && selBeforeMenu >= 2
+        && menuInfo.ids.includes('copy') && menuInfo.ids.includes('cut') && menuInfo.ids.includes('paste')
+        && menuInfo.ids.includes('remove') && menuInfo.ids.includes('reveal'),
+      JSON.stringify({ selBeforeMenu, menuInfo }),
+    );
+    await typeKey('ArrowDown', 'ArrowDown', 40);
+    const menuActive = await evaluate(`!!document.querySelector('.ctx-item.on')`);
+    await typeKey('Escape', 'Escape', 27);
+    const menuClosed = await evaluate(`!document.querySelector('[data-testid="context-menu"]')`);
+    check('UI', '右键菜单可键盘导航（↑↓ 高亮）并用 Esc 关闭', menuActive && menuClosed, JSON.stringify({ menuActive, menuClosed }));
+
+    // 空白菜单 → 显示方式 → 紧凑
+    await mouseClick(blank.x, blank.y);
+    await rightClick(blank.x, blank.y);
+    const blankMenu = await evaluate(`(() => ({
+      open: !!document.querySelector('[data-testid="context-menu"]'),
+      ids: [...document.querySelectorAll('[data-menu-id]')].map((e) => e.getAttribute('data-menu-id')),
+    }))()`);
+    await click('[data-menu-id="density"]');
+    await sleep(200);
+    await click('[data-menu-id="density-compact"]');
+    await sleep(300);
+    const compact = await evaluate(`(() => {
+      const row = document.querySelector('.trow');
+      const table = document.querySelector('[data-testid="file-table"]');
+      return { density: table.dataset.density, h: row.getBoundingClientRect().height };
+    })()`);
+    check(
+      'UI',
+      '空白右键菜单给排序/显示方式；「紧凑」把行高从 43 降到 36',
+      blankMenu.open && blankMenu.ids.includes('sort') && blankMenu.ids.includes('density')
+        && compact.density === 'compact' && Math.round(compact.h) === 36,
+      JSON.stringify({ blankMenu, compact }),
+    );
+    // 恢复舒适
+    const blank2 = await blankPoint();
+    await rightClick(blank2.x, blank2.y);
+    await click('[data-menu-id="density"]');
+    await sleep(200);
+    await click('[data-menu-id="density-comfortable"]');
+    await sleep(250);
+    await evaluate(`(() => { const t = document.querySelector('[data-testid="file-table"]'); t.scrollTop = 0; return true; })()`);
+    await sleep(250);
+
+    // F2 就地重命名
+    await clearSelection();
+    const renameRow = await pointOf('.trow', 0);
+    await mouseClick(renameRow.x, renameRow.y);
+    await evaluate(`document.querySelector('[data-testid="file-table"]').focus()`);
+    await typeKey('F2', 'F2', 113);
+    await waitFor(`document.querySelector('[data-testid^="rename-input-"]')`, '就地重命名输入框', 4000);
+    await evaluate(`(() => {
+      const el = document.querySelector('[data-testid^="rename-input-"]');
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+      setter.call(el, '交互重命名.txt');
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      return true;
+    })()`);
+    await sleep(150);
+    await evaluate(`(() => {
+      const el = document.querySelector('[data-testid^="rename-input-"]');
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      return true;
+    })()`);
+    await sleep(300);
+    const renamed = await evaluate(`(() => {
+      const row = [...document.querySelectorAll('.trow')].find((r) => (r.querySelector('.new-name')?.textContent || '').includes('交互重命名.txt'));
+      return {
+        badge: document.querySelectorAll('[data-testid^="custom-name-"]').length,
+        newName: row?.querySelector('.new-name')?.textContent || '',
+        originalName: row?.querySelector('.cell.name-cell .txt')?.textContent || '',
+      };
+    })()`);
+    check(
+      'UI',
+      'F2 就地重命名：Enter 提交后新名进入预览列并标出「已自定义」，真实文件名不变',
+      renamed.badge === 1 && renamed.newName.includes('交互重命名.txt') && renamed.originalName !== '交互重命名.txt',
+      JSON.stringify(renamed),
+    );
+    const renamedPoint = await evaluate(`(() => {
+      const row = [...document.querySelectorAll('.trow')].find((r) => (r.querySelector('.new-name')?.textContent || '').includes('交互重命名.txt'));
+      if (!row) return null;
+      const r = row.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    })()`);
+    await rightClick(renamedPoint.x, renamedPoint.y);
+    await click('[data-menu-id="revert-name"]');
+    await sleep(300);
+    const reverted = await evaluate(`!!document.querySelector('[data-testid^="custom-name-"]')`);
+    check('UI', '菜单「恢复按规则命名」清掉自定义名', !reverted, String(reverted));
+
+    // 排序状态下拖动：落下换算真实插入位、自动清排序并提示
+    await click('.th.sortable');
+    await sleep(250);
+    const dragA = await pointOf('.trow', 0);
+    const dragC = await pointOf('.trow', 2, 12);
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: dragA.x, y: dragA.y, button: 'left', buttons: 1, clickCount: 1 });
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: dragA.x, y: dragA.y + 10, button: 'left', buttons: 1 });
+    await sleep(100);
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: dragC.x, y: dragC.y, button: 'left', buttons: 1 });
+    await sleep(180);
+    const duringDrag = await evaluate(`(() => ({
+      line: !!document.querySelector('[data-testid="drop-line"]'),
+      ghost: !!document.querySelector('[data-testid="drag-ghost"]'),
+      grabbing: document.body.classList.contains('row-drag-active'),
+      cursor: getComputedStyle(document.body).cursor,
+    }))()`);
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: dragC.x, y: dragC.y, button: 'left', buttons: 0, clickCount: 1 });
+    await sleep(350);
+    const afterDrag = await evaluate(`(() => ({
+      sort: document.querySelector('[data-testid="file-table"]').dataset.sort,
+      line: !!document.querySelector('[data-testid="drop-line"]'),
+      toast: [...document.querySelectorAll('.toast')].map((n) => n.textContent).join('|'),
+      chip: !!document.querySelector('[data-testid="sort-chip"]'),
+    }))()`);
+    check(
+      'UI',
+      '排序状态下可拖动：拖拽中出现插入线与拖影、光标 grabbing，落下后自动清排序并提示',
+      duringDrag.line && duringDrag.ghost && duringDrag.grabbing && duringDrag.cursor === 'grabbing'
+        && afterDrag.sort === 'none' && !afterDrag.line && !afterDrag.chip && afterDrag.toast.includes('手动顺序'),
+      JSON.stringify({ duringDrag, afterDrag }),
+    );
+
+    // Esc 取消拖动不改顺序
+    const beforeCancel = await visibleNames();
+    const escFrom = await pointOf('.trow', 0);
+    const escTo = await pointOf('.trow', 2, 10);
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: escFrom.x, y: escFrom.y, button: 'left', buttons: 1, clickCount: 1 });
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: escTo.x, y: escTo.y, button: 'left', buttons: 1 });
+    await sleep(160);
+    await typeKey('Escape', 'Escape', 27);
+    await sleep(200);
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: escTo.x, y: escTo.y, button: 'left', buttons: 0, clickCount: 1 });
+    await sleep(200);
+    const afterCancel = await visibleNames();
+    const cancelClean = await evaluate(`!document.querySelector('[data-testid="drop-line"]') && !document.body.classList.contains('row-drag-active')`);
+    check('UI', 'Esc 取消拖动：不改变顺序且清掉插入线与拖拽态', JSON.stringify(beforeCancel) === JSON.stringify(afterCancel) && cancelClean, JSON.stringify({ beforeCancel, afterCancel, cancelClean }));
+
+    // 虚拟滚动（>200 行）：End / Home 跳转必须把焦点行滚进视口（行还没渲染时按索引换算滚动位置）
+    await evaluate(`(() => {
+      const base = window.__E2E__.files[0];
+      const extra = [];
+      for (let i = 1; i <= 300; i += 1) {
+        const path = 'D:/e2e/bulk/bulk_' + String(i).padStart(3, '0') + '.jpg';
+        window.__E2E__.files.push({ ...base, path, size: 100000 + i });
+        extra.push(path);
+      }
+      window.__E2E__.emitDrag('drop', extra);
+      return extra.length;
+    })()`);
+    await sleep(1500);
+    const bulk = await evaluate(`(() => {
+      const t = document.querySelector('[data-testid="file-table"]');
+      return { total: Number(t.dataset.total), virtual: t.dataset.virtual, rows: document.querySelectorAll('.trow').length };
+    })()`);
+    await evaluate(`document.querySelector('[data-testid="file-table"]').focus()`);
+    await typeKey('End', 'End', 35);
+    await sleep(400);
+    const afterEnd = await evaluate(`(() => {
+      const t = document.querySelector('[data-testid="file-table"]');
+      const total = Number(t.dataset.total);
+      return {
+        total,
+        scrollTop: t.scrollTop,
+        lastVisible: !!document.querySelector('.trow[data-index="' + (total - 1) + '"]'),
+        focusedIdx: document.querySelector('.trow.focused')?.getAttribute('data-index') || '',
+      };
+    })()`);
+    await typeKey('Home', 'Home', 36);
+    await sleep(400);
+    const afterHome = await evaluate(`(() => {
+      const t = document.querySelector('[data-testid="file-table"]');
+      return { scrollTop: t.scrollTop, firstVisible: !!document.querySelector('.trow[data-index="0"]') };
+    })()`);
+    check(
+      'UI',
+      '超过 200 行进入虚拟滚动后，End/Home 仍把焦点行滚进视口（不是停在已渲染窗口里）',
+      bulk.virtual === '1' && bulk.total >= 300 && bulk.rows < bulk.total
+        && afterEnd.lastVisible && afterEnd.focusedIdx === String(afterEnd.total - 1) && afterEnd.scrollTop > 0
+        && afterHome.scrollTop === 0 && afterHome.firstVisible,
+      JSON.stringify({ bulk, afterEnd, afterHome }),
     );
 
     cdp.close();

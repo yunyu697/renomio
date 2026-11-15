@@ -1,12 +1,21 @@
 import { useEffect, useMemo, useRef, useState, useCallback, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
 import { usePreview } from '../hooks/usePreview';
+import { useVisibleRows } from '../hooks/useVisibleRows';
+import { useListSelection } from '../hooks/useListSelection';
+import { useRowDrag } from '../hooks/useRowDrag';
+import { useMarquee } from '../hooks/useMarquee';
+import { useListKeys } from '../hooks/useListKeys';
 import { formatSize, formatTime } from '../lib/format';
 import { fileKind } from '../lib/rules';
 import { useTranslation } from '../i18n';
 import type { ColumnKey, PreviewRow, RowStatus } from '../lib/types';
-import { useApp, type StatusFilter } from '../store';
+import { useApp } from '../store';
+import { nextSort } from '../lib/order';
+import { rangeIds } from '../lib/selection';
+import { blankMenuItems, dispatchMenu, rowMenuItems, type MenuActions } from '../lib/menuModel';
 import { Icon, type IconName } from './Icon';
 import { ListTabs, ListView } from './ListView';
+import { ContextMenu } from './ContextMenu';
 
 interface ColumnDef {
   key: ColumnKey;
@@ -64,33 +73,19 @@ const ICON_BY_KIND: Record<string, IconName> = {
   file: 'file',
 };
 
-type SortKey = 'none' | 'name' | 'modified' | 'size';
-
-/** 表头高度 / 行高（与 app.css 的 .thead、.trow 一致），用于虚拟滚动定位。 */
+/** 表头高度（与 app.css 的 .thead 一致），用于虚拟滚动定位。 */
 const THEAD_H = 34;
-const ROW_H = 43;
+/** 舒适 / 紧凑两档行高（与 app.css 的 .trow 一致）。 */
+const ROW_H_COMFORTABLE = 43;
+const ROW_H_COMPACT = 36;
 /** 超过该行数才启用虚拟滚动：小列表保持全量渲染，避免改变既有行为。 */
 const VIRTUAL_THRESHOLD = 200;
 /** 视窗外多渲染的行数，减少快速滚动时的空白。 */
 const OVERSCAN = 8;
 
-function matchesFilter(row: PreviewRow, filter: StatusFilter, query: string): boolean {
-  if (filter === 'changed' && !(row.entry.selected && row.newName !== row.entry.name)) return false;
-  if (filter === 'conflict' && row.status !== 'conflict' && row.status !== 'invalid') return false;
-  if (filter === 'warn' && row.status !== 'warn') return false;
-  if (filter === 'checked' && !row.entry.selected) return false;
-  if (query) {
-    const q = query.toLowerCase();
-    const haystack = `${row.entry.name}\n${row.entry.path}\n${row.newName}`.toLowerCase();
-    if (!haystack.includes(q)) return false;
-  }
-  return true;
-}
-
 export function MainPane() {
   const { t } = useTranslation();
   const entries = useApp((s) => s.entries);
-  const search = useApp((s) => s.search);
   const listTab = useApp((s) => s.listTab);
   const statusFilter = useApp((s) => s.statusFilter);
   const setStatusFilter = useApp((s) => s.setStatusFilter);
@@ -108,19 +103,32 @@ export function MainPane() {
   const openMetadata = useApp((s) => s.openMetadata);
   const openMetaEditor = useApp((s) => s.openMetaEditor);
   const moveEntryTo = useApp((s) => s.moveEntryTo);
+  const moveEntriesTo = useApp((s) => s.moveEntriesTo);
+  const setSelected = useApp((s) => s.setSelected);
   const manualOrder = useApp((s) => s.manualOrder);
+  const nameOverrides = useApp((s) => s.nameOverrides);
+  const setNameOverride = useApp((s) => s.setNameOverride);
+  const clearNameOverride = useApp((s) => s.clearNameOverride);
+  const clipboard = useApp((s) => s.clipboard);
+  const copyEntries = useApp((s) => s.copyEntries);
+  const cutEntries = useApp((s) => s.cutEntries);
+  const pasteEntries = useApp((s) => s.pasteEntries);
+  const listSort = useApp((s) => s.listSort);
+  const setSort = useApp((s) => s.setSort);
+  const resetSort = useApp((s) => s.resetSort);
+  const density = useApp((s) => s.settings.listDensity ?? 'comfortable');
   const duplicates = useApp((s) => s.duplicates);
   const dupBusy = useApp((s) => s.dupBusy);
   const scanDuplicates = useApp((s) => s.scanDuplicates);
   const dedupeDuplicates = useApp((s) => s.dedupeDuplicates);
   const clearDuplicates = useApp((s) => s.clearDuplicates);
   const preview = usePreview();
-  const [sortKey, setSortKey] = useState<SortKey>('none');
-  const [sortDir, setSortDir] = useState<1 | -1>(1);
+  const rows = useVisibleRows();
+  const rowH = density === 'compact' ? ROW_H_COMPACT : ROW_H_COMFORTABLE;
   const [colMenuOpen, setColMenuOpen] = useState(false);
   const [dragWidths, setDragWidths] = useState<Partial<Record<ColumnKey, number>>>({});
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [dropAt, setDropAt] = useState<number | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; kind: 'row' | 'blank' } | null>(null);
   /** 列表可用宽度（随窗口/面板变化），用于窄窗收敛列。 */
   const [listWidth, setListWidth] = useState(0);
 
@@ -193,20 +201,11 @@ export function MainPane() {
     window.addEventListener('mouseup', up);
   };
 
-  const rows = useMemo(() => {
-    const list = preview.rows.filter((row) => matchesFilter(row, statusFilter, search));
-    if (sortKey !== 'none') {
-      list.sort((a, b) => {
-        if (sortKey === 'name') return a.entry.name.localeCompare(b.entry.name, 'zh-CN') * sortDir;
-        if (sortKey === 'modified') return (a.entry.modified - b.entry.modified) * sortDir;
-        return (a.entry.size - b.entry.size) * sortDir;
-      });
-    }
-    return list;
-  }, [preview.rows, statusFilter, search, sortKey, sortDir]);
-
+  const rowIds = useMemo(() => rows.map((row) => row.entry.id), [rows]);
   const selectedCount = entries.filter((e) => e.selected).length;
   const allOn = entries.length > 0 && selectedCount === entries.length;
+  const selectedRows = rows.filter((row) => row.entry.selected);
+  const selectedPaths = selectedRows.map((row) => row.entry.path);
 
   /** 同名（不同路径）标记：Windows 比较不区分大小写。 */
   const duplicateNames = useMemo(() => {
@@ -229,19 +228,8 @@ export function MainPane() {
     moveEntryTo(id, entryIndexOf(neighbor.entry.id));
   };
 
-  const startDrag = (id: string) => {
-    setDragId(id);
-    setDropAt(null);
-  };
-
-  const finishDrop = (targetId: string) => {
-    if (dragId && dragId !== targetId) moveEntryTo(dragId, entryIndexOf(targetId));
-    setDragId(null);
-    setDropAt(null);
-  };
-
   const toggleManual = (id: string, delta: number) => {
-    if (sortKey !== 'none') {
+    if (listSort.key !== 'none') {
       showToast('info', t('main.execOrderHint'));
       return;
     }
@@ -287,21 +275,223 @@ export function MainPane() {
 
   /** 可见窗口 = 滚动位置换算的行号区间（表头 sticky，占位从表头下方算起）。 */
   const firstVisible = virtual
-    ? Math.max(0, Math.floor((view.top - THEAD_H) / ROW_H) - OVERSCAN)
+    ? Math.max(0, Math.floor((view.top - THEAD_H) / rowH) - OVERSCAN)
     : 0;
   const lastVisible = virtual
-    ? Math.min(rows.length, Math.ceil((view.top - THEAD_H + view.height) / ROW_H) + OVERSCAN)
+    ? Math.min(rows.length, Math.ceil((view.top - THEAD_H + view.height) / rowH) + OVERSCAN)
     : rows.length;
   const visibleRows = virtual ? rows.slice(firstVisible, lastVisible) : rows;
-  const padTop = firstVisible * ROW_H;
-  const padBottom = (rows.length - lastVisible) * ROW_H;
+  const padTop = firstVisible * rowH;
+  const padBottom = (rows.length - lastVisible) * rowH;
 
-  const toggleSort = (key: SortKey) => {
-    if (sortKey === key) setSortDir((d) => (d === 1 ? -1 : 1));
-    else {
-      setSortKey(key);
-      setSortDir(1);
+  const toggleSort = (key: 'name' | 'modified' | 'size') => setSort(nextSort(listSort, key));
+
+  const selection = useListSelection(rowIds);
+  const pressRef = useRef<string | null>(null);
+
+  const reveal = useCallback(
+    (path: string) => {
+      if (isDemo) return;
+      void import('../lib/bridge').then(({ revealPath }) => revealPath(path).catch(() => undefined));
+    },
+    [isDemo],
+  );
+
+  const startRename = useCallback(
+    (row: PreviewRow) => {
+      setRenaming({ id: row.entry.id, value: nameOverrides[row.entry.path] ?? row.entry.name });
+    },
+    [nameOverrides],
+  );
+
+  /** 落下：先把可见落点换算成真实插入位，再清掉视图排序回到手动顺序。 */
+  const handleDrop = (ids: string[], slot: number) => {
+    const beforeId = rows[slot]?.entry.id ?? null;
+    const wasSorted = listSort.key !== 'none';
+    const moved = moveEntriesTo(ids, beforeId);
+    // 排序只是视图：一旦拖动落下就先回到手动顺序，落点按真实插入位生效
+    if (wasSorted) resetSort();
+    if (!moved.length) {
+      if (wasSorted) showToast('info', t('list.sortCleared'));
+      return;
     }
+    if (wasSorted) {
+      showToast('info', t('list.sortCleared'));
+      return;
+    }
+    if (moved.length > 1) {
+      showToast('info', t('list.blockMoved', { count: moved.length }));
+      return;
+    }
+    const row = rows.find((item) => item.entry.id === moved[0]);
+    showToast('info', t('toast.orderMoved', { name: row?.entry.name ?? '', index: entryIndexOf(moved[0]) + 1 }));
+  };
+
+  const dragApi = useRowDrag({
+    containerRef: tableRef,
+    rowIds,
+    rowHeight: rowH,
+    headHeight: THEAD_H,
+    onDrop: handleDrop,
+    onPlainClick: (id) => {
+      if (pressRef.current !== id) return;
+      pressRef.current = null;
+      selection.only(id);
+    },
+  });
+
+  const marqueeBase = useRef<string[]>([]);
+  const marquee = useMarquee({
+    containerRef: tableRef,
+    onSelect: (ids, additive) => {
+      if (!additive) {
+        setSelected(ids);
+        return;
+      }
+      setSelected([...new Set([...marqueeBase.current, ...ids])]);
+    },
+    onClear: selection.clear,
+  });
+
+  const beginMarquee = (event: React.PointerEvent) => {
+    marqueeBase.current = rows.filter((row) => row.entry.selected).map((row) => row.entry.id);
+    marquee.begin(event);
+  };
+
+  /** 行上按下：可能是一次点选，也可能进入拖拽；绝不能变成框选。 */
+  const beginRowPress = (event: React.PointerEvent, row: PreviewRow) => {
+    if (event.button !== 0) return;
+    event.stopPropagation();
+    tableRef.current?.focus({ preventScroll: true });
+    const id = row.entry.id;
+    const selectedSet = new Set(selectedRows.map((item) => item.entry.id));
+    let ids: string[];
+
+    if (event.shiftKey) {
+      const anchor = selection.anchorId;
+      ids = anchor ? rangeIds(rowIds, anchor, id) : [id];
+      selection.extendTo(id);
+    } else if (event.ctrlKey || event.metaKey) {
+      ids = row.entry.selected
+        ? rowIds.filter((item) => item !== id && selectedSet.has(item))
+        : rowIds.filter((item) => item === id || selectedSet.has(item));
+      selection.toggle(id);
+    } else if (!row.entry.selected) {
+      selection.only(id);
+      ids = [id];
+    } else if (selectedCount > 1) {
+      // 多选里按在已选中行上：先保留多选，等松手且没拖动再收敛
+      selection.focus(id);
+      ids = selectedRows.map((item) => item.entry.id);
+      pressRef.current = id;
+    } else {
+      selection.focus(id);
+      ids = [id];
+    }
+    dragApi.begin(event, id, ids.filter((item) => rowIds.includes(item)));
+  };
+
+  useEffect(() => {
+    if (!selection.focusId) return;
+    const table = tableRef.current;
+    if (!table) return;
+    const el = table.querySelector<HTMLElement>(`[data-id="${selection.focusId}"]`);
+    if (el) {
+      el.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    // 虚拟滚动下行可能还没渲染（Home/End、跨页跳转）：按索引直接算滚动位置
+    const index = rowIds.indexOf(selection.focusId);
+    if (index < 0) return;
+    const top = THEAD_H + index * rowH;
+    if (top < table.scrollTop + THEAD_H) table.scrollTop = Math.max(0, top - THEAD_H);
+    else if (top + rowH > table.scrollTop + table.clientHeight) table.scrollTop = top + rowH - table.clientHeight;
+  }, [selection.focusId, rowIds, rowH]);
+
+  const focusedRow = rows.find((row) => row.entry.id === selection.focusId) ?? selectedRows[0] ?? null;
+
+  const onListKeyDown = useListKeys({
+    onMove: selection.move,
+    onEdge: selection.edge,
+    onToggle: () => {
+      if (selection.focusId) toggleSelect(selection.focusId);
+    },
+    onOpen: () => {
+      if (focusedRow) reveal(focusedRow.entry.path);
+    },
+    onRename: () => {
+      if (focusedRow) startRename(focusedRow);
+    },
+    onDelete: removeSelected,
+    onSelectAll: selection.selectAll,
+    onClear: selection.clear,
+  });
+
+  const menuActions: MenuActions = {
+    open: () => {
+      if (focusedRow) reveal(focusedRow.entry.path);
+    },
+    reveal: () => {
+      if (focusedRow) reveal(focusedRow.entry.path);
+    },
+    rename: () => {
+      const row = selectedRows[0] ?? focusedRow;
+      if (row) startRename(row);
+    },
+    revertName: () => {
+      for (const row of selectedRows) clearNameOverride(row.entry.path);
+    },
+    copy: () => copyEntries(selectedPaths),
+    cut: () => cutEntries(selectedPaths),
+    paste: pasteEntries,
+    remove: removeSelected,
+    details: () => {
+      if (selectedRows.length === 1) {
+        void openMetadata(selectedRows[0].entry);
+        return;
+      }
+      const targets = selectedRows.filter((row) => !row.entry.isDir).map((row) => row.entry.path);
+      if (!targets.length) {
+        showToast('info', t('toast.needChecked'));
+        return;
+      }
+      openMetaEditor(targets);
+    },
+    selectAll: selection.selectAll,
+    deselect: selection.clear,
+    refresh: () => window.dispatchEvent(new CustomEvent('rename:refresh')),
+    sortBy: (key) => setSort(nextSort(listSort, key)),
+    sortManual: resetSort,
+    setDensity: (value) => updateSettings({ listDensity: value }),
+  };
+
+  const menuState = {
+    multi: selectedCount > 1,
+    anyOverride: selectedRows.some((row) => row.entry.path in nameOverrides),
+    canPaste: !!clipboard?.entries.length,
+    density,
+    sort: listSort,
+  };
+  const menuItems = menu
+    ? menu.kind === 'row'
+      ? rowMenuItems(menuState)
+      : blankMenuItems(menuState)
+    : [];
+
+  const openRowMenu = (event: ReactMouseEvent, row: PreviewRow) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!row.entry.selected) selection.only(row.entry.id);
+    else selection.focus(row.entry.id);
+    setMenu({ x: event.clientX, y: event.clientY, kind: 'row' });
+  };
+
+  const commitRename = () => {
+    if (!renaming) return;
+    const row = rows.find((item) => item.entry.id === renaming.id);
+    const value = renaming.value;
+    setRenaming(null);
+    if (row) setNameOverride(row.entry.path, value);
   };
 
   if (listTab !== 'rename') {
@@ -376,6 +566,16 @@ export function MainPane() {
             <span className="mini on" data-testid="manual-order-chip" title={t('list.orderHint')}>
               <Icon name="drag" />{t('list.manualOrder')}
             </span>
+          )}
+          {listSort.key !== 'none' && (
+            <>
+              <span className="mini on" data-testid="sort-chip" title={t('list.sortOnlyView')}>
+                <Icon name="sort" />{t('list.viewSorted')}
+              </span>
+              <button className="mini" type="button" data-testid="sort-reset" onClick={resetSort}>
+                <Icon name="undo" />{t('menu.sortManual')}
+              </button>
+            </>
           )}
           <span className="mini" data-testid="edit-meta" onClick={() => {
             const targets = entries.filter((e) => !e.isDir && e.selected).map((e) => e.path);
@@ -470,7 +670,7 @@ export function MainPane() {
       )}
 
       <div
-        className="table"
+        className={`table ${dragApi.drag ? 'dragging-rows' : ''}`}
         role="table"
         data-testid="file-table"
         data-total={rows.length}
@@ -478,7 +678,19 @@ export function MainPane() {
         data-listw={listWidth}
         data-shown={shownKeys.length}
         data-compact={compact ? '1' : '0'}
+        data-sort={listSort.key}
+        data-sort-dir={listSort.dir}
+        data-density={density}
+        tabIndex={0}
         ref={observeTable}
+        onKeyDown={onListKeyDown}
+        onPointerDown={beginMarquee}
+        onContextMenu={(event) => {
+          const target = event.target as HTMLElement;
+          if (target.closest('.thead') || target.closest('.trow')) return;
+          event.preventDefault();
+          setMenu({ x: event.clientX, y: event.clientY, kind: 'blank' });
+        }}
         onScroll={(event) => {
           if (!virtual) return;
           const el = event.currentTarget;
@@ -488,7 +700,7 @@ export function MainPane() {
               : { top: el.scrollTop, height: el.clientHeight },
           );
         }}
-        style={{ ['--cols' as string]: cols } as CSSProperties}
+        style={{ ['--cols' as string]: cols, ['--row-h' as string]: `${rowH}px` } as CSSProperties}
       >
         <div className="thead" role="row">
           <div className="th">
@@ -505,7 +717,7 @@ export function MainPane() {
           </div>
           {shown.name && (
             <div className="th sortable resizable" onClick={() => toggleSort('name')}>
-              {t('column.name')} <Icon name={sortKey === 'name' ? (sortDir === -1 ? 'chevron-up' : 'chevron-down') : 'sort'} size={11} />
+              {t('column.name')} <Icon name={listSort.key === 'name' ? (listSort.dir === -1 ? 'chevron-up' : 'chevron-down') : 'sort'} size={11} />
               <span className="col-grip" data-testid="col-grip-name" onMouseDown={(e) => beginResize('name', e)} />
             </div>
           )}
@@ -521,7 +733,7 @@ export function MainPane() {
           )}
           {shown.modified && (
             <div className="th sortable resizable" onClick={() => toggleSort('modified')}>
-              {t('column.modified')} <Icon name={sortKey === 'modified' ? (sortDir === -1 ? 'chevron-up' : 'chevron-down') : 'sort'} size={11} />
+              {t('column.modified')} <Icon name={listSort.key === 'modified' ? (listSort.dir === -1 ? 'chevron-up' : 'chevron-down') : 'sort'} size={11} />
               <span className="col-grip" onMouseDown={(e) => beginResize('modified', e)} />
             </div>
           )}
@@ -537,166 +749,224 @@ export function MainPane() {
           )}
         </div>
 
-        {padTop > 0 && <div className="row-pad" style={{ height: padTop }} aria-hidden="true" />}
+        <div className="tbody" data-testid="file-tbody">
+          {padTop > 0 && <div className="row-pad" style={{ height: padTop }} aria-hidden="true" />}
 
-        {visibleRows.map((row) => {
-          const kind = fileKind(row.entry.name, row.entry.isDir);
-          const changed = row.newName !== row.entry.name;
-          const entryIdx = entryIndexOf(row.entry.id);
-          const isDupName = !row.entry.isDir
-            && (duplicateNames.get(row.entry.name.toLocaleLowerCase()) ?? 0) > 1;
-          const sorted = sortKey !== 'none';
-          return (
-            <div
-              className={`trow ${row.entry.selected ? 'selected' : ''} ${row.status === 'conflict' || row.status === 'invalid' ? 'conflict' : ''} ${row.status === 'warn' ? 'warnrow' : ''} ${row.status === 'unchanged' ? 'unchanged' : ''} ${dragId === row.entry.id ? 'dragging-row' : ''} ${dropAt === entryIdx ? 'drop-target' : ''}`}
-              key={row.entry.id}
-              role="row"
-              title={row.reasons.length ? row.reasons.join(' · ') : row.entry.path}
-              onDragOver={(event) => {
-                if (!dragId || sorted) return;
-                event.preventDefault();
-                event.dataTransfer.dropEffect = 'move';
-                setDropAt(entryIdx);
-              }}
-              onDragLeave={() => {
-                if (dropAt === entryIdx) setDropAt(null);
-              }}
-              onDrop={(event) => {
-                if (!dragId || sorted) return;
-                event.preventDefault();
-                finishDrop(row.entry.id);
-              }}
-              onDoubleClick={() => {
-                if (isDemo) return;
-                void import('../lib/bridge').then(({ revealPath }) => revealPath(row.entry.path).catch(() => undefined));
-              }}
-            >
-              <div className="cell drag-cell">
-                <span
-                  className={`drag-handle ${sorted ? 'disabled' : ''}`}
-                  draggable={!sorted}
-                  data-testid={`row-handle-${entryIdx}`}
-                  title={sorted ? t('main.execOrderHint') : t('list.dragHint')}
-                  onDragStart={(event) => {
-                    if (sorted) {
-                      event.preventDefault();
-                      return;
-                    }
-                    event.dataTransfer.effectAllowed = 'move';
-                    event.dataTransfer.setData('text/plain', row.entry.id);
-                    startDrag(row.entry.id);
-                  }}
-                  onDragEnd={() => {
-                    setDragId(null);
-                    setDropAt(null);
-                  }}
-                >
-                  <Icon name="drag" size={10} />
-                </span>
-                <span
-                  className={`checkbox ${row.entry.selected ? 'on' : ''}`}
-                  role="checkbox"
-                  aria-checked={row.entry.selected}
-                  onClick={() => toggleSelect(row.entry.id)}
-                >
-                  {row.entry.selected && <Icon name="check" size={10} />}
-                </span>
-              </div>
-              <div className="cell name-cell">
-                <span className={`file-ico ${kind}`}><Icon name={ICON_BY_KIND[kind] ?? 'file'} /></span>
-                <span className="txt">{row.entry.name}</span>
-                {isDupName && (
-                  <span className="dup-name-badge" data-testid={`dup-name-${entryIdx}`} title={t('list.duplicateName')}>
-                    {t('list.duplicateName')}
+          {visibleRows.map((row) => {
+            const kind = fileKind(row.entry.name, row.entry.isDir);
+            const changed = row.newName !== row.entry.name;
+            const entryIdx = entryIndexOf(row.entry.id);
+            const isDupName = !row.entry.isDir
+              && (duplicateNames.get(row.entry.name.toLocaleLowerCase()) ?? 0) > 1;
+            const override = nameOverrides[row.entry.path];
+            const isDragged = !!dragApi.drag && dragApi.drag.ids.includes(row.entry.id);
+            return (
+              <div
+                className={`trow ${row.entry.selected ? 'selected' : ''} ${selection.focusId === row.entry.id ? 'focused' : ''} ${row.status === 'conflict' || row.status === 'invalid' ? 'conflict' : ''} ${row.status === 'warn' ? 'warnrow' : ''} ${row.status === 'unchanged' ? 'unchanged' : ''} ${isDragged ? 'dragging-row' : ''}`}
+                key={row.entry.id}
+                role="row"
+                data-id={row.entry.id}
+                data-index={entryIdx}
+                title={row.reasons.length ? row.reasons.join(' · ') : row.entry.path}
+                onPointerDown={(event) => beginRowPress(event, row)}
+                onDoubleClick={() => {
+                  if (Date.now() - dragApi.droppedAt.current < 300) return;
+                  reveal(row.entry.path);
+                }}
+                onContextMenu={(event) => openRowMenu(event, row)}
+              >
+                <div className="cell drag-cell">
+                  <span
+                    className="drag-handle"
+                    data-testid={`row-handle-${entryIdx}`}
+                    title={t('list.dragHint')}
+                  >
+                    <Icon name="drag" size={10} />
                   </span>
-                )}
-                {row.entry.readonly && <Icon name="lock" size={11} style={{ color: 'var(--muted-2)' }} />}
-                {!row.entry.isDir && (
-                  <button
-                    className="row-meta"
-                    type="button"
-                    title={t('main.metadataHint')}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      void openMetadata(row.entry);
-                    }}
+                  <span
+                    className={`checkbox ${row.entry.selected ? 'on' : ''}`}
+                    role="checkbox"
+                    aria-checked={row.entry.selected}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() => toggleSelect(row.entry.id)}
                   >
-                    <Icon name="info" size={12} />
-                    <span>{t('main.metadata')}</span>
-                  </button>
-                )}
-                <span className="row-order">
-                  <button
-                    className="row-order-btn"
-                    type="button"
-                    data-testid={`row-up-${entryIdx}`}
-                    title={t('list.moveUp')}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      toggleManual(row.entry.id, -1);
-                    }}
-                  >
-                    <Icon name="chevron-up" size={11} />
-                  </button>
-                  <button
-                    className="row-order-btn"
-                    type="button"
-                    data-testid={`row-down-${entryIdx}`}
-                    title={t('list.moveDown')}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      toggleManual(row.entry.id, 1);
-                    }}
-                  >
-                    <Icon name="chevron-down" size={11} />
-                  </button>
-                </span>
-              </div>
-              {shown.location && (
-                <div className="cell mono"><span className="txt" style={{ color: 'var(--muted)' }}>{row.entry.parent}</span></div>
-              )}
-              {shown.size && (
-                <div className="cell right">
-                  <span className="dims">{row.entry.isDir ? '—' : formatSize(row.entry.size)}</span>
+                    {row.entry.selected && <Icon name="check" size={10} />}
+                  </span>
                 </div>
-              )}
-              {shown.modified && (
-                <div className="cell"><span className="dims">{formatTime(row.entry.modified)}</span></div>
-              )}
-              {shown.newName && (
-                <div className="cell" style={{ display: 'block', overflow: 'hidden' }}>
-                  {changed ? (
-                    <span className="new-name" title={`${row.entry.name} → ${row.newName}`}>
-                      {row.diff.prefix && <span className="seg">{row.diff.prefix}</span>}
-                      {row.diff.added && <span className="add">{row.diff.added}</span>}
-                      {row.diff.suffix && <span className="seg">{row.diff.suffix}</span>}
-                    </span>
+                <div className="cell name-cell">
+                  <span className={`file-ico ${kind}`}><Icon name={ICON_BY_KIND[kind] ?? 'file'} /></span>
+                  {renaming?.id === row.entry.id ? (
+                    <input
+                      className="rename-input"
+                      data-testid={`rename-input-${entryIdx}`}
+                      autoFocus
+                      value={renaming.value}
+                      onFocus={(event) => event.currentTarget.select()}
+                      onChange={(event) => setRenaming({ id: row.entry.id, value: event.target.value })}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onBlur={commitRename}
+                      onKeyDown={(event) => {
+                        event.stopPropagation();
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          commitRename();
+                        } else if (event.key === 'Escape') {
+                          event.preventDefault();
+                          setRenaming(null);
+                        }
+                      }}
+                    />
                   ) : (
-                    <span className="new-name"><span className="seg" style={{ color: 'var(--muted)' }}>{row.newName}</span></span>
+                    <span className="txt">{row.entry.name}</span>
                   )}
-                  {row.reasons.length > 0 &&
-                    (row.status === 'conflict' || row.status === 'warn' || row.status === 'invalid') && (
-                    <span className={`row-sub ${row.status === 'warn' ? 'warn' : ''}`}>{row.reasons[0]}</span>
+                  {override && (
+                    <span className="custom-badge" data-testid={`custom-name-${entryIdx}`} title={t('list.customNameHint')}>
+                      {t('list.customName')}
+                    </span>
                   )}
-                </div>
-              )}
-              {shown.status && (
-                <div className="cell">
-                  <span className={`status ${STATUS_CLASS[row.status]}`}>
-                    <i className="dot" />{t(STATUS_KEY[row.status])}
+                  {isDupName && (
+                    <span className="dup-name-badge" data-testid={`dup-name-${entryIdx}`} title={t('list.duplicateName')}>
+                      {t('list.duplicateName')}
+                    </span>
+                  )}
+                  {row.entry.readonly && <Icon name="lock" size={11} style={{ color: 'var(--muted-2)' }} />}
+                  {!row.entry.isDir && (
+                    <button
+                      className="row-meta"
+                      type="button"
+                      title={t('main.metadataHint')}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void openMetadata(row.entry);
+                      }}
+                    >
+                      <Icon name="info" size={12} />
+                      <span>{t('main.metadata')}</span>
+                    </button>
+                  )}
+                  <span className="row-order">
+                    <button
+                      className="row-order-btn"
+                      type="button"
+                      data-testid={`row-up-${entryIdx}`}
+                      title={t('list.moveUp')}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleManual(row.entry.id, -1);
+                      }}
+                    >
+                      <Icon name="chevron-up" size={11} />
+                    </button>
+                    <button
+                      className="row-order-btn"
+                      type="button"
+                      data-testid={`row-down-${entryIdx}`}
+                      title={t('list.moveDown')}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleManual(row.entry.id, 1);
+                      }}
+                    >
+                      <Icon name="chevron-down" size={11} />
+                    </button>
                   </span>
                 </div>
-              )}
-            </div>
-          );
-        })}
+                {shown.location && (
+                  <div className="cell mono"><span className="txt" style={{ color: 'var(--muted)' }}>{row.entry.parent}</span></div>
+                )}
+                {shown.size && (
+                  <div className="cell right">
+                    <span className="dims">{row.entry.isDir ? '—' : formatSize(row.entry.size)}</span>
+                  </div>
+                )}
+                {shown.modified && (
+                  <div className="cell"><span className="dims">{formatTime(row.entry.modified)}</span></div>
+                )}
+                {shown.newName && (
+                  <div className="cell" style={{ display: 'block', overflow: 'hidden' }}>
+                    {changed ? (
+                      <span className="new-name" title={`${row.entry.name} → ${row.newName}`}>
+                        {row.diff.prefix && <span className="seg">{row.diff.prefix}</span>}
+                        {row.diff.added && <span className="add">{row.diff.added}</span>}
+                        {row.diff.suffix && <span className="seg">{row.diff.suffix}</span>}
+                      </span>
+                    ) : (
+                      <span className="new-name"><span className="seg" style={{ color: 'var(--muted)' }}>{row.newName}</span></span>
+                    )}
+                    {row.reasons.length > 0 &&
+                      (row.status === 'conflict' || row.status === 'warn' || row.status === 'invalid') && (
+                      <span className={`row-sub ${row.status === 'warn' ? 'warn' : ''}`}>{row.reasons[0]}</span>
+                    )}
+                  </div>
+                )}
+                {shown.status && (
+                  <div className="cell">
+                    <span className={`status ${STATUS_CLASS[row.status]}`}>
+                      <i className="dot" />{t(STATUS_KEY[row.status])}
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
-        {padBottom > 0 && <div className="row-pad" style={{ height: padBottom }} aria-hidden="true" />}
+          {padBottom > 0 && <div className="row-pad" style={{ height: padBottom }} aria-hidden="true" />}
 
-        {!rows.length && (
-          <div className="no-rows">{t('main.noRows')}</div>
-        )}
+          {!rows.length && (
+            <div className="no-rows">{t('main.noRows')}</div>
+          )}
+
+          {dragApi.drag && (
+            <div
+              className="drop-line"
+              data-testid="drop-line"
+              style={{ ['--drop-top' as string]: `${dragApi.drag.slot * rowH}px` } as CSSProperties}
+            />
+          )}
+        </div>
       </div>
+
+      {dragApi.drag && (
+        <div
+          className="drag-ghost"
+          data-testid="drag-ghost"
+          style={{
+            ['--ghost-x' as string]: `${dragApi.drag.ghost.x}px`,
+            ['--ghost-y' as string]: `${dragApi.drag.ghost.y}px`,
+          } as CSSProperties}
+        >
+          <Icon name="drag" size={11} />
+          {dragApi.drag.ghost.count > 1
+            ? t('list.dragCount', { count: dragApi.drag.ghost.count })
+            : t('list.dragOne')}
+        </div>
+      )}
+
+      {marquee.rect && (
+        <div
+          className="marquee"
+          data-testid="marquee"
+          style={{
+            ['--m-left' as string]: `${marquee.rect.left}px`,
+            ['--m-top' as string]: `${marquee.rect.top}px`,
+            ['--m-width' as string]: `${marquee.rect.width}px`,
+            ['--m-height' as string]: `${marquee.rect.height}px`,
+          } as CSSProperties}
+        />
+      )}
+
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          items={menuItems}
+          onPick={(id) => dispatchMenu(id, menuActions)}
+          onClose={() => setMenu(null)}
+        />
+      )}
     </section>
   );
 }

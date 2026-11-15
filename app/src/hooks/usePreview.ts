@@ -22,6 +22,7 @@ interface Cache {
   emptyNameAction: 'block' | 'fallback';
   emptyNameFallback: string;
   skipSystemHidden: boolean;
+  nameOverrides: Record<string, string>;
   result: PreviewResult;
 }
 
@@ -45,6 +46,7 @@ export function usePreview(): PreviewResult {
   const emptyNameAction = useApp((s) => s.settings.emptyNameAction ?? 'block');
   const emptyNameFallback = useApp((s) => s.settings.emptyNameFallback ?? '');
   const skipSystemHidden = useApp((s) => s.settings.skipSystemHidden ?? false);
+  const nameOverrides = useApp((s) => s.nameOverrides);
 
   return useMemo(() => {
     if (
@@ -66,6 +68,7 @@ export function usePreview(): PreviewResult {
       && cache.emptyNameAction === emptyNameAction
       && cache.emptyNameFallback === emptyNameFallback
       && cache.skipSystemHidden === skipSystemHidden
+      && cache.nameOverrides === nameOverrides
     ) {
       return cache.result;
     }
@@ -85,14 +88,15 @@ export function usePreview(): PreviewResult {
       emptyNameAction,
       emptyNameFallback,
       skipSystemHidden,
+      nameOverrides,
     });
     cache = {
       entries, rules, env, strict, readonly, disk, meta, facts, userVars, user0, replaceInvalid, invalidReplacement,
-      nameMaxLength, longNameAction, emptyNameAction, emptyNameFallback, skipSystemHidden, result,
+      nameMaxLength, longNameAction, emptyNameAction, emptyNameFallback, skipSystemHidden, nameOverrides, result,
     };
     return result;
   }, [entries, rules, env, strict, readonly, disk, meta, facts, userVars, user0, replaceInvalid, invalidReplacement,
-    nameMaxLength, longNameAction, emptyNameAction, emptyNameFallback, skipSystemHidden]);
+    nameMaxLength, longNameAction, emptyNameAction, emptyNameFallback, skipSystemHidden, nameOverrides]);
 }
 
 /** 去抖检查目标是否已存在于磁盘；只由 App 调用一次 */

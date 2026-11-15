@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatSize } from '../lib/format';
 import { saveTextFile } from '../lib/bridge';
 import { buildCsv } from '../lib/csv';
@@ -6,6 +6,7 @@ import { useTranslation } from '../i18n';
 import type { ConflictPolicy } from '../lib/types';
 import { useApp } from '../store';
 import { usePreview } from '../hooks/usePreview';
+import { useVisibleRows } from '../hooks/useVisibleRows';
 import { Icon } from './Icon';
 
 const POLICY_KEY: Record<ConflictPolicy, { label: string; hint: string }> = {
@@ -36,12 +37,24 @@ export function PreviewDialog() {
   const setApplyPolicy = useApp((s) => s.setApplyPolicy);
   const [policy, setPolicy] = useState<ConflictPolicy>(savedPolicy);
   const preview = usePreview();
+  const visible = useVisibleRows();
+  const [cursor, setCursor] = useState(0);
+
+  /** 预览列表与主列表同一份「可见顺序」：排序后这里也跟着变。 */
+  const rows = visible.filter(
+    (r) => r.entry.selected && r.newName !== r.entry.name && r.status !== 'off',
+  );
+  const cursorIndex = rows.length ? Math.min(cursor, rows.length - 1) : -1;
+
+  useEffect(() => {
+    if (!open || cursorIndex < 0) return;
+    document
+      .querySelector<HTMLElement>(`[data-preview-index="${cursorIndex}"]`)
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [open, cursorIndex]);
 
   if (!open) return null;
 
-  const rows = preview.rows.filter(
-    (r) => r.entry.selected && r.newName !== r.entry.name && r.status !== 'off',
-  );
   const readonlyCount = preview.rows.filter((r) => r.entry.selected && r.entry.readonly).length;
   const progressPercent = (() => {
     if (!applyProgress) return 0;
@@ -85,6 +98,29 @@ export function PreviewDialog() {
             })}
             {isDemo && t('preview.demoNote')}
           </p>
+          <div className="preview-nav">
+            <button
+              className="btn btn-ghost"
+              type="button"
+              data-testid="preview-prev"
+              disabled={cursorIndex <= 0}
+              onClick={() => setCursor(Math.max(0, cursorIndex - 1))}
+            >
+              <Icon name="chevron-up" size={11} />{t('preview.prev')}
+            </button>
+            <span data-testid="preview-pos">
+              {t('preview.position', { index: cursorIndex + 1, count: rows.length })}
+            </span>
+            <button
+              className="btn btn-ghost"
+              type="button"
+              data-testid="preview-next"
+              disabled={cursorIndex < 0 || cursorIndex >= rows.length - 1}
+              onClick={() => setCursor(Math.min(rows.length - 1, cursorIndex + 1))}
+            >
+              {t('preview.next')}<Icon name="chevron-down" size={11} />
+            </button>
+          </div>
         </div>
         <div className="dialog-body">
           <div className="metrics">
@@ -112,11 +148,12 @@ export function PreviewDialog() {
           <div className="mini-table preview-table">
             <div className="mini-row head"><span>{t('preview.currentName')}</span><span>{t('preview.newName')}</span><span>{t('preview.status')}</span></div>
             {rows.length === 0 && <div className="mini-empty">{t('preview.empty')}</div>}
-            {rows.map((row) => (
+            {rows.map((row, rowIndex) => (
               <div
-                className={`mini-row ${row.status === 'conflict' || row.status === 'invalid' || row.pathTooLong ? 'bad' : ''}`}
+                className={`mini-row ${rowIndex === cursorIndex ? 'current' : ''} ${row.status === 'conflict' || row.status === 'invalid' || row.pathTooLong ? 'bad' : ''}`}
                 key={row.entry.id}
                 data-testid="preview-row"
+                data-preview-index={rowIndex}
                 data-path-too-long={row.pathTooLong ? '1' : '0'}
               >
                 <span className="n old" title={row.entry.path}>{row.entry.name}</span>

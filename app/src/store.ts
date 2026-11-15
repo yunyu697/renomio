@@ -17,6 +17,7 @@ import { isPermissionRelated } from './lib/permission';
 import { computePreview } from './lib/preview';
 import { parsePlan, planFilter, serializePlan } from './lib/plan';
 import { pushRecentDir, pushRecentPlan } from './lib/plans';
+import { NO_SORT, type SortState } from './lib/order';
 import { detectLocale, setUiLocale, t as translate } from './i18n';
 import { conflictOf, DEFAULT_SHORTCUTS, normalizeBinding, type ShortcutId } from './lib/shortcuts';
 import { createRuleDefaults } from './lib/ruleDefaults';
@@ -32,6 +33,7 @@ import type {
 import { logger, queue, settingsStore } from './runtime';
 
 export type StatusFilter = 'all' | 'changed' | 'conflict' | 'warn' | 'checked';
+export type { SortState };
 export type Drawer = 'history' | 'settings' | 'about' | null;
 export type OpsMode = 'time' | 'attrs' | 'move';
 
@@ -197,6 +199,12 @@ interface AppState {
   migration: MigrationInfo | null;
   /** 用户是否手动调整过列表顺序（顺序随会话持久化；编号规则按列表顺序取号） */
   manualOrder: boolean;
+  /** 自定义显示名（路径 → 名称）：只影响列表/预览/导出取名，不写磁盘 */
+  nameOverrides: Record<string, string>;
+  /** 列表内复制/剪切的条目（粘贴只在列表里追加/恢复，不动磁盘） */
+  clipboard: { entries: Entry[]; cut: boolean } | null;
+  /** 视图排序（只改显示顺序；执行顺序始终按 entries） */
+  listSort: SortState;
   /** 内容完全相同的「疑似重复」组（只读检测，不删除文件） */
   duplicates: DuplicateReportDto | null;
   dupBusy: boolean;
@@ -209,6 +217,18 @@ interface AppState {
   chooseFolder: () => Promise<void>;
   toggleSelect: (id: string) => void;
   toggleSelectAll: () => void;
+  /** 按可见顺序 id 批量写选中标记；replace 覆盖 / add 追加 / toggle 取反 */
+  setSelected: (ids: string[], mode?: 'replace' | 'add' | 'toggle') => void;
+  /** 拖拽排序：整块移动到 beforeId 之前（null = 追加到末尾），返回实际移动的条目 id */
+  moveEntriesTo: (ids: string[], beforeId: string | null) => string[];
+  /** 自定义显示名（空名或与原文件同名时恢复按规则取名） */
+  setNameOverride: (path: string, name: string) => void;
+  clearNameOverride: (path: string) => void;
+  setSort: (sort: SortState) => void;
+  resetSort: () => void;
+  copyEntries: (paths: string[]) => void;
+  cutEntries: (paths: string[]) => void;
+  pasteEntries: () => void;
   removeSelected: () => void;
   /** 按路径移除（用于一键去重；只从列表移除，不删除磁盘文件） */
   removePaths: (paths: string[]) => void;
@@ -582,6 +602,9 @@ export const useApp = create<AppState>((set, get) => ({
   hashBusy: false,
   migration: null,
   manualOrder: false,
+  nameOverrides: {},
+  clipboard: null,
+  listSort: NO_SORT,
   duplicates: null,
   dupBusy: false,
   metaEditor: { open: false, paths: [] },
@@ -636,6 +659,7 @@ export const useApp = create<AppState>((set, get) => ({
           ruleHistory,
           entries: restored ?? demoEntries(),
           manualOrder: !!saved?.manualOrder,
+          nameOverrides: saved?.nameOverrides ?? {},
           rules: normalizeRules(settings.rules.length ? settings.rules : demoRules()),
           applyPolicy: settings.conflictPolicy,
           diskExists: Object.fromEntries(
@@ -698,7 +722,7 @@ export const useApp = create<AppState>((set, get) => ({
             if (hit) restored.push({ ...hit, selected: se.selected });
           }
           if (restored.length) {
-            set({ entries: restored, manualOrder: !!saved.manualOrder });
+            set({ entries: restored, manualOrder: !!saved.manualOrder, nameOverrides: saved.nameOverrides ?? {} });
             if (restored.length < saved.entries.length) {
               get().showToast(
                 'info',
@@ -841,6 +865,112 @@ export const useApp = create<AppState>((set, get) => ({
       const allOn = s.entries.every((e) => e.selected);
       return { entries: s.entries.map((e) => ({ ...e, selected: !allOn })) };
     }),
+
+  setSelected: (ids, mode = 'replace') =>
+    set((s) => {
+      const keys = new Set(ids);
+      const entries = s.entries.map((e) => {
+        if (mode === 'toggle') return keys.has(e.id) ? { ...e, selected: !e.selected } : e;
+        if (keys.has(e.id)) return e.selected ? e : { ...e, selected: true };
+        if (mode === 'add') return e;
+        return e.selected ? { ...e, selected: false } : e;
+      });
+      return { entries };
+    }),
+
+  moveEntriesTo: (ids, beforeId) => {
+    if (!ids.length) return [];
+    const entries = [...get().entries];
+    const moving = new Set(ids);
+    const block = entries.filter((e) => moving.has(e.id));
+    if (!block.length) return [];
+    const rest = entries.filter((e) => !moving.has(e.id));
+    let at = rest.length;
+    if (beforeId) {
+      const index = rest.findIndex((e) => e.id === beforeId);
+      if (index >= 0) at = index;
+    }
+    rest.splice(at, 0, ...block);
+    if (rest.every((e, i) => e === entries[i])) return [];
+    set({ entries: rest, manualOrder: true });
+    return block.map((e) => e.id);
+  },
+
+  setNameOverride: (path, name) => {
+    const entry = get().entries.find((e) => e.path === path);
+    if (!entry) return;
+    const value = name.trim();
+    if (!value) {
+      get().showToast('warn', translate('list.renameEmpty'));
+      return;
+    }
+    if (/[\\/]/.test(value)) {
+      get().showToast('warn', translate('list.renameSlash'));
+      return;
+    }
+    // 改成与原文件同名等于是「恢复按规则命名」
+    if (value === entry.name) {
+      get().clearNameOverride(path);
+      return;
+    }
+    set((s) => ({ nameOverrides: { ...s.nameOverrides, [path]: value } }));
+  },
+
+  clearNameOverride: (path) =>
+    set((s) => {
+      if (!(path in s.nameOverrides)) return {};
+      const next = { ...s.nameOverrides };
+      delete next[path];
+      return { nameOverrides: next };
+    }),
+
+  setSort: (sort) => set({ listSort: sort }),
+  resetSort: () => set({ listSort: NO_SORT }),
+
+  copyEntries: (paths) => {
+    const keys = new Set(paths);
+    const picked = get().entries.filter((e) => keys.has(e.path));
+    if (!picked.length) {
+      get().showToast('info', translate('toast.noSelection'));
+      return;
+    }
+    set({ clipboard: { entries: picked, cut: false } });
+    get().showToast('info', translate('toast.copied', { count: picked.length }));
+  },
+
+  cutEntries: (paths) => {
+    const keys = new Set(paths);
+    const picked = get().entries.filter((e) => keys.has(e.path));
+    if (!picked.length) {
+      get().showToast('info', translate('toast.noSelection'));
+      return;
+    }
+    set((s) => ({
+      clipboard: { entries: picked, cut: true },
+      entries: s.entries.filter((e) => !keys.has(e.path)),
+      manualOrder: true,
+    }));
+    get().showToast('info', translate('toast.cut', { count: picked.length }));
+  },
+
+  pasteEntries: () => {
+    const clip = get().clipboard;
+    if (!clip?.entries.length) {
+      get().showToast('info', translate('toast.clipboardEmpty'));
+      return;
+    }
+    const env = get().env;
+    const present = new Set(get().entries.map((e) => normalizePath(e.path, env)));
+    const incoming = clip.entries
+      .filter((e) => !present.has(normalizePath(e.path, env)))
+      .map((e) => ({ ...e, selected: true }));
+    if (!incoming.length) {
+      get().showToast('info', translate('toast.pasteExists'));
+      return;
+    }
+    set((s) => ({ entries: [...s.entries, ...incoming], manualOrder: true }));
+    get().showToast('info', translate('toast.pasted', { count: incoming.length }));
+  },
 
   removeSelected: () => {
     const removed = get().entries.filter((e) => e.selected).length;
@@ -1978,11 +2108,12 @@ export const useApp = create<AppState>((set, get) => ({
 
 // 列表顺序持久化：entries 变化即写回（防抖 150ms），重启后按保存顺序恢复。
 let sessionTimer: ReturnType<typeof setTimeout> | null = null;
-function persistSession(entries: Entry[], manualOrder: boolean) {
+function persistSession(entries: Entry[], manualOrder: boolean, nameOverrides: Record<string, string>) {
   try {
     const payload: SessionDto = {
       version: 3,
       manualOrder,
+      nameOverrides,
       entries: entries.slice(0, 20000).map((e) => ({
         path: e.path,
         name: e.name,
@@ -2000,7 +2131,11 @@ function persistSession(entries: Entry[], manualOrder: boolean) {
   }
 }
 useApp.subscribe((state, prev) => {
-  if (!state.ready || state.entries === prev.entries) return;
+  if (!state.ready) return;
+  if (state.entries === prev.entries && state.nameOverrides === prev.nameOverrides) return;
   if (sessionTimer) clearTimeout(sessionTimer);
-  sessionTimer = setTimeout(() => persistSession(state.entries, state.manualOrder), 150);
+  sessionTimer = setTimeout(
+    () => persistSession(state.entries, state.manualOrder, state.nameOverrides),
+    150,
+  );
 });

@@ -30,6 +30,8 @@ export interface PreviewOptions {
   emptyNameFallback?: string;
   /** 是否跳过带系统/隐藏属性的文件 */
   skipSystemHidden?: boolean;
+  /** 自定义显示名（路径 → 名称）：优先于规则结果，只影响取名不写磁盘 */
+  nameOverrides?: Record<string, string>;
 }
 
 export interface PreviewResult {
@@ -210,7 +212,9 @@ export function computePreview(entries: Entry[], rules: Rule[], opts: PreviewOpt
         truncated = true;
       }
     }
-    const newName = joinName(stem, applied.ext);
+    // 手动改过的名字优先：预览、导出、执行都用同一个值
+    const override = opts.nameOverrides?.[entry.path];
+    const newName = override ?? joinName(stem, applied.ext);
     const check = validateName(newName, opts.env, opts.strictWindowsNames, limit);
     const pathCheck = pathLengthCheck(entry.parent, newName, opts.env);
     const block = [...check.block, ...pathCheck.block];

@@ -14,6 +14,7 @@ export function StatusBar() {
   const scanning = useApp((s) => s.scanning);
   const preview = usePreview();
   const conflicts = preview.counts.conflict;
+  const selectedCount = entries.filter((entry) => entry.selected).length;
 
   const osLabel = { windows: 'Windows', macos: 'macOS', linux: 'Linux' }[env.os];
   const sizeSensitive = env.caseSensitive ? t('status.caseSensitive') : t('status.caseInsensitive');
@@ -31,6 +32,8 @@ export function StatusBar() {
       </span>
       <span className="sep" />
       <span>{entries.length ? t('status.objects', { count: entries.length }) : t('status.noFiles')}</span>
+      <span className="sep" />
+      <span data-testid="status-selected">{t('status.selected', { count: selectedCount })}</span>
       <span className="sep" />
       <span>{t('status.ruleOrder', { order: rules.length ? rules.map((r, i) => (r.enabled ? i + 1 : '–')).join(' → ') : t('title.none') })}</span>
       <div className="right">

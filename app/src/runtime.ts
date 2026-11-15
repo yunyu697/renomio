@@ -38,6 +38,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     status: true,
   },
   columnWidths: {},
+  listDensity: 'comfortable',
   migrationNoticeDismissed: false,
   rules: [],
   ruleUi: { expanded: [], openId: null, collapsed: false },

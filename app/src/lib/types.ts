@@ -113,6 +113,8 @@ export interface AppSettings {
   shortcuts: Record<ShortcutId, string>;
   columns: Record<ColumnKey, boolean>;
   columnWidths: Partial<Record<ColumnKey, number>>;
+  /** 文件列表行高：舒适（默认）/ 紧凑 */
+  listDensity: 'comfortable' | 'compact';
   /** 首次启动「已导入上一版本数据」提示已关闭（默认 false，只提示一次） */
   migrationNoticeDismissed: boolean;
   /** 当前规则链（含执行顺序；随设置持久化，重启后顺序不变） */
@@ -508,6 +510,8 @@ export interface SessionDto {
   version: number;
   /** 是否经过用户手动拖动排序（用于界面提示「手动顺序」） */
   manualOrder?: boolean;
+  /** 自定义显示名（路径 → 名称）：只影响列表/预览/导出，不写磁盘 */
+  nameOverrides?: Record<string, string>;
   entries: SessionEntryDto[];
 }
 
