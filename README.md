@@ -177,7 +177,7 @@ macOS 无证书时用 `./app/scripts/sign/build-macos.sh`：构建后自动 ad-h
 | `backend` | ubuntu | 安装 Tauri v2 Linux 依赖 → `cargo fmt --check`（阻断）→ `cargo clippy`（只暴露警告，不加 `-D warnings`）→ `cargo test`（renomio-core + Tauri 壳，含 `migrate.rs` 迁移单测） |
 | `bundle-checks` | windows | 离线组 13 条（读配置，每次都跑）+ 产物组 14 条（有构建产物时才跑） |
 | `bundle-linux` | ubuntu | 真实 `tauri build` 产出 `.deb` + `.AppImage`，并在 Xvfb + openbox 下启动 AppImage 做冒烟，产物上传为 artifact |
-| `bundle-macos` | macos-14 | 真实 `tauri build` 产出 `.app` + `.dmg`，ad-hoc 签名后重打 dmg，`codesign --verify` 校验，产物上传为 artifact |
+| `bundle-macos` | macos-latest | 真实 `tauri build` 产出 `.app` + `.dmg`，ad-hoc 签名后重打 dmg，`codesign --verify` 校验，产物上传为 artifact |
 
 `bundle-linux` / `bundle-macos` **不写 Release、不改 `latest.json`**，只提供可下载的未签名 artifact。
 

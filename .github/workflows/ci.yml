@@ -277,6 +277,7 @@ jobs:
           export DISPLAY=:99
           export APPIMAGE_EXTRACT_AND_RUN=1
           export WEBKIT_DISABLE_COMPOSITING_MODE=1
+          export WEBKIT_DISABLE_DMABUF_RENDERER=1
           export LIBGL_ALWAYS_SOFTWARE=1
           sleep 2
           openbox >/tmp/openbox.log 2>&1 &
@@ -295,12 +296,17 @@ jobs:
             if xdotool search --name 'Renomio' >/dev/null 2>&1; then FOUND=1; break; fi
           done
           if [ "$FOUND" = "1" ]; then
-            echo '窗口已创建：'
-            xdotool search --name 'Renomio' | head -n 5
+            WID="$(xdotool search --name 'Renomio' | tail -n1)"
+            echo "窗口已创建（id=$WID），几何："
+            xdotool getwindowgeometry --shell "$WID" || true
+            xdotool windowactivate "$WID" 2>/dev/null || true
+            sleep 5
+            # 优先抓窗口本身：root 截图在 Xvfb 下可能只有空白根窗口
+            import -window "$WID" linux-smoke-window.png 2>/dev/null || true
           else
             echo '::warning title=未发现 Renomio 窗口::进程存活但 60 秒内未匹配到窗口标题，见截图与日志'
           fi
-          import -window root linux-smoke.png || true
+          import -window root linux-smoke.png 2>/dev/null || true
           cp /tmp/appimage-run.log appimage-run.log || true
           kill "$APP_PID" 2>/dev/null || true
 
@@ -333,12 +339,13 @@ jobs:
           name: renomio-linux-smoke
           path: |
             app/linux-smoke.png
+            app/linux-smoke-window.png
             app/appimage-run.log
           if-no-files-found: warn
 
   bundle-macos:
     name: bundle-macos (app / dmg，ad-hoc 未公证)
-    runs-on: macos-14
+    runs-on: macos-latest
     defaults:
       run:
         working-directory: app
