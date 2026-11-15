@@ -37,7 +37,7 @@ export function StatusBar() {
       <span className="sep" />
       <span>{t('status.ruleOrder', { order: rules.length ? rules.map((r, i) => (r.enabled ? i + 1 : '–')).join(' → ') : t('title.none') })}</span>
       <div className="right">
-        {isDemo && <span style={{ color: 'var(--warn)' }}>{t('status.demo')}</span>}
+        {isDemo && <span style={{ color: 'var(--ds-color-warn)' }}>{t('status.demo')}</span>}
         <span>{osLabel} · {sizeSensitive}</span>
         <span className="sep" />
         <span title={env.dataDir}><Icon name="shield" size={12} /> {t('status.local')}</span>

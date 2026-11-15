@@ -37,7 +37,7 @@ export function ActionBar() {
         </span>
       ) : null}
       {skippedReadonly > 0 && (
-        <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{t('action.readonlySkip', { count: skippedReadonly })}</span>
+        <span style={{ fontSize: 11.5, color: 'var(--ds-color-text-2)' }}>{t('action.readonlySkip', { count: skippedReadonly })}</span>
       )}
       <div className="spacer" />
       <div className="btns">

@@ -424,7 +424,7 @@ export function MetaEditDialog() {
       >
         <div className="dialog-head">
           <h4>
-            <Icon name="tag" size={16} style={{ color: 'var(--accent)' }} />
+            <Icon name="tag" size={16} style={{ color: 'var(--ds-color-accent)' }} />
             {t('meta.editTitle')}
             {isDemo && <span className="readonly-chip"><Icon name="lock" size={11} />{t('title.demoChip')}</span>}
           </h4>

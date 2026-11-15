@@ -25,7 +25,7 @@ export function FailureDialog() {
       <div className="dialog dialog-wide" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-head">
           <h4>
-            <Icon name="alert" size={16} style={{ color: 'var(--warn)' }} />
+            <Icon name="alert" size={16} style={{ color: 'var(--ds-color-warn)' }} />
             {t('failure.title')}
           </h4>
           <p>
@@ -61,7 +61,7 @@ export function FailureDialog() {
               return (
                 <div className="mini-row" key={item.id} data-testid="failure-item" data-code={info.code}>
                   <span className="n old" title={item.source}>{baseName(item.source)}</span>
-                  <span className="mini-status" style={{ color: 'var(--danger)' }}>{info.title}</span>
+                  <span className="mini-status" style={{ color: 'var(--ds-color-danger)' }}>{info.title}</span>
                   <span className="failure-tip" title={item.reason}>{info.detail}</span>
                   <span>
                     <button
@@ -80,7 +80,7 @@ export function FailureDialog() {
           </div>
         </div>
         <div className="dialog-foot">
-          <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+          <span style={{ fontSize: 11.5, color: 'var(--ds-color-text-2)' }}>
             {t('failure.footer')}
           </span>
           <div className="right">

@@ -143,7 +143,6 @@ export function Nav({ onNavigate, open }: { onNavigate?: () => void; open?: bool
           <Icon name="settings" />
           {t('nav.settings')}
         </div>
-        <div className="nav-hint">{t('nav.hint')}</div>
       </div>
     </aside>
   );

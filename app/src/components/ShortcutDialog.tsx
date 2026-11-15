@@ -66,7 +66,7 @@ export function ShortcutDialog() {
       <div className="dialog shortcut-dialog" data-testid="shortcut-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-head">
           <h4>
-            <Icon name="help" size={16} style={{ color: 'var(--accent)' }} />
+            <Icon name="help" size={16} style={{ color: 'var(--ds-color-accent)' }} />
             {t('shortcuts.title')}
           </h4>
           <p>{recording ? t('shortcuts.pressEsc') : t('shortcuts.subtitle')}</p>

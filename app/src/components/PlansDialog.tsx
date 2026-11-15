@@ -73,7 +73,7 @@ export function PlansDialog() {
       <div className="dialog dialog-plan" data-testid="plans-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-head">
           <h4>
-            <Icon name="save" size={16} style={{ color: 'var(--accent)' }} />
+            <Icon name="save" size={16} style={{ color: 'var(--ds-color-accent)' }} />
             {t('plans.title')}
           </h4>
           <p>{t('plans.sub')}</p>

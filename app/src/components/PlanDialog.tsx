@@ -22,7 +22,7 @@ export function PlanDialog() {
       <div className="dialog dialog-plan" data-testid="plan-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-head">
           <h4>
-            <Icon name={isExport ? 'save' : 'import'} size={16} style={{ color: 'var(--accent)' }} />
+            <Icon name={isExport ? 'save' : 'import'} size={16} style={{ color: 'var(--ds-color-accent)' }} />
             {isExport ? t('plan.exportTitle') : t('plan.importTitle')}
           </h4>
           <p>

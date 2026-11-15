@@ -10,17 +10,30 @@ import { fileKind } from '../lib/rules';
 import { useTranslation } from '../i18n';
 import type { ColumnKey, PreviewRow, RowStatus } from '../lib/types';
 import { useApp } from '../store';
-import { nextSort } from '../lib/order';
+import { nextSort, type StatusFilter } from '../lib/order';
 import { rangeIds } from '../lib/selection';
 import { blankMenuItems, dispatchMenu, rowMenuItems, type MenuActions } from '../lib/menuModel';
 import { Icon, type IconName } from './Icon';
-import { ListTabs, ListView } from './ListView';
+import { ListTabs, ListView, TAB_FULL_KEY } from './ListView';
 import { ContextMenu } from './ContextMenu';
 
 interface ColumnDef {
   key: ColumnKey;
   defaultCss: string;
 }
+
+/** 状态筛选：五项收成一个 24px 触发器 + 弹层，避免把五条 chip 摊在同一行（§1.16） */
+const FILTER_OPTIONS: Array<{
+  key: StatusFilter;
+  labelKey: string;
+  count: (counts: { total: number; conflict: number; warn: number; ready: number }, selected: number) => number;
+}> = [
+  { key: 'all', labelKey: 'main.all', count: (c) => c.total },
+  { key: 'conflict', labelKey: 'main.conflict', count: (c) => c.conflict },
+  { key: 'warn', labelKey: 'main.warn', count: (c) => c.warn },
+  { key: 'changed', labelKey: 'main.changed', count: (c) => c.ready + c.warn + c.conflict },
+  { key: 'checked', labelKey: 'main.checked', count: (_c, selected) => selected },
+];
 
 const COLUMN_DEFS: ColumnDef[] = [
   { key: 'name', defaultCss: 'minmax(168px, 1.15fr)' },
@@ -33,14 +46,15 @@ const COLUMN_DEFS: ColumnDef[] = [
 
 /** 窄窗时的列收敛顺序（越小越先保留）与最小可读宽度；name 永远保留。 */
 const COLUMN_RANK: Record<ColumnKey, number> = { name: 0, newName: 1, status: 2, size: 3, modified: 4, location: 5 };
-const COLUMN_MIN: Record<ColumnKey, number> = { name: 120, location: 100, size: 58, modified: 78, newName: 100, status: 72 };
-/** 未设置自定义宽度时的弹性模板：文本列走 fr，数值/时间列定宽。 */
+const COLUMN_MIN: Record<ColumnKey, number> = { name: 140, location: 100, size: 62, modified: 92, newName: 150, status: 96 };
+/** 未设置自定义宽度时的弹性模板：文本列走 fr，数值/时间列定宽。下界与 COLUMN_MIN 一致，
+    保证「列收敛」判定通过时网格不会再被挤到表头截断（SPEC §1.19 规则 3/4）。 */
 const COLUMN_FLEX: Record<ColumnKey, string> = {
-  name: 'minmax(0, 1.5fr)',
-  location: 'minmax(0, .9fr)',
+  name: 'minmax(140px, 1.5fr)',
+  location: 'minmax(100px, .9fr)',
   size: '62px',
   modified: '92px',
-  newName: 'minmax(0, 1.3fr)',
+  newName: 'minmax(150px, 1.3fr)',
   status: '96px',
 };
 
@@ -73,11 +87,11 @@ const ICON_BY_KIND: Record<string, IconName> = {
   file: 'file',
 };
 
-/** 表头高度（与 app.css 的 .thead 一致），用于虚拟滚动定位。 */
-const THEAD_H = 34;
-/** 舒适 / 紧凑两档行高（与 app.css 的 .trow 一致）。 */
-const ROW_H_COMFORTABLE = 43;
-const ROW_H_COMPACT = 36;
+/** 表头高度（与 app.css 的 .thead = row-h-md 32 一致），用于虚拟滚动定位。 */
+const THEAD_H = 32;
+/** 行高只取设计系统阶梯值：舒适 = touch(44)，紧凑 = md(32)；43/36 不在阶梯里（§1.15） */
+const ROW_H_COMFORTABLE = 44;
+const ROW_H_COMPACT = 32;
 /** 超过该行数才启用虚拟滚动：小列表保持全量渲染，避免改变既有行为。 */
 const VIRTUAL_THRESHOLD = 200;
 /** 视窗外多渲染的行数，减少快速滚动时的空白。 */
@@ -122,10 +136,15 @@ export function MainPane() {
   const scanDuplicates = useApp((s) => s.scanDuplicates);
   const dedupeDuplicates = useApp((s) => s.dedupeDuplicates);
   const clearDuplicates = useApp((s) => s.clearDuplicates);
+  const inspector = useApp((s) => s.inspector);
+  const openInspector = useApp((s) => s.openInspector);
+  const closeInspector = useApp((s) => s.closeInspector);
   const preview = usePreview();
   const rows = useVisibleRows();
   const rowH = density === 'compact' ? ROW_H_COMPACT : ROW_H_COMFORTABLE;
   const [colMenuOpen, setColMenuOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [dragWidths, setDragWidths] = useState<Partial<Record<ColumnKey, number>>>({});
   const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; kind: 'row' | 'blank' } | null>(null);
@@ -163,8 +182,8 @@ export function MainPane() {
       const width = widthOf(key);
       const room = listWidth ? listWidth - 34 : 0;
       if (width && room >= Math.max(60, width)) return `minmax(0, ${Math.max(60, width)}px)`;
-      if (compact && key === 'name') return 'minmax(0, 2.4fr)';
-      if (compact && key === 'newName') return 'minmax(0, 1fr)';
+      if (compact && key === 'name') return 'minmax(140px, 2.4fr)';
+      if (compact && key === 'newName') return 'minmax(150px, 1fr)';
       return COLUMN_FLEX[key];
     })
     .join(' ')}`;
@@ -494,9 +513,34 @@ export function MainPane() {
     if (row) setNameOverride(row.entry.path, value);
   };
 
+  const selectedFiles = entries.filter((e) => e.selected && !e.isDir).length;
+
+  /** 页头：一屏唯一的视觉重心（20px），右侧只放检查器开关，不承载列表操作（§1.16）。 */
+  const pageHead = (
+    <div className="page-head">
+      <h1>{t(TAB_FULL_KEY[listTab])}</h1>
+      <div className="page-actions">
+        <button
+          className={`mini${inspector.open ? ' on' : ''}`}
+          type="button"
+          data-testid="inspector-toggle"
+          aria-expanded={inspector.open}
+          aria-controls="inspector-panel"
+          title={t('inspector.toggleHint')}
+          onClick={() => (inspector.open ? closeInspector() : openInspector())}
+        >
+          <Icon name="grid" size={12} />
+          {t('inspector.title')}
+          <span className="num" data-testid="inspector-toggle-count">{selectedFiles}</span>
+        </button>
+      </div>
+    </div>
+  );
+
   if (listTab !== 'rename') {
     return (
       <section className="main">
+        {pageHead}
         <ListTabs />
         <ListView tab={listTab} />
       </section>
@@ -506,11 +550,11 @@ export function MainPane() {
   if (!entries.length) {
     return (
       <section className="main">
+        {pageHead}
         <ListTabs />
         <div className="empty-state">
           <div className="empty-mark"><Icon name="folder-plus" size={30} /></div>
           <h3>{t('main.emptyTitle')}</h3>
-          <p>{t('main.emptyDesc')}</p>
           <div className="empty-actions">
             <button className="btn btn-primary" type="button" onClick={() => void chooseFiles()}>
               <Icon name="file-plus" />{t('toolbar.addFiles')}
@@ -524,9 +568,6 @@ export function MainPane() {
               </button>
             )}
           </div>
-          <div className="empty-hint">
-            {isDemo ? t('main.demoHint') : t('main.dragHint')}
-          </div>
         </div>
       </section>
     );
@@ -534,34 +575,40 @@ export function MainPane() {
 
   return (
     <section className="main">
-      <ListTabs />
-      <div className="list-tools">
-        <span className={`mini ${statusFilter === 'all' ? 'on' : ''}`} onClick={() => setStatusFilter('all')}>
-          {t('main.all')} <span style={{ fontFamily: 'var(--mono)' }}>{preview.counts.total}</span>
-        </span>
-        <span className={`mini ${statusFilter === 'conflict' ? 'on' : ''}`} onClick={() => setStatusFilter('conflict')}>
-          {t('main.conflict')}
-          <span style={{ color: preview.counts.conflict ? 'var(--danger)' : 'var(--muted)', fontWeight: 600 }}>
-            {preview.counts.conflict}
-          </span>
-        </span>
-        <span className={`mini ${statusFilter === 'warn' ? 'on' : ''}`} onClick={() => setStatusFilter('warn')}>
-          {t('main.warn')} <span>{preview.counts.warn}</span>
-        </span>
-        <span className={`mini ${statusFilter === 'changed' ? 'on' : ''}`} onClick={() => setStatusFilter('changed')}>
-          {t('main.changed')} <span>{preview.counts.ready + preview.counts.warn + preview.counts.conflict}</span>
-        </span>
-        <span className={`mini ${statusFilter === 'checked' ? 'on' : ''}`} onClick={() => setStatusFilter('checked')}>
-          {t('main.checked')} <span>{selectedCount}</span>
-        </span>
-        <div className="right">
-          <span
-            className="mini"
-            data-testid="exec-order-note"
-            title={t('main.execOrderHint')}
-          >
-            <Icon name="info" />{t('main.execOrder')}
-          </span>
+      {pageHead}
+      {/* 页签 + 筛选 + 次级操作合并为一条横带：只有行尾一条分隔线（§1.16） */}
+      <div className="list-head">
+        <ListTabs />
+        <div className="list-filters">
+          <div className="filter-wrap">
+            <button
+              className={`mini filter-trigger${statusFilter === 'all' ? '' : ' on'}`}
+              type="button"
+              data-testid="status-filter"
+              aria-expanded={filterOpen}
+              onClick={() => setFilterOpen((open) => !open)}
+            >
+              {t(FILTER_OPTIONS.find((o) => o.key === statusFilter)!.labelKey)}
+              <span className="num">{FILTER_OPTIONS.find((o) => o.key === statusFilter)!.count(preview.counts, selectedCount)}</span>
+              <Icon name="chevron-down" size={12} />
+            </button>
+            {filterOpen && (
+              <div className="popover filter-menu" data-testid="status-filter-menu">
+                {FILTER_OPTIONS.map((option) => (
+                  <button
+                    key={option.key}
+                    className={`mini filter-item${statusFilter === option.key ? ' on' : ''}`}
+                    type="button"
+                    data-testid={`status-filter-${option.key}`}
+                    onClick={() => { setStatusFilter(option.key); setFilterOpen(false); }}
+                  >
+                    {t(option.labelKey)}
+                    <span className="num">{option.count(preview.counts, selectedCount)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {manualOrder && (
             <span className="mini on" data-testid="manual-order-chip" title={t('list.orderHint')}>
               <Icon name="drag" />{t('list.manualOrder')}
@@ -572,11 +619,13 @@ export function MainPane() {
               <span className="mini on" data-testid="sort-chip" title={t('list.sortOnlyView')}>
                 <Icon name="sort" />{t('list.viewSorted')}
               </span>
-              <button className="mini" type="button" data-testid="sort-reset" onClick={resetSort}>
-                <Icon name="undo" />{t('menu.sortManual')}
+              <button className="mini" type="button" data-testid="sort-reset" title={t('menu.sortManual')} onClick={resetSort}>
+                <Icon name="undo" />
               </button>
             </>
           )}
+        </div>
+        <div className="list-actions">
           <span className="mini" data-testid="edit-meta" onClick={() => {
             const targets = entries.filter((e) => !e.isDir && e.selected).map((e) => e.path);
             if (!targets.length) {
@@ -587,26 +636,14 @@ export function MainPane() {
           }} title={t('meta.editSubtitle')}>
             <Icon name="tag" />{t('meta.editAction')}
           </span>
-          <span className="mini" data-testid="dup-scan" onClick={() => {
-            if (dupBusy) return;
-            void scanDuplicates().then(() => {
-              const report = useApp.getState().duplicates;
-              if (!report?.groups.length) showToast('info', t('dup.none'));
-            }).catch(() => undefined);
-          }} title={t('dup.subtitle')}>
-            <Icon name="layers" />{dupBusy ? t('dup.busy') : t('dup.scan')}
-          </span>
-          <span className="mini" onClick={() => window.dispatchEvent(new CustomEvent('rename:refresh'))} title={t('main.refreshHint')}>
-            <Icon name="refresh" />{t('main.refresh')}
-          </span>
           <div className="col-wrap">
             <span
-              className={`mini ${colMenuOpen ? 'on' : ''}`}
+              className={`mini icon-mini ${colMenuOpen ? 'on' : ''}`}
               title={t('main.columnsHint')}
               data-testid="col-settings"
               onClick={() => setColMenuOpen((open) => !open)}
             >
-              <Icon name="sort" />{t('main.columns')}
+              <Icon name="sort" />
             </span>
             {colMenuOpen && (
               <div className="popover col-menu" data-testid="col-menu">
@@ -628,16 +665,41 @@ export function MainPane() {
                 >
                   {t('main.resetWidths')}
                 </button>
-                <div className="col-hint">{t('main.widthHint')}</div>
               </div>
             )}
           </div>
-          <span className="mini" onClick={removeSelected} title={t('main.removeHint')}>
-            <Icon name="minus" />{t('main.removeSelected')}
-          </span>
-          <span className="mini" onClick={clearAll} title={t('main.clearHint')}>
-            <Icon name="trash" />{t('main.clear')}
-          </span>
+          <div className="more-wrap">
+            <button
+              className={`mini icon-mini ${moreOpen ? 'on' : ''}`}
+              type="button"
+              data-testid="more-actions"
+              title={t('main.more')}
+              aria-expanded={moreOpen}
+              onClick={() => setMoreOpen((open) => !open)}
+            >
+              <Icon name="more" />
+            </button>
+            {moreOpen && (
+              <div className="popover more-menu" data-testid="more-menu">
+                <button className="mini" type="button" data-testid="dup-scan" onClick={() => {
+                  setMoreOpen(false);
+                  if (dupBusy) return;
+                  void scanDuplicates().then(() => {
+                    const report = useApp.getState().duplicates;
+                    if (!report?.groups.length) showToast('info', t('dup.none'));
+                  }).catch(() => undefined);
+                }}>
+                  <Icon name="layers" />{dupBusy ? t('dup.busy') : t('dup.scan')}
+                </button>
+                <button className="mini" type="button" data-testid="remove-selected" onClick={() => { setMoreOpen(false); removeSelected(); }}>
+                  <Icon name="minus" />{t('main.removeSelected')}
+                </button>
+                <button className="mini" type="button" data-testid="clear-all" onClick={() => { setMoreOpen(false); clearAll(); }}>
+                  <Icon name="trash" />{t('main.clear')}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -829,7 +891,7 @@ export function MainPane() {
                       {t('list.duplicateName')}
                     </span>
                   )}
-                  {row.entry.readonly && <Icon name="lock" size={11} style={{ color: 'var(--muted-2)' }} />}
+                  {row.entry.readonly && <Icon name="lock" size={11} style={{ color: 'var(--ds-color-text-muted)' }} />}
                   {!row.entry.isDir && (
                     <button
                       className="row-meta"
@@ -875,7 +937,7 @@ export function MainPane() {
                   </span>
                 </div>
                 {shown.location && (
-                  <div className="cell mono"><span className="txt" style={{ color: 'var(--muted)' }}>{row.entry.parent}</span></div>
+                  <div className="cell mono"><span className="txt" style={{ color: 'var(--ds-color-text-2)' }}>{row.entry.parent}</span></div>
                 )}
                 {shown.size && (
                   <div className="cell right">
@@ -894,7 +956,7 @@ export function MainPane() {
                         {row.diff.suffix && <span className="seg">{row.diff.suffix}</span>}
                       </span>
                     ) : (
-                      <span className="new-name"><span className="seg" style={{ color: 'var(--muted)' }}>{row.newName}</span></span>
+                      <span className="new-name"><span className="seg" style={{ color: 'var(--ds-color-text-2)' }}>{row.newName}</span></span>
                     )}
                     {row.reasons.length > 0 &&
                       (row.status === 'conflict' || row.status === 'warn' || row.status === 'invalid') && (

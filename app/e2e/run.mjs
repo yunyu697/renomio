@@ -2005,6 +2005,7 @@ async function main() {
       await sleep(1200);
 
       for (const scale of [1.25, 1.5]) {
+        // 缩放档只改 DPR；CSS 宽度保持在窗口下限 1100（SPEC §1.19 规则 4）
         await viewport(1100, 640, scale);
         await sleep(500);
         const m = await evaluate(`(() => {
@@ -2349,9 +2350,10 @@ async function main() {
     const LAYOUT_VIEWS = ['files-left', 'rules-left', 'files-top', 'rules-top', 'compact'];
     const viewportPlans = [
       [1440, 900, 1],
-      [1100, 640, 1.5],
-      [900, 640, 1],
-      [760, 600, 1],
+      [1650, 960, 1.5],
+      [1280, 800, 1],
+      [1200, 760, 1],
+      [1100, 640, 1],
     ];
     const layoutTotals = { clipped: 0, horizontal: 0, truncated: 0, combos: 0, pageOverflow: 0 };
     const layoutDetails = [];
@@ -2378,12 +2380,10 @@ async function main() {
           main: m.main, rules: m.rules, clipped: m.clipped, scrollables: m.scrollables,
           truncated: m.truncated, ellipsis: m.ellipsis.length,
         });
-        const narrow = m.narrow === 'true';
         let ok = true;
+        // 分区方向只由预设决定：窗口变窄不翻转（SPEC §1.19）
         if (view === 'compact') {
           ok = m.panesDir === 'column' && m.rules === null;
-        } else if (narrow) {
-          ok = m.panesDir === 'column' && m.main.y < m.rules.y;
         } else if (view === 'files-left') {
           ok = m.panesDir === 'row' && m.main.x < m.rules.x && Math.abs(m.main.y - m.rules.y) <= 2;
         } else if (view === 'rules-left') {
@@ -2398,30 +2398,30 @@ async function main() {
         orientationOk[`${w}-${view}`] = ok;
       }
     }
-    check('UI', '五种预设视图、四种窗口宽度：控件裁切 = 0', layoutTotals.clipped === 0, JSON.stringify({ combos: layoutTotals.combos, clipped: layoutTotals.clipped, samples: clippedSamples.slice(0, 8) }));
-    check('UI', '五种预设视图、四种窗口宽度：横向滚动条 = 0', layoutTotals.horizontal === 0 && layoutTotals.pageOverflow === 0, JSON.stringify({ horizontal: layoutTotals.horizontal, pageOverflow: layoutTotals.pageOverflow, samples: horizontalSamples.slice(0, 8) }));
-    check('UI', '五种预设视图、四种窗口宽度：控件文字截断 = 0', layoutTotals.truncated === 0, JSON.stringify({ ...layoutTotals, samples: truncatedSamples.slice(0, 8) }));
+    check('UI', '五种预设视图、五种窗口规模：控件裁切 = 0', layoutTotals.clipped === 0, JSON.stringify({ combos: layoutTotals.combos, clipped: layoutTotals.clipped, samples: clippedSamples.slice(0, 8) }));
+    check('UI', '五种预设视图、五种窗口规模：横向滚动条 = 0', layoutTotals.horizontal === 0 && layoutTotals.pageOverflow === 0, JSON.stringify({ horizontal: layoutTotals.horizontal, pageOverflow: layoutTotals.pageOverflow, samples: horizontalSamples.slice(0, 8) }));
+    check('UI', '五种预设视图、五种窗口规模：控件文字截断 = 0', layoutTotals.truncated === 0, JSON.stringify({ ...layoutTotals, samples: truncatedSamples.slice(0, 8) }));
     check('UI', '各视图方向/顺序正确（并排左右、上下先后、紧凑整宽）', Object.values(orientationOk).every(Boolean), JSON.stringify(orientationOk));
 
-    // 窄窗自动收敛单列；恢复宽度回到用户视图
-    await viewport(760, 600, 1);
+    // 窄窗：分区方向不变，只把侧栏收成抽屉；恢复宽度回到用户视图
+    await viewport(1100, 640, 1);
     await setView('rules-left');
     const narrowState = await evaluate(`(() => {
       const ws = document.querySelector('.workspace');
       return { narrow: ws.getAttribute('data-narrow'), view: ws.getAttribute('data-view'), dir: getComputedStyle(document.querySelector('.panes')).flexDirection };
     })()`);
-    check('UI', '760 窄窗下并排视图自动收敛为单列（视图设置不变）', narrowState.narrow === 'true' && narrowState.view === 'rules-left' && narrowState.dir === 'column', JSON.stringify(narrowState));
-    // 窄窗侧栏不是 display:none，而是可呼出的抽屉 + 呼出按钮 + 收敛提示
+    check('UI', '1100 窄窗下并排视图不翻转（仍是左右分区，视图设置不变）', narrowState.narrow === 'true' && narrowState.view === 'rules-left' && narrowState.dir === 'row', JSON.stringify(narrowState));
+    // 窄窗侧栏不是 display:none，而是可呼出的抽屉 + 呼出按钮（不再有常驻提示横带）
     const narrowNav = await evaluate(`(() => {
       const nav = document.querySelector('.nav');
       const fab = document.querySelector('[data-testid="nav-fab"]');
       const notice = document.querySelector('[data-testid="narrow-notice"]');
-      return { display: getComputedStyle(nav).display, transform: getComputedStyle(nav).transform, fab: !!fab, notice: notice?.textContent || '' };
+      return { display: getComputedStyle(nav).display, transform: getComputedStyle(nav).transform, fab: !!fab, notice: !!notice };
     })()`);
     check(
       'UI',
-      '760 窄窗侧栏保留（抽屉式）而非 display:none，并有呼出按钮与「已按窗口宽度收敛」提示',
-      narrowNav.display !== 'none' && narrowNav.transform !== 'none' && narrowNav.fab && narrowNav.notice.length > 0,
+      '1100 窄窗侧栏保留（抽屉式）而非 display:none，只有呼出按钮、无常驻提示横带',
+      narrowNav.display !== 'none' && narrowNav.transform !== 'none' && narrowNav.fab && !narrowNav.notice,
       JSON.stringify(narrowNav),
     );
     await click('[data-testid="nav-fab"]');
@@ -2727,17 +2727,17 @@ async function main() {
     check('UI', '同一绝对路径重复添加被忽略（不产生第二条）', afterDupCount === beforeDupCount && samePathRows === 1, JSON.stringify({ beforeDupCount, afterDupCount, samePathRows }));
 
     // 同路径但 mtime/size 变化 → 就地更新该条
-    const sizeBeforeText = await evaluate(`(() => {
+    // 用单元格结构定位「大小」列（`.cell.right .dims`）：列会随可用宽度收敛（SPEC §1.19），
+    // 且此时界面可能处于非中文语言，不能按表头文字或写死下标取列
+    const sizeCellText = () => evaluate(`(() => {
       const row = [...document.querySelectorAll('.trow')].find((r) => r.querySelector('.cell.name-cell .txt')?.textContent === '旧照片 001.jpg');
-      return row ? row.children[3].textContent.trim() : '';
+      return row?.querySelector('.cell.right .dims')?.textContent?.trim() ?? '';
     })()`);
+    const sizeBeforeText = await sizeCellText();
     await evaluate(`window.__E2E__.files[0].size += 1048576`);
     await evaluate(`window.__E2E__.emitDrag('drop', [${JSON.stringify(firstPath)}])`);
     await sleep(400);
-    const sizeAfterText = await evaluate(`(() => {
-      const row = [...document.querySelectorAll('.trow')].find((r) => r.querySelector('.cell.name-cell .txt')?.textContent === '旧照片 001.jpg');
-      return row ? row.children[3].textContent.trim() : '';
-    })()`);
+    const sizeAfterText = await sizeCellText();
     const updatedCount = await countOf('.trow');
     check('UI', '文件已被外部修改（size 变化）时就地更新该条而非新增', sizeAfterText !== sizeBeforeText && updatedCount === beforeDupCount, JSON.stringify({ sizeBeforeText, sizeAfterText, updatedCount }));
 
@@ -3462,9 +3462,9 @@ async function main() {
     })()`);
     check(
       'UI',
-      '空白右键菜单给排序/显示方式；「紧凑」把行高从 43 降到 36',
+      '空白右键菜单给排序/显示方式；「紧凑」把行高从 44 降到 32（设计系统 row-h 阶梯）',
       blankMenu.open && blankMenu.ids.includes('sort') && blankMenu.ids.includes('density')
-        && compact.density === 'compact' && Math.round(compact.h) === 36,
+        && compact.density === 'compact' && Math.round(compact.h) === 32,
       JSON.stringify({ blankMenu, compact }),
     );
     // 恢复舒适

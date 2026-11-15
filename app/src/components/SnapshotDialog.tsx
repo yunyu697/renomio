@@ -49,7 +49,7 @@ export function SnapshotDialog() {
       <div className="dialog snapshot-dialog" data-testid="snapshot-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-head">
           <h4>
-            <Icon name="history" size={16} style={{ color: 'var(--accent)' }} />
+            <Icon name="history" size={16} style={{ color: 'var(--ds-color-accent)' }} />
             {t('snapshot.title')}
           </h4>
           <p>{t('snapshot.subtitle')}</p>

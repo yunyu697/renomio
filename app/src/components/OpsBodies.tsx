@@ -83,7 +83,7 @@ function DialogHead({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div className="dialog-head">
       <h4>
-        <Icon name="bolt" size={16} style={{ color: 'var(--accent)' }} />
+        <Icon name="bolt" size={16} style={{ color: 'var(--ds-color-accent)' }} />
         {title}
         <span className="readonly-chip"><Icon name="undo" size={11} />{t('ops.revocable')}</span>
       </h4>

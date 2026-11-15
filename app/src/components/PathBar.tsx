@@ -35,7 +35,7 @@ export function PathBar() {
   return (
     <div className="pathbar">
       <span className="path" title={rootLabel}>
-        <Icon name="folder" size={14} style={{ color: 'var(--accent)' }} />
+        <Icon name="folder" size={14} style={{ color: 'var(--ds-color-accent)' }} />
         {rootLabel}
       </span>
       <span className={`chip ${includePattern ? 'chip-accent' : 'chip-ghost'}`}>
@@ -97,7 +97,7 @@ export function PathBar() {
             onClick={() => setIncludeHidden(!includeHidden)}
           />
         </span>
-        <span style={{ width: 1, height: 14, background: 'var(--line)' }} />
+        <span style={{ width: 1, height: 12, background: 'var(--ds-color-line)' }} />
         <span>{t('path.loaded', { count: entries.length, dirs: dirCount })}</span>
       </div>
     </div>

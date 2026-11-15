@@ -406,9 +406,6 @@ export function App() {
             >
               <Icon name="menu" size={15} />
             </button>
-            <div className="narrow-notice" data-testid="narrow-notice">
-              <Icon name="info" size={12} />{t('layout.narrow')}
-            </div>
           </>
         )}
         <div className="workbench">

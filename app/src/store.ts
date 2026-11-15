@@ -199,6 +199,8 @@ interface AppState {
   migration: MigrationInfo | null;
   /** 用户是否手动调整过列表顺序（顺序随会话持久化；编号规则按列表顺序取号） */
   manualOrder: boolean;
+  /** 「恢复添加顺序」的撤销记录：恢复前的 id 顺序与当时的手动顺序标志；为空表示不可撤销 */
+  orderUndo: { ids: string[]; manualOrder: boolean } | null;
   /** 自定义显示名（路径 → 名称）：只影响列表/预览/导出取名，不写磁盘 */
   nameOverrides: Record<string, string>;
   /** 列表内复制/剪切的条目（粘贴只在列表里追加/恢复，不动磁盘） */
@@ -226,6 +228,10 @@ interface AppState {
   clearNameOverride: (path: string) => void;
   setSort: (sort: SortState) => void;
   resetSort: () => void;
+  /** 按加入列表时的原始顺序重排（只改列表顺序；恢复后可撤销） */
+  restoreAddedOrder: () => void;
+  /** 撤销上一次「恢复添加顺序」，回到恢复前的顺序 */
+  undoRestoreOrder: () => void;
   copyEntries: (paths: string[]) => void;
   cutEntries: (paths: string[]) => void;
   pasteEntries: () => void;
@@ -602,6 +608,7 @@ export const useApp = create<AppState>((set, get) => ({
   hashBusy: false,
   migration: null,
   manualOrder: false,
+  orderUndo: null,
   nameOverrides: {},
   clipboard: null,
   listSort: NO_SORT,
@@ -648,6 +655,7 @@ export const useApp = create<AppState>((set, get) => ({
               size: e.size,
               modified: e.modified,
               readonly: e.readonly,
+              addedSeq: e.addedSeq,
               selected: e.selected,
             }))
           : null;
@@ -657,7 +665,7 @@ export const useApp = create<AppState>((set, get) => ({
           env: demoEnv,
           settings,
           ruleHistory,
-          entries: restored ?? demoEntries(),
+          entries: restored ?? demoEntries().map((e, i) => ({ ...e, addedSeq: i + 1 })),
           manualOrder: !!saved?.manualOrder,
           nameOverrides: saved?.nameOverrides ?? {},
           rules: normalizeRules(settings.rules.length ? settings.rules : demoRules()),
@@ -719,7 +727,7 @@ export const useApp = create<AppState>((set, get) => ({
           const restored: Entry[] = [];
           for (const se of saved.entries) {
             const hit = byKey.get(normalizePath(se.path, env));
-            if (hit) restored.push({ ...hit, selected: se.selected });
+            if (hit) restored.push({ ...hit, addedSeq: se.addedSeq, selected: se.selected });
           }
           if (restored.length) {
             set({ entries: restored, manualOrder: !!saved.manualOrder, nameOverrides: saved.nameOverrides ?? {} });
@@ -780,6 +788,8 @@ export const useApp = create<AppState>((set, get) => ({
         let added = 0;
         let existed = 0;
         let updated = 0;
+        // 加入序号只增不减：删掉条目后不复用，保证「恢复添加顺序」的先后关系稳定
+        let seq = merged.reduce((max, e) => Math.max(max, e.addedSeq ?? 0), 0);
         for (const entry of incoming) {
           const key = normalizePath(entry.path, state.env);
           const at = indexByKey.get(key);
@@ -796,7 +806,7 @@ export const useApp = create<AppState>((set, get) => ({
           if (incomingSeen.has(key)) continue;
           incomingSeen.add(key);
           indexByKey.set(key, merged.length);
-          merged.push(entry);
+          merged.push({ ...entry, addedSeq: ++seq });
           added += 1;
         }
         set({ entries: merged, scanning: false });
@@ -892,7 +902,7 @@ export const useApp = create<AppState>((set, get) => ({
     }
     rest.splice(at, 0, ...block);
     if (rest.every((e, i) => e === entries[i])) return [];
-    set({ entries: rest, manualOrder: true });
+    set({ entries: rest, manualOrder: true, orderUndo: null });
     return block.map((e) => e.id);
   },
 
@@ -926,6 +936,37 @@ export const useApp = create<AppState>((set, get) => ({
 
   setSort: (sort) => set({ listSort: sort }),
   resetSort: () => set({ listSort: NO_SORT }),
+
+  restoreAddedOrder: () => {
+    const s = get();
+    if (!s.manualOrder) return;
+    if (!s.entries.some((e) => e.addedSeq != null)) return;
+    const before = s.entries.map((e) => e.id);
+    // 稳定排序：没有加入序号的旧条目保持相对次序排在末尾
+    const seqOf = (e: Entry) => e.addedSeq ?? Number.POSITIVE_INFINITY;
+    const entries = s.entries
+      .map((e, i) => ({ e, i }))
+      .sort((a, b) => (seqOf(a.e) === seqOf(b.e) ? a.i - b.i : seqOf(a.e) - seqOf(b.e)))
+      .map((x) => x.e);
+    if (entries.every((e, i) => e === s.entries[i])) {
+      get().showToast('info', translate('toast.orderAlreadyOriginal'));
+      return;
+    }
+    set({ entries, manualOrder: false, orderUndo: { ids: before, manualOrder: true } });
+    get().showToast('success', translate('toast.orderRestored'));
+  },
+
+  undoRestoreOrder: () => {
+    const s = get();
+    const undo = s.orderUndo;
+    if (!undo) return;
+    const at = new Map(undo.ids.map((id, i) => [id, i]));
+    const entries = [...s.entries].sort(
+      (a, b) => (at.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (at.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+    );
+    set({ entries, manualOrder: undo.manualOrder, orderUndo: null });
+    get().showToast('info', translate('toast.orderRestoreUndone'));
+  },
 
   copyEntries: (paths) => {
     const keys = new Set(paths);
@@ -961,9 +1002,10 @@ export const useApp = create<AppState>((set, get) => ({
     }
     const env = get().env;
     const present = new Set(get().entries.map((e) => normalizePath(e.path, env)));
+    let seq = get().entries.reduce((max, e) => Math.max(max, e.addedSeq ?? 0), 0);
     const incoming = clip.entries
       .filter((e) => !present.has(normalizePath(e.path, env)))
-      .map((e) => ({ ...e, selected: true }));
+      .map((e) => ({ ...e, selected: true, addedSeq: e.addedSeq ?? ++seq }));
     if (!incoming.length) {
       get().showToast('info', translate('toast.pasteExists'));
       return;
@@ -1000,7 +1042,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (to < 0 || to >= entries.length) return;
     const [item] = entries.splice(from, 1);
     entries.splice(to, 0, item);
-    set({ entries, manualOrder: true });
+    set({ entries, manualOrder: true, orderUndo: null });
     get().showToast('info', translate('toast.orderMoved', { name: item.name, index: to + 1 }));
   },
 
@@ -1012,7 +1054,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (to === from) return;
     const [item] = entries.splice(from, 1);
     entries.splice(to, 0, item);
-    set({ entries, manualOrder: true });
+    set({ entries, manualOrder: true, orderUndo: null });
     get().showToast('info', translate('toast.orderMoved', { name: item.name, index: to + 1 }));
   },
 
@@ -1342,7 +1384,10 @@ export const useApp = create<AppState>((set, get) => ({
         const result = demoApply(s.entries, rows, policy, s.env);
         const batches = [result.batch, ...s.demoBatches];
         set({
-          entries: result.entries,
+          entries: result.entries.map((e) => {
+            const prev = s.entries.find((x) => x.id === e.id);
+            return prev?.addedSeq != null ? { ...e, addedSeq: prev.addedSeq } : e;
+          }),
           demoBatches: batches,
           batches: batches.map(demoSummary),
           lastBatchId: result.batch.id,
@@ -2122,6 +2167,7 @@ function persistSession(entries: Entry[], manualOrder: boolean, nameOverrides: R
         size: e.size,
         modified: e.modified,
         readonly: e.readonly,
+        addedSeq: e.addedSeq,
         selected: e.selected,
       })),
     };

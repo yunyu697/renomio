@@ -15,6 +15,8 @@ export interface Entry {
   hidden?: boolean;
   /** 系统属性（仅 Windows 可判定），来自扫描结果 */
   system?: boolean;
+  /** 加入列表时的原始序号（只用于「恢复添加顺序」，不参与改名与执行顺序之外的任何逻辑） */
+  addedSeq?: number;
   selected: boolean;
 }
 
@@ -503,6 +505,8 @@ export interface SessionEntryDto {
   size: number;
   modified: number;
   readonly: boolean;
+  /** 加入列表时的原始序号；旧会话没有该字段，此时「恢复添加顺序」保持不可用 */
+  addedSeq?: number;
   selected: boolean;
 }
 

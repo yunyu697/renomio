@@ -173,6 +173,15 @@ export function RulesPanel() {
     if (refocus) triggerRef.current?.focus();
   };
 
+  /** 从收缩轨点「+」时：先展开面板，等按钮挂载完再把菜单打开。 */
+  const [pendingMenu, setPendingMenu] = useState(false);
+  const [peekOpen, setPeekOpen] = useState(false);
+  useEffect(() => {
+    if (!pendingMenu) return;
+    setPendingMenu(false);
+    openMenu();
+  }, [pendingMenu]);
+
   /** 点外部关闭；portal 里的菜单与触发按钮不算外部。 */
   useEffect(() => {
     if (!ruleMenuOpen) return;
@@ -224,19 +233,32 @@ export function RulesPanel() {
     rowRefs.current[index]?.focus();
   };
 
-  if (collapsed) {
+  // 0 条规则且无冲突时收成 56px 轨道，避免整列空面板占满一屏（§1.16）
+  if (collapsed || (rules.length === 0 && conflicts.length === 0 && !peekOpen)) {
     return (
       <aside className="rules collapsed">
         <div className="rules-rail">
-          <button className="btn-icon" type="button" data-testid="expand-rules" title={t('rules.expand')} onClick={() => setRulesCollapsed(false)}>
-            <Icon name="chevron-right" size={14} style={{ transform: 'rotate(180deg)' }} />
+          <button
+            className="btn-icon"
+            type="button"
+            data-testid={rules.length === 0 ? 'add-rule' : 'expand-rules'}
+            title={rules.length === 0 ? t('rules.add') : t('rules.expand')}
+            onClick={() => {
+              setRulesCollapsed(false);
+              setPeekOpen(true);
+              if (rules.length === 0) setPendingMenu(true);
+            }}
+          >
+            <Icon name={rules.length === 0 ? 'plus' : 'chevron-right'} size={14} style={rules.length === 0 ? undefined : { transform: 'rotate(180deg)' }} />
           </button>
           <span className="rail-label">{t('rules.title')}</span>
           <span className="rail-count">{rules.length}</span>
-          <span className="rail-stat">
-            <b>{preview.counts.ready}</b>
-            <span>{t('rules.executable')}</span>
-          </span>
+          {rules.length > 0 && (
+            <span className="rail-stat">
+              <b>{preview.counts.ready}</b>
+              <span>{t('rules.executable')}</span>
+            </span>
+          )}
           {preview.counts.conflict > 0 && (
             <span className="rail-stat bad"><b>{preview.counts.conflict}</b><span>{t('rules.conflict')}</span></span>
           )}
@@ -468,15 +490,6 @@ export function RulesPanel() {
               </div>
             );
           })}
-
-          <div
-            className="add-rule"
-            data-testid="add-rule-inline"
-            onClick={() => (ruleMenuOpen ? closeMenu(true) : openMenu())}
-          >
-            <Icon name="plus" size={14} />
-            {t('rules.add')}
-          </div>
         </div>
       </div>
 

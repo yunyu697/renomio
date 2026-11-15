@@ -106,14 +106,24 @@ for (const palette of palettes) {
       console.error(`缺少配色 ${palette} / ${tone} 的色板定义`);
       process.exit(1);
     }
-    const missing = ['bg', 'panel', 'panel-2', 'panel-3', 'hover', 'selected', 'ink', 'ink-2', 'muted', 'muted-2', 'accent', 'accent-on', 'accent-ink', 'accent-weak', 'accent-weak-2', 'success', 'success-weak', 'warn', 'warn-weak', 'danger', 'danger-weak', 'info']
+    const missing = ['bg', 'panel', 'panel-2', 'panel-3', 'hover', 'selected', 'ink', 'ink-2', 'muted', 'faint', 'accent', 'accent-on', 'accent-ink', 'accent-weak', 'accent-weak-2', 'success', 'success-weak', 'warn', 'warn-weak', 'danger', 'danger-weak', 'info']
       .filter((key) => !t[key]);
     if (missing.length) {
       console.error(`配色 ${palette} / ${tone} 缺少变量：${missing.join(', ')}`);
       process.exit(1);
     }
+    // 允许 --muted: var(--ink-2) 这类转发，解析到最终色值再算对比度
+    for (const key of Object.keys(t)) {
+      let v = t[key];
+      for (let i = 0; i < 5; i += 1) {
+        const m = /^var\(--([a-z0-9-]+)\)$/i.exec(v.trim());
+        if (!m) break;
+        v = t[m[1]] ?? v;
+      }
+      t[key] = v;
+    }
     for (const surface of surfaces) {
-      for (const [token, min] of [['ink', THRESHOLDS.ink], ['ink-2', THRESHOLDS.ink2], ['muted', THRESHOLDS.muted], ['muted-2', THRESHOLDS.muted2]]) {
+      for (const [token, min] of [['ink', THRESHOLDS.ink], ['ink-2', THRESHOLDS.ink2], ['muted', THRESHOLDS.muted], ['faint', THRESHOLDS.muted2]]) {
         check(`${palette}/${tone} ${token} on ${surface}`, t[token], t[surface], min);
       }
       for (const token of ['accent', 'success', 'warn', 'danger', 'info']) {

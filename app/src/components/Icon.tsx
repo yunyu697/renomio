@@ -6,7 +6,7 @@ export type IconName =
   | 'info' | 'clock' | 'shield' | 'eye' | 'trash' | 'refresh' | 'minus' | 'maximize' | 'x'
   | 'chevron-down' | 'chevron-right' | 'chevron-up' | 'history' | 'settings' | 'layers'
   | 'tag' | 'bolt' | 'grid' | 'save' | 'import' | 'help' | 'sort' | 'lock' | 'ban' | 'plus'
-  | 'arrow-up' | 'arrow-down' | 'drag' | 'menu' | 'rules';
+  | 'arrow-up' | 'arrow-down' | 'drag' | 'menu' | 'more' | 'rules';
 
 const PATHS: Record<IconName, string> = {
   'file-plus': 'M5 6a2 2 0 0 1 2-2h6l4 4v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z M13 4v4h4M12 12v5m-2.5-2.5h5',
@@ -54,6 +54,7 @@ const PATHS: Record<IconName, string> = {
   'arrow-down': 'M12 5v14 M6 13l6 6 6-6',
   drag: 'M9 6h1 M14 6h1 M9 12h1 M14 12h1 M9 18h1 M14 18h1',
   menu: 'M4 7h16 M4 12h16 M4 17h16',
+  more: 'M6 12h.01 M12 12h.01 M18 12h.01',
   rules: 'M4 6h16 M4 11h16 M4 16h10 M7 4v4 M7 9v4 M7 14v4',
 };
 

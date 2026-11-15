@@ -22,7 +22,7 @@ export function MetadataDialog() {
       <div className="dialog dialog-meta" data-testid="metadata-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-head">
           <h4>
-            <Icon name="info" size={16} style={{ color: 'var(--accent)' }} />
+            <Icon name="info" size={16} style={{ color: 'var(--ds-color-accent)' }} />
             {t('meta.title')}
             <span className="readonly-chip"><Icon name="lock" size={11} />{t('meta.readonly')}</span>
           </h4>

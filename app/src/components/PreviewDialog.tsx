@@ -89,7 +89,7 @@ export function PreviewDialog() {
     <div className="modal-mask" onClick={closePreview}>
       <div className="dialog dialog-wide" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-head">
-          <h4><Icon name="alert" size={16} style={{ color: 'var(--warn)' }} />{t('preview.title')}</h4>
+          <h4><Icon name="alert" size={16} style={{ color: 'var(--ds-color-warn)' }} />{t('preview.title')}</h4>
           <p>
             {t('preview.sub', {
               total: preview.counts.total,
@@ -162,8 +162,8 @@ export function PreviewDialog() {
                   className="mini-status"
                   style={{
                     color: row.status === 'conflict' || row.status === 'invalid' || row.pathTooLong
-                      ? 'var(--danger)'
-                      : row.status === 'warn' ? 'var(--warn)' : 'var(--success)',
+                      ? 'var(--ds-color-danger)'
+                      : row.status === 'warn' ? 'var(--ds-color-warn)' : 'var(--ds-color-success)',
                   }}
                 >
                   {row.status === 'conflict' ? row.reasons[0] ?? t('preview.conflict')
@@ -196,7 +196,7 @@ export function PreviewDialog() {
           </div>
         )}
         <div className="dialog-foot">
-          <span style={{ fontSize: 11.5, color: 'var(--muted)' }} data-testid="preview-summary">
+          <span style={{ fontSize: 11.5, color: 'var(--ds-color-text-2)' }} data-testid="preview-summary">
             {t('preview.summary', {
               total: preview.counts.total,
               conflict: preview.counts.conflict,

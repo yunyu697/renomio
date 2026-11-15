@@ -22,7 +22,7 @@ export const LIST_TABS: Array<{ key: ListTab; labelKey: string }> = [
   { key: 'organize', labelKey: 'tab.organize' },
 ];
 
-const TAB_FULL_KEY: Record<ListTab, string> = {
+export const TAB_FULL_KEY: Record<ListTab, string> = {
   rename: 'tabFull.rename',
   attrs: 'tabFull.attrs',
   music: 'tabFull.music',
@@ -96,13 +96,13 @@ const COLUMNS: Record<Exclude<ListTab, 'rename'>, ColDef[]> = {
 
 const META_TABS = new Set<ListTab>(['music', 'photo', 'image', 'office', 'pdf', 'text']);
 
+/** 只保留「能力边界」说明（写不了 / 读不到），写在标题行内，一行截断，全文进 tooltip（§1.18）。 */
 const TAB_NOTE_KEY: Partial<Record<ListTab, string>> = {
   attrs: 'list.attrsNote',
   image: 'list.imageNote',
   office: 'list.officeNote',
   photo: 'list.photoNote',
   text: 'list.textNote',
-  organize: 'list.organizeNote',
 };
 
 function metaKindIcon(tab: ListTab): IconName {
@@ -189,10 +189,6 @@ export function ListTabs() {
   const entries = useApp((s) => s.entries);
   const listTab = useApp((s) => s.listTab);
   const setListTab = useApp((s) => s.setListTab);
-  const inspector = useApp((s) => s.inspector);
-  const openInspector = useApp((s) => s.openInspector);
-  const closeInspector = useApp((s) => s.closeInspector);
-  const selectedFiles = entries.filter((e) => e.selected && !e.isDir).length;
 
   return (
     <div className="list-tabs" role="tablist" data-testid="list-tabs">
@@ -210,19 +206,6 @@ export function ListTabs() {
           <span className="num" data-testid={`list-tab-count-${tab.key}`}>{tabCount(tab.key, entries)}</span>
         </div>
       ))}
-      <button
-        className={`tabs-dock mini${inspector.open ? ' on' : ''}`}
-        type="button"
-        data-testid="inspector-toggle"
-        aria-expanded={inspector.open}
-        aria-controls="inspector-panel"
-        title={t('inspector.toggleHint')}
-        onClick={() => (inspector.open ? closeInspector() : openInspector())}
-      >
-        <Icon name="grid" size={12} />
-        {t('inspector.title')}
-        <span className="num" data-testid="inspector-toggle-count">{selectedFiles}</span>
-      </button>
     </div>
   );
 }
@@ -412,9 +395,9 @@ export function ListView({ tab }: { tab: Exclude<ListTab, 'rename'> }) {
 
   return (
     <div className="list-view" data-testid={`list-view-${tab}`}>
-      {(noteKey || META_TABS.has(tab)) && (
+      {(noteKey || META_TABS.has(tab) || tab === 'organize' || tab === 'attrs') && (
         <div className="list-note" data-testid={`list-note-${tab}`}>
-          <Icon name="info" size={12} />{noteKey ? t(noteKey) : t('list.metaEditHint')}
+          {noteKey && <span className="note-text" title={t(noteKey)}>{t(noteKey)}</span>}
           {META_TABS.has(tab) && (
             <button
               className="mini"

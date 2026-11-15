@@ -55,12 +55,12 @@ export function Titlebar() {
       <BrandMark size={22} />
       <span className="tb-title" data-tauri-drag-region>{PRODUCT_NAME}</span>
       <span className="tb-crumb" data-tauri-drag-region>
-        <span style={{ color: 'var(--muted-2)' }}>›</span>
+        <span style={{ color: 'var(--ds-color-text-muted)' }}>›</span>
         <span className="pill-scheme">
           <Icon name="layers" size={11} />
           {t('title.rules')} {rules.length ? t('title.rulesCount', { count: rules.length }) : t('title.none')}
         </span>
-        <span style={{ color: 'var(--muted-2)' }}>{t('title.previewOnly')}</span>
+        <span style={{ color: 'var(--ds-color-text-muted)' }}>{t('title.previewOnly')}</span>
       </span>
       <div className="tb-spacer" data-tauri-drag-region />
       {isDemo && (
@@ -68,10 +68,6 @@ export function Titlebar() {
           {t('title.demoChip')}
         </span>
       )}
-      <span className="chip" style={{ height: 23, fontSize: 11 }}>
-        <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--success)' }} />
-        {t('title.localChip')}
-      </span>
       <button
         className="btn-icon"
         type="button"
