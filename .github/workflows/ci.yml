@@ -373,7 +373,7 @@ jobs:
         run: npm run tauri build -- --bundles app,dmg --config '{"bundle":{"createUpdaterArtifacts":false}}'
 
       - name: ad-hoc 签名并重打 dmg（无 Apple 证书，不做公证）
-        run: ./scripts/sign/build-macos.sh --no-build
+        run: bash ./scripts/sign/build-macos.sh --no-build
 
       - name: 打包 .app 为 zip（保留符号链接与可执行权限）
         run: |
