@@ -408,7 +408,9 @@ export function applyRules(
             start: 1, step: 1, digits: Math.max(1, Number(rule.value) || 1), padChar: '0',
             groupBy: 'none', exclude: '', byPath: false, writeVar: '', onlyChecked: false,
           };
-          const value = ctx.nextNumber(probe, '');
+          // 序号已在 planNumbers 里按列表顺序预分配（目录不占号），逐条求值只用不占；
+          // 只有计划缺项时才回退到顺序计数器，保证可见切片单独求值的序号与整表一致
+          const value = ctx.numberFor?.(probe) ?? ctx.nextNumber(probe, '');
           ext = applyExt(ext, rule, value, vars);
         } else {
           ext = applyExt(ext, rule, 1, vars);

@@ -72,7 +72,9 @@ export function PreviewDialog() {
       invalid: preview.counts.invalid,
       warn: preview.counts.warn,
     });
-    const content = `\ufeff${summary}\r\n${buildCsv(preview.rows, t).replace(/^\ufeff/, '')}`;
+    // 松手即算完，这里直接取当前结果
+    const source = preview.rows;
+    const content = `\ufeff${summary}\r\n${buildCsv(source, t).replace(/^\ufeff/, '')}`;
     const res = await saveTextFile(
       t('preview.exportFileName'),
       content,

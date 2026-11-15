@@ -1,6 +1,9 @@
 /** 预览计算入口：模块级缓存，避免多个组件重复跑规则链 */
 import { useEffect, useMemo } from 'react';
-import { buildPreviewRows, finalizePreview, previewDependsOnOrder, type BuiltRow, type PreviewResult } from '../lib/preview';
+import {
+  buildPreviewRows, finalizePreview, firstTemplateError, numbersFor, planNumbers,
+  previewDependsOnOrder, reorderRows, type BuiltRow, type PreviewResult,
+} from '../lib/preview';
 import type { EntryFacts, EnvInfo, Entry, MetaFields, Rule } from '../lib/types';
 import { useApp } from '../store';
 
@@ -25,6 +28,8 @@ interface Cache {
   nameOverrides: Record<string, string>;
   /** 逐条结果：上下文不变时，纯换序可直接复用，不必重跑规则链 */
   built: BuiltRow[];
+  /** 每条当时的号码键：号码没变的行换序后无需重算 */
+  numbers: Map<string, string>;
   result: PreviewResult;
 }
 
@@ -50,7 +55,7 @@ export function usePreview(): PreviewResult {
   const skipSystemHidden = useApp((s) => s.settings.skipSystemHidden ?? false);
   const nameOverrides = useApp((s) => s.nameOverrides);
 
-  return useMemo(() => {
+  const result = useMemo(() => {
     const sameContext = !!cache
       && cache.rules === rules
       && cache.env === env
@@ -91,28 +96,47 @@ export function usePreview(): PreviewResult {
       nameOverrides,
     };
 
-    // 纯换序（拖拽排序、上移/下移、恢复添加顺序）：逐条结果原样复用，只重跑顺序相关的收尾。
-    // 逐条对象身份必须一致，勾选、改名等改动仍然整套重算。
-    if (sameContext && cache && !previewDependsOnOrder(rules)) {
+    // 纯换序（拖拽排序、上移/下移、恢复添加顺序）：逐条对象身份必须一致，
+    // 勾选、改名等改动仍然整套重算。
+    let ordered: BuiltRow[] | null = null;
+    if (sameContext && cache && cache.built.length === entries.length) {
       const byId = new Map(cache.built.map((item) => [item.id, item]));
-      const built = entries.map((entry) => byId.get(entry.id));
-      if (built.length === entries.length && built.every((item, i) => item && item.row.entry === entries[i])) {
-        const rows = built as BuiltRow[];
-        const result = finalizePreview(rows, opts);
-        cache = { ...cache, entries, built: rows, result };
-        return result;
-      }
+      const mapped = entries.map((entry) => byId.get(entry.id));
+      if (mapped.every((item, i) => item && item.row.entry === entries[i])) ordered = mapped as BuiltRow[];
     }
 
-    const built = buildPreviewRows(entries, rules, opts);
+    if (sameContext && cache && ordered) {
+      // 编号与顺序无关：逐条结果原样复用，只重跑顺序相关的收尾，结果就是最终值
+      if (!previewDependsOnOrder(rules)) {
+        const result = finalizePreview(ordered, opts);
+        cache = { ...cache, entries, built: ordered, result };
+        return result;
+      }
+
+      // 编号按列表顺序取号：先算好整表编号，只重算号码变了的行，收尾一次跑完
+      const plans = planNumbers(entries, rules, opts);
+      const { built, numbers } = reorderRows(entries, rules, opts, plans, firstTemplateError(rules), {
+        built: ordered,
+        numbers: cache.numbers,
+      });
+      const result = finalizePreview(built, opts);
+      cache = { ...cache, entries, built, numbers, result };
+      return result;
+    }
+
+    const plans = planNumbers(entries, rules, opts);
+    const built = buildPreviewRows(entries, rules, opts, plans, firstTemplateError(rules));
     const result = finalizePreview(built, opts);
     cache = {
       entries, rules, env, strict, readonly, disk, meta, facts, userVars, user0, replaceInvalid, invalidReplacement,
-      nameMaxLength, longNameAction, emptyNameAction, emptyNameFallback, skipSystemHidden, nameOverrides, built, result,
+      nameMaxLength, longNameAction, emptyNameAction, emptyNameFallback, skipSystemHidden, nameOverrides, built,
+      numbers: numbersFor(entries, plans), result,
     };
     return result;
   }, [entries, rules, env, strict, readonly, disk, meta, facts, userVars, user0, replaceInvalid, invalidReplacement,
     nameMaxLength, longNameAction, emptyNameAction, emptyNameFallback, skipSystemHidden, nameOverrides]);
+
+  return result;
 }
 
 /** 去抖检查目标是否已存在于磁盘；只由 App 调用一次 */
