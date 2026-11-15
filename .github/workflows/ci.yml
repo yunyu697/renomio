@@ -200,9 +200,9 @@ jobs:
           | 13 | NSIS `MULTIUSER_PAGE_INSTALLMODE` | 读取生成的 installer.nsi |
           | 14 | NSIS `MULTIUSER_USE_PROGRAMFILES64` | 读取生成的 installer.nsi |
 
-          CI 未纳入 Windows 打包（原因：GitHub 托管的 windows runner 上跑完整 Tauri release 构建 + NSIS/WiX 工具下载
-          约需 8–12 分钟，且安装包仍未代码签名；发布前在本地以 `npm run test:bundle` 逐条执行）。
-          Linux / macOS 的出包见 `bundle-linux` / `bundle-macos` job（产物上传为 artifact，未签名、不进 Release）。
+          CI 未纳入 Windows 产物断言（原因：GitHub 托管的 windows runner 上跑完整 Tauri release 构建 + NSIS/WiX 工具下载
+          约需 8–12 分钟；发布前在本地以 `npm run test:bundle` 逐条执行）。
+          三平台出包见 `bundle-linux` / `bundle-macos` / `bundle-windows` job（产物含 updater `.sig`，上传为 artifact，不进 Release）。
 
           因此本 job 在此次运行中 **只验证了产物缺失这一事实**，没有任何断言被判为 PASS。
           '@ >> $env:GITHUB_STEP_SUMMARY
@@ -214,12 +214,13 @@ jobs:
         run: |
           ./app/scripts/check-bundle.ps1
 
-  # 以下两个 job 只产出「未签名」安装包并上传为可下载 artifact：
-  #   - 不更新 GitHub Release，也不改 updates/latest.json；
-  #   - 不生成 updater 产物（仓库无 minisign 私钥），故用 --config 关掉 createUpdaterArtifacts，
-  #     否则 tauri build 会在产出安装包后以「有公钥无私钥」退出码 1 结束。
+  # 以下三个 job 产出安装包并上传为可下载 artifact，同时生成 updater 签名（.sig）：
+  #   - 签名私钥由仓库 secret `TAURI_SIGNING_PRIVATE_KEY` 注入（本机 renomio.key，空口令），
+  #     与 tauri.conf.json 的 `plugins.updater.pubkey` 配对；私钥不落仓库、不打印；
+  #   - 仍不更新 GitHub Release、不改 updates/latest.json（发布是单独步骤）；
+  #   - 主配置已开 `createUpdaterArtifacts`，构建命令不再用 --config 关掉它。
   bundle-linux:
-    name: bundle-linux (deb / AppImage，未签名)
+    name: bundle-linux (deb / AppImage + .sig)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -262,10 +263,12 @@ jobs:
       - name: npm ci
         run: npm ci
 
-      - name: 构建 deb + AppImage
+      - name: 构建 deb + AppImage（含 updater 签名）
         env:
           APPIMAGE_EXTRACT_AND_RUN: '1' # runner 无 FUSE 时让 appimagetool 自解压运行
-        run: npm run tauri build -- --config '{"bundle":{"createUpdaterArtifacts":false}}'
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: '' # 密钥为空口令，显式给空值避免交互式提示
+        run: npm run tauri build
 
       - name: 校验冒烟环境具备中文字体（缺字体会让截图出现豆腐块）
         run: |
@@ -325,23 +328,25 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo '## Linux 产物（未签名，未进 Release）'
+            echo '## Linux 产物（含 updater 签名，未进 Release）'
             echo ''
             echo '```'
-            ls -l src-tauri/target/release/bundle/deb/*.deb \
-                  src-tauri/target/release/bundle/appimage/*.AppImage
+            ls -l src-tauri/target/release/bundle/deb/* \
+                  src-tauri/target/release/bundle/appimage/*
             echo ''
-            sha256sum src-tauri/target/release/bundle/deb/*.deb \
-                      src-tauri/target/release/bundle/appimage/*.AppImage
+            sha256sum src-tauri/target/release/bundle/deb/* \
+                      src-tauri/target/release/bundle/appimage/*
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: renomio-linux-x64-unsigned
+          name: renomio-linux-x64
           path: |
             app/src-tauri/target/release/bundle/deb/*.deb
+            app/src-tauri/target/release/bundle/deb/*.sig
             app/src-tauri/target/release/bundle/appimage/*.AppImage
+            app/src-tauri/target/release/bundle/appimage/*.sig
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
@@ -355,7 +360,7 @@ jobs:
           if-no-files-found: warn
 
   bundle-macos:
-    name: bundle-macos (app / dmg，ad-hoc 未公证)
+    name: bundle-macos (app / dmg + .sig，ad-hoc 未公证)
     runs-on: macos-latest
     defaults:
       run:
@@ -380,11 +385,27 @@ jobs:
       - name: npm ci
         run: npm ci
 
-      - name: 构建 app + dmg
-        run: npm run tauri build -- --bundles app,dmg --config '{"bundle":{"createUpdaterArtifacts":false}}'
+      - name: 构建 app + dmg（含 updater 签名）
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: '' # 密钥为空口令，显式给空值避免交互式提示
+        run: npm run tauri build -- --bundles app,dmg
 
       - name: ad-hoc 签名并重打 dmg（无 Apple 证书，不做公证）
         run: bash ./scripts/sign/build-macos.sh --no-build
+
+      # 重打 dmg 会让 tauri build 生成的 dmg.sig 失效，必须对最终 dmg 重新签名
+      - name: 为最终 dmg 重新生成 updater 签名
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: '' # 密钥为空口令，显式给空值避免交互式提示
+        run: |
+          set -euo pipefail
+          DMG="$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)"
+          test -n "$DMG"
+          rm -f "$DMG.sig"
+          npx tauri signer sign --app-version "$(cat ../VERSION)" "$DMG"
+          test -s "$DMG.sig"
 
       - name: 打包 .app 为 zip（保留符号链接与可执行权限）
         run: |
@@ -412,29 +433,29 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo '## macOS 产物（ad-hoc 未公证，未进 Release）'
+            echo '## macOS 产物（ad-hoc 未公证，含 updater 签名，未进 Release）'
             echo ''
             echo '```'
-            ls -l src-tauri/target/release/bundle/dmg/*.dmg \
+            ls -l src-tauri/target/release/bundle/dmg/* \
                   src-tauri/target/release/bundle/macos/*.app.zip
             echo ''
-            shasum -a 256 src-tauri/target/release/bundle/dmg/*.dmg \
+            shasum -a 256 src-tauri/target/release/bundle/dmg/* \
                           src-tauri/target/release/bundle/macos/*.app.zip
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: renomio-macos-arm64-unsigned
+          name: renomio-macos-arm64
           path: |
             app/src-tauri/target/release/bundle/dmg/*.dmg
+            app/src-tauri/target/release/bundle/dmg/*.sig
             app/src-tauri/target/release/bundle/macos/*.app.zip
           if-no-files-found: error
 
-  # Windows 安装包：此前只在本地构建。发版需要一个与 Linux/macOS 同源的 CI 产物，
-  # 同样不生成 updater 产物（仓库无 minisign 私钥），因此也没有 .sig。
+  # Windows 安装包：此前只在本地构建，现在由 CI 与 Linux/macOS 同源产出，并生成 updater 签名。
   bundle-windows:
-    name: bundle-windows (msi / nsis，未签名)
+    name: bundle-windows (msi / nsis + .sig)
     runs-on: windows-latest
     defaults:
       run:
@@ -459,18 +480,22 @@ jobs:
       - name: npm ci
         run: npm ci
 
-      - name: 构建 MSI + NSIS
-        run: npm run tauri build -- --bundles msi,nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'
+      - name: 构建 MSI + NSIS（含 updater 签名）
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: '' # 密钥为空口令，显式给空值避免交互式提示
+        run: npm run tauri build -- --bundles msi,nsis
 
       - name: 产物清单与 SHA-256
         shell: pwsh
         run: |
           $files = @(
-            Get-ChildItem 'src-tauri/target/release/bundle/msi/*.msi'
-            Get-ChildItem 'src-tauri/target/release/bundle/nsis/*-setup.exe'
+            Get-ChildItem 'src-tauri/target/release/bundle/msi/*' -File
+            Get-ChildItem 'src-tauri/target/release/bundle/nsis/*' -File
           )
-          if ($files.Count -eq 0) { throw '未找到 msi / setup.exe 产物' }
-          $lines = @('## Windows 产物（未签名，未进 Release）', '', '```')
+          $installers = @($files | Where-Object { $_.Extension -in '.msi', '.exe' })
+          if ($installers.Count -eq 0) { throw '未找到 msi / setup.exe 产物' }
+          $lines = @('## Windows 产物（含 updater 签名，未进 Release）', '', '```')
           foreach ($f in $files) {
             $h = (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash.ToLower()
             $lines += ('{0}  {1}  {2}' -f $h, $f.Length, $f.Name)
@@ -480,8 +505,10 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: renomio-windows-x64-unsigned
+          name: renomio-windows-x64
           path: |
             app/src-tauri/target/release/bundle/msi/*.msi
+            app/src-tauri/target/release/bundle/msi/*.sig
             app/src-tauri/target/release/bundle/nsis/*-setup.exe
+            app/src-tauri/target/release/bundle/nsis/*-setup.exe.sig
           if-no-files-found: error
