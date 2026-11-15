@@ -81,7 +81,7 @@ export function Titlebar() {
       >
         {effective === 'light' ? '◐' : '☀'}
       </button>
-      {os !== 'macos' && (
+      {os === 'windows' && (
         <div className="win-controls" style={{ marginLeft: 4 }}>
           <span title={t('title.minimize')} data-testid="win-min" onClick={act('minimize')}>
             <Icon name="minus" size={12} />
