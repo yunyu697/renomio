@@ -2354,15 +2354,12 @@ async function main() {
       const panes = document.querySelector('.panes');
       const main = document.querySelector('.main');
       const rules = document.querySelector('.rules');
-      const nav = document.querySelector('.nav');
-      // 窄窗下侧栏是有意收起的抽屉（屏幕外），不能算作控件裁切
-      const navOff = workspace.getAttribute('data-narrow') === 'true' && !nav.classList.contains('open');
       const box = (el) => {
         const r = el.getBoundingClientRect();
         return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
       };
       const controls = [...document.querySelectorAll('button, input, select, textarea, [role="switch"], .switch, .tab, .nav-item, .chip')]
-        .filter((el) => el.getClientRects().length > 0 && !(navOff && el.closest('.nav')));
+        .filter((el) => el.getClientRects().length > 0);
       let clipped = 0;
       const clippedNames = [];
       for (const el of controls) {
@@ -2399,7 +2396,7 @@ async function main() {
         return el.scrollWidth > el.clientWidth + 1 && (style.overflowX === 'auto' || style.overflowX === 'scroll');
       }).map((el) => (el.className || el.tagName) + ':' + el.clientWidth + '/' + el.scrollWidth);
       const truncated = [...document.querySelectorAll('button, .tab, .nav-item, .rule-title, .conflict-kind, .layout-item > span, .side-hint')]
-        .filter((el) => el.getClientRects().length > 0 && !(navOff && el.closest('.nav')) && el.scrollWidth > el.clientWidth + 1)
+        .filter((el) => el.getClientRects().length > 0 && el.scrollWidth > el.clientWidth + 1)
         .map((el) => (el.textContent || '').trim().slice(0, 22));
       const ellipsis = [...document.querySelectorAll('*')]
         .filter((el) => {
@@ -2477,38 +2474,62 @@ async function main() {
     check('UI', '五种预设视图、五种窗口规模：控件文字截断 = 0', layoutTotals.truncated === 0, JSON.stringify({ ...layoutTotals, samples: truncatedSamples.slice(0, 8) }));
     check('UI', '各视图方向/顺序正确（并排左右、上下先后、紧凑整宽）', Object.values(orientationOk).every(Boolean), JSON.stringify(orientationOk));
 
-    // 窄窗：分区方向不变，只把侧栏收成抽屉；恢复宽度回到用户视图
+    // 窄窗：分区方向不变，侧栏折叠成一列常驻图标（不再有浮动汉堡按钮）
     await viewport(1100, 640, 1);
     await setView('rules-left');
     const narrowState = await evaluate(`(() => {
       const ws = document.querySelector('.workspace');
-      return { narrow: ws.getAttribute('data-narrow'), view: ws.getAttribute('data-view'), dir: getComputedStyle(document.querySelector('.panes')).flexDirection };
+      return { narrow: ws.getAttribute('data-narrow'), nav: ws.getAttribute('data-nav'), view: ws.getAttribute('data-view'), dir: getComputedStyle(document.querySelector('.panes')).flexDirection };
     })()`);
-    check('UI', '1100 窄窗下并排视图不翻转（仍是左右分区，视图设置不变）', narrowState.narrow === 'true' && narrowState.view === 'rules-left' && narrowState.dir === 'row', JSON.stringify(narrowState));
-    // 窄窗侧栏不是 display:none，而是可呼出的抽屉 + 呼出按钮（不再有常驻提示横带）
+    check('UI', '1100 窄窗下并排视图不翻转（仍是左右分区，视图设置不变）', narrowState.narrow === 'true' && narrowState.nav === 'rail' && narrowState.view === 'rules-left' && narrowState.dir === 'row', JSON.stringify(narrowState));
+    // 窄窗侧栏是常驻图标列：不是 display:none、不滑到屏幕外，也没有浮动呼出按钮
     const narrowNav = await evaluate(`(() => {
       const nav = document.querySelector('.nav');
-      const fab = document.querySelector('[data-testid="nav-fab"]');
-      const notice = document.querySelector('[data-testid="narrow-notice"]');
-      return { display: getComputedStyle(nav).display, transform: getComputedStyle(nav).transform, fab: !!fab, notice: !!notice };
+      const r = nav.getBoundingClientRect();
+      const label = document.querySelector('.nav-group .nav-label');
+      const active = document.querySelector('.nav-item.active');
+      return {
+        display: getComputedStyle(nav).display,
+        left: Math.round(r.left),
+        width: Math.round(r.width),
+        labelShown: label ? getComputedStyle(label).display !== 'none' : false,
+        activeShown: active ? active.getBoundingClientRect().width > 0 : false,
+        fab: !!document.querySelector('[data-testid="nav-fab"]'),
+        toggle: !!document.querySelector('[data-testid="nav-rail-toggle"]'),
+        notice: !!document.querySelector('[data-testid="narrow-notice"]'),
+      };
     })()`);
     check(
       'UI',
-      '1100 窄窗侧栏保留（抽屉式）而非 display:none，只有呼出按钮、无常驻提示横带',
-      narrowNav.display !== 'none' && narrowNav.transform !== 'none' && narrowNav.fab && !narrowNav.notice,
+      '1100 窄窗侧栏折叠为常驻图标列（宽 56、当前栏目可见、无浮动汉堡）',
+      narrowNav.display !== 'none' && narrowNav.left === 0 && narrowNav.width === 56 && !narrowNav.labelShown && narrowNav.activeShown && !narrowNav.fab && narrowNav.toggle && !narrowNav.notice,
       JSON.stringify(narrowNav),
     );
-    await click('[data-testid="nav-fab"]');
-    await sleep(350);
-    const drawerOpen = await evaluate(`document.querySelector('.nav').classList.contains('open') && getComputedStyle(document.querySelector('.nav')).transform === 'none'`);
-    check('UI', '窄窗点击呼出按钮 → 侧栏抽屉滑入（可见且功能不丢）', drawerOpen, String(drawerOpen));
+    await click('[data-testid="nav-rail-toggle"]');
+    await sleep(300);
+    const railExpanded = await evaluate(`(() => {
+      const ws = document.querySelector('.workspace');
+      const nav = document.querySelector('.nav');
+      const label = document.querySelector('.nav-group .nav-label');
+      return { nav: ws.getAttribute('data-nav'), width: Math.round(nav.getBoundingClientRect().width), labelShown: label ? getComputedStyle(label).display !== 'none' : false };
+    })()`);
+    check('UI', '窄窗点展开 → 图标列原位展开为完整侧栏（宽 200、分组标题可见）', railExpanded.nav === 'expanded' && railExpanded.width === 200 && railExpanded.labelShown, JSON.stringify(railExpanded));
+    await click('[data-testid="nav-rail-toggle"]');
+    await sleep(300);
+    const railCollapsed = await evaluate(`(() => {
+      const ws = document.querySelector('.workspace');
+      return { nav: ws.getAttribute('data-nav'), width: Math.round(document.querySelector('.nav').getBoundingClientRect().width) };
+    })()`);
+    check('UI', '窄窗展开后再点同一个按钮 → 收回到图标列（双向可逆）', railCollapsed.nav === 'rail' && railCollapsed.width === 56, JSON.stringify(railCollapsed));
+    await click('[data-testid="nav-rail-toggle"]');
+    await sleep(300);
     await click('[data-testid="nav-attrs"]');
-    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="attrs"]')`, '抽屉内点击属性入口', 4000);
-    const drawerAfterNav = await evaluate(`(() => ({
-      open: document.querySelector('.nav').classList.contains('open'),
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="attrs"]')`, '图标列展开后点击属性入口', 4000);
+    const navAfterNav = await evaluate(`(() => ({
+      nav: document.querySelector('.workspace').getAttribute('data-nav'),
       inspector: !!document.querySelector('[data-testid="inspector"]'),
     }))()`);
-    check('UI', '窄窗抽屉内点击入口 → 打开检查器并自动收起抽屉', drawerAfterNav.inspector && !drawerAfterNav.open, JSON.stringify(drawerAfterNav));
+    check('UI', '窄窗点入口 → 打开检查器并自动收回图标列', navAfterNav.inspector && navAfterNav.nav === 'rail', JSON.stringify(navAfterNav));
     await click('[data-testid="inspector-close"]');
     await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '关闭窄窗检查器');
     await sleep(300);
