@@ -51,7 +51,8 @@ export function App() {
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const [dragSize, setDragSize] = useState<number | null>(null);
   const [narrow, setNarrow] = useState(false);
-  const [navOpen, setNavOpen] = useState(false);
+  // 窄窗下侧栏默认收成一列图标；expanded 只是「在原位展开成完整侧栏」，回到宽窗即复位
+  const [navExpanded, setNavExpanded] = useState(false);
   const inspectorOpen = useApp((s) => s.inspector.open);
   const rules = useApp((s) => s.rules);
   const layout = settings.layout;
@@ -81,6 +82,11 @@ export function App() {
     setNarrow(el.getBoundingClientRect().width < 1280);
     return () => observer.disconnect();
   }, [ready]);
+
+  /** 回到宽窗时把侧栏恢复成完整形态，避免下次收窄时带着上次的展开态。 */
+  useEffect(() => {
+    if (!narrow) setNavExpanded(false);
+  }, [narrow]);
 
   /** 高级模式下拖动分隔条；松手时把尺寸写进设置（重启后保留）。 */
   const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -399,21 +405,14 @@ export function App() {
         data-view={settings.layout.view}
         data-advanced={settings.layout.advanced}
         data-narrow={narrow ? 'true' : 'false'}
+        data-nav={narrow ? (navExpanded ? 'expanded' : 'rail') : 'full'}
       >
-        <Nav open={narrow && navOpen} onNavigate={() => setNavOpen(false)} />
-        {narrow && (
-          <>
-            <button
-              className={`nav-fab${navOpen ? ' open' : ''}`}
-              type="button"
-              data-testid="nav-fab"
-              aria-expanded={navOpen}
-              onClick={() => setNavOpen((v) => !v)}
-            >
-              <Icon name="menu" size={15} />
-            </button>
-          </>
-        )}
+        <Nav
+          narrow={narrow}
+          expanded={navExpanded}
+          onToggle={() => setNavExpanded((v) => !v)}
+          onNavigate={() => setNavExpanded(false)}
+        />
         <div className="workbench">
           <div
             className="panes"

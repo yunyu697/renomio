@@ -16,7 +16,18 @@ interface NavEntry {
 }
 
 /** 左侧导航收敛为两组：「文件」负责工作台视图与历史，「检查器」负责改文件的六类操作。 */
-export function Nav({ onNavigate, open }: { onNavigate?: () => void; open?: boolean }) {
+export function Nav({
+  onNavigate,
+  narrow,
+  expanded,
+  onToggle,
+}: {
+  onNavigate?: () => void;
+  /** 窄窗：默认收成一列常驻图标（高亮当前栏目），可原位展开 */
+  narrow?: boolean;
+  expanded?: boolean;
+  onToggle?: () => void;
+}) {
   const { t } = useTranslation();
   const batches = useApp((s) => s.batches);
   const entries = useApp((s) => s.entries);
@@ -88,10 +99,25 @@ export function Nav({ onNavigate, open }: { onNavigate?: () => void; open?: bool
     },
   ];
 
+  const collapsedItems = narrow && !expanded;
+
   return (
-    <aside className={`nav${open ? ' open' : ''}`}>
+    <aside className={`nav${narrow ? ' rail' : ''}`}>
+      {narrow && (
+        <button
+          className="nav-rail-toggle"
+          type="button"
+          data-testid="nav-rail-toggle"
+          aria-expanded={expanded}
+          aria-label={expanded ? t('nav.collapse') : t('nav.expand')}
+          title={expanded ? t('nav.collapse') : t('nav.expand')}
+          onClick={onToggle}
+        >
+          <Icon name={expanded ? 'x' : 'menu'} />
+        </button>
+      )}
       {groups.map((group) => {
-        const isCollapsed = Boolean(collapsed[group.id]);
+        const isCollapsed = Boolean(collapsed[group.id]) && !collapsedItems;
         return (
           <div className="nav-group" key={group.id}>
             <div
@@ -139,9 +165,16 @@ export function Nav({ onNavigate, open }: { onNavigate?: () => void; open?: bool
         );
       })}
       <div className="nav-foot">
-        <div className="nav-item" role="button" tabIndex={0} onClick={go(() => openDrawer('settings'))} data-testid="nav-settings">
+        <div
+          className="nav-item"
+          role="button"
+          tabIndex={0}
+          title={t('nav.settings')}
+          onClick={go(() => openDrawer('settings'))}
+          data-testid="nav-settings"
+        >
           <Icon name="settings" />
-          {t('nav.settings')}
+          <span>{t('nav.settings')}</span>
         </div>
       </div>
     </aside>

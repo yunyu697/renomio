@@ -144,6 +144,8 @@ export const jaJP: Dict = {
   'nav.history': '操作履歴',
   'nav.plan': 'プラン',
   'nav.settings': '設定',
+  'nav.expand': 'ナビゲーションを展開',
+  'nav.collapse': 'ナビゲーションを折りたたむ',
   'nav.hint': 'ルールとファイルはローカルで処理され、アップロードは行いません。スナップショットと操作履歴はこの端末に残ります。',
   'inspector.title': 'インスペクター',
   'inspector.scope': '{count} 個のファイルに適用',

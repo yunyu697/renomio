@@ -789,25 +789,6 @@ body { margin: 0; overflow: hidden; }
 .compact-toggle .chev { margin-left: auto; font-size: var(--ds-font-size-11); opacity: .7; transition: transform var(--ds-dur-3) ease; }
 .compact-toggle .chev.down { transform: rotate(-90deg); }
 
-/* ---------- 窄窗：侧栏抽屉 + 呼出按钮 + 收敛提示 ---------- */
-.nav-fab {
-  position: fixed;
-  left: var(--ds-space-5);
-  bottom: 96px;
-  z-index: 45;
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--ds-color-line-strong);
-  border-radius: var(--ds-radius-role-card);
-  background: var(--ds-color-surface);
-  color: var(--ds-color-text-2);
-  box-shadow: var(--shadow-md);
-  cursor: pointer;
-}
-.nav-fab:hover, .nav-fab.open { color: var(--ds-color-accent-hover); border-color: var(--ds-color-accent-weak-2); background: var(--ds-color-accent-weak); }
-
 /* 布局 preset 缩略示意图 */
 .layout-thumb {
   flex: 0 0 auto;

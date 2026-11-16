@@ -149,6 +149,8 @@ export const zhCN: Dict = {
   'nav.history': '操作记录',
   'nav.plan': '方案',
   'nav.settings': '设置',
+  'nav.expand': '展开导航',
+  'nav.collapse': '收起导航',
   'nav.hint': '规则与文件只在本地处理，不上传任何内容。快照与操作记录都留在本机。',
   'nav.planHint': '方案库：保存多套命名方案与最近 10 条记录，一键载入并预览',
 

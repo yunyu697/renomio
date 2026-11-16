@@ -144,6 +144,8 @@ export const esES: Dict = {
   'nav.history': 'Historial',
   'nav.plan': 'Planes',
   'nav.settings': 'Ajustes',
+  'nav.expand': 'Expandir la navegación',
+  'nav.collapse': 'Contraer la navegación',
   'nav.hint': 'Las reglas y los archivos se procesan localmente; no se sube nada. Las instantáneas y el historial se quedan en este equipo.',
   'inspector.title': 'Inspector',
   'inspector.scope': 'Se aplica a {count} archivo(s)',

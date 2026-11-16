@@ -959,6 +959,25 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   border-top: 1px solid var(--ds-color-line);
 }
 
+/* 图标列顶端的展开 / 收起按钮：图标列与完整侧栏共用同一个位置，两个方向都能点到 */
+.nav-rail-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: var(--ds-control-h-lg);
+  height: var(--ds-control-h-lg);
+  padding: 0;
+  border: 0;
+  border-radius: var(--ds-radius-role-control);
+  background: transparent;
+  color: var(--ds-color-text-2);
+  cursor: pointer;
+  transition: background-color var(--ds-dur-3) ease, color var(--ds-dur-3) ease;
+}
+.nav-rail-toggle:hover { background: var(--ds-color-surface-3); color: var(--ds-color-text); }
+.nav-rail-toggle svg { width: var(--ds-icon-md); height: var(--ds-icon-md); }
+
 /* 主区域 */
 .main {
   display: flex;
@@ -2424,43 +2443,40 @@ html[data-theme="dark"] .state-head .idx { background: var(--ds-color-accent); c
 }
 
 /* 窄窗：按工作区真实宽度收敛成单列（宽度恢复后自动回到用户选择的视图） */
-/* 窄窗：侧栏不再隐藏，收敛为可呼出的抽屉（.open 时滑入） */
-.workspace[data-narrow="true"] { grid-template-columns: minmax(0, 1fr); }
-.workspace[data-narrow="true"] .nav {
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: min(262px, 82vw);
-  z-index: 55;
-  transform: translateX(-100%);
-  transition: transform var(--ds-dur-3) ease;
-  box-shadow: var(--shadow-lg);
-  border-right: 1px solid var(--ds-color-line-strong);
-  background: var(--ds-color-surface);
+/* 窄窗：侧栏不隐藏、不浮成汉堡，而是折叠成一列常驻图标——当前栏目靠 .active 高亮常驻可见；
+   需要看文字时原位展开成完整侧栏，再点同一个按钮收回（两个方向都可达，不依赖浮层） */
+.workspace[data-narrow="true"] {
+  grid-template-columns: calc(var(--ds-control-h-lg) + var(--ds-space-role-region)) minmax(0, 1fr);
 }
-/* 窄窗：只把侧栏收成抽屉；工作台分区方向保持不变（不因窗口变窄从左右翻成上下，SPEC §1.19） */
-.workspace[data-narrow="true"] .nav.open { transform: none; }
+.workspace[data-narrow="true"][data-nav="expanded"] {
+  grid-template-columns: 200px minmax(0, 1fr);
+}
+.workspace[data-narrow="true"][data-nav="rail"] .nav {
+  padding: var(--ds-space-role-control);
+  gap: var(--ds-space-role-control);
+}
+/* 图标列：分组标题与文字全部让位给图标，分组之间只用一条发丝线分隔 */
+.workspace[data-narrow="true"][data-nav="rail"] .nav-group .nav-label,
+.workspace[data-narrow="true"][data-nav="rail"] .nav-item > span {
+  display: none;
+}
+.workspace[data-narrow="true"][data-nav="rail"] .nav-group + .nav-group {
+  border-top: 1px solid var(--ds-color-line);
+  padding-top: var(--ds-space-role-control);
+}
+.workspace[data-narrow="true"][data-nav="rail"] .nav-item {
+  justify-content: center;
+  padding: 0;
+}
+.workspace[data-narrow="true"][data-nav="rail"] .nav .nav-rail-toggle {
+  align-self: stretch;
+  width: auto;
+}
+/* 窄窗：工作台分区方向保持不变（不因窗口变窄从左右翻成上下，SPEC §1.19） */
 .workspace[data-narrow="true"] .panes > .splitter { display: none; }
 
-/* 兜底：极端窄视口（含缩放）同样收敛，不依赖脚本；侧栏同样改为抽屉而非隐藏 */
+/* 兜底：极端窄视口（含缩放）的其他收敛项；侧栏形态由 data-nav 统一控制 */
 @media (max-width: 1080px) {
-  .workspace { grid-template-columns: minmax(0, 1fr); }
-  .workspace .nav {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: min(262px, 82vw);
-    z-index: 55;
-    transform: translateX(-100%);
-    transition: transform var(--ds-dur-3) ease;
-    box-shadow: var(--shadow-lg);
-    border-right: 1px solid var(--ds-color-line-strong);
-    background: var(--ds-color-surface);
-  }
-  .workspace .nav.open { transform: none; }
-  /* 分区方向同样不翻转：窄视口只收起侧栏（SPEC §1.19） */
   .notes { grid-template-columns: 1fr; }
   .rulepage { grid-template-columns: 200px 1fr; }
   .preview-panel { display: none; }

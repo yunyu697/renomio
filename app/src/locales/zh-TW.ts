@@ -144,6 +144,8 @@ export const zhTW: Dict = {
   'nav.history': '操作記錄',
   'nav.plan': '方案',
   'nav.settings': '設定',
+  'nav.expand': '展開導覽',
+  'nav.collapse': '收合導覽',
   'nav.hint': '規則與檔案只在本機處理，不上傳任何內容。快照與操作記錄都留在本機。',
   'inspector.title': '檢查器',
   'inspector.scope': '作用於 {count} 個檔案',

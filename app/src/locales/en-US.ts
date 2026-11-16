@@ -144,6 +144,8 @@ export const enUS: Dict = {
   'nav.history': 'History',
   'nav.plan': 'Plans',
   'nav.settings': 'Settings',
+  'nav.expand': 'Expand navigation',
+  'nav.collapse': 'Collapse navigation',
   'nav.hint': 'Rules and files are processed locally; nothing is uploaded. Snapshots and history stay on this machine.',
   'inspector.title': 'Inspector',
   'inspector.scope': 'Applies to {count} file(s)',
