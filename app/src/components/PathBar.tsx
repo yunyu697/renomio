@@ -30,8 +30,6 @@ export function PathBar() {
       : t('path.locations', { path: parentPath(top[0]) || top[0], count: parents.size });
   }, [entries, t]);
 
-  const dirCount = entries.filter((e) => e.isDir).length;
-
   return (
     <div className="pathbar">
       <span className="path" title={rootLabel}>
@@ -97,8 +95,6 @@ export function PathBar() {
             onClick={() => setIncludeHidden(!includeHidden)}
           />
         </span>
-        <span style={{ width: 1, height: 12, background: 'var(--ds-color-line)' }} />
-        <span>{t('path.loaded', { count: entries.length, dirs: dirCount })}</span>
       </div>
     </div>
   );

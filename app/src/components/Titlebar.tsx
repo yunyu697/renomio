@@ -15,10 +15,16 @@ async function windowAction(action: 'minimize' | 'maximize' | 'close'): Promise<
   else await win.close();
 }
 
+/**
+ * 自绘标题栏（仅 Windows / Linux 使用）。
+ * macOS 走系统原生标题栏（红绿灯、标题由系统绘制），再叠一层自绘条会重复窗口框架，
+ * 正是 HIG「不要创建自定义窗口用户界面」反对的形态。
+ *
+ * 这一行只回答「这是哪个 App」：不放规则数量、预览模式、版本号这类状态——
+ * 状态属于内容区（执行条 / 检查器），标题栏只做窗口身份与拖动。
+ */
 export function Titlebar() {
   const { t } = useTranslation();
-  const rules = useApp((s) => s.rules);
-  const isDemo = useApp((s) => s.isDemo);
   const os = useApp((s) => s.env.os);
   const theme = useApp((s) => s.settings.theme);
   const setTheme = useApp((s) => s.setTheme);
@@ -50,35 +56,23 @@ export function Titlebar() {
     });
   };
 
+  if (os === 'macos') return null;
+
   return (
     <div className="titlebar" data-tauri-drag-region>
-      <BrandMark size={22} />
+      <BrandMark size={16} />
       <span className="tb-title" data-tauri-drag-region>{PRODUCT_NAME}</span>
-      <span className="tb-crumb" data-tauri-drag-region>
-        <span style={{ color: 'var(--ds-color-text-muted)' }}>›</span>
-        <span className="pill-scheme">
-          <Icon name="layers" size={11} />
-          {t('title.rules')} {rules.length ? t('title.rulesCount', { count: rules.length }) : t('title.none')}
-        </span>
-        <span style={{ color: 'var(--ds-color-text-muted)' }}>{t('title.previewOnly')}</span>
-      </span>
       <div className="tb-spacer" data-tauri-drag-region />
-      {isDemo && (
-        <span className="chip chip-warn" style={{ height: 23, fontSize: 11 }}>
-          {t('title.demoChip')}
-        </span>
-      )}
       <button
-        className="btn-icon"
+        className="btn-icon tb-theme"
         type="button"
         title={effective === 'light' ? t('title.themeDark') : t('title.themeLight')}
-        style={{ width: 28, height: 24, marginLeft: 4 }}
         onClick={() => setTheme(effective === 'light' ? 'dark' : 'light')}
       >
         {effective === 'light' ? '◐' : '☀'}
       </button>
       {os === 'windows' && (
-        <div className="win-controls" style={{ marginLeft: 4 }}>
+        <div className="win-controls">
           <span title={t('title.minimize')} data-testid="win-min" onClick={act('minimize')}>
             <Icon name="minus" size={12} />
           </span>

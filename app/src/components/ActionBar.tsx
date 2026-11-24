@@ -3,12 +3,19 @@ import { useTranslation } from '../i18n';
 import { useApp } from '../store';
 import { Icon } from './Icon';
 
+/**
+ * 底部执行条（合并了原状态栏）。
+ * HIG：底栏只放「与当前选中内容直接相关」的少量信息，其余（平台、数据目录、版本号）属于设置/关于。
+ * 因此这里只保留：选中计数 · 当前批次状态 · 冲突提示 · 三个与选中项直接相关的动作。
+ */
 export function ActionBar() {
   const { t } = useTranslation();
   const entries = useApp((s) => s.entries);
   const openPreview = useApp((s) => s.openPreview);
   const undoLast = useApp((s) => s.undoLast);
   const applying = useApp((s) => s.applying);
+  const applyProgress = useApp((s) => s.applyProgress);
+  const scanning = useApp((s) => s.scanning);
   const undoBusy = useApp((s) => s.undoBusy);
   const batches = useApp((s) => s.batches);
   const readonlySkip = useApp((s) => s.settings.readonlySkip);
@@ -21,10 +28,20 @@ export function ActionBar() {
     : 0;
   const actionable = preview.counts.ready + preview.counts.warn + preview.counts.conflict;
 
+  const statusText = scanning
+    ? t('status.scanning')
+    : applying
+      ? applyProgress
+        ? `${t('status.applying', { done: applyProgress.done, total: applyProgress.total })}${applyProgress.current ? ` · ${applyProgress.current}` : ''}`
+        : t('status.executing')
+      : t('status.ready');
+
   return (
     <div className="actionbar">
       <div className="selection">
-        {t('action.selected', { selected, total: entries.length })}
+        <span data-testid="status-selected">{t('status.selected', { count: selected })}</span>
+        <span className="sep" />
+        <span className="state">{statusText}</span>
       </div>
       {preview.counts.conflict > 0 ? (
         <div className="conflict-chip">

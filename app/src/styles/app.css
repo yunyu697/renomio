@@ -141,13 +141,14 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   width: 100%;
 }
 
+/* 窗口身份行：与内容同底、无渐变、只放拖动区与窗口控制（HIG：不要在标题栏堆状态） */
 .titlebar {
-  height: 42px;
+  height: 40px;
   display: flex;
   align-items: center;
-  gap: var(--ds-space-5);
-  padding: 0 var(--ds-space-5) 0 var(--ds-space-5);
-  background: linear-gradient(180deg, var(--ds-color-surface), var(--ds-color-surface-2));
+  gap: var(--ds-space-role-control);
+  padding: 0 var(--ds-space-role-field) 0 var(--ds-space-role-field);
+  background: var(--ds-color-surface);
   border-bottom: 1px solid var(--ds-color-line);
   flex: 0 0 auto;
   user-select: none;
@@ -156,7 +157,7 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
 .tb-title {
   font-size: var(--ds-type-role-card);
   font-weight: var(--ds-font-weight-600);
-  color: var(--ds-color-text-2);
+  color: var(--ds-color-text);
   letter-spacing: .2px;
 }
 
@@ -526,11 +527,12 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
 
 /* ---------------- 路径 / 过滤条 ---------------- */
 /* 不单独成带：无底色、无分隔线，只占 28px 的 caption 行（§1.16） */
+/* 单行：路径 / 过滤两枚胶囊 / 布局与扫描选项挤在一行，放不下时省略路径，不折行 */
 .pathbar {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--ds-space-role-inline) var(--ds-space-role-control);
+  flex-wrap: nowrap;
+  gap: var(--ds-space-role-control);
   padding: 0 var(--ds-space-role-field);
   min-height: var(--ds-control-h-md);
   flex: 0 0 auto;
@@ -546,7 +548,8 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   color: var(--ds-color-text-2);
   font-family: var(--mono);
   font-size: var(--ds-type-role-caption);
-  max-width: 260px;
+  max-width: 200px;
+  flex: 0 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -606,7 +609,7 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
 .switch-row { display: inline-flex; align-items: center; gap: var(--ds-space-role-inline); color: var(--ds-color-text-2); }
 .switch-row .lbl { font-size: var(--ds-type-role-caption); }
 
-.pathbar .right { margin-left: auto; display: flex; align-items: center; gap: var(--ds-space-role-control); flex-wrap: wrap; min-width: 0; flex: 0 1 auto; }
+.pathbar .right { margin-left: auto; display: flex; align-items: center; gap: var(--ds-space-role-control); flex-wrap: nowrap; min-width: 0; flex: 0 0 auto; }
 
 /* 预设布局切换 */
 .layout-switch { display: inline-flex; }
@@ -2948,3 +2951,86 @@ body.marquee-active, body.marquee-active * { user-select: none; }
 .preview-nav { display: flex; align-items: center; gap: var(--ds-space-3); margin-top: var(--ds-space-2); }
 .preview-nav [data-testid="preview-pos"] { color: var(--ds-color-text-2); font-size: var(--ds-font-size-11); }
 .mini-row.current { background: var(--ds-color-surface-selected); box-shadow: inset 0 0 0 1px var(--ds-color-accent); }
+
+/* ============================================================
+   界面重构 P0 · HIG 基线（B 方案：macOS 为准，Windows 守习惯）
+   §1 工具栏分组：组内 8px、组间 16px，用间距分组而不是竖线
+   §2 「更多」菜单：低频命令收进工具栏末尾
+   §3 执行条合并原状态栏，高度由 --actionbar 固定
+   §4 规则链收起时只留图标轨，不再竖排中文
+   ============================================================ */
+:root {
+  --actionbar: 52px;
+}
+
+.toolbar .tb-group {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-role-control);
+  flex: 0 0 auto;
+}
+.toolbar > .tb-group + .tb-group { margin-left: var(--ds-space-role-block); }
+.toolbar .divider { display: none; }
+
+.tb-more { flex: 0 0 auto; }
+
+/* 弹出菜单：与布局菜单同一套面板语言，图标 + 单行标签 */
+.pop-menu {
+  position: fixed;
+  z-index: 72;
+  min-width: 208px;
+  padding: var(--ds-space-2);
+  background: var(--ds-color-surface);
+  border: 1px solid var(--ds-color-line);
+  border-radius: var(--ds-radius-role-card);
+  box-shadow: var(--ds-elevation-3);
+}
+.pop-item {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-role-control);
+  width: 100%;
+  height: var(--ds-control-h-md);
+  padding: 0 var(--ds-space-role-control);
+  border: 0;
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
+  color: var(--ds-color-text);
+  font-family: inherit;
+  font-size: var(--ds-type-role-body);
+  text-align: left;
+  cursor: pointer;
+}
+.pop-item:hover { background: var(--ds-color-hover); }
+.pop-item svg { flex: 0 0 auto; color: var(--ds-color-text-2); }
+.pop-sep { height: 1px; margin: var(--ds-space-2) var(--ds-space-3); background: var(--ds-color-line); }
+
+/* 执行条：状态段落与动作之间用分隔点，不再单占一条底栏 */
+.actionbar .selection .sep {
+  width: 1px;
+  height: 12px;
+  background: var(--ds-color-line);
+}
+.actionbar .selection .state { color: var(--ds-color-text-2); }
+
+/* 规则链收起态：图标轨（48px），只放计数徽标，不竖排文字 */
+.rail-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 18px;
+  padding: 0 var(--ds-space-2);
+  border-radius: var(--ds-radius-role-pill);
+  background: var(--ds-color-accent-weak);
+  color: var(--ds-color-accent-hover);
+  font-family: var(--mono);
+  font-size: var(--ds-font-size-11);
+  cursor: default;
+}
+.rail-badge.bad { background: var(--ds-color-danger-weak); color: var(--ds-color-danger); }
+
+/* 窄窗：扫描选项只留开关本体，标签改为悬停提示，避免路径条被挤到折行 */
+@media (max-width: 1280px) {
+  .pathbar .switch-row .lbl { display: none; }
+}

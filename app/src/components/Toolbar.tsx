@@ -4,9 +4,7 @@ import { useTranslation } from '../i18n';
 import { useApp } from '../store';
 import { ExportMenu } from './ExportMenu';
 import { Icon } from './Icon';
-
-/** 搜索框的 flex 基值（.search 的 flex-basis），量自然宽度时按它算，避免被收缩后的实测值误导 */
-const SEARCH_BASIS = 260;
+import { ToolbarMore } from './ToolbarMore';
 
 export function Toolbar() {
   const { t } = useTranslation();
@@ -17,13 +15,10 @@ export function Toolbar() {
   const undoLast = useApp((s) => s.undoLast);
   const undoBusy = useApp((s) => s.undoBusy);
   const applying = useApp((s) => s.applying);
-  const openDrawer = useApp((s) => s.openDrawer);
-  const showToast = useApp((s) => s.showToast);
   const search = useApp((s) => s.search);
   const setSearch = useApp((s) => s.setSearch);
   const openPlanExport = useApp((s) => s.openPlanExport);
   const openPlanImport = useApp((s) => s.openPlanImport);
-  const openShortcuts = useApp((s) => s.openShortcuts);
   const shortcuts = useApp((s) => s.settings.shortcuts);
   const entries = useApp((s) => s.entries);
   const manualOrder = useApp((s) => s.manualOrder);
@@ -36,27 +31,19 @@ export function Toolbar() {
 
   /**
    * 图标折叠（SPEC §1.19）：工具栏只保留一行，宽度不足时把按钮标签降级成图标，
-   * 不靠折行、不靠压缩按钮高度与内边距腾空间。切换点＝「标签版自然宽度刚好超过可用宽度」那一档。
+   * 不靠折行、不靠压缩按钮高度与内边距腾空间。
+   *
+   * 用法：先临时切回「标签版」，量这一次的自然宽度（nowrap 下 scrollWidth 即内容宽度），
+   * 再按 clientWidth 判定。按分组容器宽度累加会漏掉组内间距，宽度一紧就会晚折一档。
    */
   useEffect(() => {
     const el = barRef.current;
     if (!el) return;
     const measure = () => {
-      // 先临时按「标签版」量一次自然宽度：折叠态下按钮已变窄，直接量会低估，导致折叠/展开来回抖
       const folded = el.dataset.fold === 'icons';
       if (folded) el.dataset.fold = 'full';
-      const cs = getComputedStyle(el);
-      const gap = parseFloat(cs.columnGap) || 0;
-      const pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
-      const kids = [...el.children] as HTMLElement[];
-      const width = kids.reduce((sum, kid) => {
-        if (kid.classList.contains('toolbar-spacer')) return sum;
-        if (kid.classList.contains('search')) return sum + SEARCH_BASIS;
-        return sum + kid.getBoundingClientRect().width;
-      }, 0);
-      const natural = width + gap * Math.max(0, kids.length - 1) + pad;
+      const natural = el.scrollWidth;
       if (folded) el.dataset.fold = 'icons';
-      // 切换点精确到 1px：刚好放不下标签版才折叠，早一档不折、晚一档就折
       setFold(natural > el.clientWidth + 0.5);
     };
     measure();
@@ -68,65 +55,72 @@ export function Toolbar() {
 
   return (
     <div className="toolbar" ref={barRef} data-fold={fold ? 'icons' : 'full'}>
-      <button className="btn btn-primary" type="button" data-testid="add-files" onClick={() => void chooseFiles()}>
-        <Icon name="file-plus" /><span className="btn-label">{t('toolbar.addFiles')}</span>
-      </button>
-      <button className="btn btn-soft" type="button" data-testid="add-folder" onClick={() => void chooseFolder()}>
-        <Icon name="folder-plus" /><span className="btn-label">{t('toolbar.addFolder')}</span>
-      </button>
-      <span className="divider" />
-      <button
-        className="btn btn-ghost"
-        type="button"
-        title={t('toolbar.planImportHint')}
-        data-testid="plan-import"
-        onClick={() => void openPlanImport()}
-      >
-        <Icon name="import" /><span className="btn-label">{t('toolbar.planImport')}</span>
-      </button>
-      <button
-        className="btn btn-ghost"
-        type="button"
-        title={t('toolbar.planExportHint')}
-        data-testid="plan-export"
-        onClick={openPlanExport}
-      >
-        <Icon name="save" /><span className="btn-label">{t('toolbar.planExport')}</span>
-      </button>
-      <span className="divider" />
-      <button
-        className="btn btn-ghost"
-        type="button"
-        title={t('toolbar.undoHint')}
-        data-testid="toolbar-undo"
-        disabled={undoBusy || applying}
-        onClick={() => void undoLast()}
-      >
-        <Icon name="undo" /><span className="btn-label">{t('toolbar.undo')}</span>
-        <span className="kbd">{displayBinding(shortcuts.undo)}</span>
-      </button>
-      <button
-        className="btn btn-ghost"
-        type="button"
-        title={undoing ? t('toolbar.undoRestoreHint') : t('toolbar.restoreOrderHint')}
-        data-testid="restore-order"
-        disabled={!undoing && !canRestore}
-        onClick={() => (undoing ? undoRestoreOrder() : restoreAddedOrder())}
-      >
-        <Icon name={undoing ? 'undo' : 'sort'} /><span className="btn-label">{undoing ? t('toolbar.undoRestore') : t('toolbar.restoreOrder')}</span>
-      </button>
-      <button
-        className="btn btn-icon"
-        type="button"
-        title={t('toolbar.refreshHint')}
-        onClick={() => {
-          window.dispatchEvent(new CustomEvent('rename:refresh'));
-          showToast('info', t('toolbar.refreshed'));
-        }}
-      >
-        <Icon name="refresh" />
-      </button>
-      <ExportMenu />
+      {/* 组 1：加入内容——工具栏里唯一的高频主操作 */}
+      <div className="tb-group">
+        <button className="btn btn-primary" type="button" data-testid="add-files" onClick={() => void chooseFiles()}>
+          <Icon name="file-plus" /><span className="btn-label">{t('toolbar.addFiles')}</span>
+        </button>
+        <button className="btn btn-soft" type="button" data-testid="add-folder" onClick={() => void chooseFolder()}>
+          <Icon name="folder-plus" /><span className="btn-label">{t('toolbar.addFolder')}</span>
+        </button>
+      </div>
+      {/* 组 2：方案（成对进出，低频但明确） */}
+      <div className="tb-group">
+        <button
+          className="btn btn-ghost"
+          type="button"
+          title={t('toolbar.planImportHint')}
+          data-testid="plan-import"
+          onClick={() => void openPlanImport()}
+        >
+          <Icon name="import" /><span className="btn-label">{t('toolbar.planImport')}</span>
+        </button>
+        <button
+          className="btn btn-ghost"
+          type="button"
+          title={t('toolbar.planExportHint')}
+          data-testid="plan-export"
+          onClick={openPlanExport}
+        >
+          <Icon name="save" /><span className="btn-label">{t('toolbar.planExport')}</span>
+        </button>
+      </div>
+      {/* 组 3：批次历史 */}
+      <div className="tb-group">
+        <button
+          className="btn btn-ghost"
+          type="button"
+          title={t('toolbar.undoHint')}
+          data-testid="toolbar-undo"
+          disabled={undoBusy || applying}
+          onClick={() => void undoLast()}
+        >
+          <Icon name="undo" /><span className="btn-label">{t('toolbar.undo')}</span>
+          <span className="kbd">{displayBinding(shortcuts.undo)}</span>
+        </button>
+        <button
+          className="btn btn-ghost"
+          type="button"
+          title={undoing ? t('toolbar.undoRestoreHint') : t('toolbar.restoreOrderHint')}
+          data-testid="restore-order"
+          disabled={!undoing && !canRestore}
+          onClick={() => (undoing ? undoRestoreOrder() : restoreAddedOrder())}
+        >
+          <Icon name={undoing ? 'undo' : 'sort'} /><span className="btn-label">{undoing ? t('toolbar.undoRestore') : t('toolbar.restoreOrder')}</span>
+        </button>
+      </div>
+      {/* 组 4：读取与导出 */}
+      <div className="tb-group">
+        <button
+          className="btn btn-icon"
+          type="button"
+          title={t('toolbar.refreshHint')}
+          onClick={() => window.dispatchEvent(new CustomEvent('rename:refresh'))}
+        >
+          <Icon name="refresh" />
+        </button>
+        <ExportMenu />
+      </div>
       <div className="toolbar-spacer" />
       <label className="search">
         <Icon name="search" size={14} />
@@ -140,35 +134,7 @@ export function Toolbar() {
         />
         <span className="kbd">{displayBinding(shortcuts.search)}</span>
       </label>
-      <button
-        className="btn btn-icon"
-        type="button"
-        title={t('toolbar.filterHint')}
-        onClick={() => {
-          const el = document.getElementById('include-pattern');
-          el?.focus();
-        }}
-      >
-        <Icon name="filter" />
-      </button>
-      <button
-        className="btn btn-icon"
-        type="button"
-        title={t('toolbar.helpHint')}
-        data-testid="open-shortcuts"
-        onClick={openShortcuts}
-      >
-        <Icon name="help" />
-      </button>
-      <button
-        className="btn btn-icon"
-        type="button"
-        title={t('toolbar.settings')}
-        data-testid="open-settings"
-        onClick={() => openDrawer('settings')}
-      >
-        <Icon name="settings" />
-      </button>
+      <ToolbarMore />
     </div>
   );
 }

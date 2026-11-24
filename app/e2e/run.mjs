@@ -273,6 +273,26 @@ async function main() {
         el.click();
         return true;
       })()`);
+    /** 低频命令收进了工具栏「更多」菜单（HIG）：先开菜单再点条目；已开则直接复用 */
+    const openMoreMenu = async () => {
+      const menuOpen = () => evaluate(`Boolean(document.querySelector('[data-testid="toolbar-more-menu"]'))`);
+      const trigger = () => evaluate(`Boolean(document.querySelector('[data-testid="toolbar-more"]'))`);
+      if (await menuOpen()) return;
+      if (!(await trigger())) return;
+      await click('[data-testid="toolbar-more"]');
+      await sleep(100);
+      if (!(await menuOpen())) {
+        // 上一轮点开后残留的展开态会被同一个按钮收起，再点一次即可回到打开
+        await click('[data-testid="toolbar-more"]');
+        await sleep(100);
+      }
+      await waitFor(`document.querySelector('[data-testid="toolbar-more-menu"]')`, '工具栏「更多」菜单');
+    };
+    const openSettings = async () => {
+      await openMoreMenu();
+      await click('[data-testid="open-settings"]');
+      await waitFor(`document.querySelector('.drawer')`, '设置抽屉打开');
+    };
     const setInput = (selector, value, index = 0) =>
       evaluate(`(() => {
         const els = [...document.querySelectorAll(${JSON.stringify(selector)})];
@@ -700,7 +720,7 @@ async function main() {
     await sleep(200);
 
     // 主题
-    await click('[data-testid="open-settings"]');
+    await openSettings();
     await waitFor(`document.querySelector('.drawer')`, '设置抽屉');
     await clickText('.drawer .seg-ctrl span', '深色');
     await sleep(250);
@@ -1974,7 +1994,7 @@ async function main() {
       !(await evaluate(`Boolean(document.querySelector('[data-testid="migration-notice"]'))`)),
     );
 
-    await click('[data-testid="open-settings"]');
+    await openSettings();
     await waitFor(`document.querySelector('[data-testid="legacy-section"]')`, '设置里的旧版数据区', 8000);
     check('UI', '设置提供「从旧版导入数据」手动入口', (await countOf('[data-testid="import-legacy"]')) === 1);
     await click('[data-testid="import-legacy"]');
@@ -2264,6 +2284,7 @@ async function main() {
     // --- 1.9) 键位窗：列表 / 录制 / 冲突 / 生效 / 持久化 / 恢复默认 ---
     const shortcutValue = (id) => textOf(`[data-testid="shortcut-value-${id}"]`);
     const openShortcuts = async () => {
+      await openMoreMenu();
       await click('[data-testid="open-shortcuts"]');
       await waitFor(`document.querySelector('[data-testid="shortcut-dialog"]')`, '键位窗打开');
     };
@@ -2583,7 +2604,7 @@ async function main() {
     check('UI', '重启后保留视图 rules-top 与拖动尺寸', stateAfterReload.view === 'rules-top' && stateAfterReload.advanced === 'true' && Math.abs(h3 - h2) <= 3, JSON.stringify({ before: h2, after: h3, stateAfterReload }));
 
     // 设置面板的布局分区：preset 缩略图 + 本地化文字 + 独立尺寸 + advanced 关闭时无分隔条
-    await click('[data-testid="open-settings"]');
+    await openSettings();
     await waitFor(`document.querySelector('[data-testid="layout-settings"]')`, '设置面板布局分区', 6000);
     const settingsLayout = await evaluate(`(() => ({
       picks: document.querySelectorAll('[data-testid^="settings-layout-"]').length,
@@ -3344,7 +3365,7 @@ async function main() {
     await sleep(250);
 
     // 真实重载验证「重启保持」：明暗 + 配色两维各自持久化，首帧属性在 React 之前写入
-    await click('[data-testid="open-settings"]');
+    await openSettings();
     await waitFor(`document.querySelector('.drawer')`, '设置抽屉（重启前）');
     await click('[data-testid="palette-moss"]');
     await click('[data-testid="theme-dark"]');

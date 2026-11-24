@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-16T01:29:17.947Z",
+  "generatedAt": "2026-11-24T11:32:26.239Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
@@ -148,13 +148,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-16 09:27 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-24 19:30 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-16 09:27 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-24 19:30 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -646,7 +646,7 @@
       "layer": "UI",
       "name": "页签「attrs」页签条只占角色高度、表格拿满剩余空间",
       "ok": true,
-      "detail": "{\"tabs\":32,\"table\":595}"
+      "detail": "{\"tabs\":32,\"table\":631}"
     },
     {
       "layer": "UI",
@@ -658,7 +658,7 @@
       "layer": "UI",
       "name": "页签「music」页签条只占角色高度、表格拿满剩余空间",
       "ok": true,
-      "detail": "{\"tabs\":32,\"table\":595}"
+      "detail": "{\"tabs\":32,\"table\":631}"
     },
     {
       "layer": "UI",
@@ -670,7 +670,7 @@
       "layer": "UI",
       "name": "页签「photo」页签条只占角色高度、表格拿满剩余空间",
       "ok": true,
-      "detail": "{\"tabs\":32,\"table\":595}"
+      "detail": "{\"tabs\":32,\"table\":631}"
     },
     {
       "layer": "UI",
@@ -682,7 +682,7 @@
       "layer": "UI",
       "name": "页签「office」页签条只占角色高度、表格拿满剩余空间",
       "ok": true,
-      "detail": "{\"tabs\":32,\"table\":595}"
+      "detail": "{\"tabs\":32,\"table\":631}"
     },
     {
       "layer": "UI",
@@ -694,7 +694,7 @@
       "layer": "UI",
       "name": "页签「pdf」页签条只占角色高度、表格拿满剩余空间",
       "ok": true,
-      "detail": "{\"tabs\":32,\"table\":595}"
+      "detail": "{\"tabs\":32,\"table\":631}"
     },
     {
       "layer": "UI",
@@ -706,7 +706,7 @@
       "layer": "UI",
       "name": "页签「text」页签条只占角色高度、表格拿满剩余空间",
       "ok": true,
-      "detail": "{\"tabs\":32,\"table\":595}"
+      "detail": "{\"tabs\":32,\"table\":631}"
     },
     {
       "layer": "UI",
@@ -718,7 +718,7 @@
       "layer": "UI",
       "name": "页签「organize」页签条只占角色高度、表格拿满剩余空间",
       "ok": true,
-      "detail": "{\"tabs\":32,\"table\":595}"
+      "detail": "{\"tabs\":32,\"table\":631}"
     },
     {
       "layer": "UI",
@@ -856,7 +856,7 @@
       "layer": "UI",
       "name": "1100×640 @150% DPI 外层无横向溢出",
       "ok": true,
-      "detail": "{\"innerWidth\":1100,\"scrollWidth\":1100,\"innerHeight\":640,\"scrollHeight\":640,\"actionBottom\":612,\"actionRight\":1100,\"toolbarBottom\":91,\"dpr\":1.5,\"rulesVisible\":true}"
+      "detail": "{\"innerWidth\":1100,\"scrollWidth\":1100,\"innerHeight\":640,\"scrollHeight\":640,\"actionBottom\":640,\"actionRight\":1100,\"toolbarBottom\":89,\"dpr\":1.5,\"rulesVisible\":true}"
     },
     {
       "layer": "UI",
@@ -868,19 +868,19 @@
       "layer": "UI",
       "name": "1100×640 @150% DPI 操作条与工具栏未被裁切",
       "ok": true,
-      "detail": "{\"innerWidth\":1100,\"scrollWidth\":1100,\"innerHeight\":640,\"scrollHeight\":640,\"actionBottom\":612,\"actionRight\":1100,\"toolbarBottom\":91,\"dpr\":1.5,\"rulesVisible\":true}"
+      "detail": "{\"innerWidth\":1100,\"scrollWidth\":1100,\"innerHeight\":640,\"scrollHeight\":640,\"actionBottom\":640,\"actionRight\":1100,\"toolbarBottom\":89,\"dpr\":1.5,\"rulesVisible\":true}"
     },
     {
       "layer": "UI",
       "name": "1100×640 @150% DPI：八类页签不撑破页面，页签条与数据行可读",
       "ok": true,
-      "detail": "{\"innerWidth\":1100,\"scrollWidth\":1100,\"innerHeight\":640,\"tabsClient\":644,\"tabsScroll\":644,\"tabsDir\":\"row\",\"tabsWrap\":\"nowrap\",\"tabRect\":{\"x\":56,\"w\":644},\"mainW\":644,\"rulesW\":400,\"navW\":56,\"panesW\":1044,\"panesX\":56,\"rulesX\":700,\"panesKids\":[\"main:644@56\",\"rules:400@700\"],\"viewBottom\":554,\"rowHeight\":44}"
+      "detail": "{\"innerWidth\":1100,\"scrollWidth\":1100,\"innerHeight\":640,\"tabsClient\":644,\"tabsScroll\":644,\"tabsDir\":\"row\",\"tabsWrap\":\"nowrap\",\"tabRect\":{\"x\":56,\"w\":644},\"mainW\":644,\"rulesW\":400,\"navW\":56,\"panesW\":1044,\"panesX\":56,\"rulesX\":700,\"panesKids\":[\"main:644@56\",\"rules:400@700\"],\"viewBottom\":588,\"rowHeight\":44}"
     },
     {
       "layer": "UI-triggered mock",
       "name": "交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/批量元数据/事件/写文件）",
       "ok": true,
-      "detail": "startup_report,load_rule_history,env_info,plugin:event|listen,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_times,apply_time,read_attrs,meta_read,meta_capabilities,list_snapshots,file_type_icons,read_metadata_batch,apply_attrs,apply_move"
+      "detail": "load_rule_history,startup_report,env_info,plugin:event|listen,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_times,apply_time,read_attrs,meta_read,meta_capabilities,list_snapshots,file_type_icons,read_metadata_batch,apply_attrs,apply_move"
     },
     {
       "layer": "UI-triggered mock",
@@ -964,7 +964,7 @@
       "layer": "UI",
       "name": "ja-JP：界面文案确实切换到目标语言",
       "ok": true,
-      "detail": "\n    Renomio›ルールチェーン 1 件プレビューのみ☀ファイルを追加フォルダーを追加プランを読み込みプランを保"
+      "detail": "\n    Renomio☀ファイルを追加フォルダーを追加プランを読み込みプランを保存元に戻すCtrl+Z追加順に戻すCt"
     },
     {
       "layer": "UI",
@@ -982,7 +982,7 @@
       "layer": "UI",
       "name": "es-ES：界面文案确实切换到目标语言",
       "ok": true,
-      "detail": "\n    Renomio›Cadena de reglas 1Solo vista previa☀Añadir arch"
+      "detail": "\n    Renomio☀Añadir archivosAñadir carpetaImportar planGuard"
     },
     {
       "layer": "UI",
@@ -1000,7 +1000,7 @@
       "layer": "UI",
       "name": "en-US：界面文案确实切换到目标语言",
       "ok": true,
-      "detail": "\n    Renomio›Rule chain 1Preview only☀Add filesAdd folderImp"
+      "detail": "\n    Renomio☀Add filesAdd folderImport planSave planUndoCtrl"
     },
     {
       "layer": "UI",
@@ -1264,7 +1264,7 @@
       "layer": "UI",
       "name": "compact 展开 → 规则区是底部面板（不再固定 260px），高度按窗口比例伸缩",
       "ok": true,
-      "detail": "{\"expanded\":\"true\",\"ruleH\":378,\"panesH\":695,\"flexBasis\":\"auto\",\"rulesBelowMain\":true}"
+      "detail": "{\"expanded\":\"true\",\"ruleH\":378,\"panesH\":731,\"flexBasis\":\"auto\",\"rulesBelowMain\":true}"
     },
     {
       "layer": "UI",
@@ -1294,7 +1294,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmwil4f3c1\",\"jumpState\":{\"openId\":\"rmwil4f3c1\",\"detail\":1,\"focused\":\"rmwil4f3c1\"}}"
+      "detail": "{\"firstRuleId\":\"rmwum6yqe1\",\"jumpState\":{\"openId\":\"rmwum6yqe1\",\"detail\":1,\"focused\":\"rmwum6yqe1\"}}"
     },
     {
       "layer": "UI",
@@ -1360,7 +1360,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1794792523932.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795519916250.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -1426,7 +1426,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/16 09:28:503 条 · 仅映射预览还原删除"
+      "detail": "2026/11/24 19:32:013 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -1486,7 +1486,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-16 09:28 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-24 19:32 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",
@@ -1654,7 +1654,7 @@
       "layer": "UI",
       "name": "超过 200 行进入虚拟滚动后，End/Home 仍把焦点行滚进视口（不是停在已渲染窗口里）",
       "ok": true,
-      "detail": "{\"bulk\":{\"total\":304,\"virtual\":\"1\",\"rows\":22},\"afterEnd\":{\"total\":304,\"scrollTop\":12781,\"lastVisible\":true,\"focusedIdx\":\"303\"},\"afterHome\":{\"scrollTop\":0,\"firstVisible\":true}}"
+      "detail": "{\"bulk\":{\"total\":304,\"virtual\":\"1\",\"rows\":23},\"afterEnd\":{\"total\":304,\"scrollTop\":12745,\"lastVisible\":true,\"focusedIdx\":\"303\"},\"afterHome\":{\"scrollTop\":0,\"firstVisible\":true}}"
     }
   ],
   "screenshots": [

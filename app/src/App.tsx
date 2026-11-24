@@ -27,7 +27,6 @@ import { PreviewDialog } from './components/PreviewDialog';
 import { ShortcutDialog } from './components/ShortcutDialog';
 import { SnapshotDialog } from './components/SnapshotDialog';
 import { RulesPanel } from './components/RulesPanel';
-import { StatusBar } from './components/StatusBar';
 import { Toast } from './components/Toast';
 import { Toolbar } from './components/Toolbar';
 import { Titlebar } from './components/Titlebar';
@@ -430,7 +429,6 @@ export function App() {
         </div>
       </div>
       <ActionBar />
-      <StatusBar />
 
       {bootError && (
         <div className="boot-error">

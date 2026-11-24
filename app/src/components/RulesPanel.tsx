@@ -251,16 +251,9 @@ export function RulesPanel() {
           >
             <Icon name={rules.length === 0 ? 'plus' : 'chevron-right'} size={14} style={rules.length === 0 ? undefined : { transform: 'rotate(180deg)' }} />
           </button>
-          <span className="rail-label">{t('rules.title')}</span>
-          <span className="rail-count">{rules.length}</span>
-          {rules.length > 0 && (
-            <span className="rail-stat">
-              <b>{preview.counts.ready}</b>
-              <span>{t('rules.executable')}</span>
-            </span>
-          )}
+          <span className="rail-badge" title={`${t('rules.title')} ${rules.length}`}>{rules.length}</span>
           {preview.counts.conflict > 0 && (
-            <span className="rail-stat bad"><b>{preview.counts.conflict}</b><span>{t('rules.conflict')}</span></span>
+            <span className="rail-badge bad" title={t('rules.conflict')}>{preview.counts.conflict}</span>
           )}
         </div>
       </aside>
