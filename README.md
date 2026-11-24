@@ -30,12 +30,12 @@ MIT License — 见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-
 
 ## 下载与安装
 
-源码仓库已公开；**安装包与更新清单直接发布在 [yunyu697/renomio](https://github.com/yunyu697/renomio/releases)**（旧的发行仓库 `yunyu697/renomio-releases` 已于 2026-11-08 归档，仅保留历史下载）。远端最新发布仍是预发布 `v1.1.0-alpha7`（稳定版仍为 `v1.0.0`）。**仓库当前 `VERSION` 与本地构建产物为 `1.2.0-alpha2`，尚未推送、未建 Release**；滚动更新清单 `latest.json` 已按本版重写（指向 `1.2.0-alpha2` 的 NSIS 包与 `.sig`，清单里的 version / size / 文件名 / 签名四项已用 `tauri.conf.json` 内置公钥离线验过一致），上传后即可生效。下表为本地这版的两个包：
+源码仓库已公开；**安装包与更新清单直接发布在 [yunyu697/renomio](https://github.com/yunyu697/renomio/releases)**（旧的发行仓库 `yunyu697/renomio-releases` 已于 2026-11-08 归档，仅保留历史下载）。远端最新发布是预发布 `v1.2.0-alpha2`（2026-11-16 打 tag 发布；稳定版仍为 `v1.0.0`）。**仓库当前 `VERSION` 与本地构建产物为 `1.2.0-alpha3`（界面重构落地版），尚未推送、未建 Release**；滚动更新清单 `latest.json` 已按本版重写（指向 `1.2.0-alpha3` 的 NSIS 包与 `.sig`，清单里的 version / size / 文件名 / 签名四项已用 `tauri.conf.json` 内置公钥离线验过一致），上传后即可生效。下表为本地这版的两个包：
 
-| 包 | 文件 | 大小 | SHA-256（1.2.0-alpha2） |
+| 包 | 文件 | 大小 | SHA-256（1.2.0-alpha3） |
 | --- | --- | --- | --- |
-| NSIS（推荐，可选安装范围） | `Renomio_1.2.0-alpha2_x64-setup.exe` | 2,497,169 字节（2.38 MiB） | `EE53AD0CF431879D7DC324C47B627528255707BB7BF6DF1888C332BEEACF5B39` |
-| MSI（机器级单一包） | `Renomio_1.2.0-alpha2_x64_en-US.msi` | 3,686,400 字节（3.52 MiB） | `7DDE4F741948555D5C877B930F1D191B3FC5CD2BB41B330DE2269CD1C856E49F` |
+| NSIS（推荐，可选安装范围） | `Renomio_1.2.0-alpha3_x64-setup.exe` | 2,497,265 字节（2.38 MiB） | `56C48C33477917259D5B96CAE9B3F4006AC484D3003008B0BA482619F224FC67` |
+| MSI（机器级单一包） | `Renomio_1.2.0-alpha3_x64_en-US.msi` | 3,686,400 字节（3.52 MiB） | `3F4AF1F10AE8CA22C515DDFB5E3562B4DB44E9C2595389285EA247DBC1925CAC` |
 
 应用内「设置 → 检查更新」读取源码仓库滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；清单与资源地址均指向源码仓库，内置默认地址已随本版切换生效。
 
