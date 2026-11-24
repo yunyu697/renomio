@@ -25,7 +25,7 @@ export function createRuleDefaults(type: RuleType, id: string): Rule {
         id, type: 'delete', enabled: true,
         mode: 'trim', from: 1, fromEnd: false, count: 3,
         left: '[', right: ']', includeLeft: true, includeRight: true,
-        chars: '', keep: false,
+        chars: '', keep: false, trimChars: '',
       };
       return rule;
     }

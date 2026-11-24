@@ -86,6 +86,10 @@ jobs:
       - name: 扩展名智能分析自测（55 条）
         run: npm run test:ext
 
+      # 删除规则守卫：四模式语义 / 从尾部数朝向 / emoji 码点 / 空标记拦截 / 旧规则兼容
+      - name: 删除规则自测（77 条）
+        run: npm run test:del
+
       # 孤儿样式守卫：CSS 里出现但源码已不再引用的 .class 一律视为死代码，必须先删再合并
       - name: 孤儿样式选择器检查
         run: npm run test:css

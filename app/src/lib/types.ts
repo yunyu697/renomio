@@ -226,6 +226,11 @@ export interface DeleteRule extends RuleBase {
   includeRight: boolean;
   chars: string;
   keep: boolean;
+  /**
+   * 修剪模式要剪掉的字符集合（留空 = 只剪空白，含全角空格/制表符/换行）。
+   * 旧存档缺此字段时按空串处理，语义与「去首尾空格」一致。
+   */
+  trimChars?: string;
 }
 
 export interface NumberRule extends RuleBase {

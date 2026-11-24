@@ -33,6 +33,7 @@ npm run test:css       # 孤儿样式选择器检查（CSS 有、源码无 = 死
 npm run test:meta      # 元数据取名字段守卫（17 字段 / 五语种文案 / Rust 结构体一一对应）
 npm run test:move      # 移动子串守卫（按位置/按标记定位、目标前后、越界与缺标记兜底、旧规则兼容）
 npm run test:ext       # 扩展名智能分析守卫（文件头纠正/识别不出保持原名/文案/前后端接线）
+npm run test:del       # 删除规则守卫（四模式语义/从尾部数朝向/emoji 码点/空标记拦截/旧规则兼容）
 npm run test:contrast  # 对比度
 npm run test:bundle    # 打包断言（有产物才跑 14 条产物断言）
 npm run version:check  # VERSION 与 5 处清单一致
@@ -53,9 +54,9 @@ $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""                                    
 npm run tauri:build
 ```
 
-## 当前状态（2026-11-25，1.2.0-alpha9 已发布）
+## 当前状态（2026-11-25，1.2.0-alpha10 已发布）
 
-已实现并有证据：F2 方案库/最近记录、F3 SYSTEM/ARCHIVE 属性、F4 文本编码批量转换、U3 表格自动列宽 + 系统文件类型图标（逐项证据见 `docs/1.1.0-收口清单.md`）；界面重构落地——检查器改为列表下方底部抽屉、八类列表页签下线（列表为唯一主视图、右栏只留规则链）、页头「清空列表」带二次确认、侧栏收敛为「文件」一组、设置移入「更多」，结构决策见 `docs/界面重构-HIG基线.md` §11–§12；规则开关几何按尺寸变量重算并有 E2E 巡检；正则替换兼容 Delphi 方言 `\1..\9`（`\\1` 为字面，引用分组超限就地报错），见 `docs/规则语义确认清单.md` 末节与 `npm run test:regex`；命令列表（FEATURE-GAP 4.10）——规则链 + 冲突策略存成命令，「套用」只载入、「运行」必进预览确认，见 `docs/FEATURE-GAP.md`；大小写例外词表——`protect` 命中的片段在六种大小写模式下保留原写法（支持 `*`/`?`、大小写不敏感），见 `docs/规则语义确认清单.md` 末节与 `npm run test:case`。界面遗留清零（alpha6）——死样式删除 + toast 让位 + 表头/行逐列几何断言，见 `npm run test:css` 与 e2e 几何巡检；按元数据取名扩到 17 字段（alpha7）——EXIF `ISO/光圈/快门/焦距/镜头`、`像素宽/高/像素尺寸`（无 EXIF 回退图像尺寸）、音频 `年份/流派/作曲`，取值统一文件名安全化，并修掉 EXIF SHORT 值无视 TIFF 字节序的读错缺陷，见 `npm run test:meta`、`npm run test:core` 与 `docs/FEATURE-GAP.md` 3.8；移动子串补齐定位与落点（alpha8）——新增 `by=index|markers`（按标记取两标记之间的内容，留空即不设边界、标记找不到整条跳过）、`insert=before|after`（同一目标位差一位，可控落点左右），旧存档规则按 `index`/`before` 兜底、语义不变，见 `npm run test:move`、e2e 10 条断言与 `docs/FEATURE-GAP.md` 3.6；扩展名「智能分析」（alpha9）——Rust 按**文件头魔数**（前 64 字节，不解码内容）识别 20 种格式，前端扩展名规则新增 `analyze` 模式在预览时纠正错标扩展名，识别不出/头部过短/目录/演示模式一律保持原名不猜，见 `npm run test:ext`（56 条）、`npm run test:core`（含 4 条嗅探）与 `docs/FEATURE-GAP.md` 3.7。
+已实现并有证据：F2 方案库/最近记录、F3 SYSTEM/ARCHIVE 属性、F4 文本编码批量转换、U3 表格自动列宽 + 系统文件类型图标（逐项证据见 `docs/1.1.0-收口清单.md`）；界面重构落地——检查器改为列表下方底部抽屉、八类列表页签下线（列表为唯一主视图、右栏只留规则链）、页头「清空列表」带二次确认、侧栏收敛为「文件」一组、设置移入「更多」，结构决策见 `docs/界面重构-HIG基线.md` §11–§12；规则开关几何按尺寸变量重算并有 E2E 巡检；正则替换兼容 Delphi 方言 `\1..\9`（`\\1` 为字面，引用分组超限就地报错），见 `docs/规则语义确认清单.md` 末节与 `npm run test:regex`；命令列表（FEATURE-GAP 4.10）——规则链 + 冲突策略存成命令，「套用」只载入、「运行」必进预览确认，见 `docs/FEATURE-GAP.md`；大小写例外词表——`protect` 命中的片段在六种大小写模式下保留原写法（支持 `*`/`?`、大小写不敏感），见 `docs/规则语义确认清单.md` 末节与 `npm run test:case`。界面遗留清零（alpha6）——死样式删除 + toast 让位 + 表头/行逐列几何断言，见 `npm run test:css` 与 e2e 几何巡检；按元数据取名扩到 17 字段（alpha7）——EXIF `ISO/光圈/快门/焦距/镜头`、`像素宽/高/像素尺寸`（无 EXIF 回退图像尺寸）、音频 `年份/流派/作曲`，取值统一文件名安全化，并修掉 EXIF SHORT 值无视 TIFF 字节序的读错缺陷，见 `npm run test:meta`、`npm run test:core` 与 `docs/FEATURE-GAP.md` 3.8；移动子串补齐定位与落点（alpha8）——新增 `by=index|markers`（按标记取两标记之间的内容，留空即不设边界、标记找不到整条跳过）、`insert=before|after`（同一目标位差一位，可控落点左右），旧存档规则按 `index`/`before` 兜底、语义不变，见 `npm run test:move`、e2e 10 条断言与 `docs/FEATURE-GAP.md` 3.6；扩展名「智能分析」（alpha9）——Rust 按**文件头魔数**（前 64 字节，不解码内容）识别 20 种格式，前端扩展名规则新增 `analyze` 模式在预览时纠正错标扩展名，识别不出/头部过短/目录/演示模式一律保持原名不猜，见 `npm run test:ext`（56 条）、`npm run test:core`（含 4 条嗅探）与 `docs/FEATURE-GAP.md` 3.7；删除规则补齐四模式（alpha10）——「从尾部数」的起点改为从末尾逆算并朝词尾延伸（旧实现把窗口结束在倒数第 N 个，等于删到词首）、「首尾之间」改按码点换算（emoji 不再被切半个）、两个标记全空时规则卡就地报错而非静默删空整名、修剪新增自定义修剪字符集（留空仍只剪空白，旧存档语义不变），见 `npm run test:del`（77 条）、e2e 16 条断言与 `docs/FEATURE-GAP.md` 3.4。
 
 已知缺口：
 - Windows 安装包未做 Authenticode 代码签名（本机无 OV/EV 证书），SmartScreen 会警告；更新用 `.sig` 已验过。

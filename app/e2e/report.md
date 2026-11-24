@@ -1,10 +1,10 @@
 # 无头浏览器 E2E 报告
 
-- 生成时间：2026-11-24T21:23:50.544Z
+- 生成时间：2026-11-24T21:52:38.166Z
 - 运行方式：无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）
 - 浏览器：`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`
 - 视口：1440×900（默认） / 1100×640@1.5x（最小尺寸）
-- 结果：**310 通过 / 0 失败**
+- 结果：**326 通过 / 0 失败**
 - 截图目录：`app/e2e/screenshots/`（已加入 `.gitignore`，仅本机保留，不随仓库分发）
 
 ## UI 层断言（DOM / 可见性 / 截图）
@@ -30,8 +30,8 @@
 | ✅ 通过 | 应用 → 2 个完成 + 1 个冲突跳过（未改名文件不参与）（{"total":3,"done":2,"skipped":1,"failed":0}） |
 | ✅ 通过 | 冲突文件保持原名 |
 | ✅ 通过 | 撤销 → 4 个原名全部恢复（["旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg","logo.png"]） |
-| ✅ 通过 | 历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略（2026-11-25 05:21 · 更名D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤） |
-| ✅ 通过 | 历史面板：已撤销批次显示「已撤销」并说明原因（{"undoable":"0","state":"已撤销","reason":"该批次已经撤销","text":"2026-11-25 05:21 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销"}） |
+| ✅ 通过 | 历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略（2026-11-25 05:50 · 更名D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤） |
+| ✅ 通过 | 历史面板：已撤销批次显示「已撤销」并说明原因（{"undoable":"0","state":"已撤销","reason":"该批次已经撤销","text":"2026-11-25 05:50 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销"}） |
 | ✅ 通过 | 历史面板：新批次显示「可撤销」（{"undoable":"1","id":"mock-batch-2"}） |
 | ✅ 通过 | 历史面板：撤销后条目变为「已撤销」（{"undoable":"0","state":"已撤销","chip":"已撤销","reason":"该批次已经撤销"}） |
 | ✅ 通过 | 历史面板：较新批次可撤销时，「撤销到此」可用（多级撤销）（{"index":1,"undoable":"1","disabled":false}） |
@@ -198,7 +198,7 @@
 | ✅ 通过 | 冲突命中：同路径包含+排除、前缀/子目录重叠（2 条独立冲突）（{"count":2,"items":["include-exclude","path-overlap"]}） |
 | ✅ 通过 | 冲突命中：动作矛盾与正则等价合并为一条（同一对规则只出现一次）（{"count":1,"items":["regex-overlap,action-contradiction"],"badges":2,"rules":2,"modal":false}） |
 | ✅ 通过 | 冲突不阻断保存：两条规则仍在、无阻断弹窗、两条规则就地标出（{"count":1,"items":["regex-overlap,action-contradiction"],"badges":2,"rules":2,"modal":false}） |
-| ✅ 通过 | 点击冲突汇总可跳转到对应规则（展开并聚焦）（{"firstRuleId":"rmwv7b2yk1","jumpState":{"openId":"rmwv7b2yk1","detail":1,"focused":"rmwv7b2yk1"}}） |
+| ✅ 通过 | 点击冲突汇总可跳转到对应规则（展开并聚焦）（{"firstRuleId":"rmwv8bwwp1","jumpState":{"openId":"rmwv8bwwp1","detail":1,"focused":"rmwv8bwwp1"}}） |
 | ✅ 通过 | 冲突命中：后一条被遮蔽不可达（{"items":2,"hasShadow":true}） |
 | ✅ 通过 | 冲突不命中：模式不重叠且替换互不相干时不提示（{"panel":false,"items":0,"badges":0,"rules":2}） |
 | ✅ 通过 | 正则开启时替换串旁给出 \1 分组引用提示（含等价写法 $1）（With regex on, \1…\9 in the replacement is treated as a group reference (same as $1…$9); w） |
@@ -233,13 +233,29 @@
 | ✅ 通过 | 摘要改用标记描述（「旧照」与结尾 Tail 之间的内容）（Move what sits between 旧照 and end before character 1） |
 | ✅ 通过 | 标记在名字里找不到时该行保持原名并标记 unchanged（{"name":"旧照片 001.jpg","unchanged":true}） |
 | ✅ 通过 | 两个标记都留空时规则卡就地报错（不静默整串搬运）（Marker mode needs at least one marker） |
+| ✅ 通过 | 删除规则有四处分段且默认落在「修剪」：同时出现修剪字符输入与说明，按位置的输入不出现（{"options":["By position","Between markers","Character set","Trim ends"],"active":"Trim ends","trimChars":true,"trimHint":"Trims the ends only and leaves the middle alone: with no characters listed it trims whitespace (full-width spaces and tabs included), otherwise it strips the listed characters.","rangeFrom":false}） |
+| ✅ 通过 | 默认修剪不动无首尾空白的名字，摘要写明剪首尾空白（{"trimOnly":{"name":"旧照片 001.jpg","unchanged":true},"trimOnlySum":"Trim leading/trailing whitespace"}） |
+| ✅ 通过 | 按位置删除：第 1 个字符起删 2 个 → 片 001.jpg，且「从尾部数」说明默认不显示（{"rangeActive":0,"rangeFields":{"from":true,"count":true,"fromEnd":true,"hint":false},"rangeRow":{"name":"片 001.jpg","unchanged":false}}） |
+| ✅ 通过 | 摘要写明按位置删除的起点与个数（Delete 2 chars from position 1）（Delete 2 chars from position 1） |
+| ✅ 通过 | 开启「从尾部数」后出现用法说明，且倒数第 3 个起删 2 个 → lo.png（起点朝词尾延伸）（{"fromEndOn":"true","fromEndHint":"Counting from the end, the start is measured backwards from the last character: position 4 with 4 chars removes the last 4 characters.","tailRow":{"name":"lo.png","unchanged":false}}） |
+| ✅ 通过 | 从尾部数不会退回旧行为（旧窗口朝词首会给 og.png）（lo.png） |
+| ✅ 通过 | 摘要写明「从尾部数」并点明朝结尾方向（Delete 2 chars from position 3 counted from the end (towards the end)） |
+| ✅ 通过 | 倒数第 1 个起删 1 个 → log.png（只动末尾）（{"name":"log.png","unchanged":false}） |
+| ✅ 通过 | 首尾之间默认两标记都含，关掉后只删中间 → 旧片 001.jpg（{"betweenFields":{"left":true,"right":true,"includeLeft":"true","includeRight":"true","count":false},"betweenInner":{"name":"旧片 001.jpg","unchanged":false}}） |
+| ✅ 通过 | 重新勾上起始标记后连标记一起删 → 片 001.jpg（{"includeLeft":"true","row":{"name":"片 001.jpg","unchanged":false}}） |
+| ✅ 通过 | 两个标记都留空时规则卡就地报错，且不会把名字整串删空（{"delMarkerErr":"Between mode needs at least one of the two markers","delMarkerRow":{"name":"旧照片 001.jpg","unchanged":true}}） |
+| ✅ 通过 | 字符集模式有字符输入与「只保留」开关，删数字后 → 旧照片 .jpg（{"charsetReachable":true,"charsetDrop":{"name":"旧照片 .jpg","unchanged":false}}） |
+| ✅ 通过 | 打开「只保留」后 → 001.jpg（{"name":"001.jpg","unchanged":false}） |
+| ✅ 通过 | 自定义修剪字符 1：末位的 1 被剪掉 → 旧照片 00.jpg，摘要写明剪掉的字符（{"trimCharsRow":{"name":"旧照片 00.jpg","unchanged":false},"trimCharsSum":"Trim leading/trailing “1”"}） |
+| ✅ 通过 | 修剪说明改写为可自定义字符（不再是「只有空白」）（Trims the ends only and leaves the middle alone: with no characters listed it trims whitespace (full-width spaces and tabs included), otherwise it strips the listed characters.） |
+| ✅ 通过 | 清空修剪字符后回到只剪空白 → 名字不变（{"name":"旧照片 001.jpg","unchanged":true}） |
 | ✅ 通过 | 编号分组下拉同步新增字段（field:iso / field:resolution / field:composer）（{"groups":["Shooting settings","Image size","Audio tags"],"values":["none","parent","field:taken","field:camera","field:iso","field:aperture","field:shutter","field:focal","field:lens","field:width","field:height","field:resolution","field:title","field:artist","field:album","field:track","field:year","field:genre","field:composer"]}） |
 | ✅ 通过 | 命令列表首次打开为空态（提示先排规则链再保存）（empty=1） |
 | ✅ 通过 | 保存命令：列表出现该命令，带规则数、冲突策略与运行次数（{"name":"logo 大写归档","runs":"0","policy":"skip","meta":"1 rules · Skip conflicting rows · run 0 times · Never run"}） |
 | ✅ 通过 | 命令重载后仍在（写入本地存储，不是会话内存）（items=1） |
 | ✅ 通过 | 运行命令 → 关闭命令列表并进入预览确认（不动文件）（{"dialog":false,"preview":true,"rows":1,"summary":"4 items · 0 conflicts · 0 invalid · every rename uses a temp file + atomic replace; the batch journal is persisted and undoable.","sub":"","selectedForRun":4}） |
 | ✅ 通过 | 运行命令后预览列出该命令产生变化的行（{"rows":1,"selectedForRun":4,"summary":"4 items · 0 conflicts · 0 invalid · every rename uses a temp"}） |
-| ✅ 通过 | 运行后该命令记一次运行（次数 1、带上次运行时间）（{"runs":"1","meta":"1 rules · Skip conflicting rows · run 1 times · 11/25, 05:23 AM"}） |
+| ✅ 通过 | 运行后该命令记一次运行（次数 1、带上次运行时间）（{"runs":"1","meta":"1 rules · Skip conflicting rows · run 1 times · 11/25, 05:52 AM"}） |
 | ✅ 通过 | 删除命令 → 列表回到空态且本地存储同步清空（{"items":0,"empty":1,"stored":"[]"}） |
 | ✅ 通过 | 列表「下移」立即改变顺序并出现手动顺序标记（{"namesBefore":["旧照片 001.jpg","logo.png","旧照片 002.jpg","旧照片 003.jpg"],"namesAfterDown":["logo.png","旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg"],"manualChip":1}） |
 | ✅ 通过 | 手动顺序在重载后仍然保留（localStorage 会话）（{"namesAfterDown":["logo.png","旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg"],"namesReloaded":["logo.png","旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg"]}） |
@@ -249,7 +265,7 @@
 | ✅ 通过 | 同名不同路径保留两条并在界面标出重名（{"sameNameCount":2,"dupBadges":2}） |
 | ✅ 通过 | 内容相同的不同路径进入「疑似重复」分组，未静默删除（{"dupPanelBefore":1,"dupGroups":1}） |
 | ✅ 通过 | 一键去重只移除列表中的一条，磁盘文件数不变（{"countBeforeDedupe":7,"countAfterDedupe":6,"filesOnDisk":7,"filesAfterDedupe":7}） |
-| ✅ 通过 | 属性编辑：选中字段写入并回读校验通过（{"text":"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\e2e\\旅行\\旧照片 002.jpg.1795555400360.bak","ok":true,"verified":true}） |
+| ✅ 通过 | 属性编辑：选中字段写入并回读校验通过（{"text":"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\e2e\\旅行\\旧照片 002.jpg.1795557127710.bak","ok":true,"verified":true}） |
 | ✅ 通过 | 属性编辑：重新打开可见写入后的值（{"rereadTitle":"E2E 新标题"}） |
 | ✅ 通过 | 不支持格式（HEIC）明确拒绝并附文件与原因（{"unsupportedShown":1,"heicResult":{"bad":true,"text":"sample.heicHEICFailedHEIC 不支持写入：HEIC/HEIF 解码能力缺失，本版本不支持Backup：No backup"}}） |
 | ✅ 通过 | 未检查：只显示「检查更新」「打开主页」（{"phase":"idle","check":1,"action":0,"save":0,"home":1,"retry":0,"latest":0,"install":0,"size":0,"error":0}） |
@@ -260,7 +276,7 @@
 | ✅ 通过 | 之后显示已最新时仍保留「安装」按钮（{"phase":"latest","check":1,"action":0,"save":0,"home":1,"retry":0,"latest":1,"install":1,"size":0,"error":0}） |
 | ✅ 通过 | 快照：入口真实可用且哈希复选框默认关闭（false） |
 | ✅ 通过 | 快照（仅映射）→ 记录 3 条原名/新名与大小/时间，不含哈希（{"entryCount":3,"hashed":0}） |
-| ✅ 通过 | 快照列表显示「仅映射」（2026/11/25 05:23:263 条 · 仅映射预览还原删除） |
+| ✅ 通过 | 快照列表显示「仅映射」（2026/11/25 05:52:133 条 · 仅映射预览还原删除） |
 | ✅ 通过 | 快照：勾选后开启 SHA-256（true） |
 | ✅ 通过 | 快照（含哈希）→ 3 条 SHA-256 且逐条上报进度（{"id":"mock-snap-2","hashed":3}） |
 | ✅ 通过 | 快照生成 → 进度事件可取消/可观测（hash/done）（hash,done） |
@@ -270,7 +286,7 @@
 | ✅ 通过 | 还原执行 → 2 条还原、1 条跳过，批次 kind=restore 且 policy=skip（{"total":3,"done":2,"skipped":1,"failed":0}） |
 | ✅ 通过 | 还原绝不覆盖：诱饵文件保持原样，冲突条目的新名文件仍在（{"decoyIntact":12345,"afterRestoreFiles":["照片_001.jpg","旧照片 002.jpg","旧照片 003.jpg","logo.png","旧照片 001.jpg"]}） |
 | ✅ 通过 | 还原结果逐条说明跳过原因（还原结果：成功 2 条，跳过/失败 1 条批次 mock-batch-2还原已写入操作记录，可在「操作记录」里整批撤销D:\e2e\旅行\照片_002.jpg→D:\e2e\旅行\旧照片 002.jpg已还原D:\e2e\旅行\照片_003.jpg→D:\e2e\旅行\旧照片 003.jpg已还原D:\e2e\旅行\照） |
-| ✅ 通过 | 操作记录把还原标为「快照还原」且可撤销（2026-11-25 05:23 · 快照还原D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销） |
+| ✅ 通过 | 操作记录把还原标为「快照还原」且可撤销（2026-11-25 05:52 · 快照还原D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销） |
 | ✅ 通过 | 撤销还原 → 2 条回到新名（冲突条目不受影响）（["照片_001.jpg","照片_002.jpg","照片_003.jpg","logo.png","旧照片 001.jpg"]） |
 | ✅ 通过 | 删除快照 → 列表与后端同步只剩 1 条（1） |
 | ✅ 通过 | 勾选一张图片后 EXIF 入口在检查器里可用（作用于勾选文件）（1 / 作用于 1 个文件） |
@@ -397,6 +413,7 @@
 - 26-move-position.png
 - 27-move-markers.png
 - 27-snapshot-created.png
+- 28-delete-modes.png
 - 28-ext-analyze.png
 - 28-snapshot-preview-before.png
 - 29-snapshot-preview.png

@@ -94,6 +94,8 @@ export function ruleError(rule: Rule): string | null {
     case 'delete':
       if (rule.mode === 'range' && (rule.from < 1 || rule.count < 1)) return t('ruleErr.rangePositive');
       if (rule.mode === 'charset' && rule.chars === '') return t('ruleErr.emptyCharset');
+      // 两个标记都空会命中「整串」，属于误配置：就地报错，不静默把名字删空
+      if (rule.mode === 'between' && !rule.left && !rule.right) return t('ruleErr.delMarkerRequired');
       return null;
     case 'number':
       if (!rule.expression.includes('<#>')) return t('ruleErr.needPlaceholder');
@@ -226,9 +228,28 @@ function applyReplace(stem: string, rule: ReplaceRule, vars: VarContext): string
   });
 }
 
+/**
+ * 删除规则：从名字里剪掉一段内容。
+ * - range：窗口 = 起点 + 个数。`fromEnd` 表示起点从**尾部**数（from=1 即最后一个字符），
+ *   个数始终朝**结尾方向**延伸，超出即截止到词尾——与「起始位置」标签一致，也与移动规则同口径。
+ * - between：剪掉 left 与 right 之间的内容；空标记=该侧不设边界。**两个标记都空时不算合法配置**
+ *   （由 `ruleError` 拦截），避免静默把整个名字删空。
+ * - charset：符集逐字符过滤；`keep` 为真时只保留集合内字符。
+ * - trim：剪掉首尾内容，默认只剪空白，可指定自定义字符集合。
+ * 所有位置都按**码点**计（emoji 算 1 个字符），标记查找也从码点换算，避免代理对被切成半个。
+ */
 function applyDelete(stem: string, rule: DeleteRule): string {
   const chars = toChars(stem);
-  if (rule.mode === 'trim') return stem.trim();
+  if (rule.mode === 'trim') {
+    const trimChars = rule.trimChars ?? '';
+    if (!trimChars) return stem.trim();
+    const set = new Set(toChars(trimChars));
+    let start = 0;
+    let end = chars.length;
+    while (start < end && set.has(chars[start])) start += 1;
+    while (end > start && set.has(chars[end - 1])) end -= 1;
+    return fromChars(chars.slice(start, end));
+  }
   if (rule.mode === 'charset') {
     const set = new Set(toChars(rule.chars));
     return fromChars(chars.filter((c) => (rule.keep ? set.has(c) : !set.has(c))));
@@ -240,18 +261,22 @@ function applyDelete(stem: string, rule: DeleteRule): string {
     if (left) {
       const at = stem.indexOf(left);
       if (at < 0) return stem;
-      start = at + (rule.includeLeft ? 0 : left.length);
+      // indexOf 给的是 UTF-16 码元下标，切片按码点，必须先换算
+      const head = toChars(stem.slice(0, at)).length;
+      start = head + (rule.includeLeft ? 0 : toChars(left).length);
     }
     let end = chars.length;
     if (right) {
-      const at = stem.indexOf(right, start);
+      const at = stem.indexOf(right, left ? stem.indexOf(left) + left.length : 0);
       if (at < 0) return stem;
-      end = at + (rule.includeRight ? right.length : 0);
+      const head = toChars(stem.slice(0, at)).length;
+      end = head + (rule.includeRight ? toChars(right).length : 0);
     }
     if (start >= end) return stem;
     return fromChars([...chars.slice(0, start), ...chars.slice(end)]);
   }
-  let start = rule.fromEnd ? chars.length - (rule.from + rule.count - 1) : rule.from - 1;
+  // range：起点从尾部数时与「起始位置」标签同义（from=1 指最后一个字符），个数朝结尾延伸
+  let start = rule.fromEnd ? chars.length - rule.from : rule.from - 1;
   start = clamp(start, 0, chars.length);
   const end = clamp(start + rule.count, 0, chars.length);
   return fromChars([...chars.slice(0, start), ...chars.slice(end)]);
@@ -638,6 +663,11 @@ export function normalizeRule(rule: Rule): Rule {
       insert: legacy.insert === 'after' ? 'after' : 'before',
     };
   }
+  if (rule.type === 'delete') {
+    // trimChars 是本轮新增字段：旧存档缺省为空串，等价于「只剪空白」，行为不变
+    const legacy = rule as DeleteRule & { trimChars?: string };
+    return { ...legacy, trimChars: typeof legacy.trimChars === 'string' ? legacy.trimChars : '' };
+  }
   if (rule.type !== 'number') return rule;
   const legacy = rule as NumberRule & { perFolder?: boolean };
   const raw = typeof legacy.groupBy === 'string' && legacy.groupBy
@@ -678,12 +708,16 @@ export function ruleSummary(rule: Rule): string {
         case: rule.caseSensitive ? t('ruleSum.case') : '',
       });
     case 'delete':
-      if (rule.mode === 'trim') return t('ruleSum.trim');
+      if (rule.mode === 'trim') {
+        return rule.trimChars ? t('ruleSum.trimChars', { chars: rule.trimChars }) : t('ruleSum.trim');
+      }
       if (rule.mode === 'between') return t('ruleSum.between', { left: rule.left, right: rule.right });
       if (rule.mode === 'charset') {
         return t(rule.keep ? 'ruleSum.charsetKeep' : 'ruleSum.charsetDrop', { chars: rule.chars });
       }
-      return t('ruleSum.range', { from: rule.from, count: rule.count, reverse: rule.fromEnd ? t('ruleSum.reverse') : '' });
+      return t(rule.fromEnd ? 'ruleSum.rangeEnd' : 'ruleSum.range', {
+        from: rule.from, count: rule.count, reverse: rule.fromEnd ? t('ruleSum.reverse') : '',
+      });
     case 'number': {
       const group = rule.groupBy === 'parent'
         ? t('ruleSum.perFolder')

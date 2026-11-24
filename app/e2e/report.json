@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-24T21:23:50.544Z",
+  "generatedAt": "2026-11-24T21:52:38.166Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
-  "passed": 310,
+  "passed": 326,
   "failed": 0,
   "results": [
     {
@@ -160,13 +160,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-25 05:21 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-25 05:50 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-25 05:21 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-25 05:50 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -1258,7 +1258,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmwv7b2yk1\",\"jumpState\":{\"openId\":\"rmwv7b2yk1\",\"detail\":1,\"focused\":\"rmwv7b2yk1\"}}"
+      "detail": "{\"firstRuleId\":\"rmwv8bwwp1\",\"jumpState\":{\"openId\":\"rmwv8bwwp1\",\"detail\":1,\"focused\":\"rmwv8bwwp1\"}}"
     },
     {
       "layer": "UI",
@@ -1472,6 +1472,102 @@
     },
     {
       "layer": "UI",
+      "name": "删除规则有四处分段且默认落在「修剪」：同时出现修剪字符输入与说明，按位置的输入不出现",
+      "ok": true,
+      "detail": "{\"options\":[\"By position\",\"Between markers\",\"Character set\",\"Trim ends\"],\"active\":\"Trim ends\",\"trimChars\":true,\"trimHint\":\"Trims the ends only and leaves the middle alone: with no characters listed it trims whitespace (full-width spaces and tabs included), otherwise it strips the listed characters.\",\"rangeFrom\":false}"
+    },
+    {
+      "layer": "UI",
+      "name": "默认修剪不动无首尾空白的名字，摘要写明剪首尾空白",
+      "ok": true,
+      "detail": "{\"trimOnly\":{\"name\":\"旧照片 001.jpg\",\"unchanged\":true},\"trimOnlySum\":\"Trim leading/trailing whitespace\"}"
+    },
+    {
+      "layer": "UI",
+      "name": "按位置删除：第 1 个字符起删 2 个 → 片 001.jpg，且「从尾部数」说明默认不显示",
+      "ok": true,
+      "detail": "{\"rangeActive\":0,\"rangeFields\":{\"from\":true,\"count\":true,\"fromEnd\":true,\"hint\":false},\"rangeRow\":{\"name\":\"片 001.jpg\",\"unchanged\":false}}"
+    },
+    {
+      "layer": "UI",
+      "name": "摘要写明按位置删除的起点与个数（Delete 2 chars from position 1）",
+      "ok": true,
+      "detail": "Delete 2 chars from position 1"
+    },
+    {
+      "layer": "UI",
+      "name": "开启「从尾部数」后出现用法说明，且倒数第 3 个起删 2 个 → lo.png（起点朝词尾延伸）",
+      "ok": true,
+      "detail": "{\"fromEndOn\":\"true\",\"fromEndHint\":\"Counting from the end, the start is measured backwards from the last character: position 4 with 4 chars removes the last 4 characters.\",\"tailRow\":{\"name\":\"lo.png\",\"unchanged\":false}}"
+    },
+    {
+      "layer": "UI",
+      "name": "从尾部数不会退回旧行为（旧窗口朝词首会给 og.png）",
+      "ok": true,
+      "detail": "lo.png"
+    },
+    {
+      "layer": "UI",
+      "name": "摘要写明「从尾部数」并点明朝结尾方向",
+      "ok": true,
+      "detail": "Delete 2 chars from position 3 counted from the end (towards the end)"
+    },
+    {
+      "layer": "UI",
+      "name": "倒数第 1 个起删 1 个 → log.png（只动末尾）",
+      "ok": true,
+      "detail": "{\"name\":\"log.png\",\"unchanged\":false}"
+    },
+    {
+      "layer": "UI",
+      "name": "首尾之间默认两标记都含，关掉后只删中间 → 旧片 001.jpg",
+      "ok": true,
+      "detail": "{\"betweenFields\":{\"left\":true,\"right\":true,\"includeLeft\":\"true\",\"includeRight\":\"true\",\"count\":false},\"betweenInner\":{\"name\":\"旧片 001.jpg\",\"unchanged\":false}}"
+    },
+    {
+      "layer": "UI",
+      "name": "重新勾上起始标记后连标记一起删 → 片 001.jpg",
+      "ok": true,
+      "detail": "{\"includeLeft\":\"true\",\"row\":{\"name\":\"片 001.jpg\",\"unchanged\":false}}"
+    },
+    {
+      "layer": "UI",
+      "name": "两个标记都留空时规则卡就地报错，且不会把名字整串删空",
+      "ok": true,
+      "detail": "{\"delMarkerErr\":\"Between mode needs at least one of the two markers\",\"delMarkerRow\":{\"name\":\"旧照片 001.jpg\",\"unchanged\":true}}"
+    },
+    {
+      "layer": "UI",
+      "name": "字符集模式有字符输入与「只保留」开关，删数字后 → 旧照片 .jpg",
+      "ok": true,
+      "detail": "{\"charsetReachable\":true,\"charsetDrop\":{\"name\":\"旧照片 .jpg\",\"unchanged\":false}}"
+    },
+    {
+      "layer": "UI",
+      "name": "打开「只保留」后 → 001.jpg",
+      "ok": true,
+      "detail": "{\"name\":\"001.jpg\",\"unchanged\":false}"
+    },
+    {
+      "layer": "UI",
+      "name": "自定义修剪字符 1：末位的 1 被剪掉 → 旧照片 00.jpg，摘要写明剪掉的字符",
+      "ok": true,
+      "detail": "{\"trimCharsRow\":{\"name\":\"旧照片 00.jpg\",\"unchanged\":false},\"trimCharsSum\":\"Trim leading/trailing “1”\"}"
+    },
+    {
+      "layer": "UI",
+      "name": "修剪说明改写为可自定义字符（不再是「只有空白」）",
+      "ok": true,
+      "detail": "Trims the ends only and leaves the middle alone: with no characters listed it trims whitespace (full-width spaces and tabs included), otherwise it strips the listed characters."
+    },
+    {
+      "layer": "UI",
+      "name": "清空修剪字符后回到只剪空白 → 名字不变",
+      "ok": true,
+      "detail": "{\"name\":\"旧照片 001.jpg\",\"unchanged\":true}"
+    },
+    {
+      "layer": "UI",
       "name": "编号分组下拉同步新增字段（field:iso / field:resolution / field:composer）",
       "ok": true,
       "detail": "{\"groups\":[\"Shooting settings\",\"Image size\",\"Audio tags\"],\"values\":[\"none\",\"parent\",\"field:taken\",\"field:camera\",\"field:iso\",\"field:aperture\",\"field:shutter\",\"field:focal\",\"field:lens\",\"field:width\",\"field:height\",\"field:resolution\",\"field:title\",\"field:artist\",\"field:album\",\"field:track\",\"field:year\",\"field:genre\",\"field:composer\"]}"
@@ -1510,7 +1606,7 @@
       "layer": "UI",
       "name": "运行后该命令记一次运行（次数 1、带上次运行时间）",
       "ok": true,
-      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/25, 05:23 AM\"}"
+      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/25, 05:52 AM\"}"
     },
     {
       "layer": "UI",
@@ -1570,7 +1666,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795555400360.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795557127710.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -1636,7 +1732,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/25 05:23:263 条 · 仅映射预览还原删除"
+      "detail": "2026/11/25 05:52:133 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -1696,7 +1792,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-25 05:23 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-25 05:52 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",
@@ -1912,6 +2008,7 @@
     "26-move-position.png",
     "27-move-markers.png",
     "27-snapshot-created.png",
+    "28-delete-modes.png",
     "28-ext-analyze.png",
     "28-snapshot-preview-before.png",
     "29-snapshot-preview.png",

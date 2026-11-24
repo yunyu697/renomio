@@ -19,9 +19,9 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Toggle({ on, label, onChange }: { on: boolean; label: string; onChange: (v: boolean) => void }) {
+function Toggle({ on, label, onChange, testId }: { on: boolean; label: string; onChange: (v: boolean) => void; testId?: string }) {
   return (
-    <span className="switch-row" style={{ cursor: 'pointer' }} onClick={() => onChange(!on)}>
+    <span className="switch-row" data-testid={testId} style={{ cursor: 'pointer' }} onClick={() => onChange(!on)}>
       <span className={`switch ${on ? 'on' : ''}`} role="switch" aria-checked={on} />
       <span className="lbl">{label}</span>
     </span>
@@ -413,6 +413,7 @@ function DeleteEditor({ rule, patch }: { rule: DeleteRule; patch: Patch }) {
     <>
       <Field label={t('f.mode')}>
         <Seg
+          testId="delete-mode"
           value={rule.mode}
           options={[['range', t('o.range')], ['between', t('o.between')], ['charset', t('o.charset')], ['trim', t('o.trim')]]}
           onChange={(mode) => patch({ mode })}
@@ -421,42 +422,57 @@ function DeleteEditor({ rule, patch }: { rule: DeleteRule; patch: Patch }) {
       {rule.mode === 'range' && (
         <div className="field-row">
           <Field label={t('f.startPos')}>
-            <NumberInput value={rule.from} min={1} onChange={(from) => patch({ from })} />
+            <NumberInput testId="delete-from" value={rule.from} min={1} onChange={(from) => patch({ from })} />
           </Field>
           <Field label={t('f.deleteCount')}>
-            <NumberInput value={rule.count} min={1} onChange={(count) => patch({ count })} />
+            <NumberInput testId="delete-count" value={rule.count} min={1} onChange={(count) => patch({ count })} />
           </Field>
           <div style={{ paddingTop: 16 }}>
-            <Toggle on={rule.fromEnd} label={t('f.fromEnd')} onChange={(fromEnd) => patch({ fromEnd })} />
+            <Toggle testId="delete-from-end" on={rule.fromEnd} label={t('f.fromEnd')} onChange={(fromEnd) => patch({ fromEnd })} />
           </div>
         </div>
+      )}
+      {rule.mode === 'range' && rule.fromEnd && (
+        <div className="hint-line" data-testid="delete-from-end-hint">{t('f.fromEndHint')}</div>
       )}
       {rule.mode === 'between' && (
         <>
           <div className="field-row">
             <Field label={t('f.startMarker')}>
-              <TextInput value={rule.left} mono onChange={(left) => patch({ left })} placeholder={t('ph.left')} historyKey="delete.left" />
+              <TextInput testId="delete-left" value={rule.left} mono onChange={(left) => patch({ left })} placeholder={t('ph.left')} historyKey="delete.left" />
             </Field>
             <Field label={t('f.endMarker')}>
-              <TextInput value={rule.right} mono onChange={(right) => patch({ right })} placeholder={t('ph.right')} historyKey="delete.right" />
+              <TextInput testId="delete-right" value={rule.right} mono onChange={(right) => patch({ right })} placeholder={t('ph.right')} historyKey="delete.right" />
             </Field>
           </div>
           <div className="field-row">
-            <Toggle on={rule.includeLeft} label={t('f.includeStart')} onChange={(includeLeft) => patch({ includeLeft })} />
-            <Toggle on={rule.includeRight} label={t('f.includeEnd')} onChange={(includeRight) => patch({ includeRight })} />
+            <Toggle testId="delete-include-left" on={rule.includeLeft} label={t('f.includeStart')} onChange={(includeLeft) => patch({ includeLeft })} />
+            <Toggle testId="delete-include-right" on={rule.includeRight} label={t('f.includeEnd')} onChange={(includeRight) => patch({ includeRight })} />
           </div>
         </>
       )}
       {rule.mode === 'charset' && (
         <>
           <Field label={t('f.charset')}>
-            <TextInput value={rule.chars} mono onChange={(chars) => patch({ chars })} placeholder={t('ph.charset')} historyKey="delete.chars" />
+            <TextInput testId="delete-chars" value={rule.chars} mono onChange={(chars) => patch({ chars })} placeholder={t('ph.charset')} historyKey="delete.chars" />
           </Field>
-          <Toggle on={rule.keep} label={t('f.keepOnly')} onChange={(keep) => patch({ keep })} />
+          <Toggle testId="delete-keep" on={rule.keep} label={t('f.keepOnly')} onChange={(keep) => patch({ keep })} />
         </>
       )}
       {rule.mode === 'trim' && (
-        <div className="hint-line">{t('f.trimHint')}</div>
+        <>
+          <Field label={t('f.trimChars')}>
+            <TextInput
+              testId="delete-trim-chars"
+              value={rule.trimChars ?? ''}
+              mono
+              onChange={(trimChars) => patch({ trimChars })}
+              placeholder={t('ph.trimChars')}
+              historyKey="delete.trimChars"
+            />
+          </Field>
+          <div className="hint-line" data-testid="delete-trim-hint">{t('f.trimHint')}</div>
+        </>
       )}
     </>
   );

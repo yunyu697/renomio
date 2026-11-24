@@ -3385,6 +3385,196 @@ async function main() {
     await shot('27-move-markers.png');
     await clearAllRules();
 
+    // ---- 删除规则：四模式语义（按位置 / 首尾之间 / 字符集 / 修剪）+ 从尾部数朝向 + 空标记拦截 ----
+    await addRuleType('delete');
+    const delSum = () => evaluate(`document.querySelector('.rule-card.open .sum span')?.textContent?.trim() || ''`);
+    const delUi = await evaluate(`(() => {
+      const seg = document.querySelector('[data-testid="delete-mode"]');
+      return {
+        options: seg ? [...seg.querySelectorAll('span')].map((s) => s.textContent.trim()) : null,
+        active: seg ? [...seg.querySelectorAll('span')].find((s) => s.classList.contains('on'))?.textContent.trim() : null,
+        trimChars: Boolean(document.querySelector('[data-testid="delete-trim-chars"]')),
+        trimHint: document.querySelector('[data-testid="delete-trim-hint"]')?.textContent?.trim() || '',
+        rangeFrom: Boolean(document.querySelector('[data-testid="delete-from"]')),
+      };
+    })()`);
+    check(
+      'UI',
+      '删除规则有四处分段且默认落在「修剪」：同时出现修剪字符输入与说明，按位置的输入不出现',
+      delUi?.options?.length === 4
+        && delUi.active === delUi.options?.[3]
+        && delUi.trimChars === true
+        && delUi.trimHint.length > 0
+        && delUi.rangeFrom === false,
+      JSON.stringify(delUi),
+    );
+
+    // 默认修剪：夹具名首尾没有空白，应整批 unchanged，摘要写明剪空白
+    const trimOnly = await evaluate(rowByName('旧照片 001.jpg'));
+    const trimOnlySum = await delSum();
+    check(
+      'UI',
+      '默认修剪不动无首尾空白的名字，摘要写明剪首尾空白',
+      trimOnly?.unchanged === true && /whitespace/i.test(trimOnlySum),
+      JSON.stringify({ trimOnly, trimOnlySum }),
+    );
+
+    // 按位置：第 1 个起删 2 个 → 旧照片 001 → 片 001
+    await clickSeg('delete-mode', 0);
+    await sleep(250);
+    const rangeActive = await segActive('delete-mode');
+    const rangeFields = await evaluate(`({
+      from: Boolean(document.querySelector('[data-testid="delete-from"]')),
+      count: Boolean(document.querySelector('[data-testid="delete-count"]')),
+      fromEnd: Boolean(document.querySelector('[data-testid="delete-from-end"]')),
+      hint: Boolean(document.querySelector('[data-testid="delete-from-end-hint"]')),
+    })`);
+    await setInput('[data-testid="delete-from"]', '1');
+    await setInput('[data-testid="delete-count"]', '2');
+    await sleep(700);
+    const rangeRow = await evaluate(rowByName('旧照片 001.jpg'));
+    check(
+      'UI',
+      '按位置删除：第 1 个字符起删 2 个 → 片 001.jpg，且「从尾部数」说明默认不显示',
+      rangeActive === 0
+        && rangeFields.from && rangeFields.count && rangeFields.fromEnd && rangeFields.hint === false
+        && rangeRow?.name === '片 001.jpg',
+      JSON.stringify({ rangeActive, rangeFields, rangeRow }),
+    );
+    const rangeSum = await delSum();
+    check(
+      'UI',
+      '摘要写明按位置删除的起点与个数（Delete 2 chars from position 1）',
+      /Delete 2 chars/i.test(rangeSum) && /position 1/i.test(rangeSum),
+      rangeSum,
+    );
+
+    // 从尾部数：起点朝词尾。logo.png 倒数第 3 个起删 2 个 → lo.png（旧行为会给 og.png）
+    await evaluate(`document.querySelector('[data-testid="delete-from-end"]').click()`);
+    await sleep(300);
+    const fromEndOn = await evaluate(`document.querySelector('[data-testid="delete-from-end"] .switch')?.getAttribute('aria-checked')`);
+    const fromEndHint = await evaluate(`document.querySelector('[data-testid="delete-from-end-hint"]')?.textContent?.trim() || ''`);
+    await setInput('[data-testid="delete-from"]', '3');
+    await sleep(700);
+    const tailRow = await evaluate(rowByName('logo.png'));
+    check(
+      'UI',
+      '开启「从尾部数」后出现用法说明，且倒数第 3 个起删 2 个 → lo.png（起点朝词尾延伸）',
+      fromEndOn === 'true' && fromEndHint.length > 0 && tailRow?.name === 'lo.png',
+      JSON.stringify({ fromEndOn, fromEndHint, tailRow }),
+    );
+    check('UI', '从尾部数不会退回旧行为（旧窗口朝词首会给 og.png）', tailRow?.name !== 'og.png', String(tailRow?.name));
+    const tailSum = await delSum();
+    check(
+      'UI',
+      '摘要写明「从尾部数」并点明朝结尾方向',
+      /counted from the end/i.test(tailSum) && /towards the end/i.test(tailSum),
+      tailSum,
+    );
+
+    // 起点改回倒数第 1 个、个数 1：只删末尾那一个字符
+    await setInput('[data-testid="delete-from"]', '1');
+    await setInput('[data-testid="delete-count"]', '1');
+    await sleep(700);
+    const tailOne = await evaluate(rowByName('logo.png'));
+    check('UI', '倒数第 1 个起删 1 个 → log.png（只动末尾）', tailOne?.name === 'log.png', JSON.stringify(tailOne));
+
+    // 首尾之间：两个标记默认都含，全部关掉后只删中间
+    await clickSeg('delete-mode', 1);
+    await sleep(250);
+    const betweenFields = await evaluate(`({
+      left: Boolean(document.querySelector('[data-testid="delete-left"]')),
+      right: Boolean(document.querySelector('[data-testid="delete-right"]')),
+      includeLeft: document.querySelector('[data-testid="delete-include-left"] .switch')?.getAttribute('aria-checked'),
+      includeRight: document.querySelector('[data-testid="delete-include-right"] .switch')?.getAttribute('aria-checked'),
+      count: Boolean(document.querySelector('[data-testid="delete-count"]')),
+    })`);
+    await setInput('[data-testid="delete-left"]', '旧');
+    await setInput('[data-testid="delete-right"]', '片');
+    await evaluate(`document.querySelector('[data-testid="delete-include-left"]').click()`);
+    await evaluate(`document.querySelector('[data-testid="delete-include-right"]').click()`);
+    await sleep(700);
+    const betweenInner = await evaluate(rowByName('旧照片 001.jpg'));
+    check(
+      'UI',
+      '首尾之间默认两标记都含，关掉后只删中间 → 旧片 001.jpg',
+      betweenFields.left && betweenFields.right && betweenFields.count === false
+        && betweenFields.includeLeft === 'true' && betweenFields.includeRight === 'true'
+        && betweenInner?.name === '旧片 001.jpg',
+      JSON.stringify({ betweenFields, betweenInner }),
+    );
+
+    await evaluate(`document.querySelector('[data-testid="delete-include-left"]').click()`);
+    await sleep(700);
+    const betweenWithLeft = await evaluate(`({
+      includeLeft: document.querySelector('[data-testid="delete-include-left"] .switch')?.getAttribute('aria-checked'),
+      row: ${rowByName('旧照片 001.jpg')},
+    })`);
+    check(
+      'UI',
+      '重新勾上起始标记后连标记一起删 → 片 001.jpg',
+      betweenWithLeft?.includeLeft === 'true' && betweenWithLeft?.row?.name === '片 001.jpg',
+      JSON.stringify(betweenWithLeft),
+    );
+
+    // 两个标记都清空必须就地报错，而不是把整串删掉
+    await setInput('[data-testid="delete-left"]', '');
+    await setInput('[data-testid="delete-right"]', '');
+    await sleep(700);
+    const delMarkerErr = await evaluate(`document.querySelector('.rule-error')?.textContent?.trim() || ''`);
+    const delMarkerRow = await evaluate(rowByName('旧照片 001.jpg'));
+    check(
+      'UI',
+      '两个标记都留空时规则卡就地报错，且不会把名字整串删空',
+      /at least one|至少要填/i.test(delMarkerErr) && delMarkerRow?.name === '旧照片 001.jpg',
+      JSON.stringify({ delMarkerErr, delMarkerRow }),
+    );
+    await shot('28-delete-modes.png');
+
+    // 字符集：删数字 / 只留数字
+    await clickSeg('delete-mode', 2);
+    await sleep(250);
+    const charsetReachable = await evaluate(`Boolean(document.querySelector('[data-testid="delete-chars"]')) && Boolean(document.querySelector('[data-testid="delete-keep"]'))`);
+    await setInput('[data-testid="delete-chars"]', '0123456789');
+    await sleep(700);
+    const charsetDrop = await evaluate(rowByName('旧照片 001.jpg'));
+    check(
+      'UI',
+      '字符集模式有字符输入与「只保留」开关，删数字后 → 旧照片 .jpg',
+      charsetReachable && charsetDrop?.name === '旧照片 .jpg',
+      JSON.stringify({ charsetReachable, charsetDrop }),
+    );
+    await evaluate(`document.querySelector('[data-testid="delete-keep"]').click()`);
+    await sleep(700);
+    const charsetKeep = await evaluate(rowByName('旧照片 001.jpg'));
+    check('UI', '打开「只保留」后 → 001.jpg', charsetKeep?.name === '001.jpg', JSON.stringify(charsetKeep));
+
+    // 修剪：自定义修剪字符，只剪首尾、不动中间
+    await clickSeg('delete-mode', 3);
+    await sleep(250);
+    await setInput('[data-testid="delete-trim-chars"]', '1');
+    await sleep(700);
+    const trimCharsRow = await evaluate(rowByName('旧照片 001.jpg'));
+    const trimCharsSum = await delSum();
+    const trimCharsHint = await evaluate(`document.querySelector('[data-testid="delete-trim-hint"]')?.textContent?.trim() || ''`);
+    check(
+      'UI',
+      '自定义修剪字符 1：末位的 1 被剪掉 → 旧照片 00.jpg，摘要写明剪掉的字符',
+      trimCharsRow?.name === '旧照片 00.jpg' && trimCharsSum.includes('1'),
+      JSON.stringify({ trimCharsRow, trimCharsSum }),
+    );
+    check(
+      'UI',
+      '修剪说明改写为可自定义字符（不再是「只有空白」）',
+      /character|字符|char/i.test(trimCharsHint) && trimCharsHint.length > 0,
+      trimCharsHint,
+    );
+    await setInput('[data-testid="delete-trim-chars"]', '');
+    await sleep(700);
+    const trimBack = await evaluate(rowByName('旧照片 001.jpg'));
+    check('UI', '清空修剪字符后回到只剪空白 → 名字不变', trimBack?.unchanged === true, JSON.stringify(trimBack));
+    await clearAllRules();
+
     // 编号分组下拉与「按元数据取名」共用同一张字段表
     await addRuleType('number');
     const groupOpts = await evaluate(`(() => {
