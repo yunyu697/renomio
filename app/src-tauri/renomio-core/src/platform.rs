@@ -349,6 +349,91 @@ pub fn canonical_display(path: &Path) -> String {
     path.to_string_lossy().to_string()
 }
 
+/// 一个属性的跨平台三态：可写 / 只有只读位可写 / 完全不支持。
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AttrSupport {
+    /// 读写（Windows 的隐藏/系统/存档位）
+    ReadWrite,
+    /// 只有「只读」位可写（UNIX 权限位里的 owner/group/other 写位）
+    ReadonlyOnly,
+}
+
+/// 平台能力快照：**跨平台差异的单一事实来源**。
+///
+/// 界面要不要显示「Linux 上创建时间不可写」「隐藏属性仅 Windows」这类提示，
+/// 都从这一份报告取，而不是各处 `cfg!` 各写一份文案。
+/// `examples/platform_probe.rs` 把它打成 JSON，CI 在三个真实 OS 上逐一断言，
+/// 因此这里的每个字段都有实机证据（FEATURE-GAP 6.11）。
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PlatformReport {
+    /// 编译目标 OS：windows / macos / linux
+    pub os: &'static str,
+    /// 路径分隔符
+    pub separator: char,
+    /// 大小写敏感性默认值（实际运行时会用 `probe_case_sensitivity` 探测）
+    pub case_sensitive_default: bool,
+    /// 长路径前缀是否自动加（Windows `\\?\`）
+    pub long_path_prefix: bool,
+    /// 全路径琥珀色警告阈值
+    pub path_warn_threshold: usize,
+    /// 全路径硬上限
+    pub path_hard_limit: usize,
+    /// 单段名称上限（三平台都是 255 字符，按 UTF-16 计）
+    pub component_limit: usize,
+    /// btime 三态
+    pub btime: BtimeSupport,
+    /// btime 不可写时的原因（可写时为 null）
+    pub btime_skip_reason: Option<&'static str>,
+    /// 只读位：三平台都支持
+    pub readonly_attr: AttrSupport,
+    /// 隐藏 / 系统 / 存档位：仅 Windows
+    pub windows_only_attrs: bool,
+    /// 不支持时给出的原因（支持时为 null）——必须与界面提示同源
+    pub windows_only_attrs_reason: Option<&'static str>,
+    /// 每平台一句人话，供文档/诊断输出
+    pub summary: &'static str,
+}
+
+impl Platform {
+    pub fn report(self) -> PlatformReport {
+        let btime = btime_support();
+        let windows = self == Platform::Windows;
+        PlatformReport {
+            os: self.as_str(),
+            separator: self.separator(),
+            case_sensitive_default: self.default_case_sensitive(),
+            long_path_prefix: windows,
+            path_warn_threshold: self.path_warn_threshold(),
+            path_hard_limit: self.path_hard_limit(),
+            component_limit: self.component_limit(),
+            btime,
+            btime_skip_reason: btime.skip_reason(),
+            readonly_attr: if windows {
+                AttrSupport::ReadWrite
+            } else {
+                AttrSupport::ReadonlyOnly
+            },
+            windows_only_attrs: windows,
+            windows_only_attrs_reason: if windows {
+                None
+            } else {
+                Some("当前平台不支持隐藏/系统/存档属性（仅 Windows）")
+            },
+            summary: match self {
+                Platform::Windows => "Windows：NTFS 可写 btime，隐藏/系统/存档位可用，长路径自动加 \\\\?\\ 前缀",
+                Platform::MacOs => "macOS：btime 不写回（按不支持处理），只有只读位可写，路径上限 1024",
+                Platform::Linux => "Linux：statx 可读 btime 但无 syscall 可写回（只读），只有只读位可写，路径上限 4096",
+            },
+        }
+    }
+}
+
+/// 当前进程所在平台的能力快照。
+pub fn report() -> PlatformReport {
+    Platform::current().report()
+}
+
 pub fn is_readonly(meta: &std::fs::Metadata) -> bool {
     #[cfg(unix)]
     {

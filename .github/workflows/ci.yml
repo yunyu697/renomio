@@ -181,6 +181,45 @@ jobs:
         working-directory: app
         run: node scripts/test-iptc.mjs --require-real
 
+  # 跨平台能力契约（FEATURE-GAP 6.11）：在三个真实 OS 上跑同一套 core 测试与平台契约，
+  # 让「代码层跨平台」从推断变成有实机证据。矩阵失败不互相取消，便于一次看清哪个平台不对。
+  cross-os:
+    name: cross-os (core + 平台契约，${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            app/src-tauri/renomio-core -> target
+
+      # 平台契约：平台识别 / 分隔符 / 大小写默认 / 路径阈值 / btime 三态 /
+      # 「隐藏·系统·存档仅 Windows」边界 / Windows 名称规则与宿主无关 / 只读位往返
+      - name: 平台契约测试（platform_contract，11 条）
+        run: cargo test --manifest-path src-tauri/renomio-core/Cargo.toml --test platform_contract
+
+      # 同一份 core 套件在三平台跑：既有 cfg 门（windows / not(windows)）就是在这里被真正执行到的
+      - name: renomio-core 全量测试（含 ops / real_fs / snapshot / ui_path）
+        run: cargo test --manifest-path src-tauri/renomio-core/Cargo.toml
+
+      # 探针输出当前 OS 的能力快照，合同字段逐项比对；缺 cargo 直接失败而不是跳过
+      - name: 平台能力探针与守卫
+        run: node scripts/test-platform.mjs --require-probe
+
   bundle-checks:
     name: bundle-checks (windows / 14 条产物断言 + 13 条离线断言)
     runs-on: windows-latest

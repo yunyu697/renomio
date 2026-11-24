@@ -135,11 +135,14 @@ sudo zypper install google-noto-sans-cjk-fonts
 | 功能 | Windows | Linux | macOS |
 | --- | --- | --- | --- |
 | GB18030 文本转换 | 支持（系统代码页 54936） | **不可用**（直接报错，不做静默降级） | **不可用** |
-| 隐藏 / 系统 / 存档属性 | 读写 | **不可用**（属性位不存在，相关操作 no-op） | **不可用** |
-| 创建时间（btime）写回 | 可写 | 只读，撤销时跳过并记录 | 标 unsupported，跳过 |
+| 只读属性 | 支持 | 支持（UNIX 写位） | 支持（UNIX 写位） |
+| 隐藏 / 系统 / 存档属性 | 支持 | **不支持**：逐条失败并给出「仅 Windows」原因（不会静默 no-op、不会假装成功） | **不支持**：同 Linux |
+| 创建时间（btime）写回 | 可写（`SetFileTime`） | 只读（`statx` 能读、无 syscall 可写回），撤销时跳过并记录原因 | 标 unsupported，跳过并记录原因 |
 | 系统文件类型图标 | 支持 | **不提供**（回退内置图标） | **不提供** |
 | 窗口标题栏 | 自绘（`decorations:false`） | 系统原生（`tauri.linux.conf.json` 覆盖为 `decorations:true`，避免 GTK 下无边框窗口无法拖边缩放） | 系统原生（`tauri.macos.conf.json`） |
-| 应用内自动更新 | 支持 | 代码已实现（AppImage 就地自替换 / deb 走 `pkexec dpkg -i`，失败回退打开下载文件），但 `latest.json` 暂无 Linux 键 | 代码已实现（打开 dmg 由用户拖入「应用程序」），但 `latest.json` 暂无 darwin 键 |
+| 应用内自动更新 | 支持 | 代码已实现（AppImage 就地自替换 / deb 走 `pkexec dpkg -i`，失败回退打开下载文件），`latest.json` 已含 linux-x86_64 键 | 代码已实现（打开 dmg 由用户拖入「应用程序」），`latest.json` 已含 darwin-aarch64 键 |
+
+上表这些差异的**单一事实来源**是 `renomio_core::platform::PlatformReport`（`examples/platform_probe.rs` 可直接打出 JSON）；CI 的 `cross-os` 矩阵在 **ubuntu / windows / macos 三个真实 OS** 上跑同一份 core 测试与 `tests/platform_contract.rs`，所以「Windows 可写 btime、Linux 只读、macOS 不支持、非 Windows 属性写入必须显式失败」这些结论都有实机断言，不是文档自说自话。
 
 macOS 上的提权（以管理员身份重启）在代码里是 Windows-only，macOS 根本不触发；Linux 侧同理。
 
