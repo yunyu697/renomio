@@ -30,12 +30,12 @@ MIT License — 见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-
 
 ## 下载与安装
 
-源码仓库已公开；**安装包与更新清单直接发布在 [yunyu697/renomio](https://github.com/yunyu697/renomio/releases)**（旧的发行仓库 `yunyu697/renomio-releases` 已于 2026-11-08 归档，仅保留历史下载）。稳定版仍为 `v1.0.0`。**当前最新发布是预发布 `v1.2.0-alpha8`（2026-11-25，移动子串补定位与落点版）**：Windows / macOS / Linux 三平台产物由 CI 在 tag 上构建并带 updater `.sig`，统一上传到同一 Release；滚动更新清单 `latest.json` 已指向本版（三平台键齐全，version / size / 文件名 / 签名四项与实际包对齐）。下表为 Release 中的两个 Windows 包：
+源码仓库已公开；**安装包与更新清单直接发布在 [yunyu697/renomio](https://github.com/yunyu697/renomio/releases)**（旧的发行仓库 `yunyu697/renomio-releases` 已于 2026-11-08 归档，仅保留历史下载）。稳定版仍为 `v1.0.0`。**当前最新发布是预发布 `v1.2.0-alpha9`（2026-11-25，扩展名智能分析版）**：Windows / macOS / Linux 三平台产物由 CI 在 tag 上构建并带 updater `.sig`，统一上传到同一 Release；滚动更新清单 `latest.json` 已指向本版（三平台键齐全，version / size / 文件名 / 签名四项与实际包对齐）。下表为 Release 中的两个 Windows 包：
 
-| 包 | 文件 | 大小 | SHA-256（1.2.0-alpha8） |
+| 包 | 文件 | 大小 | SHA-256（1.2.0-alpha9） |
 | --- | --- | --- | --- |
-| NSIS（推荐，可选安装范围） | `Renomio_1.2.0-alpha8_x64-setup.exe` | 2,522,023 字节（2.40 MiB） | `48185086B851493368353691AB33858A813BF6102E1CF2DE442C92EEDA5F625B` |
-| MSI（机器级单一包） | `Renomio_1.2.0-alpha8_x64_en-US.msi` | 3,346,432 字节（3.19 MiB） | `DC5C8E2C7DF7CACC05A0D7368672720A69C775278785A199905E9DDB6278B52A` |
+| NSIS（推荐，可选安装范围） | `Renomio_1.2.0-alpha9_x64-setup.exe` | 2,524,511 字节（2.40 MiB） | `871D258427A114A36EEF33E1E0F48AB60AB3A90F23652559D9122C23602CC2B4` |
+| MSI（机器级单一包） | `Renomio_1.2.0-alpha9_x64_en-US.msi` | 3,346,432 字节（3.19 MiB） | `5AE8AA6EEDA702D08F51A550FF74BF8BA21DD5F7124693270559C0D38A7C4448` |
 
 应用内「设置 → 检查更新」读取源码仓库滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；清单与资源地址均指向源码仓库，内置默认地址已随本版切换生效。
 
