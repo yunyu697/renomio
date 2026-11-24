@@ -240,6 +240,7 @@ export const zhTW: Dict = {
   'main.clear': '清空',
   'main.more': '更多操作',
   'main.clearHint': '清空清單（不刪除磁碟檔案）',
+  'main.clearConfirm': '清單中的 {count} 個物件會被移出，磁碟上的檔案不會被刪除或修改。',
   'main.selectAll': '全選 / 取消全選',
   'main.metadata': '中繼資料',
   'main.metadataHint': '檢視唯讀中繼資料（不會修改檔案）',

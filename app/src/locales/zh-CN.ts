@@ -237,6 +237,7 @@ export const zhCN: Dict = {
   'main.clear': '清空',
   'main.more': '更多操作',
   'main.clearHint': '清空列表（不删除磁盘文件）',
+  'main.clearConfirm': '列表中的 {count} 个对象会被移出，磁盘上的文件不会被删除或修改。',
   'main.selectAll': '全选 / 取消全选',
   'main.metadata': '元数据',
   'main.metadataHint': '查看只读元数据（不会修改文件）',

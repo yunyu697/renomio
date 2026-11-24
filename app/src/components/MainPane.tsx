@@ -14,7 +14,7 @@ import { nextSort, type StatusFilter } from '../lib/order';
 import { rangeIds } from '../lib/selection';
 import { blankMenuItems, dispatchMenu, rowMenuItems, type MenuActions } from '../lib/menuModel';
 import { Icon, type IconName } from './Icon';
-import { ListTabs, ListView, TAB_FULL_KEY } from './ListView';
+import { Inspector } from './Inspector';
 import { ContextMenu } from './ContextMenu';
 
 interface ColumnDef {
@@ -100,7 +100,6 @@ const OVERSCAN = 8;
 export function MainPane() {
   const { t } = useTranslation();
   const entries = useApp((s) => s.entries);
-  const listTab = useApp((s) => s.listTab);
   const statusFilter = useApp((s) => s.statusFilter);
   const setStatusFilter = useApp((s) => s.setStatusFilter);
   const toggleSelect = useApp((s) => s.toggleSelect);
@@ -145,6 +144,8 @@ export function MainPane() {
   const [colMenuOpen, setColMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  /** 清空列表要二次确认：这是唯一会让人「列表空了」的动作 */
+  const [clearOpen, setClearOpen] = useState(false);
   const [dragWidths, setDragWidths] = useState<Partial<Record<ColumnKey, number>>>({});
   const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; kind: 'row' | 'blank' } | null>(null);
@@ -290,7 +291,7 @@ export function MainPane() {
       observer?.disconnect();
       window.removeEventListener('resize', sync);
     };
-  }, [virtual, listTab, entries.length]);
+  }, [virtual, entries.length]);
 
   /** 可见窗口 = 滚动位置换算的行号区间（表头 sticky，占位从表头下方算起）。 */
   const firstVisible = virtual
@@ -533,11 +534,42 @@ export function MainPane() {
 
   const selectedFiles = entries.filter((e) => e.selected && !e.isDir).length;
 
-  /** 页头：一屏唯一的视觉重心（20px），右侧只放检查器开关，不承载列表操作（§1.16）。 */
+  /** 页头：一屏唯一的视觉重心（20px），右侧只放全局动作：清空列表、检查器开关（§1.16）。 */
   const pageHead = (
     <div className="page-head">
-      <h1>{t(TAB_FULL_KEY[listTab])}</h1>
+      <h1>{t('tabFull.rename')}</h1>
       <div className="page-actions">
+        <div className="clear-wrap">
+          <button
+            className="btn btn-ghost clear-btn"
+            type="button"
+            data-testid="clear-all"
+            disabled={!entries.length}
+            aria-expanded={clearOpen}
+            title={t('main.clearHint')}
+            onClick={() => setClearOpen((open) => !open)}
+          >
+            <Icon name="trash" size={12} />{t('main.clear')}
+          </button>
+          {clearOpen && (
+            <div className="popover clear-confirm" data-testid="clear-confirm">
+              <p>{t('main.clearConfirm', { count: entries.length })}</p>
+              <div className="clear-confirm-foot">
+                <button className="btn btn-ghost clear-btn" type="button" data-testid="clear-cancel" onClick={() => setClearOpen(false)}>
+                  {t('common.cancel')}
+                </button>
+                <button
+                  className="btn btn-danger-soft clear-btn"
+                  type="button"
+                  data-testid="clear-ok"
+                  onClick={() => { setClearOpen(false); clearAll(); }}
+                >
+                  {t('main.clear')}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
         <button
           className={`mini${inspector.open ? ' on' : ''}`}
           type="button"
@@ -555,21 +587,10 @@ export function MainPane() {
     </div>
   );
 
-  if (listTab !== 'rename') {
-    return (
-      <section className="main">
-        {pageHead}
-        <ListTabs />
-        <ListView tab={listTab} />
-      </section>
-    );
-  }
-
   if (!entries.length) {
     return (
       <section className="main">
         {pageHead}
-        <ListTabs />
         <div className="empty-state">
           <div className="empty-mark"><Icon name="folder-plus" size={30} /></div>
           <h3>{t('main.emptyTitle')}</h3>
@@ -587,6 +608,7 @@ export function MainPane() {
             )}
           </div>
         </div>
+        {inspector.open && <Inspector />}
       </section>
     );
   }
@@ -594,9 +616,8 @@ export function MainPane() {
   return (
     <section className="main">
       {pageHead}
-      {/* 页签 + 筛选 + 次级操作合并为一条横带：只有行尾一条分隔线（§1.16） */}
+      {/* 筛选 + 次级操作收成一条横带：只有行尾一条分隔线（§1.16） */}
       <div className="list-head">
-        <ListTabs />
         <div className="list-filters">
           <div className="filter-wrap">
             <button
@@ -711,9 +732,6 @@ export function MainPane() {
                 </button>
                 <button className="mini" type="button" data-testid="remove-selected" onClick={() => { setMoreOpen(false); removeSelected(); }}>
                   <Icon name="minus" />{t('main.removeSelected')}
-                </button>
-                <button className="mini" type="button" data-testid="clear-all" onClick={() => { setMoreOpen(false); clearAll(); }}>
-                  <Icon name="trash" />{t('main.clear')}
                 </button>
               </div>
             )}
@@ -1050,6 +1068,9 @@ export function MainPane() {
           } as CSSProperties}
         />
       )}
+
+      {/* 检查器：从右坞改为压在列表下方的底部抽屉，横向铺满内容列，纵向不挤压表格宽度 */}
+      {inspector.open && <Inspector />}
 
       {menu && (
         <ContextMenu

@@ -765,60 +765,110 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
 .panes[data-view="files-top"] > .splitter.active::after,
 .panes[data-view="rules-top"] > .splitter.active::after { cursor: row-resize; inset: -4px 0; }
 
-/* ---------------- 右侧检查器 ---------------- */
-/* 与文件列表、规则链同屏：内容跟随列表勾选，头部常驻「作用于 N 个文件」 */
-.inspector {
-  flex: 0 0 320px;
-  width: 320px;
-  min-width: 0;
-  min-height: 0;
+/* ---------------- 底部抽屉检查器 ---------------- */
+/* 从右坞改为压在列表下方：横向铺满内容列，不挤占表格宽度；收起时只剩 36px 头部 */
+.inspector-drawer {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--ds-color-line);
+  min-height: 0;
+  border-top: 1px solid var(--ds-color-line);
   background: var(--ds-color-surface);
-  animation: inspector-in var(--ds-dur-3) ease;
+  animation: drawer-in var(--ds-dur-3) ease;
 }
-.inspector-head {
+.inspector-drawer[data-collapsed="true"] { background: var(--ds-color-surface-2); }
+
+.dw-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--ds-space-4);
-  padding: var(--ds-space-4) var(--ds-space-5);
-  border-bottom: 1px solid var(--ds-color-line);
+  height: 36px;
+  padding: 0 var(--ds-space-role-field);
+  flex: 0 0 auto;
+  min-width: 0;
+  border-bottom: 1px solid transparent;
+}
+.inspector-drawer:not([data-collapsed="true"]) .dw-head { border-bottom-color: var(--ds-color-line); }
+
+.dw-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  flex: 0 0 auto;
+  font-size: var(--ds-font-size-12);
+  font-weight: var(--ds-font-weight-600);
+  color: var(--ds-color-text-2);
+}
+.dw-tag svg { color: var(--ds-color-accent); }
+
+.dw-subject {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 26ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: var(--ds-font-size-12);
+  color: var(--ds-color-text);
+}
+
+.dw-scope {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: var(--ds-font-size-12);
+  color: var(--ds-color-text-muted);
+}
+
+/* 六段 segmented：同一行横排，选中态只换底色，不加边框厚度 */
+.dw-seg {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 2px;
+  border-radius: var(--ds-radius-md);
   background: var(--ds-color-surface-2);
 }
-.inspector-head > svg { flex: 0 0 auto; margin-top: 1px; color: var(--ds-color-accent); }
-.inspector-title { min-width: 0; flex: 1 1 auto; }
-.inspector-title h3 { margin: 0; font-size: var(--ds-type-role-card); line-height: var(--ds-leading-tight); }
-.inspector-scope {
-  margin: var(--ds-space-1) 0 0;
-  font-size: var(--ds-font-size-12);
-  color: var(--ds-color-text-2);
-  font-family: var(--mono);
-}
-.inspector-head .btn-icon { margin-left: auto; flex: 0 0 auto; }
-.inspector-tabs {
-  display: flex;
-  flex-wrap: wrap;
+.dw-seg-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: var(--ds-space-2);
-  padding: var(--ds-space-3) var(--ds-space-4);
-  border-bottom: 1px solid var(--ds-color-line);
+  height: 24px;
+  padding: 0 var(--ds-space-4);
+  border: 0;
+  border-radius: calc(var(--ds-radius-md) - 2px);
+  background: transparent;
+  color: var(--ds-color-text-2);
+  font: inherit;
+  font-size: var(--ds-font-size-12);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
 }
-.inspector-tab { height: var(--ds-control-h-sm); gap: var(--ds-space-2); padding: 0 var(--ds-space-4); font-size: var(--ds-font-size-12); }
-.inspector-tab.on {
-  background: var(--ds-color-accent-weak);
-  border-color: var(--ds-color-accent-weak-2);
-  color: var(--ds-color-accent-hover);
-}
-.inspector-body {
+.dw-seg-item:hover { background: var(--ds-color-surface-hover); color: var(--ds-color-text); }
+.dw-seg-item.on { background: var(--ds-color-accent-weak); color: var(--ds-color-accent-hover); }
+.dw-seg-item svg { color: currentColor; }
+
+.dw-btn { flex: 0 0 auto; width: 26px; height: 26px; }
+
+.dw-body {
   flex: 1 1 auto;
   min-height: 0;
+  /* 抽屉正文高度：常规 200px，矮窗（≤760）压到 150px，把高度还给表格 */
+  height: 200px;
   overflow: auto;
-  padding: var(--ds-space-4) var(--ds-space-5) var(--ds-space-5);
+  padding: var(--ds-space-4) var(--ds-space-role-field) var(--ds-space-5);
   display: flex;
   flex-direction: column;
   gap: var(--ds-space-4);
 }
-/* 复用对话框主体时去掉重复标题与内层滚动，让检查器自己滚动 */
+@media (max-height: 760px) {
+  .dw-body { height: 150px; }
+}
+/* 复用对话框主体时去掉重复标题与内层滚动，让抽屉自己滚动 */
 .inspector .dialog-head { display: none; }
 .inspector .dialog-body { padding: 0; overflow: visible; }
 .inspector .dialog-foot {
@@ -828,47 +878,19 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   border-top: 1px solid var(--ds-color-line);
   background: var(--ds-color-surface);
 }
-.inspector .meta-edit-row { grid-template-columns: minmax(0, 1fr); }
-.inspector .meta-edit-row > * { min-width: 0; }
 .inspector .mini-table { overflow-x: auto; }
-/* EXIF / 编码面板在 320px 窄栏内改为单列，避免横向溢出 */
-.inspector .exif-actions,
-.inspector .exif-file-head,
-.inspector .exif-scopes,
-.inspector .text-actions { flex-wrap: wrap; }
-.inspector .exif-xmp { margin-left: 0; }
-.inspector .exif-group { flex-wrap: wrap; }
-.inspector .text-form { flex-direction: column; align-items: stretch; gap: var(--ds-space-4); }
-.inspector .text-form label,
-.inspector .text-form label.text-output { flex: 1 1 auto; width: 100%; }
-.inspector .text-form .input,
-.inspector .text-form select { width: 100%; min-width: 0; }
-.inspector .text-targets { max-height: 128px; overflow: auto; }
-.inspector .text-target { max-width: 100%; }
-.inspector .text-target .text-target-ext { display: none; }
-.inspector .text-actions .btn { width: 100%; justify-content: center; }
-.inspector .text-actions .foot-note { flex: 1 1 100%; }
 .inspector-empty {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
   gap: var(--ds-space-4);
-  padding: var(--ds-space-6) var(--ds-space-2);
+  padding: var(--ds-space-4) 0;
   color: var(--ds-color-text-2);
 }
-.inspector-empty svg { color: var(--ds-color-text-muted); }
+.inspector-empty svg { color: var(--ds-color-text-muted); flex: 0 0 auto; }
 .inspector-empty p { margin: 0; font-size: var(--ds-font-size-12); line-height: var(--ds-leading-loose); }
-@keyframes inspector-in { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
-/* ≤1100：检查器降级为右侧抽屉，不挤压工作台 */
-@media (max-width: 1100px) {
-  .inspector {
-    position: absolute;
-    inset: 0 0 0 auto;
-    width: min(340px, 92vw);
-    z-index: 30;
-    box-shadow: var(--shadow-lg);
-  }
-}
+@keyframes drawer-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
 
 /* 左侧导航 */
 /* 左侧导航：分组靠「字号 11 vs 12 + 颜色 text-2 vs text」两个维度与 24/4 的间距对比表达，
@@ -1009,6 +1031,28 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
 }
 .page-head .page-actions { margin-left: auto; display: flex; align-items: center; gap: var(--ds-space-role-inline); }
 
+/* 清空列表：ghost 常态，确认弹层自带「磁盘文件不动」的说明 */
+.clear-wrap { position: relative; display: inline-flex; }
+.clear-wrap .btn.clear-btn { height: var(--ds-control-h-sm); padding: 0 var(--ds-space-4); font-size: var(--ds-font-size-12); }
+.clear-wrap .btn:disabled { opacity: .45; cursor: default; }
+.clear-confirm {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 24;
+  width: 268px;
+  padding: var(--ds-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+  border: 1px solid var(--ds-color-line);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-surface);
+  box-shadow: var(--shadow-lg);
+}
+.clear-confirm p { margin: 0; font-size: var(--ds-font-size-12); line-height: var(--ds-leading-loose); color: var(--ds-color-text-2); }
+.clear-confirm-foot { display: flex; justify-content: flex-end; gap: var(--ds-space-3); }
+
 /* 页签 + 筛选 + 次级操作合并为一条带：唯一的 border-bottom 在行尾（§1.16） */
 .list-head {
   display: flex;
@@ -1068,7 +1112,8 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
 .tab.dim .num { color: var(--ds-color-text-muted); }
 
 .list-filters {
-  margin-left: auto;
+  /* 页签撤掉后，筛选条成为横带里的第一组（左缘对齐页头），动作组靠右 */
+  padding-left: var(--ds-space-role-field);
   display: flex;
   align-items: center;
   gap: var(--ds-space-role-inline);
@@ -1111,6 +1156,7 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   align-items: center;
   gap: var(--ds-space-role-inline);
   flex: 0 0 auto;
+  margin-left: auto;
   padding-left: var(--ds-space-role-field);
 }
 

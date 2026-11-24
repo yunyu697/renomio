@@ -240,6 +240,7 @@ export const esES: Dict = {
   'main.clear': 'Vaciar',
   'main.more': 'Más acciones',
   'main.clearHint': 'Vaciar la lista (sin tocar el disco)',
+  'main.clearConfirm': 'Se quitarán {count} elementos de la lista. Los archivos del disco no se borran ni se modifican.',
   'main.selectAll': 'Seleccionar / deseleccionar todo',
   'main.metadata': 'Metadatos',
   'main.metadataHint': 'Ver metadatos de solo lectura (no modifica archivos)',

@@ -240,6 +240,7 @@ export const enUS: Dict = {
   'main.clear': 'Clear',
   'main.more': 'More actions',
   'main.clearHint': 'Clear the list (files on disk are untouched)',
+  'main.clearConfirm': 'Remove {count} items from the list. Files on disk are neither deleted nor modified.',
   'main.selectAll': 'Select / deselect all',
   'main.metadata': 'Metadata',
   'main.metadataHint': 'View read-only metadata (does not modify files)',

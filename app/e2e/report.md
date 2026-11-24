@@ -1,10 +1,10 @@
 # 无头浏览器 E2E 报告
 
-- 生成时间：2026-11-24T11:32:26.239Z
+- 生成时间：2026-11-24T15:48:37.698Z
 - 运行方式：无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）
 - 浏览器：`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`
 - 视口：1440×900（默认） / 1100×640@1.5x（最小尺寸）
-- 结果：**275 通过 / 0 失败**
+- 结果：**263 通过 / 0 失败**
 - 截图目录：`app/e2e/screenshots/`（已加入 `.gitignore`，仅本机保留，不随仓库分发）
 
 ## UI 层断言（DOM / 可见性 / 截图）
@@ -28,8 +28,8 @@
 | ✅ 通过 | 应用 → 2 个完成 + 1 个冲突跳过（未改名文件不参与）（{"total":3,"done":2,"skipped":1,"failed":0}） |
 | ✅ 通过 | 冲突文件保持原名 |
 | ✅ 通过 | 撤销 → 4 个原名全部恢复（["旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg","logo.png"]） |
-| ✅ 通过 | 历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略（2026-11-24 19:30 · 更名D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤） |
-| ✅ 通过 | 历史面板：已撤销批次显示「已撤销」并说明原因（{"undoable":"0","state":"已撤销","reason":"该批次已经撤销","text":"2026-11-24 19:30 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销"}） |
+| ✅ 通过 | 历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略（2026-11-24 23:46 · 更名D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤） |
+| ✅ 通过 | 历史面板：已撤销批次显示「已撤销」并说明原因（{"undoable":"0","state":"已撤销","reason":"该批次已经撤销","text":"2026-11-24 23:46 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销"}） |
 | ✅ 通过 | 历史面板：新批次显示「可撤销」（{"undoable":"1","id":"mock-batch-2"}） |
 | ✅ 通过 | 历史面板：撤销后条目变为「已撤销」（{"undoable":"0","state":"已撤销","chip":"已撤销","reason":"该批次已经撤销"}） |
 | ✅ 通过 | 历史面板：较新批次可撤销时，「撤销到此」可用（多级撤销）（{"index":1,"undoable":"1","disabled":false}） |
@@ -62,26 +62,29 @@
 | ✅ 通过 | 随机预览 → 每个文件落在所选区间且取值不同（2020-01-06 07:19 \| 2020-01-03 02:33 \| 2020-01-09 13:58 \| 2020-01-02 21:57） |
 | ✅ 通过 | 时间面板提供 EXIF 拍摄时间写入开关 |
 | ✅ 通过 | 时间修改 → 逐条结果面板 + 可撤销提示（4 成功 · 0 跳过 · 0 失败批次 mock-batch-6 已写入日志，可在「操作记录」撤销撤销本次关闭） |
-| ✅ 通过 | 左栏收敛为「文件 / 检查器」两组，六类操作都在检查器分组，旧整页入口与「旧版入口」标记已消失（{"groups":[{"id":"nav-group-files","label":"文件▾","items":["nav-rename","nav-history","nav-snapshot","nav-plan"]},{"id":"nav-group-inspector","label":"检查器▾","items":["nav-attrs","nav-meta","nav-times","nav-organize","nav-exif","nav-encoding"]}],"legacy":[],"oldPages":[]}） |
-| ✅ 通过 | 侧栏 nav-attrs → 停靠检查器 attrs（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
-| ✅ 通过 | 侧栏 nav-meta → 停靠检查器 meta（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
-| ✅ 通过 | 侧栏 nav-times → 停靠检查器 time（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
-| ✅ 通过 | 侧栏 nav-organize → 停靠检查器 organize（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
-| ✅ 通过 | 侧栏 nav-exif → 停靠检查器 exif（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
-| ✅ 通过 | 侧栏 nav-encoding → 停靠检查器 encoding（文件列表与规则链不被整页替换）（{"active":true,"current":"true","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
-| ✅ 通过 | 「文件 → 重命名」切回更名列表，不打开整页（true） |
-| ✅ 通过 | 检查器分组标题可点击折叠（aria-expanded=false 且条目隐藏）（{"expanded":"false","visibleItems":0}） |
-| ✅ 通过 | 打开检查器 → 文件列表与规则链仍在同一屏（不整页替换工作台）（{"scope":"作用于 4 个文件","main":true,"rules":true,"width":320,"expanded":"true"}） |
+| ✅ 通过 | 左栏只剩「文件」一组（检查器六类操作迁到抽屉分段），侧栏底部不再压「设置」（{"groups":[{"id":"nav-group-files","label":"文件▾","items":["nav-rename","nav-history","nav-snapshot","nav-plan"]}],"legacy":[],"oldPages":[],"segments":["inspector-tab-attrs","inspector-tab-meta","inspector-tab-time","inspector-tab-organize","inspector-tab-exif","inspector-tab-encoding"],"footSettings":false}） |
+| ✅ 通过 | 抽屉头部六段分段齐全（属性 / 元数据 / 时间 / 归类 / EXIF / 编码）（["inspector-tab-attrs","inspector-tab-meta","inspector-tab-time","inspector-tab-organize","inspector-tab-exif","inspector-tab-encoding"]） |
+| ✅ 通过 | 抽屉分段 attrs → 选中态正确，抽屉贴在内容列底部（列表与规则链不被替换）（{"selected":"true","inline":true,"collapsed":"false","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
+| ✅ 通过 | 抽屉分段 meta → 选中态正确，抽屉贴在内容列底部（列表与规则链不被替换）（{"selected":"true","inline":true,"collapsed":"false","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
+| ✅ 通过 | 抽屉分段 time → 选中态正确，抽屉贴在内容列底部（列表与规则链不被替换）（{"selected":"true","inline":true,"collapsed":"false","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
+| ✅ 通过 | 抽屉分段 organize → 选中态正确，抽屉贴在内容列底部（列表与规则链不被替换）（{"selected":"true","inline":true,"collapsed":"false","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
+| ✅ 通过 | 抽屉分段 exif → 选中态正确，抽屉贴在内容列底部（列表与规则链不被替换）（{"selected":"true","inline":true,"collapsed":"false","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
+| ✅ 通过 | 抽屉分段 encoding → 选中态正确，抽屉贴在内容列底部（列表与规则链不被替换）（{"selected":"true","inline":true,"collapsed":"false","main":true,"rules":true,"scope":"作用于 4 个文件"}） |
+| ✅ 通过 | 「文件 → 重命名」回到更名列表：页头标题为更名列表，页签条已彻底消失（{"main":true,"head":"更名列表","tabs":0,"active":true}） |
+| ✅ 通过 | 「文件 → 重命名」切回更名列表，不打开整页（[object Object]） |
+| ✅ 通过 | 打开检查器 → 文件列表与规则链仍在同一屏（不整页替换工作台）（{"scope":"作用于 4 个文件","main":true,"rules":true,"width":840,"mainWidth":840,"below":true,"expanded":"true"}） |
 | ✅ 通过 | 检查器头部常驻「作用于 N 个文件」，N 与列表勾选一致（作用于 4 个文件 / 列表勾选 4） |
-| ✅ 通过 | 检查器是右侧停靠面板（宽 320px，不覆盖列表）（320px） |
-| ✅ 通过 | ≤1100 窄窗：检查器改为右侧抽屉浮层，文件列表不被挤压缩（{"position":"absolute","width":340,"mainWidth":644,"narrow":"true"}） |
+| ✅ 通过 | 检查器是压在列表下方的底部抽屉（与内容列同宽、位于表格之下，不再占右栏 320px）（{"scope":"作用于 4 个文件","main":true,"rules":true,"width":840,"mainWidth":840,"below":true,"expanded":"true"}） |
+| ✅ 通过 | 抽屉可收起成一条 36px 头部（正文隐藏，不是整块消失）（{"state":"true","head":36,"body":0}） |
+| ✅ 通过 | 再点一次恢复展开（data-collapsed=false 且正文回来）（false） |
+| ✅ 通过 | ≤1100 窄窗：抽屉依旧在内容列底部（不降级成覆盖列表的浮层）（{"position":"static","mainWidth":644,"inMain":true}） |
 | ✅ 通过 | 列表取消勾选一行 → 检查器计数同步减一（同一份选择源）（作用于 3 个文件 / 列表勾选 3） |
 | ✅ 通过 | 检查器「时间」页签复用真实批量读取，行数与勾选数一致（3 行 / 勾选 3） |
 | ✅ 通过 | 检查器「元数据」页签复用真实编辑器，并说明只写入勾选的文件（只写入勾选的文件；逐字段勾选后才会保存，并保留可还原的备份。） |
 | ✅ 通过 | 检查器「归类」页签按勾选生成移动预览（3 行） |
 | ✅ 通过 | 关闭检查器 → 工作台恢复，开关收起状态同步（{"gone":true,"expanded":"false","main":true}） |
 | ✅ 通过 | 列表未勾选 → 检查器显示空态、保持列表勾选为 0（不再由页面自动全选）（{"selectedBefore":0,"autoPanel":{"empty":true,"scope":"作用于 0 个文件","selected":0,"main":true}}） |
-| ✅ 通过 | 图片页签的「编辑元数据」入口打开停靠检查器并复用真实编辑器（{"fields":true,"unsupported":false,"hasApply":true,"scope":"作用于 1 个文件"}） |
+| ✅ 通过 | 抽屉「元数据」分段复用真实编辑器，N 与列表勾选一致（{"fields":true,"unsupported":false,"hasApply":true,"scope":"作用于 1 个文件"}） |
 | ✅ 通过 | 属性预览 → 可写 → 只读（原值 → 新值）（文件只读 / 隐藏 / 系统 / 存档（原 → 新）状态旧照片 001.jpg可写 / 可见 / 非系统 / 未存档→只读 / 可见 / 非系统 / 未存档待写入旧照片 002.jpg可写 / 可见 / 非系统 / 未存档→只读 / 可见 / 非系统 / 未存档待写入旧照片 003.jpg只读 / 可见 / 非系统 /） |
 | ✅ 通过 | 属性面板提供「取反」模式（只读 / 隐藏） |
 | ✅ 通过 | 取反预览 → 可写变只读、只读变可写（逐行原值→取反值）（文件只读 / 隐藏 / 系统 / 存档（原 → 新）状态旧照片 001.jpg可写 / 可见 / 非系统 / 未存档→只读 / 可见 / 非系统 / 未存档待写入旧照片 002.jpg可写 / 可见 / 非系统 / 未存档→只读 / 可见 / 非系统 / 未存档待写入旧照片 003.jpg只读 / 可见 / 非系统 /） |
@@ -96,29 +99,10 @@
 | ✅ 通过 | 关闭「含隐藏文件」→ 扫描参数 includeHidden=false 且隐藏文件不进入列表（aria=false, scan=false, rows=4） |
 | ✅ 通过 | 开启「含隐藏文件」→ includeHidden=true 且隐藏文件进入列表（scan=true, visible=true） |
 | ✅ 通过 | 加入音乐 / Office / PDF / 文本文档后列表共 9 行（rows=9） |
-| ✅ 通过 | 页签「attrs」渲染表格 / 表头 / 数据行且无空壳（rows=9, th=9, note=true, action=true） |
-| ✅ 通过 | 页签「attrs」页签条只占角色高度、表格拿满剩余空间（{"tabs":32,"table":631}） |
-| ✅ 通过 | 页签「music」渲染表格 / 表头 / 数据行且无空壳（rows=1, th=11, note=true, action=true） |
-| ✅ 通过 | 页签「music」页签条只占角色高度、表格拿满剩余空间（{"tabs":32,"table":631}） |
-| ✅ 通过 | 页签「photo」渲染表格 / 表头 / 数据行且无空壳（rows=4, th=12, note=true, action=true） |
-| ✅ 通过 | 页签「photo」页签条只占角色高度、表格拿满剩余空间（{"tabs":32,"table":631}） |
-| ✅ 通过 | 页签「office」渲染表格 / 表头 / 数据行且无空壳（rows=1, th=12, note=true, action=true） |
-| ✅ 通过 | 页签「office」页签条只占角色高度、表格拿满剩余空间（{"tabs":32,"table":631}） |
-| ✅ 通过 | 页签「pdf」渲染表格 / 表头 / 数据行且无空壳（rows=1, th=9, note=true, action=true） |
-| ✅ 通过 | 页签「pdf」页签条只占角色高度、表格拿满剩余空间（{"tabs":32,"table":631}） |
-| ✅ 通过 | 页签「text」渲染表格 / 表头 / 数据行且无空壳（rows=2, th=6, note=true, action=true） |
-| ✅ 通过 | 页签「text」页签条只占角色高度、表格拿满剩余空间（{"tabs":32,"table":631}） |
-| ✅ 通过 | 页签「organize」渲染表格 / 表头 / 数据行且无空壳（rows=9, th=5, note=true, action=true） |
-| ✅ 通过 | 页签「organize」页签条只占角色高度、表格拿满剩余空间（{"tabs":32,"table":631}） |
-| ✅ 通过 | 归类页签「打开归类移动」按钮改指检查器并打开真实面板（apply=true, note=打开归类移动） |
-| ✅ 通过 | 属性页签「打开属性设置」按钮改指检查器并打开真实面板（true） |
-| ✅ 通过 | 文本页签展示编码 / 行数 / 字符数 / 摘要 |
-| ✅ 通过 | 入口页签与分组用「图像 / 拍摄参数 / 描述信息」，不再出现「照片」（{"tab":"图像4","head":"图像信息","exif":"拍摄参数","desc":"描述信息"}） |
-| ✅ 通过 | 图像页签默认停在「拍摄参数」分组且表头是 EXIF 列（["名称","格式","尺寸","拍摄时间","相机品牌","相机型号","方向","ISO","快门","光圈","焦距","镜头"]） |
-| ✅ 通过 | 切到「描述信息」分组后表头换成描述列、页签仍是同一个（["名称","格式","尺寸","标题","作者","版权","软件","备注"]） |
-| ✅ 通过 | 描述信息分组明确标注 IPTC / XMP 暂不支持（不伪装成功） |
-| ✅ 通过 | 照片 / 图像合并后页签条只剩一个图像入口 |
-| ✅ 通过 | 切回「拍摄参数」分组 |
+| ✅ 通过 | 页签条彻底下线：list-tabs / list-tab-* / 按类型拆开的只读视图都不再渲染，列表成唯一主视图（{"tabs":0,"views":0,"head":"更名列表","rows":9,"filters":true,"metaAction":true}） |
+| ✅ 通过 | 页头标题固定在「更名列表」，不再随页签改名（更名列表） |
+| ✅ 通过 | 归类分段直接打开真实移动面板（不再依赖页签行按钮）（true） |
+| ✅ 通过 | 属性分段直接打开真实属性面板（不再依赖页签行按钮）（true） |
 | ✅ 通过 | 快捷键提示默认不常驻（kbd 默认 opacity 0） |
 | ✅ 通过 | `/` 聚焦搜索框 |
 | ✅ 通过 | Space 取消当前行勾选（before=9 after=8） |
@@ -134,8 +118,12 @@
 | ✅ 通过 | 1100×640 @150% DPI 外层无横向溢出（{"innerWidth":1100,"scrollWidth":1100,"innerHeight":640,"scrollHeight":640,"actionBottom":640,"actionRight":1100,"toolbarBottom":89,"dpr":1.5,"rulesVisible":true}） |
 | ✅ 通过 | 1100×640 @150% DPI 窄窗单列不出现表格横向滚动（列按可用宽度排布）（{"clientWidth":629,"scrollWidth":629,"scrollable":false}） |
 | ✅ 通过 | 1100×640 @150% DPI 操作条与工具栏未被裁切（{"innerWidth":1100,"scrollWidth":1100,"innerHeight":640,"scrollHeight":640,"actionBottom":640,"actionRight":1100,"toolbarBottom":89,"dpr":1.5,"rulesVisible":true}） |
-| ✅ 通过 | 1100×640 @150% DPI：八类页签不撑破页面，页签条与数据行可读（{"innerWidth":1100,"scrollWidth":1100,"innerHeight":640,"tabsClient":644,"tabsScroll":644,"tabsDir":"row","tabsWrap":"nowrap","tabRect":{"x":56,"w":644},"mainW":644,"rulesW":400,"navW":56,"panesW":1044,"panesX":56,"rulesX":700,"panesKids":["main:644@56","rules:400@700"],"viewBottom":588,"rowHeight":44}） |
-| ✅ 通过 | 九类页签与拖放流程无未捕获页面异常（exceptions=0） |
+| ✅ 通过 | 1100×640 @150% DPI：底部抽屉不撑破页面，抽屉头部六段与内容都可读（{"innerWidth":1100,"scrollWidth":1100,"innerHeight":640,"tabsClient":360,"tabsScroll":360,"tabsDir":"row","tabsWrap":"nowrap","tabRect":{"x":260,"w":360},"mainW":644,"rulesW":400,"navW":56,"panesW":1044,"panesX":56,"rulesX":700,"panesKids":["main:644@56","rules:400@700"],"viewBottom":588,"viewHeight":150,"segItems":6,"segOverflow":false}） |
+| ✅ 通过 | 「清空列表」先弹二次确认，文案写明只移出列表、磁盘文件不动，且弹层不越出内容列（{"text":"列表中的 11 个对象会被移出，磁盘上的文件不会被删除或修改。取消清空","rows":11,"confirmLeft":599,"mainRight":700}） |
+| ✅ 通过 | 取消清空 → 列表行数完全不变（rows=11） |
+| ✅ 通过 | 确认清空 → 列表回到空态、磁盘文件数量不变、清空按钮转为禁用（{"rows":0,"files":11,"disabled":true,"tabsGone":0}） |
+| ✅ 通过 | 清空后重新添加 → 列表恢复 9 行（磁盘文件确实还在）（rows=11） |
+| ✅ 通过 | 列表 / 抽屉 / 拖放流程无未捕获页面异常（exceptions=0） |
 | ✅ 通过 | 权限失败逐条列出（不是整批一个「失败」）（["access-denied"]） |
 | ✅ 通过 | 失败清单按原因汇总（权限不足 1）（权限不足（ACL 拒绝） 1） |
 | ✅ 通过 | 权限失败给出「以管理员身份重启」+ 每条「跳过该项」（relaunch=true, skip=1） |
@@ -189,7 +177,7 @@
 | ✅ 通过 | 1100 窄窗侧栏折叠为常驻图标列（宽 56、当前栏目可见、无浮动汉堡）（{"display":"flex","left":0,"width":56,"labelShown":false,"activeShown":true,"fab":false,"toggle":true,"notice":false}） |
 | ✅ 通过 | 窄窗点展开 → 图标列原位展开为完整侧栏（宽 200、分组标题可见）（{"nav":"expanded","width":200,"labelShown":true}） |
 | ✅ 通过 | 窄窗展开后再点同一个按钮 → 收回到图标列（双向可逆）（{"nav":"rail","width":56}） |
-| ✅ 通过 | 窄窗点入口 → 打开检查器并自动收回图标列（{"nav":"rail","inspector":true}） |
+| ✅ 通过 | 窄窗点侧栏入口 → 打开对应抽屉并自动收回图标列（{"nav":"rail","drawer":true}） |
 | ✅ 通过 | 恢复宽窗后回落到用户视图 rules-left（并排）（{"narrow":"false","view":"rules-left","dir":"row"}） |
 | ✅ 通过 | 布局菜单文字全部本地化（无 layout. 原始 key）（{"trigger":"Stacked · rules on top","items":["Side by side · files left","Side by side · rules left","Stacked · files on top","Stacked · rules on top","Compact single column"]}） |
 | ✅ 通过 | 高级模式拖动分隔条改变规则栏尺寸并写入该视图独立尺寸（{"h1":320,"h2":380,"sizes":{"files-left":400,"rules-left":400,"files-top":320,"rules-top":380}}） |
@@ -204,7 +192,7 @@
 | ✅ 通过 | 冲突命中：同路径包含+排除、前缀/子目录重叠（2 条独立冲突）（{"count":2,"items":["include-exclude","path-overlap"]}） |
 | ✅ 通过 | 冲突命中：动作矛盾与正则等价合并为一条（同一对规则只出现一次）（{"count":1,"items":["regex-overlap,action-contradiction"],"badges":2,"rules":2,"modal":false}） |
 | ✅ 通过 | 冲突不阻断保存：两条规则仍在、无阻断弹窗、两条规则就地标出（{"count":1,"items":["regex-overlap,action-contradiction"],"badges":2,"rules":2,"modal":false}） |
-| ✅ 通过 | 点击冲突汇总可跳转到对应规则（展开并聚焦）（{"firstRuleId":"rmwum6yqe1","jumpState":{"openId":"rmwum6yqe1","detail":1,"focused":"rmwum6yqe1"}}） |
+| ✅ 通过 | 点击冲突汇总可跳转到对应规则（展开并聚焦）（{"firstRuleId":"rmwuvcdf61","jumpState":{"openId":"rmwuvcdf61","detail":1,"focused":"rmwuvcdf61"}}） |
 | ✅ 通过 | 冲突命中：后一条被遮蔽不可达（{"items":2,"hasShadow":true}） |
 | ✅ 通过 | 冲突不命中：模式不重叠且替换互不相干时不提示（{"panel":false,"items":0,"badges":0,"rules":2}） |
 | ✅ 通过 | 列表「下移」立即改变顺序并出现手动顺序标记（{"namesBefore":["旧照片 001.jpg","logo.png","旧照片 002.jpg","旧照片 003.jpg"],"namesAfterDown":["logo.png","旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg"],"manualChip":1}） |
@@ -215,7 +203,7 @@
 | ✅ 通过 | 同名不同路径保留两条并在界面标出重名（{"sameNameCount":2,"dupBadges":2}） |
 | ✅ 通过 | 内容相同的不同路径进入「疑似重复」分组，未静默删除（{"dupPanelBefore":1,"dupGroups":1}） |
 | ✅ 通过 | 一键去重只移除列表中的一条，磁盘文件数不变（{"countBeforeDedupe":7,"countAfterDedupe":6,"filesOnDisk":7,"filesAfterDedupe":7}） |
-| ✅ 通过 | 属性编辑：选中字段写入并回读校验通过（{"text":"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\e2e\\旅行\\旧照片 002.jpg.1795519916250.bak","ok":true,"verified":true}） |
+| ✅ 通过 | 属性编辑：选中字段写入并回读校验通过（{"text":"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\e2e\\旅行\\旧照片 002.jpg.1795535285204.bak","ok":true,"verified":true}） |
 | ✅ 通过 | 属性编辑：重新打开可见写入后的值（{"rereadTitle":"E2E 新标题"}） |
 | ✅ 通过 | 不支持格式（HEIC）明确拒绝并附文件与原因（{"unsupportedShown":1,"heicResult":{"bad":true,"text":"sample.heicHEICFailedHEIC 不支持写入：HEIC/HEIF 解码能力缺失，本版本不支持Backup：No backup"}}） |
 | ✅ 通过 | 未检查：只显示「检查更新」「打开主页」（{"phase":"idle","check":1,"action":0,"save":0,"home":1,"retry":0,"latest":0,"install":0,"size":0,"error":0}） |
@@ -226,7 +214,7 @@
 | ✅ 通过 | 之后显示已最新时仍保留「安装」按钮（{"phase":"latest","check":1,"action":0,"save":0,"home":1,"retry":0,"latest":1,"install":1,"size":0,"error":0}） |
 | ✅ 通过 | 快照：入口真实可用且哈希复选框默认关闭（false） |
 | ✅ 通过 | 快照（仅映射）→ 记录 3 条原名/新名与大小/时间，不含哈希（{"entryCount":3,"hashed":0}） |
-| ✅ 通过 | 快照列表显示「仅映射」（2026/11/24 19:32:013 条 · 仅映射预览还原删除） |
+| ✅ 通过 | 快照列表显示「仅映射」（2026/11/24 23:48:113 条 · 仅映射预览还原删除） |
 | ✅ 通过 | 快照：勾选后开启 SHA-256（true） |
 | ✅ 通过 | 快照（含哈希）→ 3 条 SHA-256 且逐条上报进度（{"id":"mock-snap-2","hashed":3}） |
 | ✅ 通过 | 快照生成 → 进度事件可取消/可观测（hash/done）（hash,done） |
@@ -236,7 +224,7 @@
 | ✅ 通过 | 还原执行 → 2 条还原、1 条跳过，批次 kind=restore 且 policy=skip（{"total":3,"done":2,"skipped":1,"failed":0}） |
 | ✅ 通过 | 还原绝不覆盖：诱饵文件保持原样，冲突条目的新名文件仍在（{"decoyIntact":12345,"afterRestoreFiles":["照片_001.jpg","旧照片 002.jpg","旧照片 003.jpg","logo.png","旧照片 001.jpg"]}） |
 | ✅ 通过 | 还原结果逐条说明跳过原因（还原结果：成功 2 条，跳过/失败 1 条批次 mock-batch-2还原已写入操作记录，可在「操作记录」里整批撤销D:\e2e\旅行\照片_002.jpg→D:\e2e\旅行\旧照片 002.jpg已还原D:\e2e\旅行\照片_003.jpg→D:\e2e\旅行\旧照片 003.jpg已还原D:\e2e\旅行\照） |
-| ✅ 通过 | 操作记录把还原标为「快照还原」且可撤销（2026-11-24 19:32 · 快照还原D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销） |
+| ✅ 通过 | 操作记录把还原标为「快照还原」且可撤销（2026-11-24 23:48 · 快照还原D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销） |
 | ✅ 通过 | 撤销还原 → 2 条回到新名（冲突条目不受影响）（["照片_001.jpg","照片_002.jpg","照片_003.jpg","logo.png","旧照片 001.jpg"]） |
 | ✅ 通过 | 删除快照 → 列表与后端同步只剩 1 条（1） |
 | ✅ 通过 | 勾选一张图片后 EXIF 入口在检查器里可用（作用于勾选文件）（1 / 作用于 1 个文件） |
@@ -304,7 +292,7 @@
 | ✅ 通过 | 模板移动后 → 4 个文件落入两级目录（d:\e2e\归类结果\jpg\2025\旧照片 001.jpg \| d:\e2e\归类结果\jpg\2025\旧照片 002.jpg \| d:\e2e\归类结果\jpg\2025\旧照片 003.jpg \| d:\e2e\归类结果\png\2025\logo.png） |
 | ✅ 通过 | 模板归类可撤销 → 路径全部回到原位置（D:\e2e\旅行\旧照片 001.jpg \| D:\e2e\旅行\旧照片 002.jpg \| D:\e2e\旅行\旧照片 003.jpg \| D:\e2e\设计\logo.png） |
 | ✅ 通过 | 拖放 drop → 调用扫描/添加路径命令，计数正确（+2）（paths=D:\e2e\新拖入\拖入 A.txt,D:\e2e\新拖入\拖入 B.txt, rows=11） |
-| ✅ 通过 | 交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/批量元数据/事件/写文件）（load_rule_history,startup_report,env_info,plugin:event\|listen,privilege_info,migration_info,plugin:event\|unlisten,append_log,plugin:dialog\|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog\|save,write_text_atomic,read_text_file,write_bytes_atomic,read_times,apply_time,read_attrs,meta_read,meta_capabilities,list_snapshots,file_type_icons,read_metadata_batch,apply_attrs,apply_move） |
+| ✅ 通过 | 交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/事件/写文件）（plugin:event\|listen,load_rule_history,startup_report,env_info,privilege_info,migration_info,plugin:event\|unlisten,append_log,plugin:dialog\|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog\|save,write_text_atomic,read_text_file,write_bytes_atomic,read_attrs,read_times,apply_time,meta_read,meta_capabilities,list_snapshots,apply_attrs,apply_move） |
 | ✅ 通过 | 右上角窗口按钮 → 实际调用 window API（minimize / toggle_maximize / close）（minimize,toggle_maximize,close） |
 | ✅ 通过 | 手动导入经 Tauri 命令层并回报导入/跳过数量（已导入 2 个文件，跳过 1 个已存在的文件（导入前已备份）。） |
 | ✅ 通过 | 文本编码原地覆盖：请求携带手动源编码 GB18030、目标 UTF-8 BOM，结果含回读校验与备份还原入口（{"ok":true,"verified":true,"stats":"128 → 128 字节 · D:\\e2e\\旅行\\编码样本.txt","restore":true,"call":{"path":"D:\\e2e\\旅行\\编码样本.txt","targetEncoding":"utf8bom","sourceEncoding":"gb18030","saveAs":null,"backup":true}}） |
@@ -343,6 +331,8 @@
 - 15-min-tabs-1100x640-150dpi.png
 - 15-ops-time-result.png
 - 15b-inspector.png
+- 15c-inspector-light.png
+- 16-clear-list-empty.png
 - 16-ops-move-preview.png
 - 17-ops-move-result.png
 - 17-permission-failures.png

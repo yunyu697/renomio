@@ -31,7 +31,6 @@ import { Toast } from './components/Toast';
 import { Toolbar } from './components/Toolbar';
 import { Titlebar } from './components/Titlebar';
 import { Icon } from './components/Icon';
-import { Inspector } from './components/Inspector';
 
 export function App() {
   const { t } = useTranslation();
@@ -52,7 +51,7 @@ export function App() {
   const [narrow, setNarrow] = useState(false);
   // 窄窗下侧栏默认收成一列图标；expanded 只是「在原位展开成完整侧栏」，回到宽窗即复位
   const [navExpanded, setNavExpanded] = useState(false);
-  const inspectorOpen = useApp((s) => s.inspector.open);
+  // 检查器已改为列表下方的底部抽屉，由 MainPane 自行渲染，App 不再在右栏挂载
   const rules = useApp((s) => s.rules);
   const layout = settings.layout;
   const sideView = layout.view === 'files-left' || layout.view === 'rules-left';
@@ -425,7 +424,6 @@ export function App() {
           >
             {panes}
           </div>
-          {inspectorOpen && <Inspector />}
         </div>
       </div>
       <ActionBar />

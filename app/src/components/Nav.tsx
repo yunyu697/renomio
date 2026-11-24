@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../store';
 import { useTranslation } from '../i18n';
 import { Icon, type IconName } from './Icon';
-import type { InspectorMode, ListTab } from '../lib/types';
+import type { ListTab } from '../lib/types';
 
 interface NavEntry {
   id: string;
@@ -15,7 +15,10 @@ interface NavEntry {
   action?: () => void;
 }
 
-/** 左侧导航收敛为两组：「文件」负责工作台视图与历史，「检查器」负责改文件的六类操作。 */
+/**
+ * 左侧导航只剩一组「文件」：工作台视图与三类记录。
+ * 六类改文件的动作全部由底部检查器的分段承担，侧栏不再重复一遍。
+ */
 export function Nav({
   onNavigate,
   narrow,
@@ -30,15 +33,11 @@ export function Nav({
 }) {
   const { t } = useTranslation();
   const batches = useApp((s) => s.batches);
-  const entries = useApp((s) => s.entries);
   const listTab = useApp((s) => s.listTab);
   const setListTab = useApp((s) => s.setListTab);
-  const inspector = useApp((s) => s.inspector);
-  const openInspector = useApp((s) => s.openInspector);
   const openDrawer = useApp((s) => s.openDrawer);
   const openPlans = useApp((s) => s.openPlans);
   const openSnapshots = useApp((s) => s.openSnapshots);
-  const selected = entries.filter((e) => e.selected && !e.isDir).length;
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const go = (action: () => void) => () => {
@@ -53,16 +52,6 @@ export function Nav({
     active: listTab === tab,
     hint: t('nav.renameHint'),
     action: go(() => setListTab(tab)),
-  });
-
-  const inspect = (mode: InspectorMode, id: string, label: string, icon: IconName): NavEntry => ({
-    id,
-    label,
-    icon,
-    count: selected,
-    active: inspector.open && inspector.mode === mode,
-    hint: t('nav.inspectorHint'),
-    action: go(() => openInspector(mode)),
   });
 
   const groups: Array<{ id: string; label: string; items: NavEntry[] }> = [
@@ -83,18 +72,6 @@ export function Nav({
           id: 'plan', label: t('nav.plan'), icon: 'save',
           hint: t('nav.planHint'), action: go(openPlans),
         },
-      ],
-    },
-    {
-      id: 'inspector',
-      label: t('nav.inspectorGroup'),
-      items: [
-        inspect('attrs', 'attrs', t('nav.attrs'), 'grid'),
-        inspect('meta', 'meta', t('nav.meta'), 'tag'),
-        inspect('time', 'times', t('nav.times'), 'clock'),
-        inspect('organize', 'organize', t('nav.organize'), 'folder'),
-        inspect('exif', 'exif', t('nav.exif'), 'ban'),
-        inspect('encoding', 'encoding', t('nav.encoding'), 'text'),
       ],
     },
   ];
@@ -164,19 +141,7 @@ export function Nav({
           </div>
         );
       })}
-      <div className="nav-foot">
-        <div
-          className="nav-item"
-          role="button"
-          tabIndex={0}
-          title={t('nav.settings')}
-          onClick={go(() => openDrawer('settings'))}
-          data-testid="nav-settings"
-        >
-          <Icon name="settings" />
-          <span>{t('nav.settings')}</span>
-        </div>
-      </div>
+      {/* 「设置」下沉到工具栏「更多」菜单：HIG 不建议把关键入口压在侧栏底部 */}
     </aside>
   );
 }

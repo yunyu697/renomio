@@ -240,6 +240,7 @@ export const jaJP: Dict = {
   'main.clear': 'クリア',
   'main.more': 'その他の操作',
   'main.clearHint': '一覧をクリア（ディスク上のファイルは変更しません）',
+  'main.clearConfirm': '一覧から {count} 件を外します。ディスク上のファイルは削除も変更もされません。',
   'main.selectAll': 'すべて選択 / 解除',
   'main.metadata': 'メタデータ',
   'main.metadataHint': '読み取り専用メタデータを表示（ファイルは変更しません）',

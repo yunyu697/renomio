@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-24T11:32:26.239Z",
+  "generatedAt": "2026-11-24T15:48:37.698Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
-  "passed": 275,
+  "passed": 263,
   "failed": 0,
   "results": [
     {
@@ -148,13 +148,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-24 19:30 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-24 23:46 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-24 19:30 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-24 23:46 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -374,63 +374,69 @@
     },
     {
       "layer": "UI",
-      "name": "左栏收敛为「文件 / 检查器」两组，六类操作都在检查器分组，旧整页入口与「旧版入口」标记已消失",
+      "name": "左栏只剩「文件」一组（检查器六类操作迁到抽屉分段），侧栏底部不再压「设置」",
       "ok": true,
-      "detail": "{\"groups\":[{\"id\":\"nav-group-files\",\"label\":\"文件▾\",\"items\":[\"nav-rename\",\"nav-history\",\"nav-snapshot\",\"nav-plan\"]},{\"id\":\"nav-group-inspector\",\"label\":\"检查器▾\",\"items\":[\"nav-attrs\",\"nav-meta\",\"nav-times\",\"nav-organize\",\"nav-exif\",\"nav-encoding\"]}],\"legacy\":[],\"oldPages\":[]}"
+      "detail": "{\"groups\":[{\"id\":\"nav-group-files\",\"label\":\"文件▾\",\"items\":[\"nav-rename\",\"nav-history\",\"nav-snapshot\",\"nav-plan\"]}],\"legacy\":[],\"oldPages\":[],\"segments\":[\"inspector-tab-attrs\",\"inspector-tab-meta\",\"inspector-tab-time\",\"inspector-tab-organize\",\"inspector-tab-exif\",\"inspector-tab-encoding\"],\"footSettings\":false}"
     },
     {
       "layer": "UI",
-      "name": "侧栏 nav-attrs → 停靠检查器 attrs（文件列表与规则链不被整页替换）",
+      "name": "抽屉头部六段分段齐全（属性 / 元数据 / 时间 / 归类 / EXIF / 编码）",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
+      "detail": "[\"inspector-tab-attrs\",\"inspector-tab-meta\",\"inspector-tab-time\",\"inspector-tab-organize\",\"inspector-tab-exif\",\"inspector-tab-encoding\"]"
     },
     {
       "layer": "UI",
-      "name": "侧栏 nav-meta → 停靠检查器 meta（文件列表与规则链不被整页替换）",
+      "name": "抽屉分段 attrs → 选中态正确，抽屉贴在内容列底部（列表与规则链不被替换）",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
+      "detail": "{\"selected\":\"true\",\"inline\":true,\"collapsed\":\"false\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
     },
     {
       "layer": "UI",
-      "name": "侧栏 nav-times → 停靠检查器 time（文件列表与规则链不被整页替换）",
+      "name": "抽屉分段 meta → 选中态正确，抽屉贴在内容列底部（列表与规则链不被替换）",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
+      "detail": "{\"selected\":\"true\",\"inline\":true,\"collapsed\":\"false\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
     },
     {
       "layer": "UI",
-      "name": "侧栏 nav-organize → 停靠检查器 organize（文件列表与规则链不被整页替换）",
+      "name": "抽屉分段 time → 选中态正确，抽屉贴在内容列底部（列表与规则链不被替换）",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
+      "detail": "{\"selected\":\"true\",\"inline\":true,\"collapsed\":\"false\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
     },
     {
       "layer": "UI",
-      "name": "侧栏 nav-exif → 停靠检查器 exif（文件列表与规则链不被整页替换）",
+      "name": "抽屉分段 organize → 选中态正确，抽屉贴在内容列底部（列表与规则链不被替换）",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
+      "detail": "{\"selected\":\"true\",\"inline\":true,\"collapsed\":\"false\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
     },
     {
       "layer": "UI",
-      "name": "侧栏 nav-encoding → 停靠检查器 encoding（文件列表与规则链不被整页替换）",
+      "name": "抽屉分段 exif → 选中态正确，抽屉贴在内容列底部（列表与规则链不被替换）",
       "ok": true,
-      "detail": "{\"active\":true,\"current\":\"true\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
+      "detail": "{\"selected\":\"true\",\"inline\":true,\"collapsed\":\"false\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
+    },
+    {
+      "layer": "UI",
+      "name": "抽屉分段 encoding → 选中态正确，抽屉贴在内容列底部（列表与规则链不被替换）",
+      "ok": true,
+      "detail": "{\"selected\":\"true\",\"inline\":true,\"collapsed\":\"false\",\"main\":true,\"rules\":true,\"scope\":\"作用于 4 个文件\"}"
+    },
+    {
+      "layer": "UI",
+      "name": "「文件 → 重命名」回到更名列表：页头标题为更名列表，页签条已彻底消失",
+      "ok": true,
+      "detail": "{\"main\":true,\"head\":\"更名列表\",\"tabs\":0,\"active\":true}"
     },
     {
       "layer": "UI",
       "name": "「文件 → 重命名」切回更名列表，不打开整页",
       "ok": true,
-      "detail": "true"
-    },
-    {
-      "layer": "UI",
-      "name": "检查器分组标题可点击折叠（aria-expanded=false 且条目隐藏）",
-      "ok": true,
-      "detail": "{\"expanded\":\"false\",\"visibleItems\":0}"
+      "detail": "[object Object]"
     },
     {
       "layer": "UI",
       "name": "打开检查器 → 文件列表与规则链仍在同一屏（不整页替换工作台）",
       "ok": true,
-      "detail": "{\"scope\":\"作用于 4 个文件\",\"main\":true,\"rules\":true,\"width\":320,\"expanded\":\"true\"}"
+      "detail": "{\"scope\":\"作用于 4 个文件\",\"main\":true,\"rules\":true,\"width\":840,\"mainWidth\":840,\"below\":true,\"expanded\":\"true\"}"
     },
     {
       "layer": "UI",
@@ -440,15 +446,27 @@
     },
     {
       "layer": "UI",
-      "name": "检查器是右侧停靠面板（宽 320px，不覆盖列表）",
+      "name": "检查器是压在列表下方的底部抽屉（与内容列同宽、位于表格之下，不再占右栏 320px）",
       "ok": true,
-      "detail": "320px"
+      "detail": "{\"scope\":\"作用于 4 个文件\",\"main\":true,\"rules\":true,\"width\":840,\"mainWidth\":840,\"below\":true,\"expanded\":\"true\"}"
     },
     {
       "layer": "UI",
-      "name": "≤1100 窄窗：检查器改为右侧抽屉浮层，文件列表不被挤压缩",
+      "name": "抽屉可收起成一条 36px 头部（正文隐藏，不是整块消失）",
       "ok": true,
-      "detail": "{\"position\":\"absolute\",\"width\":340,\"mainWidth\":644,\"narrow\":\"true\"}"
+      "detail": "{\"state\":\"true\",\"head\":36,\"body\":0}"
+    },
+    {
+      "layer": "UI",
+      "name": "再点一次恢复展开（data-collapsed=false 且正文回来）",
+      "ok": true,
+      "detail": "false"
+    },
+    {
+      "layer": "UI",
+      "name": "≤1100 窄窗：抽屉依旧在内容列底部（不降级成覆盖列表的浮层）",
+      "ok": true,
+      "detail": "{\"position\":\"static\",\"mainWidth\":644,\"inMain\":true}"
     },
     {
       "layer": "UI",
@@ -488,7 +506,7 @@
     },
     {
       "layer": "UI",
-      "name": "图片页签的「编辑元数据」入口打开停靠检查器并复用真实编辑器",
+      "name": "抽屉「元数据」分段复用真实编辑器，N 与列表勾选一致",
       "ok": true,
       "detail": "{\"fields\":true,\"unsupported\":false,\"hasApply\":true,\"scope\":\"作用于 1 个文件\"}"
     },
@@ -638,141 +656,27 @@
     },
     {
       "layer": "UI",
-      "name": "页签「attrs」渲染表格 / 表头 / 数据行且无空壳",
+      "name": "页签条彻底下线：list-tabs / list-tab-* / 按类型拆开的只读视图都不再渲染，列表成唯一主视图",
       "ok": true,
-      "detail": "rows=9, th=9, note=true, action=true"
+      "detail": "{\"tabs\":0,\"views\":0,\"head\":\"更名列表\",\"rows\":9,\"filters\":true,\"metaAction\":true}"
     },
     {
       "layer": "UI",
-      "name": "页签「attrs」页签条只占角色高度、表格拿满剩余空间",
+      "name": "页头标题固定在「更名列表」，不再随页签改名",
       "ok": true,
-      "detail": "{\"tabs\":32,\"table\":631}"
+      "detail": "更名列表"
     },
     {
       "layer": "UI",
-      "name": "页签「music」渲染表格 / 表头 / 数据行且无空壳",
-      "ok": true,
-      "detail": "rows=1, th=11, note=true, action=true"
-    },
-    {
-      "layer": "UI",
-      "name": "页签「music」页签条只占角色高度、表格拿满剩余空间",
-      "ok": true,
-      "detail": "{\"tabs\":32,\"table\":631}"
-    },
-    {
-      "layer": "UI",
-      "name": "页签「photo」渲染表格 / 表头 / 数据行且无空壳",
-      "ok": true,
-      "detail": "rows=4, th=12, note=true, action=true"
-    },
-    {
-      "layer": "UI",
-      "name": "页签「photo」页签条只占角色高度、表格拿满剩余空间",
-      "ok": true,
-      "detail": "{\"tabs\":32,\"table\":631}"
-    },
-    {
-      "layer": "UI",
-      "name": "页签「office」渲染表格 / 表头 / 数据行且无空壳",
-      "ok": true,
-      "detail": "rows=1, th=12, note=true, action=true"
-    },
-    {
-      "layer": "UI",
-      "name": "页签「office」页签条只占角色高度、表格拿满剩余空间",
-      "ok": true,
-      "detail": "{\"tabs\":32,\"table\":631}"
-    },
-    {
-      "layer": "UI",
-      "name": "页签「pdf」渲染表格 / 表头 / 数据行且无空壳",
-      "ok": true,
-      "detail": "rows=1, th=9, note=true, action=true"
-    },
-    {
-      "layer": "UI",
-      "name": "页签「pdf」页签条只占角色高度、表格拿满剩余空间",
-      "ok": true,
-      "detail": "{\"tabs\":32,\"table\":631}"
-    },
-    {
-      "layer": "UI",
-      "name": "页签「text」渲染表格 / 表头 / 数据行且无空壳",
-      "ok": true,
-      "detail": "rows=2, th=6, note=true, action=true"
-    },
-    {
-      "layer": "UI",
-      "name": "页签「text」页签条只占角色高度、表格拿满剩余空间",
-      "ok": true,
-      "detail": "{\"tabs\":32,\"table\":631}"
-    },
-    {
-      "layer": "UI",
-      "name": "页签「organize」渲染表格 / 表头 / 数据行且无空壳",
-      "ok": true,
-      "detail": "rows=9, th=5, note=true, action=true"
-    },
-    {
-      "layer": "UI",
-      "name": "页签「organize」页签条只占角色高度、表格拿满剩余空间",
-      "ok": true,
-      "detail": "{\"tabs\":32,\"table\":631}"
-    },
-    {
-      "layer": "UI",
-      "name": "归类页签「打开归类移动」按钮改指检查器并打开真实面板",
-      "ok": true,
-      "detail": "apply=true, note=打开归类移动"
-    },
-    {
-      "layer": "UI",
-      "name": "属性页签「打开属性设置」按钮改指检查器并打开真实面板",
+      "name": "归类分段直接打开真实移动面板（不再依赖页签行按钮）",
       "ok": true,
       "detail": "true"
     },
     {
       "layer": "UI",
-      "name": "文本页签展示编码 / 行数 / 字符数 / 摘要",
+      "name": "属性分段直接打开真实属性面板（不再依赖页签行按钮）",
       "ok": true,
-      "detail": ""
-    },
-    {
-      "layer": "UI",
-      "name": "入口页签与分组用「图像 / 拍摄参数 / 描述信息」，不再出现「照片」",
-      "ok": true,
-      "detail": "{\"tab\":\"图像4\",\"head\":\"图像信息\",\"exif\":\"拍摄参数\",\"desc\":\"描述信息\"}"
-    },
-    {
-      "layer": "UI",
-      "name": "图像页签默认停在「拍摄参数」分组且表头是 EXIF 列",
-      "ok": true,
-      "detail": "[\"名称\",\"格式\",\"尺寸\",\"拍摄时间\",\"相机品牌\",\"相机型号\",\"方向\",\"ISO\",\"快门\",\"光圈\",\"焦距\",\"镜头\"]"
-    },
-    {
-      "layer": "UI",
-      "name": "切到「描述信息」分组后表头换成描述列、页签仍是同一个",
-      "ok": true,
-      "detail": "[\"名称\",\"格式\",\"尺寸\",\"标题\",\"作者\",\"版权\",\"软件\",\"备注\"]"
-    },
-    {
-      "layer": "UI",
-      "name": "描述信息分组明确标注 IPTC / XMP 暂不支持（不伪装成功）",
-      "ok": true,
-      "detail": ""
-    },
-    {
-      "layer": "UI",
-      "name": "照片 / 图像合并后页签条只剩一个图像入口",
-      "ok": true,
-      "detail": ""
-    },
-    {
-      "layer": "UI",
-      "name": "切回「拍摄参数」分组",
-      "ok": true,
-      "detail": ""
+      "detail": "true"
     },
     {
       "layer": "UI",
@@ -872,15 +776,39 @@
     },
     {
       "layer": "UI",
-      "name": "1100×640 @150% DPI：八类页签不撑破页面，页签条与数据行可读",
+      "name": "1100×640 @150% DPI：底部抽屉不撑破页面，抽屉头部六段与内容都可读",
       "ok": true,
-      "detail": "{\"innerWidth\":1100,\"scrollWidth\":1100,\"innerHeight\":640,\"tabsClient\":644,\"tabsScroll\":644,\"tabsDir\":\"row\",\"tabsWrap\":\"nowrap\",\"tabRect\":{\"x\":56,\"w\":644},\"mainW\":644,\"rulesW\":400,\"navW\":56,\"panesW\":1044,\"panesX\":56,\"rulesX\":700,\"panesKids\":[\"main:644@56\",\"rules:400@700\"],\"viewBottom\":588,\"rowHeight\":44}"
+      "detail": "{\"innerWidth\":1100,\"scrollWidth\":1100,\"innerHeight\":640,\"tabsClient\":360,\"tabsScroll\":360,\"tabsDir\":\"row\",\"tabsWrap\":\"nowrap\",\"tabRect\":{\"x\":260,\"w\":360},\"mainW\":644,\"rulesW\":400,\"navW\":56,\"panesW\":1044,\"panesX\":56,\"rulesX\":700,\"panesKids\":[\"main:644@56\",\"rules:400@700\"],\"viewBottom\":588,\"viewHeight\":150,\"segItems\":6,\"segOverflow\":false}"
+    },
+    {
+      "layer": "UI",
+      "name": "「清空列表」先弹二次确认，文案写明只移出列表、磁盘文件不动，且弹层不越出内容列",
+      "ok": true,
+      "detail": "{\"text\":\"列表中的 11 个对象会被移出，磁盘上的文件不会被删除或修改。取消清空\",\"rows\":11,\"confirmLeft\":599,\"mainRight\":700}"
+    },
+    {
+      "layer": "UI",
+      "name": "取消清空 → 列表行数完全不变",
+      "ok": true,
+      "detail": "rows=11"
+    },
+    {
+      "layer": "UI",
+      "name": "确认清空 → 列表回到空态、磁盘文件数量不变、清空按钮转为禁用",
+      "ok": true,
+      "detail": "{\"rows\":0,\"files\":11,\"disabled\":true,\"tabsGone\":0}"
+    },
+    {
+      "layer": "UI",
+      "name": "清空后重新添加 → 列表恢复 9 行（磁盘文件确实还在）",
+      "ok": true,
+      "detail": "rows=11"
     },
     {
       "layer": "UI-triggered mock",
-      "name": "交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/批量元数据/事件/写文件）",
+      "name": "交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/事件/写文件）",
       "ok": true,
-      "detail": "load_rule_history,startup_report,env_info,plugin:event|listen,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_times,apply_time,read_attrs,meta_read,meta_capabilities,list_snapshots,file_type_icons,read_metadata_batch,apply_attrs,apply_move"
+      "detail": "plugin:event|listen,load_rule_history,startup_report,env_info,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_attrs,read_times,apply_time,meta_read,meta_capabilities,list_snapshots,apply_attrs,apply_move"
     },
     {
       "layer": "UI-triggered mock",
@@ -890,7 +818,7 @@
     },
     {
       "layer": "UI",
-      "name": "九类页签与拖放流程无未捕获页面异常",
+      "name": "列表 / 抽屉 / 拖放流程无未捕获页面异常",
       "ok": true,
       "detail": "exceptions=0"
     },
@@ -1202,9 +1130,9 @@
     },
     {
       "layer": "UI",
-      "name": "窄窗点入口 → 打开检查器并自动收回图标列",
+      "name": "窄窗点侧栏入口 → 打开对应抽屉并自动收回图标列",
       "ok": true,
-      "detail": "{\"nav\":\"rail\",\"inspector\":true}"
+      "detail": "{\"nav\":\"rail\",\"drawer\":true}"
     },
     {
       "layer": "UI",
@@ -1294,7 +1222,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmwum6yqe1\",\"jumpState\":{\"openId\":\"rmwum6yqe1\",\"detail\":1,\"focused\":\"rmwum6yqe1\"}}"
+      "detail": "{\"firstRuleId\":\"rmwuvcdf61\",\"jumpState\":{\"openId\":\"rmwuvcdf61\",\"detail\":1,\"focused\":\"rmwuvcdf61\"}}"
     },
     {
       "layer": "UI",
@@ -1360,7 +1288,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795519916250.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795535285204.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -1426,7 +1354,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/24 19:32:013 条 · 仅映射预览还原删除"
+      "detail": "2026/11/24 23:48:113 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -1486,7 +1414,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-24 19:32 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-24 23:48 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",
@@ -1683,6 +1611,8 @@
     "15-min-tabs-1100x640-150dpi.png",
     "15-ops-time-result.png",
     "15b-inspector.png",
+    "15c-inspector-light.png",
+    "16-clear-list-empty.png",
     "16-ops-move-preview.png",
     "17-ops-move-result.png",
     "17-permission-failures.png",
