@@ -584,9 +584,14 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
 .chip-ghost:hover { background: var(--ds-color-surface-3); color: var(--ds-color-text); }
 
 .switch {
+  /* 尺寸由 --sw-h/--sw-w 决定，滑块大小与两个端点位置全部由它们算出，
+     不再写死 top/left，避免改尺寸时某一边对不上（规则行曾因此偏下 0.5px、偏左 1px） */
+  --sw-pad: 2px;
+  --sw-h: 16px;
+  --sw-w: 28px;
   position: relative;
-  width: 28px;
-  height: 16px;
+  width: var(--sw-w);
+  height: var(--sw-h);
   border-radius: var(--ds-radius-role-pill);
   background: var(--ds-color-line-strong);
   cursor: pointer;
@@ -596,15 +601,17 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
 .switch::after {
   content: "";
   position: absolute;
-  top: 2px; left: 2px;
-  width: 12px; height: 12px;
+  top: var(--sw-pad);
+  left: var(--sw-pad);
+  width: calc(var(--sw-h) - 2 * var(--sw-pad));
+  height: calc(var(--sw-h) - 2 * var(--sw-pad));
   border-radius: 50%;
   background: var(--ds-color-on-accent);
   box-shadow: 0 1px 2px rgba(0,0,0,.2);
   transition: left var(--ds-dur-3);
 }
 .switch.on { background: var(--ds-color-accent); }
-.switch.on::after { left: 14px; }
+.switch.on::after { left: calc(var(--sw-w) - var(--sw-h) + var(--sw-pad)); }
 
 .switch-row { display: inline-flex; align-items: center; gap: var(--ds-space-role-inline); color: var(--ds-color-text-2); }
 .switch-row .lbl { font-size: var(--ds-type-role-caption); }
@@ -1717,9 +1724,7 @@ html[data-theme="dark"] .theme-toggle .moon { display: inline; }
   color: var(--ds-color-text-muted);
 }
 .rule-step:disabled { opacity: .35; }
-.rule-row .switch { width: 26px; height: 14px; }
-.rule-row .switch::after { width: 11px; height: 11px; }
-.rule-row .switch.on::after { left: var(--ds-space-5); }
+.rule-row .switch { --sw-h: 14px; --sw-w: 26px; }
 .rules-add { height: var(--ds-control-h-md); padding: 0 var(--ds-space-4); font-size: var(--ds-font-size-12); }
 
 .rule-card {

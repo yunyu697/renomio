@@ -2434,6 +2434,30 @@ async function main() {
           return style.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1 && (el.textContent || '').trim().length > 0;
         })
         .map((el) => (el.className || el.tagName) + ':' + (el.textContent || '').trim().slice(0, 18));
+      // 开关几何：滑块必须上下等间隙，开态贴右、关态贴左，且滑块是正圆
+      const switches = { count: 0, bad: [] };
+      for (const el of document.querySelectorAll('.switch')) {
+        if (!el.getClientRects().length) continue;
+        switches.count += 1;
+        const after = getComputedStyle(el, '::after');
+        const w = el.getBoundingClientRect().width;
+        const h = el.getBoundingClientRect().height;
+        const kw = parseFloat(after.width);
+        const kh = parseFloat(after.height);
+        const l = parseFloat(after.left);
+        const t = parseFloat(after.top);
+        const r = +(w - l - kw).toFixed(2);
+        const b = +(h - t - kh).toFixed(2);
+        const on = el.classList.contains('on');
+        const near = on ? r : l;            // 开态看右侧、关态看左侧的贴边间隙
+        const far = on ? l : r;
+        const wantFar = +(w - kw - near).toFixed(2);
+        const bad = Math.abs(t - b) > 0.6
+          || Math.abs(kw - kh) > 0.3
+          || near > 3.6
+          || Math.abs(far - wantFar) > 0.6;
+        if (bad) switches.bad.push(String(el.className) + '|' + (on ? 'on' : 'off') + '|track ' + w + 'x' + h + '|knob ' + kw + 'x' + kh + '|L' + l + ' R' + r + ' T' + t + ' B' + b);
+      }
       return {
         view: workspace.getAttribute('data-view'),
         narrow: workspace.getAttribute('data-narrow'),
@@ -2443,6 +2467,7 @@ async function main() {
         panesDir: getComputedStyle(panes).flexDirection,
         main: box(main), rules: rules ? box(rules) : null, panes: box(panes),
         clipped, clippedNames, scrollables, truncated, ellipsis,
+        switchCount: switches.count, switchBad: switches.bad,
       };
     })()`);
 
@@ -2454,11 +2479,12 @@ async function main() {
       [1200, 760, 1],
       [1100, 640, 1],
     ];
-    const layoutTotals = { clipped: 0, horizontal: 0, truncated: 0, combos: 0, pageOverflow: 0 };
+    const layoutTotals = { clipped: 0, horizontal: 0, truncated: 0, combos: 0, pageOverflow: 0, switchBad: 0, switchSeen: 0 };
     const layoutDetails = [];
     const clippedSamples = [];
     const horizontalSamples = [];
     const truncatedSamples = [];
+    const switchSamples = [];
     const orientationOk = {};
     for (const [w, h, scale] of viewportPlans) {
       await viewport(w, h, scale);
@@ -2470,6 +2496,9 @@ async function main() {
         layoutTotals.clipped += m.clipped;
         layoutTotals.horizontal += m.scrollables.length;
         layoutTotals.truncated += m.truncated.length;
+        layoutTotals.switchBad += m.switchBad.length;
+        layoutTotals.switchSeen += m.switchCount;
+        if (m.switchBad.length > 0) switchSamples.push(`${w}x${h}@${scale}/${view}:` + m.switchBad.join('|'));
         if (m.pageOverflow) layoutTotals.pageOverflow += 1;
         if (m.clipped > 0) clippedSamples.push(`${w}x${h}@${scale}/${view}:` + m.clippedNames.join('|'));
         if (m.scrollables.length > 0) horizontalSamples.push(`${w}x${h}@${scale}/${view}:` + m.scrollables.join('|'));
@@ -2498,6 +2527,12 @@ async function main() {
       }
     }
     check('UI', '五种预设视图、五种窗口规模：控件裁切 = 0', layoutTotals.clipped === 0, JSON.stringify({ combos: layoutTotals.combos, clipped: layoutTotals.clipped, samples: clippedSamples.slice(0, 8) }));
+    check(
+      'UI',
+      '所有开关滑块居中（上下等间隙、开态贴右关态贴左、滑块为正圆）',
+      layoutTotals.switchBad === 0 && layoutTotals.switchSeen > 0,
+      JSON.stringify({ seen: layoutTotals.switchSeen, bad: layoutTotals.switchBad, samples: switchSamples.slice(0, 6) }),
+    );
     check('UI', '五种预设视图、五种窗口规模：横向滚动条 = 0', layoutTotals.horizontal === 0 && layoutTotals.pageOverflow === 0, JSON.stringify({ horizontal: layoutTotals.horizontal, pageOverflow: layoutTotals.pageOverflow, samples: horizontalSamples.slice(0, 8) }));
     check('UI', '五种预设视图、五种窗口规模：控件文字截断 = 0', layoutTotals.truncated === 0, JSON.stringify({ ...layoutTotals, samples: truncatedSamples.slice(0, 8) }));
     check('UI', '各视图方向/顺序正确（并排左右、上下先后、紧凑整宽）', Object.values(orientationOk).every(Boolean), JSON.stringify(orientationOk));
