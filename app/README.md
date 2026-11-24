@@ -369,14 +369,14 @@ app/
 
 数据目录：每用户的 `%APPDATA%\app.renomio.desktop`（Tauri `app_data_dir`，随 identifier 变化），不随安装目录走；**切换安装范围不会迁移配置、日志与撤销历史**（同一用户的同一数据目录，两者共享）。**自动更新（alpha5 起）**：设置页「检查更新」读取源码仓库 `yunyu697/renomio` 滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；以 minisign 签名校验为准，支持镜像回退、仅下载与安装后重启。源码仓库已公开，安装包与更新清单与源码同仓发布；旧发行仓库 `renomio-releases` 已归档，仅保留历史下载。
 
-## 产物（1.2.0-alpha5，三平台由 CI 构建）
+## 产物（1.2.0-alpha6，三平台由 CI 构建）
 
 | 安装包 | 文件 | 大小 | SHA-256 |
 | --- | --- | --- | --- |
-| NSIS | `Renomio_1.2.0-alpha5_x64-setup.exe` | 2,516,960 字节（2.40 MiB） | `492F83038523FA5E4DCC565FECB5E300B7BA751858174FA58CADD3AC23EEE5B1` |
-| MSI | `Renomio_1.2.0-alpha5_x64_en-US.msi` | 3,338,240 字节（3.18 MiB） | `F1D5D19B55140344E499A80DCA067B72C853ACCA89F01F8F9B34FA76D010B2A5` |
+| NSIS | `Renomio_1.2.0-alpha6_x64-setup.exe` | 2,516,683 字节（2.40 MiB） | `44DF22A3C8962E354F4FCE48D6F803E000FDC528B0C1FBF75005124CA0F30DE2` |
+| MSI | `Renomio_1.2.0-alpha6_x64_en-US.msi` | 3,338,240 字节（3.18 MiB） | `38A78D549D0640A8FD48C299C2F06ED6B4C129C3B74371CC6F4D4E13BB289578` |
 
-本轮构建发生在备用机器上，该机**没有** `renomio-signing/renomio.key`，因此没有本地预检包，上表数字全部取自 tag `v1.2.0-alpha5` 的 CI 产物。两包均未做 Authenticode 代码签名（无 OV/EV 证书，首次运行 SmartScreen 会提示未知发布者；证书到位后可用 `scripts/sign/windows-sign.ps1` 补签）。更新用 `.sig` 由 CI 以 `TAURI_SIGNING_PRIVATE_KEY`（仅路径注入、空口令）生成，6 个包（NSIS/MSI/dmg/AppImage/deb/`Renomio.app.tar.gz`）的签名都用 `tauri.conf.json` 内置公钥离线验过——文件签名与 trusted comment 签名双 PASS，keyid `a1d8edb60bbc50fd`，trusted comment 绑定 `file` 与 `version:1.2.0-alpha5`。`updates` 的 `latest.json` 已按本版重写并覆盖到 GitHub 生效。安装范围：NSIS 安装时可选、默认所有用户（`Program Files\Renomio`）；MSI 只有机器级一种（固定 `Program Files\Renomio`、必须管理员、不提供用户级）。**该轮变更**：大小写规则新增例外词表（`protect`，`iPhone`/`PDF` 这类固定写法在六种大小写模式下保留原名写法，支持 `*`/`?` 通配与大小写不敏感）。E2E 278 通过 / 0 失败，例外词自测 18/18，正则方言 18/18，设计令牌 69 项一致。主程序为 `renomio.exe`，由 `[[bin]] name = "renomio"` 产出。
+本轮在主力 Windows 机器上完成了签名预检构建（该机有仓库外 `renomio-signing/renomio.key`）：本地 NSIS 2,499,847 字节 / `B75F6954EDBA72D36F8C3E2FE517B0CC6CC5C4AA40FB363BF0289CC9522B699D`，本地 MSI 3,690,496 字节 / `49CB9DD03570B1BDF7D5FD58696EFE4F2360D2474402836349E82351A9FF1178`，两包 updater 签名均 PASS、`npm run test:bundle` 全过；**上表与 Release 用的是 tag `v1.2.0-alpha6` 的 CI 产物**（CI 与本地构建字节不同属正常，两者各自带自己的 `.sig`）。两包均未做 Authenticode 代码签名（无 OV/EV 证书，首次运行 SmartScreen 会提示未知发布者；证书到位后可用 `scripts/sign/windows-sign.ps1` 补签）。更新用 `.sig` 由 CI 以 `TAURI_SIGNING_PRIVATE_KEY`（仅路径注入、空口令）生成，6 个包（NSIS/MSI/dmg/AppImage/deb/`Renomio.app.tar.gz`）的签名都用 `tauri.conf.json` 内置公钥离线验过——文件签名与 trusted comment 签名双 PASS，keyid `a1d8edb60bbc50fd`，trusted comment 绑定 `file` 与 `version:1.2.0-alpha6`。`updates` 的 `latest.json` 已按本版重写并覆盖到 GitHub 生效。安装范围：NSIS 安装时可选、默认所有用户（`Program Files\Renomio`）；MSI 只有机器级一种（固定 `Program Files\Renomio`、必须管理员、不提供用户级）。**该轮变更**：界面遗留清零——删掉 105 个已无 DOM 引用的死类选择器（`app.css` −17%、`shell.css` −8.5%）并重排为可读格式，新增 `npm run test:css` 孤儿样式守卫并接入 CI；toast 改为让位式（右侧抽屉展开左移、底部检查器展开抬升）；表头与行逐列几何断言实测 7 列 Δ=0、状态列 Δ=0.00。E2E 283 通过 / 0 失败，例外词自测 18/18，正则方言 18/18，孤儿样式 0，设计令牌 69 项一致。主程序为 `renomio.exe`，由 `[[bin]] name = "renomio"` 产出。
 
 **1.1.0-alpha1 时的真实升级实测**：匿名下载公开 `v1.0.0` NSIS 包并静默安装（`/S`，5.3 s，落到 `C:\Program Files\Renomio`，ARP 显示 `1.0.0`），再用 `1.1.0-alpha1` NSIS 包静默覆盖（6.5 s，ARP 与 `renomio.exe --version` 均变为 `1.1.0-alpha1`，安装路径不变；`uninstall.exe` 重写时间为升级时刻）。卸载、快捷方式落点、两范围交叉安装、旧版并存拦截仍未验证。
 
