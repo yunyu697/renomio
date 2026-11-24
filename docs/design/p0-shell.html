@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
-<title>Renomio · P0 界面重构设计稿</title>
+<title>Renomio · P0 界面重构设计稿（v2：检查器底部抽屉 / 无页签）</title>
 <style>
   :root{
     --bg:#ffffff;
@@ -30,7 +30,6 @@
   .win{width:1440px;height:900px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
   svg.ic{width:14px;height:14px;flex:0 0 auto;stroke:currentColor;stroke-width:1.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
   svg.ic.sm{width:12px;height:12px}
-  svg.ic.lg{width:16px;height:16px}
 
   /* 标题栏 40 */
   .titlebar{height:40px;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--surface);border-bottom:1px solid var(--line)}
@@ -67,7 +66,6 @@
   .path-btn .dim{color:var(--text-2)}
   .path-btn svg{color:var(--text-2)}
 
-  /* 主体 */
   .body{flex:1;display:flex;min-height:0}
 
   /* 侧栏 220 */
@@ -82,23 +80,19 @@
   .nav-item.active .cnt{color:#4a63ad}
   .nav-flex{flex:1}
 
-  /* 内容区 */
+  /* 内容区：无页签 */
   .pane{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)}
-  .pane-head{height:48px;flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:0 16px}
+  .pane-head{height:52px;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:0 16px}
   .pane-head h1{font-size:17px;font-weight:600;margin:0;letter-spacing:.1px}
   .pane-head .sp{flex:1}
-  .tabs{height:32px;flex:0 0 auto;display:flex;align-items:flex-end;gap:18px;padding:0 16px;border-bottom:1px solid var(--line)}
-  .tab{position:relative;height:32px;display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-2)}
-  .tab.active{color:var(--text);font-weight:600}
-  .tab.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--accent);border-radius:1px}
-  .tab i{font-style:normal;font-family:var(--mono);font-size:10.5px;color:var(--text-muted)}
-  .tab.active i{color:var(--accent)}
-  .table{flex:1;overflow:hidden}
-  .thead{height:32px;display:flex;align-items:center;border-bottom:1px solid var(--line);color:var(--text-2);font-size:11px;background:var(--surface-2)}
+  .table{flex:1;overflow:hidden;display:flex;flex-direction:column}
+  .thead{height:32px;flex:0 0 auto;display:flex;align-items:center;border-bottom:1px solid var(--line);color:var(--text-2);font-size:11px;background:var(--surface-2)}
   .th{display:flex;align-items:center;gap:4px;padding:0 10px;height:32px;font-weight:500}
   .th.sort{color:var(--text)}
   .th.sort svg{color:var(--text-muted)}
+  .rows{flex:1;overflow:hidden}
   .row{height:var(--row-h);display:flex;align-items:center;border-bottom:1px solid #f1f2f4;font-size:12px}
+  .row.sel{background:var(--accent-weak)}
   .c-check{width:36px;padding-left:12px;color:var(--line-2)}
   .row-check{width:14px;height:14px;border-radius:4px;border:1px solid var(--line-2);display:grid;place-items:center;background:#fff}
   .row-check.on{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -119,14 +113,34 @@
   .dot-warn::before{background:#d97706}
   .stat-mute{color:var(--text-muted);font-size:11px}
 
-  /* 右栏 340 */
-  .inspector{width:340px;flex:0 0 auto;background:var(--surface);border-left:1px solid var(--line);display:flex;flex-direction:column}
-  .insp-head{height:48px;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:0 12px}
-  .seg{display:inline-flex;height:28px;padding:2px;border-radius:8px;background:var(--surface-3);gap:2px}
-  .seg span{display:inline-flex;align-items:center;padding:0 9px;border-radius:6px;font-size:11.5px;color:var(--text-2);white-space:nowrap}
+  /* 底部抽屉：检查器 */
+  .drawer{flex:0 0 auto;border-top:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column}
+  .dw-head{height:38px;flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:0 12px 0 16px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+  .dw-title{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;letter-spacing:.3px;color:var(--text-muted);white-space:nowrap}
+  .dw-subject{font-family:var(--mono);font-size:11.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+  .dw-head .sp{flex:1}
+  .seg{display:inline-flex;height:26px;padding:2px;border-radius:8px;background:var(--surface-3);gap:2px}
+  .seg span{display:inline-flex;align-items:center;padding:0 9px;border-radius:6px;font-size:11px;color:var(--text-2);white-space:nowrap}
   .seg span.on{background:var(--surface);color:var(--text);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  .dw-body{padding:10px 16px 12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 28px}
+  .kv{display:flex;align-items:center;gap:8px;font-size:11.5px;min-width:0}
+  .kv .k{color:var(--text-muted);width:64px;flex:0 0 auto;font-size:10.5px}
+  .kv .v{color:var(--text);font-family:var(--mono);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kv .v.plain{font-family:var(--font)}
+  .dw-foot{display:flex;align-items:center;gap:8px;padding:0 16px 10px;color:var(--text-muted);font-size:10.5px}
+  .drawer.collapsed .dw-body,.drawer.collapsed .dw-foot{display:none}
+  .drawer.collapsed .dw-head{height:36px;border-bottom:0}
+  .drawer.collapsed .seg{display:none}
+  .dw-sum{display:none;font-size:10.5px;color:var(--text-muted)}
+  .drawer.collapsed .dw-sum{display:inline}
+
+  /* 右栏：只留规则链 */
+  .inspector{width:340px;flex:0 0 auto;background:var(--surface);border-left:1px solid var(--line);display:flex;flex-direction:column}
+  .insp-head{height:48px;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--line)}
+  .insp-head h2{font-size:13px;font-weight:600;margin:0}
+  .insp-head .badge{font-family:var(--mono);font-size:10.5px;color:var(--text-muted)}
   .insp-head .sp{flex:1}
-  .rule-card{margin:0 12px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:9px 11px 11px}
+  .rule-card{margin:10px 12px 0;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:9px 11px 11px}
   .rc-head{display:flex;align-items:center;gap:8px;margin-bottom:9px}
   .rc-no{width:18px;height:18px;border-radius:999px;background:var(--accent-weak);color:var(--accent-text);font-family:var(--mono);font-size:10.5px;display:grid;place-items:center}
   .rc-title{font-size:12.5px;font-weight:600}
@@ -145,7 +159,7 @@
   .scope{display:inline-flex;height:26px;padding:2px;border-radius:8px;border:1px solid var(--line);gap:2px}
   .scope span{padding:0 8px;display:inline-flex;align-items:center;border-radius:6px;font-size:11px;color:var(--text-2)}
   .scope span.on{background:var(--accent-weak);color:var(--accent-text);font-weight:600}
-  .chain-foot{display:flex;align-items:center;gap:6px;margin:2px 12px 0;padding-top:10px;border-top:1px solid var(--line);color:var(--text-muted);font-size:10.5px}
+  .chain-foot{display:flex;align-items:center;gap:6px;margin:8px 12px 0;padding-top:10px;border-top:1px solid var(--line);color:var(--text-muted);font-size:10.5px}
   .insp-flex{flex:1}
 
   /* 行内确认条 */
@@ -168,7 +182,7 @@
 <body>
 <div class="win">
 
-  <!-- 1 标题栏：只做窗口身份 -->
+  <!-- 1 标题栏 -->
   <div class="titlebar">
     <span class="brand"></span>
     <span class="product">Renomio</span>
@@ -183,7 +197,7 @@
     </div>
   </div>
 
-  <!-- 2 工具栏：四组 + 搜索 + 更多 -->
+  <!-- 2 工具栏 -->
   <div class="toolbar">
     <div class="grp">
       <button class="btn primary">
@@ -201,7 +215,7 @@
         导入方案
       </button>
       <button class="btn ghost">
-        <svg class="ic" viewBox="0 0 16 16"><path d="M3 2.5h7l3 3v8a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z"/><path d="M10 2.5v3h3"/><path d="M5 9.5h6M5 11.5h4"/></svg>
+        <svg class="ic" viewBox="0 0 16 16"><path d="M3 2.5h7l3 3v8a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1z"/><path d="M10 2.5v3h3"/><path d="M5 9.5h6M5 11.5h4"/></svg>
         保存方案
       </button>
     </div>
@@ -229,7 +243,7 @@
     </button>
   </div>
 
-  <!-- 3 路径条：单行，扫描选项收成一个按钮 -->
+  <!-- 3 路径条 -->
   <div class="pathbar">
     <span class="path">
       <svg class="ic sm" viewBox="0 0 12 12"><path d="M2 4.5V3a.8.8 0 0 1 .8-.8h2l1.2 1.5h3.2a.8.8 0 0 1 .8.8v5.5a.8.8 0 0 1-.8.8h-6.4a.8.8 0 0 1-.8-.8z"/></svg>
@@ -238,8 +252,7 @@
     <span class="chip">保留 <b>*.jpg</b> <b>*.png</b></span>
     <span class="chip">排除 <b>*副本*</b></span>
     <span class="path-spacer"></span>
-    <button class="path-btn">
-      <span class="dim">扫描：</span>递归 · 含文件夹
+    <button class="path-btn"><span class="dim">扫描：</span>递归 · 含文件夹
       <svg class="ic sm" viewBox="0 0 12 12"><path d="M3 5l3 3 3-3"/></svg>
     </button>
     <button class="path-btn">
@@ -251,7 +264,7 @@
 
   <div class="body">
 
-    <!-- 4 侧栏：只剩两组，计数只出现一次 -->
+    <!-- 4 侧栏 -->
     <aside class="nav">
       <div class="nav-group">
         <div class="nav-group-label">文件
@@ -282,18 +295,18 @@
       <div class="nav-flex"></div>
     </aside>
 
-    <!-- 5 主区：标题 + 视图菜单，页签只剩两个 -->
+    <!-- 5 内容区：无页签 -->
     <main class="pane">
       <div class="pane-head">
         <h1>更名列表</h1>
         <span class="sp"></span>
+        <button class="btn sm ghost" id="clear-list">
+          <svg class="ic" viewBox="0 0 16 16"><path d="M3 4.5h10"/><path d="M5.5 4.5V3a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1.5"/><path d="M4.5 4.5l.6 8.2a1 1 0 0 0 1 .8h3.8a1 1 0 0 0 1-.8l.6-8.2"/><path d="M6.5 7v4M9.5 7v4"/></svg>
+          清空列表
+        </button>
         <button class="btn sm ghost">视图
           <svg class="ic sm" viewBox="0 0 12 12"><path d="M3 4.5l3 3 3-3"/></svg>
         </button>
-      </div>
-      <div class="tabs">
-        <span class="tab active">更名 <i>4</i></span>
-        <span class="tab">属性</span>
       </div>
 
       <div class="table">
@@ -308,52 +321,93 @@
           <div class="th c-stat">状态</div>
         </div>
 
-        <div class="row">
-          <div class="c-check"><span class="row-check on"><svg viewBox="0 0 12 12"><path d="M2 6l2.5 2.5L10 3.5"/></svg></span></div>
-          <div class="c-name"><span class="thumb"><svg class="ic sm" viewBox="0 0 12 12"><rect x="2" y="3" width="8" height="6" rx="1"/><path d="M2 8l2.5-2 2 1.5 1.5-1 2 1.5"/></svg></span><span class="fn">海边 001.jpg</span></div>
-          <div class="c-size">2.3 MB</div>
-          <div class="c-time">2025-01-01 08:00</div>
-          <div class="c-new"><em>权限_</em>001.jpg</div>
-          <div class="c-stat"><span class="dot-ok">可执行</span></div>
-        </div>
-        <div class="row">
-          <div class="c-check"><span class="row-check on"><svg viewBox="0 0 12 12"><path d="M2 6l2.5 2.5L10 3.5"/></svg></span></div>
-          <div class="c-name"><span class="thumb"><svg class="ic sm" viewBox="0 0 12 12"><rect x="2" y="3" width="8" height="6" rx="1"/><path d="M2 8l2.5-2 2 1.5 1.5-1 2 1.5"/></svg></span><span class="fn">海边 002.jpg</span></div>
-          <div class="c-size">1.8 MB</div>
-          <div class="c-time">2025-01-02 08:00</div>
-          <div class="c-new"><em>权限_</em>002.jpg</div>
-          <div class="c-stat"><span class="dot-ok">可执行</span></div>
-        </div>
-        <div class="row">
-          <div class="c-check"><span class="row-check on"><svg viewBox="0 0 12 12"><path d="M2 6l2.5 2.5L10 3.5"/></svg></span></div>
-          <div class="c-name"><span class="thumb"><svg class="ic sm" viewBox="0 0 12 12"><rect x="2" y="3" width="8" height="6" rx="1"/><path d="M2 8l2.5-2 2 1.5 1.5-1 2 1.5"/></svg></span><span class="fn">海边 003.jpg</span>
-            <svg class="ic sm" viewBox="0 0 12 12"><rect x="3" y="5.5" width="6" height="4.5" rx="1"/><path d="M4.5 5.5V4a1.5 1.5 0 0 1 3 0v1.5"/></svg>
+        <div class="rows">
+          <div class="row">
+            <div class="c-check"><span class="row-check on"><svg viewBox="0 0 12 12"><path d="M2 6l2.5 2.5L10 3.5"/></svg></span></div>
+            <div class="c-name"><span class="thumb"><svg class="ic sm" viewBox="0 0 12 12"><rect x="2" y="3" width="8" height="6" rx="1"/><path d="M2 8l2.5-2 2 1.5 1.5-1 2 1.5"/></svg></span><span class="fn">海边 001.jpg</span></div>
+            <div class="c-size">2.3 MB</div>
+            <div class="c-time">2025-01-01 08:00</div>
+            <div class="c-new"><em>权限_</em>001.jpg</div>
+            <div class="c-stat"><span class="dot-ok">可执行</span></div>
           </div>
-          <div class="c-size">967 KB</div>
-          <div class="c-time">2025-01-03 08:00</div>
-          <div class="c-new"><em>权限_</em>003.jpg</div>
-          <div class="c-stat"><span class="dot-warn">只读跳过</span></div>
+          <div class="row sel">
+            <div class="c-check"><span class="row-check on"><svg viewBox="0 0 12 12"><path d="M2 6l2.5 2.5L10 3.5"/></svg></span></div>
+            <div class="c-name"><span class="thumb"><svg class="ic sm" viewBox="0 0 12 12"><rect x="2" y="3" width="8" height="6" rx="1"/><path d="M2 8l2.5-2 2 1.5 1.5-1 2 1.5"/></svg></span><span class="fn">海边 002.jpg</span></div>
+            <div class="c-size">1.8 MB</div>
+            <div class="c-time">2025-01-02 08:00</div>
+            <div class="c-new"><em>权限_</em>002.jpg</div>
+            <div class="c-stat"><span class="dot-ok">可执行</span></div>
+          </div>
+          <div class="row">
+            <div class="c-check"><span class="row-check on"><svg viewBox="0 0 12 12"><path d="M2 6l2.5 2.5L10 3.5"/></svg></span></div>
+            <div class="c-name"><span class="thumb"><svg class="ic sm" viewBox="0 0 12 12"><rect x="2" y="3" width="8" height="6" rx="1"/><path d="M2 8l2.5-2 2 1.5 1.5-1 2 1.5"/></svg></span><span class="fn">海边 003.jpg</span>
+              <svg class="ic sm" viewBox="0 0 12 12"><rect x="3" y="5.5" width="6" height="4.5" rx="1"/><path d="M4.5 5.5V4a1.5 1.5 0 0 1 3 0v1.5"/></svg>
+            </div>
+            <div class="c-size">967 KB</div>
+            <div class="c-time">2025-01-03 08:00</div>
+            <div class="c-new"><em>权限_</em>003.jpg</div>
+            <div class="c-stat"><span class="dot-warn">只读跳过</span></div>
+          </div>
+          <div class="row">
+            <div class="c-check"><span class="row-check on"><svg viewBox="0 0 12 12"><path d="M2 6l2.5 2.5L10 3.5"/></svg></span></div>
+            <div class="c-name"><span class="thumb"><svg class="ic sm" viewBox="0 0 12 12"><rect x="2" y="3" width="8" height="6" rx="1"/><path d="M2 8l2.5-2 2 1.5 1.5-1 2 1.5"/></svg></span><span class="fn">logo.png</span></div>
+            <div class="c-size">86 KB</div>
+            <div class="c-time">2025-01-04 09:00</div>
+            <div class="c-new">logo.png</div>
+            <div class="c-stat"><span class="stat-mute">未变更</span></div>
+          </div>
         </div>
-        <div class="row">
-          <div class="c-check"><span class="row-check on"><svg viewBox="0 0 12 12"><path d="M2 6l2.5 2.5L10 3.5"/></svg></span></div>
-          <div class="c-name"><span class="thumb"><svg class="ic sm" viewBox="0 0 12 12"><rect x="2" y="3" width="8" height="6" rx="1"/><path d="M2 8l2.5-2 2 1.5 1.5-1 2 1.5"/></svg></span><span class="fn">logo.png</span></div>
-          <div class="c-size">86 KB</div>
-          <div class="c-time">2025-01-04 09:00</div>
-          <div class="c-new">logo.png</div>
-          <div class="c-stat"><span class="stat-mute">未变更</span></div>
+      </div>
+
+      <!-- 6 底部抽屉：检查器 -->
+      <div class="drawer" id="drawer">
+        <div class="dw-head">
+          <span class="dw-title">
+            <svg class="ic sm" viewBox="0 0 12 12"><rect x="2" y="3" width="8" height="6" rx="1"/><path d="M2 6h8"/></svg>
+            检查器
+          </span>
+          <span class="dw-subject">海边 002.jpg</span>
+          <span class="dw-sum">文件属性 · 8 项</span>
+          <span class="sp"></span>
+          <div class="seg">
+            <span class="on">文件属性</span>
+            <span>元数据</span>
+            <span>时间</span>
+            <span>归类</span>
+            <span>EXIF</span>
+            <span>编码</span>
+          </div>
+          <button class="btn icon" title="收起检查器" id="drawer-toggle">
+            <svg class="ic" viewBox="0 0 16 16"><path d="M4 10l4 4 4-4"/></svg>
+          </button>
+        </div>
+        <div class="dw-body">
+          <div class="kv"><span class="k">名称</span><span class="v">海边 002.jpg</span></div>
+          <div class="kv"><span class="k">新名称</span><span class="v">权限_002.jpg</span></div>
+          <div class="kv"><span class="k">路径</span><span class="v">D:\e2e\旅行\海边 002.jpg</span></div>
+          <div class="kv"><span class="k">类型</span><span class="v plain">JPEG 图像</span></div>
+          <div class="kv"><span class="k">大小</span><span class="v">1,872,304 字节（1.8 MB）</span></div>
+          <div class="kv"><span class="k">修改时间</span><span class="v">2025-01-02 08:00:14</span></div>
+          <div class="kv"><span class="k">权限</span><span class="v plain">可读写</span></div>
+          <div class="kv"><span class="k">EXIF</span><span class="v plain">相机 · 焦距 35mm · 无 GPS</span></div>
+        </div>
+        <div class="dw-foot">
+          <svg class="ic sm" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.5"/><path d="M6 3.5v2.5l1.5 1"/></svg>
+          只读字段不可改；元数据与时间属性需勾选后写入新文件
         </div>
       </div>
     </main>
 
-    <!-- 6 右栏：检查器类型收成分段控件 -->
+    <!-- 7 右栏：只留规则链 -->
     <aside class="inspector">
       <div class="insp-head">
-        <div class="seg">
-          <span class="on">规则链</span>
-          <span>文件属性</span>
-          <span>元数据</span>
-        </div>
+        <h2>规则链</h2>
+        <span class="badge">2 条</span>
         <span class="sp"></span>
+        <button class="btn sm soft">
+          <svg class="ic" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg>
+          添加规则
+        </button>
         <button class="btn icon" title="收起右栏">
           <svg class="ic" viewBox="0 0 16 16"><path d="M10 4l-4 4 4 4"/></svg>
         </button>
@@ -404,7 +458,7 @@
     </aside>
   </div>
 
-  <!-- 7 行内确认条：应用不再先弹窗 -->
+  <!-- 8 行内确认条 -->
   <div class="confirm">
     <span class="dot"></span>
     <span>将更名 <b>3</b> 项，<b>1</b> 项只读跳过</span>
@@ -414,7 +468,7 @@
     <button class="btn sm primary">确认应用</button>
   </div>
 
-  <!-- 8 底栏：一条 -->
+  <!-- 9 底栏 -->
   <div class="actionbar">
     <span class="sel"><b>已选 4 项</b><span class="sep"></span><span>就绪</span></span>
     <span class="bar-sp"></span>
@@ -423,7 +477,7 @@
       预览差异
     </button>
     <button class="btn sm" disabled>
-      <svg class="ic" viewBox="0 0 16 16"><path d="M6 4.5H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/><path d="M9 3.5l3 4-3 4"/></svg>
+      <svg class="ic" viewBox="0 0 16 16"><path d="M4 7.5h6.5a2.8 2.8 0 0 1 0 5.6H8"/><path d="M6.5 5L4 7.5l2.5 2.5"/></svg>
       撤销上次
     </button>
     <button class="btn primary lg">
@@ -433,5 +487,12 @@
     </button>
   </div>
 </div>
+<script>
+  // 出一张「抽屉收起」对照图：p0-shell.html?collapsed
+  if (location.search.indexOf('collapsed') >= 0) {
+    document.getElementById('drawer').classList.add('collapsed');
+    document.querySelector('#drawer-toggle svg').innerHTML = '<path d="M4 6l4-4 4 4"/>';
+  }
+</script>
 </body>
 </html>
