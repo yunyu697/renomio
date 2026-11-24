@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-24T20:07:08.882Z",
+  "generatedAt": "2026-11-24T20:34:03.048Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
-  "passed": 291,
+  "passed": 301,
   "failed": 0,
   "results": [
     {
@@ -160,13 +160,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-25 04:05 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-25 04:31 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-25 04:05 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-25 04:31 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -1258,7 +1258,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmwv4kl491\",\"jumpState\":{\"openId\":\"rmwv4kl491\",\"detail\":1,\"focused\":\"rmwv4kl491\"}}"
+      "detail": "{\"firstRuleId\":\"rmwv5j2fy1\",\"jumpState\":{\"openId\":\"rmwv5j2fy1\",\"detail\":1,\"focused\":\"rmwv5j2fy1\"}}"
     },
     {
       "layer": "UI",
@@ -1358,6 +1358,66 @@
     },
     {
       "layer": "UI",
+      "name": "移动规则提供定位方式（默认第一项=按位置）与插入到（默认第一项=目标之前）两处分段",
+      "ok": true,
+      "detail": "{\"byOptions\":[\"Position\",\"Markers\"],\"byActive\":\"Position\",\"insertOptions\":[\"Before target\",\"After target\"],\"insertActive\":\"Before target\",\"from\":true,\"markers\":false}"
+    },
+    {
+      "layer": "UI",
+      "name": "按位置移动：照片搬到最前 → 照片旧 001.jpg",
+      "ok": true,
+      "detail": "{\"name\":\"照片旧 001.jpg\",\"unchanged\":false}"
+    },
+    {
+      "layer": "UI",
+      "name": "摘要写明起点、长度与落点（Move 2 chars … before character 1）",
+      "ok": true,
+      "detail": "Move 2 chars from position 2 before character 1"
+    },
+    {
+      "layer": "UI",
+      "name": "插到第 3 个字符之前 → 旧 照片001.jpg",
+      "ok": true,
+      "detail": "{\"name\":\"旧 照片001.jpg\",\"unchanged\":false}"
+    },
+    {
+      "layer": "UI",
+      "name": "改成「目标之后」后同一 to=3 落点右移一位 → 旧 0照片01.jpg",
+      "ok": true,
+      "detail": "{\"afterSeg\":[\"Before target\",\"After target\"],\"afterActiveIndex\":1,\"afterAt3\":{\"name\":\"旧 0照片01.jpg\",\"unchanged\":false}}"
+    },
+    {
+      "layer": "UI",
+      "name": "切到「按标记」后换成左右标记输入、按位置的起止输入隐藏",
+      "ok": true,
+      "detail": "{\"byMarkerSeg\":[\"Position\",\"Markers\"],\"byMarkerActive\":1,\"markerFields\":{\"left\":true,\"right\":true,\"index\":false}}"
+    },
+    {
+      "layer": "UI",
+      "name": "按标记移动：不包含起始标记时，旧照之后的内容 片 001 搬到开头",
+      "ok": true,
+      "detail": "{\"includeStartLabel\":\"Include start marker\",\"includeStartOff\":\"false\",\"markerMoved\":{\"name\":\"片 001旧照.jpg\",\"unchanged\":false}}"
+    },
+    {
+      "layer": "UI",
+      "name": "摘要改用标记描述（「旧照」与结尾 Tail 之间的内容）",
+      "ok": true,
+      "detail": "Move what sits between 旧照 and end before character 1"
+    },
+    {
+      "layer": "UI",
+      "name": "标记在名字里找不到时该行保持原名并标记 unchanged",
+      "ok": true,
+      "detail": "{\"name\":\"旧照片 001.jpg\",\"unchanged\":true}"
+    },
+    {
+      "layer": "UI",
+      "name": "两个标记都留空时规则卡就地报错（不静默整串搬运）",
+      "ok": true,
+      "detail": "Marker mode needs at least one marker"
+    },
+    {
+      "layer": "UI",
       "name": "编号分组下拉同步新增字段（field:iso / field:resolution / field:composer）",
       "ok": true,
       "detail": "{\"groups\":[\"Shooting settings\",\"Image size\",\"Audio tags\"],\"values\":[\"none\",\"parent\",\"field:taken\",\"field:camera\",\"field:iso\",\"field:aperture\",\"field:shutter\",\"field:focal\",\"field:lens\",\"field:width\",\"field:height\",\"field:resolution\",\"field:title\",\"field:artist\",\"field:album\",\"field:track\",\"field:year\",\"field:genre\",\"field:composer\"]}"
@@ -1396,7 +1456,7 @@
       "layer": "UI",
       "name": "运行后该命令记一次运行（次数 1、带上次运行时间）",
       "ok": true,
-      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/25, 04:06 AM\"}"
+      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/25, 04:33 AM\"}"
     },
     {
       "layer": "UI",
@@ -1456,7 +1516,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795550798097.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795552411991.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -1522,7 +1582,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/25 04:06:433 条 · 仅映射预览还原删除"
+      "detail": "2026/11/25 04:33:373 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -1582,7 +1642,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-25 04:06 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-25 04:33 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",
@@ -1795,6 +1855,8 @@
     "23-case-protect.png",
     "24-toast-drawer.png",
     "25-meta-fields.png",
+    "26-move-position.png",
+    "27-move-markers.png",
     "27-snapshot-created.png",
     "28-snapshot-preview-before.png",
     "29-snapshot-preview.png",

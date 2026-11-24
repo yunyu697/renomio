@@ -1,7 +1,7 @@
 {
   "name": "rename-studio",
   "private": true,
-  "version": "1.2.0-alpha7",
+  "version": "1.2.0-alpha8",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -30,6 +30,7 @@
     "test:case": "node scripts/test-case-protect.mjs",
     "test:css": "node scripts/test-css-orphans.mjs",
     "test:meta": "node scripts/test-meta-fields.mjs",
+    "test:move": "node scripts/test-move.mjs",
     "test:bundle": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-bundle.ps1",
     "foundation:build": "tsc -p packages/foundation/tsconfig.json"
   },

@@ -253,11 +253,21 @@ export interface NumberRule extends RuleBase {
 
 export interface MoveRule extends RuleBase {
   type: 'move';
+  /** 定位方式：按字符位置（index）或按左右标记（markers，取两标记之间的内容） */
+  by: 'index' | 'markers';
   from: number;
   fromEnd: boolean;
   count: number;
+  /** by=markers：左侧标记（空 = 从开头） */
+  left: string;
+  /** by=markers：右侧标记（空 = 到结尾） */
+  right: string;
+  includeLeft: boolean;
+  includeRight: boolean;
   to: number;
   toEnd: boolean;
+  /** 插到目标位置之前（默认，旧行为）还是之后 */
+  insert: 'before' | 'after';
 }
 
 export interface CaseRule extends RuleBase {

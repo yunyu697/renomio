@@ -29,10 +29,10 @@ function Toggle({ on, label, onChange }: { on: boolean; label: string; onChange:
 }
 
 function Seg<T extends string>({
-  value, options, onChange,
-}: { value: T; options: Array<[T, string]>; onChange: (v: T) => void }) {
+  value, options, onChange, testId,
+}: { value: T; options: Array<[T, string]>; onChange: (v: T) => void; testId?: string }) {
   return (
-    <span className="seg-ctrl">
+    <span className="seg-ctrl" data-testid={testId}>
       {options.map(([key, label]) => (
         <span key={key} className={value === key ? 'on' : ''} onClick={() => onChange(key)}>{label}</span>
       ))}
@@ -541,25 +541,59 @@ function MoveEditor({ rule, patch }: { rule: MoveRule; patch: Patch }) {
   const { t } = useTranslation();
   return (
     <>
-      <div className="field-row" style={{ marginBottom: 9 }}>
-        <Field label={t('f.moveFrom')}>
-          <NumberInput value={rule.from} min={1} onChange={(from) => patch({ from })} />
-        </Field>
-        <Field label={t('f.moveCount')}>
-          <NumberInput value={rule.count} min={1} onChange={(count) => patch({ count })} />
-        </Field>
-        <div style={{ paddingTop: 16 }}>
-          <Toggle on={rule.fromEnd} label={t('f.fromEnd')} onChange={(fromEnd) => patch({ fromEnd })} />
+      <Field label={t('f.moveBy')}>
+        <Seg
+          value={rule.by ?? 'index'}
+          options={[['index', t('o.byIndex')], ['markers', t('o.byMarkers')]]}
+          onChange={(by) => patch({ by })}
+          testId="move-by"
+        />
+      </Field>
+      {(rule.by ?? 'index') === 'index' ? (
+        <div className="field-row" style={{ marginBottom: 9 }}>
+          <Field label={t('f.moveFrom')}>
+            <NumberInput value={rule.from} min={1} onChange={(from) => patch({ from })} testId="move-from" />
+          </Field>
+          <Field label={t('f.moveCount')}>
+            <NumberInput value={rule.count} min={1} onChange={(count) => patch({ count })} testId="move-count" />
+          </Field>
+          <div style={{ paddingTop: 16 }}>
+            <Toggle on={rule.fromEnd} label={t('f.fromEnd')} onChange={(fromEnd) => patch({ fromEnd })} />
+          </div>
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="field-row">
+            <Field label={t('f.startMarker')}>
+              <TextInput value={rule.left} mono onChange={(left) => patch({ left })} placeholder={t('ph.left')} historyKey="move.left" testId="move-left" />
+            </Field>
+            <Field label={t('f.endMarker')}>
+              <TextInput value={rule.right} mono onChange={(right) => patch({ right })} placeholder={t('ph.right')} historyKey="move.right" testId="move-right" />
+            </Field>
+          </div>
+          <div className="field-row" style={{ marginBottom: 9 }}>
+            <Toggle on={rule.includeLeft} label={t('f.includeStart')} onChange={(includeLeft) => patch({ includeLeft })} />
+            <Toggle on={rule.includeRight} label={t('f.includeEnd')} onChange={(includeRight) => patch({ includeRight })} />
+          </div>
+        </>
+      )}
       <div className="field-row">
         <Field label={t('f.moveTo')}>
-          <NumberInput value={rule.to} min={1} onChange={(to) => patch({ to })} />
+          <NumberInput value={rule.to} min={1} onChange={(to) => patch({ to })} testId="move-to" />
         </Field>
         <div style={{ paddingTop: 16 }}>
           <Toggle on={rule.toEnd} label={t('f.fromEnd')} onChange={(toEnd) => patch({ toEnd })} />
         </div>
+        <Field label={t('f.moveInsert')}>
+          <Seg
+            value={rule.insert ?? 'before'}
+            options={[['before', t('o.insertBefore')], ['after', t('o.insertAfter')]]}
+            onChange={(insert) => patch({ insert })}
+            testId="move-insert"
+          />
+        </Field>
       </div>
+      <div className="hint-line">{t('f.moveHint')}</div>
     </>
   );
 }

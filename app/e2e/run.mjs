@@ -3146,6 +3146,148 @@ async function main() {
     await shot('25-meta-fields.png');
     await clearAllRules();
 
+    // ---- 移动子串：按位置 / 按标记定位、目标之前之后、缺标记不改名 ----
+    await addRuleType('move');
+    const moveUi = await evaluate(`(() => {
+      const seg = document.querySelector('[data-testid="move-by"]');
+      const ins = document.querySelector('[data-testid="move-insert"]');
+      return {
+        byOptions: seg ? [...seg.querySelectorAll('span')].map((s) => s.textContent.trim()) : null,
+        byActive: seg ? [...seg.querySelectorAll('span')].find((s) => s.classList.contains('on'))?.textContent.trim() : null,
+        insertOptions: ins ? [...ins.querySelectorAll('span')].map((s) => s.textContent.trim()) : null,
+        insertActive: ins ? [...ins.querySelectorAll('span')].find((s) => s.classList.contains('on'))?.textContent.trim() : null,
+        from: Boolean(document.querySelector('[data-testid="move-from"]')),
+        markers: Boolean(document.querySelector('[data-testid="move-left"]')),
+      };
+    })()`);
+    check(
+      'UI',
+      '移动规则提供定位方式（默认第一项=按位置）与插入到（默认第一项=目标之前）两处分段',
+      moveUi?.byOptions?.length === 2
+        && moveUi.byActive === moveUi.byOptions[0]
+        && moveUi.insertOptions?.length === 2
+        && moveUi.insertActive === moveUi.insertOptions[0]
+        && moveUi.from === true
+        && moveUi.markers === false,
+      JSON.stringify(moveUi),
+    );
+
+    // 界面语言随 locale 变化，分段按序点第 n 个；点完单独回读激活项（React 重渲染后旧节点失效）
+    const clickSeg = (testId, nth) => evaluate(`(() => {
+      const seg = document.querySelector('[data-testid="${testId}"]');
+      if (!seg) throw new Error('找不到分段 ${testId}');
+      const items = [...seg.querySelectorAll('span')];
+      if (!items[${nth}]) throw new Error('分段 ${testId} 只有 ' + items.length + ' 项');
+      items[${nth}].click();
+      return items.map((s) => s.textContent.trim());
+    })()`);
+    const segActive = (testId) => evaluate(`(() => {
+      const seg = document.querySelector('[data-testid="${testId}"]');
+      return seg ? [...seg.querySelectorAll('span')].findIndex((s) => s.classList.contains('on')) : -1;
+    })()`);
+    const moveSum = () => evaluate(`document.querySelector('.rule-card.open .sum span')?.textContent?.trim() || ''`);
+
+    // 按位置：第 2 位起 2 个（照片）搬到第 1 位之前
+    await setInput('[data-testid="move-from"]', '2');
+    await setInput('[data-testid="move-count"]', '2');
+    await setInput('[data-testid="move-to"]', '1');
+    await sleep(700);
+    const movedFront = await evaluate(rowByName('旧照片 001.jpg'));
+    check('UI', '按位置移动：照片搬到最前 → 照片旧 001.jpg', movedFront?.name === '照片旧 001.jpg', JSON.stringify(movedFront));
+    const posSum = await moveSum();
+    check(
+      'UI',
+      '摘要写明起点、长度与落点（Move 2 chars … before character 1）',
+      /Move 2 chars/i.test(posSum) && /before character 1/i.test(posSum),
+      posSum,
+    );
+
+    // 同一 to=3：之前 / 之后插在不同位置
+    await setInput('[data-testid="move-to"]', '3');
+    await sleep(700);
+    const beforeAt3 = await evaluate(rowByName('旧照片 001.jpg'));
+    check('UI', '插到第 3 个字符之前 → 旧 照片001.jpg', beforeAt3?.name === '旧 照片001.jpg', JSON.stringify(beforeAt3));
+    const afterSeg = await clickSeg('move-insert', 1);
+    await sleep(700);
+    const afterActiveIndex = await segActive('move-insert');
+    const afterAt3 = await evaluate(rowByName('旧照片 001.jpg'));
+    check(
+      'UI',
+      '改成「目标之后」后同一 to=3 落点右移一位 → 旧 0照片01.jpg',
+      afterActiveIndex === 1 && afterAt3?.name === '旧 0照片01.jpg',
+      JSON.stringify({ afterSeg, afterActiveIndex, afterAt3 }),
+    );
+    await shot('26-move-position.png');
+
+    // 按标记：取「旧照」之后到结尾、不含起始标记，搬到第 1 位之前
+    const byMarkerSeg = await clickSeg('move-by', 1);
+    await sleep(250);
+    const byMarkerActive = await segActive('move-by');
+    const markerFields = await evaluate(`({
+      left: Boolean(document.querySelector('[data-testid="move-left"]')),
+      right: Boolean(document.querySelector('[data-testid="move-right"]')),
+      index: Boolean(document.querySelector('[data-testid="move-from"]')),
+    })`);
+    check(
+      'UI',
+      '切到「按标记」后换成左右标记输入、按位置的起止输入隐藏',
+      byMarkerActive === 1 && markerFields.left && markerFields.right && markerFields.index === false,
+      JSON.stringify({ byMarkerSeg, byMarkerActive, markerFields }),
+    );
+
+    await setInput('[data-testid="move-left"]', '旧照');
+    await setInput('[data-testid="move-right"]', '');
+    await setInput('[data-testid="move-to"]', '1');
+    await clickSeg('move-insert', 0);
+    // 开关无 testid：标记模式下第一个开关就是「包含起始标记」（默认开），点它关掉后回读状态
+    const includeStartLabel = await evaluate(`(() => {
+      const row = document.querySelectorAll('.rule-detail .switch-row')[0];
+      if (!row) throw new Error('找不到标记模式下的开关');
+      const lbl = (row.querySelector('.lbl')?.textContent || '').trim();
+      row.click();
+      return lbl;
+    })()`);
+    await sleep(700);
+    const includeStartOff = await evaluate(`document.querySelectorAll('.rule-detail .switch-row')[0]?.querySelector('.switch')?.getAttribute('aria-checked')`);
+    const markerMoved = await evaluate(rowByName('旧照片 001.jpg'));
+    check(
+      'UI',
+      '按标记移动：不包含起始标记时，旧照之后的内容 片 001 搬到开头',
+      includeStartOff === 'false' && markerMoved?.name === '片 001旧照.jpg',
+      JSON.stringify({ includeStartLabel, includeStartOff, markerMoved }),
+    );
+    const markerSumText = await moveSum();
+    check(
+      'UI',
+      '摘要改用标记描述（「旧照」与结尾 Tail 之间的内容）',
+      markerSumText.includes('旧照') && /end|结尾|末尾/i.test(markerSumText),
+      markerSumText,
+    );
+
+    // 标记找不到时整条规则跳过，而不是拼出残缺名字
+    await setInput('[data-testid="move-left"]', '不存在');
+    await sleep(700);
+    const markerMissing = await evaluate(rowByName('旧照片 001.jpg'));
+    check(
+      'UI',
+      '标记在名字里找不到时该行保持原名并标记 unchanged',
+      markerMissing?.name === '旧照片 001.jpg' && markerMissing.unchanged === true,
+      JSON.stringify(markerMissing),
+    );
+
+    // 两个标记都空时规则卡就地报错
+    await setInput('[data-testid="move-left"]', '');
+    await sleep(700);
+    const markerErr = await evaluate(`document.querySelector('.rule-error')?.textContent?.trim() || ''`);
+    check(
+      'UI',
+      '两个标记都留空时规则卡就地报错（不静默整串搬运）',
+      /at least one|至少要填/i.test(markerErr),
+      markerErr,
+    );
+    await shot('27-move-markers.png');
+    await clearAllRules();
+
     // 编号分组下拉与「按元数据取名」共用同一张字段表
     await addRuleType('number');
     const groupOpts = await evaluate(`(() => {

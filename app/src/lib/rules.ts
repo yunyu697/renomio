@@ -105,6 +105,10 @@ export function ruleError(rule: Rule): string | null {
       if (rule.step < 1) return t('ruleErr.stepPositive');
       return null;
     case 'move':
+      if (rule.by === 'markers') {
+        if (!rule.left && !rule.right) return t('ruleErr.markerRequired');
+        return null;
+      }
       if (rule.from < 1 || rule.count < 1) return t('ruleErr.rangePositive');
       return null;
     case 'case':
@@ -253,16 +257,46 @@ function applyDelete(stem: string, rule: DeleteRule): string {
   return fromChars([...chars.slice(0, start), ...chars.slice(end)]);
 }
 
+/**
+ * 移动子串：把一段内容搬到另一个位置。
+ * - by=index：片段 = 第 from 个字符起、长 count（fromEnd 表示从尾部数）。
+ * - by=markers：片段 = left 与 right 之间的内容（left/right 为空即“不设边界”，
+ *   任一非空标记找不到时**不改名**，与删除规则的“之间”保持一致）。
+ * - 目标位置基于**移除片段之后**的字符串：to 默认表示“插到第 to 个字符之前”，
+ *   toEnd 表示从尾部数（to=1 即末尾），insert=after 改为插到该字符之后。
+ */
 function applyMove(stem: string, rule: MoveRule): string {
   const chars = toChars(stem);
-  let start = rule.fromEnd ? chars.length - rule.from : rule.from - 1;
-  start = clamp(start, 0, chars.length);
-  const end = clamp(start + rule.count, 0, chars.length);
+  let start: number;
+  let end: number;
+  if (rule.by === 'markers') {
+    start = 0;
+    end = chars.length;
+    if (rule.left) {
+      const at = stem.indexOf(rule.left);
+      if (at < 0) return stem;
+      const head = toChars(stem.slice(0, at)).length;
+      start = head + (rule.includeLeft ? 0 : toChars(rule.left).length);
+    }
+    if (rule.right) {
+      const from = rule.left ? stem.indexOf(rule.left) + rule.left.length : 0;
+      const at = stem.indexOf(rule.right, from);
+      if (at < 0) return stem;
+      const head = toChars(stem.slice(0, at)).length;
+      end = head + (rule.includeRight ? toChars(rule.right).length : 0);
+    }
+  } else {
+    start = rule.fromEnd ? chars.length - rule.from : rule.from - 1;
+    start = clamp(start, 0, chars.length);
+    end = clamp(start + rule.count, 0, chars.length);
+  }
   if (end <= start) return stem;
   const block = chars.splice(start, end - start);
-  let target = rule.toEnd ? chars.length - (rule.to - 1) : rule.to - 1;
-  target = clamp(target, 0, chars.length);
-  chars.splice(target, 0, ...block);
+  const baseLen = chars.length;
+  let pos = rule.toEnd ? baseLen - (rule.to - 1) : rule.to - 1;
+  if (rule.insert === 'after') pos += 1;
+  pos = clamp(pos, 0, baseLen);
+  chars.splice(pos, 0, ...block);
   return fromChars(chars);
 }
 
@@ -575,8 +609,21 @@ const META_SUMMARY_KEYS: Record<MetaFieldKey, string> = {
   composer: 'ruleSum.metaComposer',
 };
 
-/** 兼容旧规则字段：perFolder → groupBy；补齐新增字段的默认值。 */
+/** 兼容旧规则字段：perFolder → groupBy；移动规则补齐 by/标记/insert；其余补齐默认值。 */
 export function normalizeRule(rule: Rule): Rule {
+  if (rule.type === 'move') {
+    // 旧版本只有 from/count/to：默认按位置定位、插到目标之前，语义与旧行为一致
+    const legacy = rule as MoveRule & Partial<Pick<MoveRule, 'by' | 'left' | 'right' | 'includeLeft' | 'includeRight' | 'insert'>>;
+    return {
+      ...legacy,
+      by: legacy.by === 'markers' ? 'markers' : 'index',
+      left: legacy.left ?? '[',
+      right: legacy.right ?? ']',
+      includeLeft: legacy.includeLeft ?? true,
+      includeRight: legacy.includeRight ?? true,
+      insert: legacy.insert === 'after' ? 'after' : 'before',
+    };
+  }
   if (rule.type !== 'number') return rule;
   const legacy = rule as NumberRule & { perFolder?: boolean };
   const raw = typeof legacy.groupBy === 'string' && legacy.groupBy
@@ -638,10 +685,21 @@ export function ruleSummary(rule: Rule): string {
         expr: rule.expression, start: rule.start, step: rule.step, digits: rule.digits, group,
       }) + extra;
     }
-    case 'move':
+    case 'move': {
+      const target = rule.toEnd
+        ? t('ruleSum.moveToEnd', { to: rule.to })
+        : t(rule.insert === 'after' ? 'ruleSum.moveToAfter' : 'ruleSum.moveTo', { to: rule.to });
+      if (rule.by === 'markers') {
+        return t('ruleSum.moveMarkers', {
+          left: rule.left || t('ruleSum.moveHead'),
+          right: rule.right || t('ruleSum.moveTail'),
+          target,
+        });
+      }
       return t('ruleSum.move', {
-        from: rule.from, count: rule.count, to: rule.to, reverse: rule.fromEnd ? t('ruleSum.reverse') : '',
+        from: rule.from, count: rule.count, reverse: rule.fromEnd ? t('ruleSum.reverse') : '', target,
       });
+    }
     case 'case':
       return {
         upper: t('ruleSum.caseUpper'), lower: t('ruleSum.caseLower'), title: t('ruleSum.caseTitle'),

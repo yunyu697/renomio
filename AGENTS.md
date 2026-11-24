@@ -5,7 +5,7 @@
 ## 项目
 
 - 产品：Renomio，Windows 批量重命名与文件操作工具（Tauri 2 + React 19 + TypeScript + Vite 7，核心逻辑在 Rust crate `renomio-core`）。
-- 版本：`VERSION` 是唯一来源，当前 `1.2.0-alpha7`；稳定版 `v1.0.0`。
+- 版本：`VERSION` 是唯一来源，当前 `1.2.0-alpha8`；稳定版 `v1.0.0`。
 - 仓库：`yunyu697/renomio`（源码与 Releases 同仓）。当前只发布 Windows x64。
 - 许可证见 `LICENSE`，第三方见 `THIRD-PARTY-NOTICES.md`。
 
@@ -31,6 +31,7 @@ npm run test:regex     # 正则方言（\1 分组引用）自测
 npm run test:case      # 大小写例外词表自测
 npm run test:css       # 孤儿样式选择器检查（CSS 有、源码无 = 死代码）
 npm run test:meta      # 元数据取名字段守卫（17 字段 / 五语种文案 / Rust 结构体一一对应）
+npm run test:move      # 移动子串守卫（按位置/按标记定位、目标前后、越界与缺标记兜底、旧规则兼容）
 npm run test:contrast  # 对比度
 npm run test:bundle    # 打包断言（有产物才跑 14 条产物断言）
 npm run version:check  # VERSION 与 5 处清单一致
@@ -51,9 +52,9 @@ $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""                                    
 npm run tauri:build
 ```
 
-## 当前状态（2026-11-25，1.2.0-alpha7 已发布）
+## 当前状态（2026-11-25，1.2.0-alpha8 已发布）
 
-已实现并有证据：F2 方案库/最近记录、F3 SYSTEM/ARCHIVE 属性、F4 文本编码批量转换、U3 表格自动列宽 + 系统文件类型图标（逐项证据见 `docs/1.1.0-收口清单.md`）；界面重构落地——检查器改为列表下方底部抽屉、八类列表页签下线（列表为唯一主视图、右栏只留规则链）、页头「清空列表」带二次确认、侧栏收敛为「文件」一组、设置移入「更多」，结构决策见 `docs/界面重构-HIG基线.md` §11–§12；规则开关几何按尺寸变量重算并有 E2E 巡检；正则替换兼容 Delphi 方言 `\1..\9`（`\\1` 为字面，引用分组超限就地报错），见 `docs/规则语义确认清单.md` 末节与 `npm run test:regex`；命令列表（FEATURE-GAP 4.10）——规则链 + 冲突策略存成命令，「套用」只载入、「运行」必进预览确认，见 `docs/FEATURE-GAP.md`；大小写例外词表——`protect` 命中的片段在六种大小写模式下保留原写法（支持 `*`/`?`、大小写不敏感），见 `docs/规则语义确认清单.md` 末节与 `npm run test:case`。界面遗留清零（alpha6）——死样式删除 + toast 让位 + 表头/行逐列几何断言，见 `npm run test:css` 与 e2e 几何巡检；按元数据取名扩到 17 字段（alpha7）——EXIF `ISO/光圈/快门/焦距/镜头`、`像素宽/高/像素尺寸`（无 EXIF 回退图像尺寸）、音频 `年份/流派/作曲`，取值统一文件名安全化，并修掉 EXIF SHORT 值无视 TIFF 字节序的读错缺陷，见 `npm run test:meta`、`npm run test:core` 与 `docs/FEATURE-GAP.md` 3.8。
+已实现并有证据：F2 方案库/最近记录、F3 SYSTEM/ARCHIVE 属性、F4 文本编码批量转换、U3 表格自动列宽 + 系统文件类型图标（逐项证据见 `docs/1.1.0-收口清单.md`）；界面重构落地——检查器改为列表下方底部抽屉、八类列表页签下线（列表为唯一主视图、右栏只留规则链）、页头「清空列表」带二次确认、侧栏收敛为「文件」一组、设置移入「更多」，结构决策见 `docs/界面重构-HIG基线.md` §11–§12；规则开关几何按尺寸变量重算并有 E2E 巡检；正则替换兼容 Delphi 方言 `\1..\9`（`\\1` 为字面，引用分组超限就地报错），见 `docs/规则语义确认清单.md` 末节与 `npm run test:regex`；命令列表（FEATURE-GAP 4.10）——规则链 + 冲突策略存成命令，「套用」只载入、「运行」必进预览确认，见 `docs/FEATURE-GAP.md`；大小写例外词表——`protect` 命中的片段在六种大小写模式下保留原写法（支持 `*`/`?`、大小写不敏感），见 `docs/规则语义确认清单.md` 末节与 `npm run test:case`。界面遗留清零（alpha6）——死样式删除 + toast 让位 + 表头/行逐列几何断言，见 `npm run test:css` 与 e2e 几何巡检；按元数据取名扩到 17 字段（alpha7）——EXIF `ISO/光圈/快门/焦距/镜头`、`像素宽/高/像素尺寸`（无 EXIF 回退图像尺寸）、音频 `年份/流派/作曲`，取值统一文件名安全化，并修掉 EXIF SHORT 值无视 TIFF 字节序的读错缺陷，见 `npm run test:meta`、`npm run test:core` 与 `docs/FEATURE-GAP.md` 3.8；移动子串补齐定位与落点（alpha8）——新增 `by=index|markers`（按标记取两标记之间的内容，留空即不设边界、标记找不到整条跳过）、`insert=before|after`（同一目标位差一位，可控落点左右），旧存档规则按 `index`/`before` 兜底、语义不变，见 `npm run test:move`、e2e 10 条断言与 `docs/FEATURE-GAP.md` 3.6。
 
 已知缺口：
 - Windows 安装包未做 Authenticode 代码签名（本机无 OV/EV 证书），SmartScreen 会警告；更新用 `.sig` 已验过。

@@ -40,7 +40,10 @@ export function createRuleDefaults(type: RuleType, id: string): Rule {
     case 'move': {
       const rule: MoveRule = {
         id, type: 'move', enabled: true,
-        from: 1, fromEnd: false, count: 2, to: 1, toEnd: false,
+        by: 'index',
+        from: 1, fromEnd: false, count: 2,
+        left: '[', right: ']', includeLeft: true, includeRight: true,
+        to: 1, toEnd: false, insert: 'before',
       };
       return rule;
     }
