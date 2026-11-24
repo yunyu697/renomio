@@ -46,7 +46,7 @@ export function createRuleDefaults(type: RuleType, id: string): Rule {
     }
     case 'case': {
       const rule: CaseRule = {
-        id, type: 'case', enabled: true, mode: 'lower', separators: ' -_.',
+        id, type: 'case', enabled: true, mode: 'lower', separators: ' -_.', protect: '',
       };
       return rule;
     }

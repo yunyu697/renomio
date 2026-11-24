@@ -28,6 +28,7 @@ npm run test:e2e       # 无头 E2E（mock 后端）
 npm run test:drop      # 拖放状态机自测
 npm run test:history   # 输入历史自测
 npm run test:regex     # 正则方言（\1 分组引用）自测
+npm run test:case      # 大小写例外词表自测
 npm run test:contrast  # 对比度
 npm run test:bundle    # 打包断言（有产物才跑 14 条产物断言）
 npm run version:check  # VERSION 与 5 处清单一致
@@ -50,7 +51,7 @@ npm run tauri:build
 
 ## 当前状态（2026-11-25，1.2.0-alpha4 已发布）
 
-已实现并有证据：F2 方案库/最近记录、F3 SYSTEM/ARCHIVE 属性、F4 文本编码批量转换、U3 表格自动列宽 + 系统文件类型图标（逐项证据见 `docs/1.1.0-收口清单.md`）；界面重构落地——检查器改为列表下方底部抽屉、八类列表页签下线（列表为唯一主视图、右栏只留规则链）、页头「清空列表」带二次确认、侧栏收敛为「文件」一组、设置移入「更多」，结构决策见 `docs/界面重构-HIG基线.md` §11–§12；规则开关几何按尺寸变量重算并有 E2E 巡检；正则替换兼容 Delphi 方言 `\1..\9`（`\\1` 为字面，引用分组超限就地报错），见 `docs/规则语义确认清单.md` 末节与 `npm run test:regex`；命令列表（FEATURE-GAP 4.10）——规则链 + 冲突策略存成命令，「套用」只载入、「运行」必进预览确认，见 `docs/FEATURE-GAP.md`。
+已实现并有证据：F2 方案库/最近记录、F3 SYSTEM/ARCHIVE 属性、F4 文本编码批量转换、U3 表格自动列宽 + 系统文件类型图标（逐项证据见 `docs/1.1.0-收口清单.md`）；界面重构落地——检查器改为列表下方底部抽屉、八类列表页签下线（列表为唯一主视图、右栏只留规则链）、页头「清空列表」带二次确认、侧栏收敛为「文件」一组、设置移入「更多」，结构决策见 `docs/界面重构-HIG基线.md` §11–§12；规则开关几何按尺寸变量重算并有 E2E 巡检；正则替换兼容 Delphi 方言 `\1..\9`（`\\1` 为字面，引用分组超限就地报错），见 `docs/规则语义确认清单.md` 末节与 `npm run test:regex`；命令列表（FEATURE-GAP 4.10）——规则链 + 冲突策略存成命令，「套用」只载入、「运行」必进预览确认，见 `docs/FEATURE-GAP.md`；大小写例外词表——`protect` 命中的片段在六种大小写模式下保留原写法（支持 `*`/`?`、大小写不敏感），见 `docs/规则语义确认清单.md` 末节与 `npm run test:case`。
 
 已知缺口：
 - Windows 安装包未做 Authenticode 代码签名（本机无 OV/EV 证书），SmartScreen 会警告；更新用 `.sig` 已验过。

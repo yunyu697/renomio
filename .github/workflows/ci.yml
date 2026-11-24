@@ -68,6 +68,12 @@ jobs:
       - name: 输入历史逻辑自测（26 条）
         run: npm run test:history
 
+      - name: 正则方言自测（\1 分组引用，18 条）
+        run: npm run test:regex
+
+      - name: 大小写例外词表自测（18 条）
+        run: npm run test:case
+
       # 设计稿必须与实现共用同一套 --ds-* 令牌；令牌值变了但 design/ 未重新确认则失败
       - name: 设计稿令牌反例自测
         run: npm run tokens:selftest

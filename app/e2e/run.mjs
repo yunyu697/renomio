@@ -2879,6 +2879,51 @@ async function main() {
     );
     await clearAllRules();
 
+    // ---- 大小写例外词表：被保护片段在 upper 后保留原写法 ----
+    await addRuleType('case');
+    await evaluate(`document.querySelectorAll('.rule-detail .seg-ctrl span')[1]?.click()`);
+    await sleep(250);
+    const protectUi = await evaluate(`({
+      box: Boolean(document.querySelector('[data-testid="case-protect"]')),
+      hint: (document.querySelector('[data-testid="case-protect-hint"]')?.textContent || ''),
+    })`);
+    check(
+      'UI',
+      '大小写规则提供例外词输入框，并提示 * / ? 通配与保留原大小写',
+      protectUi.box && protectUi.hint.includes('*') && protectUi.hint.includes('?'),
+      JSON.stringify({ box: protectUi.box, hint: protectUi.hint.slice(0, 60) }),
+    );
+
+    const rowByName = (name) => `(() => {
+      const row = [...document.querySelectorAll('.trow')].find((r) => (r.querySelector('.name-cell .txt')?.textContent || '') === '${name}');
+      return row
+        ? { name: row.querySelector('.new-name')?.textContent?.trim() ?? null, unchanged: row.classList.contains('unchanged') }
+        : null;
+    })()`;
+
+    await setInput('[data-testid="case-protect"]', 'logo');
+    await sleep(700);
+    const protectedLogo = await evaluate(rowByName('logo.png'));
+    const allUpperNoProtect = await evaluate(`[...document.querySelectorAll('.trow .new-name')].map((e) => e.textContent.trim())`);
+    check(
+      'UI',
+      '例外词命中：upper 后 logo.png 保留原写法（其余行照旧大写）',
+      protectedLogo?.name === 'logo.png' && allUpperNoProtect.includes('LOGO.png') === false,
+      JSON.stringify({ protectedLogo, sample: allUpperNoProtect.slice(0, 3) }),
+    );
+    await shot('23-case-protect.png');
+
+    await setInput('[data-testid="case-protect"]', '');
+    await sleep(700);
+    const unprotectedLogo = await evaluate(rowByName('logo.png'));
+    check(
+      'UI',
+      '清空例外词后同一行按 upper 变成 LOGO.png（说明保护只作用于命中的片段）',
+      unprotectedLogo?.name === 'LOGO.png',
+      JSON.stringify(unprotectedLogo),
+    );
+    await clearAllRules();
+
     // ---- 命令列表：规则链 + 冲突策略存成一条命令（保存 / 持久化 / 运行 / 删除）----
     await addRuleType('replace');
     await setInput('[data-testid="replace-find"]', 'logo');

@@ -264,6 +264,11 @@ export interface CaseRule extends RuleBase {
   type: 'case';
   mode: 'upper' | 'lower' | 'title' | 'sentence' | 'invert' | 'random';
   separators: string;
+  /**
+   * 例外词表（不变换的词）：逗号 / 分号 / 换行分隔，支持 `*` `?` 通配，大小写不敏感；
+   * 命中的片段保留原样大小写（如 `iPhone`、`PDF`）。
+   */
+  protect?: string;
 }
 
 export interface ExtRule extends RuleBase {

@@ -589,6 +589,19 @@ function CaseEditor({ rule, patch }: { rule: CaseRule; patch: Patch }) {
       {rule.mode === 'random' && (
         <div className="hint-line">{t('f.randomHint')}</div>
       )}
+      {rule.mode !== 'random' && (
+        <Field label={t('f.protect')}>
+          <TextInput
+            value={rule.protect ?? ''}
+            mono
+            onChange={(protect) => patch({ protect })}
+            placeholder={t('ph.protect')}
+            historyKey="case.protect"
+            testId="case-protect"
+          />
+          <div className="hint-line" data-testid="case-protect-hint">{t('f.protectHint')}</div>
+        </Field>
+      )}
     </>
   );
 }

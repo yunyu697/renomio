@@ -286,7 +286,7 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-function applyCase(stem: string, rule: CaseRule): string {
+function applyCaseRaw(stem: string, rule: CaseRule): string {
   switch (rule.mode) {
     case 'upper':
       return stem.toUpperCase();
@@ -328,7 +328,7 @@ function applyCase(stem: string, rule: CaseRule): string {
 }
 
 /** 标题式大小写需要保留原分隔符，单独实现 */
-function applyTitle(stem: string, rule: CaseRule): string {
+function applyTitleRaw(stem: string, rule: CaseRule): string {
   const seps = rule.separators.length ? rule.separators : ' -_.';
   const chars = toChars(stem);
   let atWordStart = true;
@@ -345,6 +345,58 @@ function applyTitle(stem: string, rule: CaseRule): string {
       return c.toLowerCase();
     }),
   );
+}
+
+/**
+ * 例外词表：逗号 / 分号 / 换行分隔，`*` 匹配非空白片段、`?` 匹配单个非空白字符。
+ * 大小写不敏感匹配，命中片段保留原名大小写。
+ */
+export function protectTokens(protect: string): string[] {
+  return protect
+    .split(/[\n,，;；]+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+function wildcardPattern(token: string): string {
+  let pattern = '';
+  for (const ch of Array.from(token)) {
+    if (ch === '*') pattern += '[^\\s]*';
+    else if (ch === '?') pattern += '[^\\s]';
+    else pattern += ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+  return pattern;
+}
+
+/** 把例外词在原名中的原始大小写还原回变换结果（仅当变换不改变长度时） */
+export function restoreProtected(original: string, transformed: string, protect?: string): string {
+  const tokens = protectTokens(protect ?? '');
+  if (!tokens.length || original.length !== transformed.length) return transformed;
+  let result = transformed;
+  for (const token of tokens) {
+    const re = new RegExp(wildcardPattern(token), 'gi');
+    let match: RegExpExecArray | null = re.exec(original);
+    while (match) {
+      const span = match[0];
+      if (span.length) {
+        const kept = original.slice(match.index, match.index + span.length);
+        result = result.slice(0, match.index) + kept + result.slice(match.index + span.length);
+        re.lastIndex = match.index + span.length;
+      } else {
+        re.lastIndex += 1;
+      }
+      match = re.exec(original);
+    }
+  }
+  return result;
+}
+
+function applyCase(stem: string, rule: CaseRule): string {
+  return restoreProtected(stem, applyCaseRaw(stem, rule), rule.protect);
+}
+
+function applyTitle(stem: string, rule: CaseRule): string {
+  return restoreProtected(stem, applyTitleRaw(stem, rule), rule.protect);
 }
 
 export interface NumberContext {
