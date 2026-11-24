@@ -194,6 +194,15 @@ export function App() {
     if (paths.length) void loadMetaFields(paths);
   }, [rules, entries, loadMetaFields]);
 
+  // 扩展名规则选了「智能分析」时才读文件头（只读 64 字节），识别不出即保持原名
+  const loadSniffTypes = useApp((s) => s.loadSniffTypes);
+  useEffect(() => {
+    const needSniff = rules.some((r) => r.enabled && r.type === 'ext' && r.mode === 'analyze');
+    if (!needSniff) return;
+    const paths = entries.filter((e) => !e.isDir).map((e) => e.path);
+    if (paths.length) void loadSniffTypes(paths);
+  }, [rules, entries, loadSniffTypes]);
+
   // 名称模板引用了 <CRC32>/<MD5>/<SHA1> 时按需流式计算；进度与取消由 store 统一维护
   const loadFileFacts = useApp((s) => s.loadFileFacts);
   useEffect(() => {

@@ -12,6 +12,8 @@ export interface PreviewOptions {
   diskExists: Record<string, boolean>;
   /** 文件路径 → 只读元数据字段（「按元数据取名」规则使用） */
   meta?: Record<string, MetaFields>;
+  /** 文件路径 → 文件头嗅探出的真实扩展名（扩展名规则「智能分析」使用；空串=识别不出） */
+  sniff?: Record<string, string>;
   /** 文件路径 → 已计算的内容哈希（元变量 <CRC32>/<MD5>/<SHA1> 使用） */
   facts?: Record<string, EntryFacts>;
   /** USER1–USER9 */
@@ -240,6 +242,7 @@ export function buildRow(
       numberFor: (rule) => plans.get(rule.id)?.values.get(entry.id),
       isNumberExcluded: (rule) => plans.get(rule.id)?.excluded.has(entry.id) ?? false,
       meta: opts.meta?.[entry.path],
+      sniff: opts.sniff?.[entry.path],
       vars,
     },
     entry.selected,

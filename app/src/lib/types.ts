@@ -283,7 +283,8 @@ export interface CaseRule extends RuleBase {
 
 export interface ExtRule extends RuleBase {
   type: 'ext';
-  mode: 'add' | 'replace' | 'remove' | 'number' | 'case' | 'fixed';
+  /** analyze：按文件头魔数把扩展名改成真实类型（识别不出时保持原名） */
+  mode: 'add' | 'replace' | 'remove' | 'number' | 'case' | 'fixed' | 'analyze';
   value: string;
   position: 'prefix' | 'suffix';
   caseMode: 'upper' | 'lower';

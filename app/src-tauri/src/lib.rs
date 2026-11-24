@@ -688,6 +688,28 @@ fn rename_fields(paths: Vec<String>) -> Vec<RenameFields> {
         .collect()
 }
 
+/// 每个文件的「真实扩展名」（按文件头魔数，小写、不含点）。识别不出时 `ext` 为空串，
+/// 前端据此保持原名；目录不参与（前端调用前已过滤）。
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SniffExt {
+    path: String,
+    ext: String,
+}
+
+#[tauri::command]
+fn sniff_extensions(paths: Vec<String>) -> Vec<SniffExt> {
+    paths
+        .into_iter()
+        .map(|path| {
+            let ext = renomio_core::sniff::sniff_extension(std::path::Path::new(&path))
+                .unwrap_or_default()
+                .to_string();
+            SniffExt { path, ext }
+        })
+        .collect()
+}
+
 /// 元变量用的内容哈希结果：单文件失败只影响该文件。
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1298,6 +1320,7 @@ pub fn run() {
             exif_clear,
             find_duplicates,
             rename_fields,
+            sniff_extensions,
             file_hashes,
             cancel_hash,
             read_times,

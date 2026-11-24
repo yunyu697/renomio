@@ -457,9 +457,21 @@ function applyNumber(rule: NumberRule, counter: number, vars: VarContext): strin
   });
 }
 
-function applyExt(ext: string, rule: ExtRule, counter: number, vars: VarContext): string {
+function applyExt(
+  ext: string,
+  rule: ExtRule,
+  counter: number,
+  vars: VarContext,
+  detected?: string,
+): string {
   const value = expandTemplate(rule.value, vars).replace(/^\.+/, '').replace(/\.+$/, '');
   switch (rule.mode) {
+    case 'analyze': {
+      // 只信文件头嗅探结果：识别不出（空串）或与当前一致时保持原名，绝不猜
+      const real = (detected ?? '').trim().toLowerCase().replace(/^\.+/, '').replace(/\.+$/, '');
+      if (!real) return ext;
+      return real === ext.toLowerCase() ? ext : real;
+    }
     case 'add':
       return rule.position === 'prefix' ? `${value}${ext}` : `${ext}${value}`;
     case 'replace':
@@ -488,6 +500,8 @@ export interface ApplyContext {
   isNumberExcluded?: (rule: NumberRule) => boolean;
   /** 当前文件的只读元数据字段（供「按元数据取名」规则使用；缺失则跳过该规则） */
   meta?: MetaFields;
+  /** 当前文件按文件头魔数嗅探出的真实扩展名（小写、不含点；空串=识别不出） */
+  sniff?: string;
   /** 当前文件的元变量取值（原文件名、扩展名、目录、时间、大小、哈希、用户文本） */
   vars: VarContext;
 }
@@ -562,9 +576,9 @@ export function applyRules(
           // 序号已在 planNumbers 里按列表顺序预分配（目录不占号），逐条求值只用不占；
           // 只有计划缺项时才回退到顺序计数器，保证可见切片单独求值的序号与整表一致
           const value = ctx.numberFor?.(probe) ?? ctx.nextNumber(probe, '');
-          ext = applyExt(ext, rule, value, vars);
+          ext = applyExt(ext, rule, value, vars, ctx.sniff);
         } else {
-          ext = applyExt(ext, rule, 1, vars);
+          ext = applyExt(ext, rule, 1, vars, ctx.sniff);
         }
         break;
       case 'meta': {
@@ -713,6 +727,7 @@ export function ruleSummary(rule: Rule): string {
         number: t('ruleSum.extNumber'),
         case: t(rule.caseMode === 'upper' ? 'ruleSum.extCaseUpper' : 'ruleSum.extCaseLower'),
         fixed: t('ruleSum.extFixed', { value: rule.value }),
+        analyze: t('ruleSum.extAnalyze'),
       }[rule.mode];
     case 'meta': {
       const label = t(META_SUMMARY_KEYS[rule.field] ?? 'ruleSum.metaTaken');

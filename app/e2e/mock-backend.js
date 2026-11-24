@@ -307,6 +307,19 @@
       };
     }),
 
+    // 与真实后端一致：只按文件头给出「真实扩展名」，空串=识别不出（规则保持原名）。
+    // 夹具故意错标：002.jpg 实为 PNG、logo.png 实为 JPEG；001.jpg 正确；003.jpg 魔数未知
+    sniff_extensions: (args) => (args?.paths ?? []).map((path) => {
+      const name = path.toLowerCase();
+      const overrides = state.sniffOverrides || {};
+      let ext = '';
+      if (Object.prototype.hasOwnProperty.call(overrides, name)) ext = overrides[name];
+      else if (name.includes('002.jpg')) ext = 'png';
+      else if (name.includes('logo.png')) ext = 'jpeg';
+      else if (name.includes('001.jpg')) ext = 'jpg';
+      return { path, ext };
+    }),
+
     scan_paths: (args) => {
       const requested = args.paths || [];
       const includeHidden = (args.options || {}).includeHidden !== false;

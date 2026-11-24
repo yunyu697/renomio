@@ -65,6 +65,18 @@ export async function renameFields(paths: string[]): Promise<MetaFields[]> {
   return invoke<MetaFields[]>('rename_fields', { paths });
 }
 
+export interface SniffExtResult {
+  path: string;
+  /** 小写、不含点；空串=文件头识别不出（规则会保持原名） */
+  ext: string;
+}
+
+/** 批量按文件头魔数嗅探真实扩展名（扩展名规则「智能分析」用；只读 64 字节，不解码内容）。 */
+export async function sniffExtensions(paths: string[]): Promise<SniffExtResult[]> {
+  if (!isDesktop) return [];
+  return invoke<SniffExtResult[]>('sniff_extensions', { paths });
+}
+
 export interface FileHashResult {
   path: string;
   crc32?: string | null;

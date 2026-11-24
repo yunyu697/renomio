@@ -3146,6 +3146,103 @@ async function main() {
     await shot('25-meta-fields.png');
     await clearAllRules();
 
+    // ---- 扩展名智能分析：按文件头纠正错标、识别不出保持原名、模式互斥、真的走后端命令 ----
+    await addRuleType('ext');
+    const extSeg = await evaluate(`(() => {
+      const seg = document.querySelector('[data-testid="ext-mode"]');
+      if (!seg) return null;
+      return {
+        count: seg.querySelectorAll('span').length,
+        labels: [...seg.querySelectorAll('span')].map((s) => s.textContent.trim()),
+      };
+    })()`);
+    check(
+      'UI',
+      '扩展名模式分段新增「Analyze」，共 6 项',
+      extSeg?.count === 6 && extSeg.labels.includes('Analyze'),
+      JSON.stringify(extSeg),
+    );
+
+    // 按序点击第 n 项；点完必须重新 query —— React 会替换 DOM 节点，旧引用读到的是旧值
+    const clickExtMode = async (index) => {
+      await evaluate(`(() => {
+        const seg = document.querySelector('[data-testid="ext-mode"]');
+        if (!seg) throw new Error('找不到扩展名模式分段');
+        seg.querySelectorAll('span')[${index}].click();
+        return true;
+      })()`);
+      await sleep(600);
+    };
+    await clickExtMode(5);
+    const analyzeOn = await evaluate(`(() => {
+      const seg = document.querySelector('[data-testid="ext-mode"]');
+      return {
+        on: [...seg.querySelectorAll('span')].findIndex((s) => s.classList.contains('on')),
+        hint: document.querySelector('[data-testid="ext-analyze-hint"]')?.textContent?.trim() || '',
+      };
+    })()`);
+    check(
+      'UI',
+      '点「Analyze」后分段选中该项并给出文件头说明',
+      analyzeOn.on === 5 && analyzeOn.hint.toLowerCase().includes('header'),
+      JSON.stringify(analyzeOn),
+    );
+
+    const extSum = await evaluate(`document.querySelector('.rule-card.open .sum span')?.textContent?.trim() || ''`);
+    check('UI', '规则摘要写明按文件头纠正扩展名', extSum.includes('header') && !extSum.includes('ruleSum.'), extSum);
+
+    const extRows = await evaluate(`[...document.querySelectorAll('.trow')].map((r) => ({
+      name: r.querySelector('.name-cell .txt')?.textContent || '',
+      next: r.querySelector('.new-name')?.textContent?.trim() ?? null,
+      unchanged: r.classList.contains('unchanged'),
+    }))`);
+    const extRow = (name) => extRows.find((r) => r.name === name);
+    check(
+      'UI',
+      '错标 002.jpg（实为 PNG）被纠正为 .png',
+      extRow('旧照片 002.jpg')?.next === '旧照片 002.png',
+      JSON.stringify(extRow('旧照片 002.jpg')),
+    );
+    check(
+      'UI',
+      '扩展名本来就对（001.jpg）不动名且标记 unchanged',
+      extRow('旧照片 001.jpg')?.next === '旧照片 001.jpg' && extRow('旧照片 001.jpg')?.unchanged === true,
+      JSON.stringify(extRow('旧照片 001.jpg')),
+    );
+    check(
+      'UI',
+      '魔数识别不出（003.jpg）保持原名，绝不猜',
+      extRow('旧照片 003.jpg')?.next === '旧照片 003.jpg' && extRow('旧照片 003.jpg')?.unchanged === true,
+      JSON.stringify(extRow('旧照片 003.jpg')),
+    );
+    check(
+      'UI',
+      '错标 logo.png（实为 JPEG）被纠正为 .jpeg',
+      extRow('logo.png')?.next === 'logo.jpeg',
+      JSON.stringify(extRow('logo.png')),
+    );
+    await shot('28-ext-analyze.png');
+
+    // 结果来自后端文件头嗅探，而不是前端按名字瞎猜
+    const sniffCalls = await evaluate(`(window.__E2E__.calls || []).filter((c) => c && c.cmd === 'sniff_extensions').length`);
+    check('UI-triggered mock', '启用 Analyze 后真的按需调用了 sniff_extensions', sniffCalls > 0, String(sniffCalls));
+
+    // 模式互斥：切回「Case」后说明消失，行名跟随 Case 规则（不再按文件头纠正）
+    await clickExtMode(0);
+    const backToCase = await evaluate(`(() => ({
+      on: [...document.querySelectorAll('[data-testid="ext-mode"] span')].findIndex((s) => s.classList.contains('on')),
+      hint: Boolean(document.querySelector('[data-testid="ext-analyze-hint"]')),
+      names: [...document.querySelectorAll('.trow .new-name')].map((e) => e.textContent.trim()),
+    }))()`);
+    check(
+      'UI',
+      '切回「Case」后 Analyze 说明消失且不再纠正扩展名',
+      backToCase.on === 0 && backToCase.hint === false
+        && backToCase.names.includes('旧照片 002.jpg') && !backToCase.names.includes('旧照片 002.png'),
+      JSON.stringify(backToCase),
+    );
+    await clearAllRules();
+
     // ---- 移动子串：按位置 / 按标记定位、目标之前之后、缺标记不改名 ----
     await addRuleType('move');
     const moveUi = await evaluate(`(() => {

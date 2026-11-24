@@ -5,7 +5,7 @@ import {
   findDuplicates, getEnvInfo,
   getMigrationInfo, getPrivilegeInfo, importLegacyData, isDesktop, listBatches, listSnapshots, loadRuleHistory,
   onApplyProgress, onSnapshotProgress, pathsExist, pickFiles, pickFolders, previewSnapshot, renameFields,
-  restoreSnapshot, saveRuleHistory, scanPaths, startupReport,
+  restoreSnapshot, saveRuleHistory, scanPaths, sniffExtensions, startupReport,
 } from './lib/bridge';
 import {
   applyHistoryLimit, clampHistoryLimit, emptyHistory, pushHistoryEntry,
@@ -193,6 +193,8 @@ interface AppState {
   failureReport: FailureReport | null;
   /** 文件路径 → 只读元数据字段（「按元数据取名」规则预加载） */
   metaFields: Record<string, MetaFields>;
+  /** 文件路径 → 文件头嗅探出的真实扩展名（「智能分析」规则按需预加载；空串=识别不出） */
+  sniffTypes: Record<string, string>;
   /** 文件路径 → 内容哈希（元变量 <CRC32>/<MD5>/<SHA1> 按需计算） */
   fileFacts: Record<string, EntryFacts>;
   /** 哈希计算进度；非计算期为空 */
@@ -323,6 +325,8 @@ interface AppState {
   closeFailureReport: () => void;
   acknowledgeFailure: (id: string) => void;
   loadMetaFields: (paths: string[]) => Promise<void>;
+  /** 按文件头魔数读取真实扩展名（扩展名规则「智能分析」按需调用；失败过的路径不重试） */
+  loadSniffTypes: (paths: string[]) => Promise<void>;
   /** 按需计算元变量内容哈希（分块调用，进度可取消） */
   loadFileFacts: (paths: string[], algos: string[]) => Promise<void>;
   cancelLoadFileFacts: () => Promise<void>;
@@ -615,6 +619,7 @@ export const useApp = create<AppState>((set, get) => ({
   elevationMessage: null,
   failureReport: null,
   metaFields: {},
+  sniffTypes: {},
   fileFacts: {},
   hashProgress: null,
   hashBusy: false,
@@ -1417,6 +1422,7 @@ export const useApp = create<AppState>((set, get) => ({
           readonlySkip: s.settings.readonlySkip,
           diskExists: s.diskExists,
           meta: get().metaFields,
+          sniff: get().sniffTypes,
           facts: get().fileFacts,
           userVars: s.settings.userVars,
           user0: s.settings.userVar0,
@@ -1810,6 +1816,25 @@ export const useApp = create<AppState>((set, get) => ({
     }
   },
 
+  loadSniffTypes: async (paths) => {
+    // 浏览器演示模式下没有真实文件，嗅探结果为「识别不出」，保持原名
+    if (!isDesktop || !paths.length) return;
+    const known = get().sniffTypes;
+    const missing = paths.filter((p) => !(p in known));
+    if (!missing.length) return;
+    try {
+      const items = await sniffExtensions(missing);
+      set((s) => ({
+        sniffTypes: {
+          ...s.sniffTypes,
+          ...Object.fromEntries(items.map((f) => [f.path, f.ext])),
+        },
+      }));
+    } catch (err) {
+      logger.warn('ext.sniff', err instanceof Error ? err.message : String(err));
+    }
+  },
+
   loadFileFacts: async (paths, algos) => {
     if (!paths.length || !algos.length) return;
     const token = hashAbortToken;
@@ -2078,6 +2103,7 @@ export const useApp = create<AppState>((set, get) => ({
       readonlySkip: s.settings.readonlySkip,
       diskExists: s.diskExists,
       meta: s.metaFields,
+      sniff: s.sniffTypes,
       facts: s.fileFacts,
       userVars: s.settings.userVars,
       user0: s.settings.userVar0,

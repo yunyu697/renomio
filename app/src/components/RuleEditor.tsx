@@ -643,8 +643,9 @@ function ExtEditor({ rule, patch }: { rule: ExtRule; patch: Patch }) {
     <>
       <Field label={t('f.mode')}>
         <Seg
+          testId="ext-mode"
           value={rule.mode}
-          options={[['case', t('o.case')], ['replace', t('o.replace')], ['add', t('o.add')], ['number', t('o.number')], ['remove', t('o.remove')]]}
+          options={[['case', t('o.case')], ['replace', t('o.replace')], ['add', t('o.add')], ['number', t('o.number')], ['remove', t('o.remove')], ['analyze', t('o.analyze')]]}
           onChange={(mode) => patch({ mode })}
         />
       </Field>
@@ -677,6 +678,9 @@ function ExtEditor({ rule, patch }: { rule: ExtRule; patch: Patch }) {
         </Field>
       )}
       {rule.mode === 'remove' && <div className="hint-line">{t('f.removeHint')}</div>}
+      {rule.mode === 'analyze' && (
+        <div className="hint-line" data-testid="ext-analyze-hint">{t('f.extAnalyzeHint')}</div>
+      )}
     </>
   );
 }

@@ -15,6 +15,7 @@ interface Cache {
   readonly: boolean;
   disk: Record<string, boolean>;
   meta: Record<string, MetaFields>;
+  sniff: Record<string, string>;
   facts: Record<string, EntryFacts>;
   userVars: string[];
   user0: string;
@@ -43,6 +44,7 @@ export function usePreview(): PreviewResult {
   const readonly = useApp((s) => s.settings.readonlySkip);
   const disk = useApp((s) => s.diskExists);
   const meta = useApp((s) => s.metaFields);
+  const sniff = useApp((s) => s.sniffTypes);
   const facts = useApp((s) => s.fileFacts);
   const userVars = useApp((s) => s.settings.userVars);
   const user0 = useApp((s) => s.settings.userVar0 ?? '');
@@ -63,6 +65,7 @@ export function usePreview(): PreviewResult {
       && cache.readonly === readonly
       && cache.disk === disk
       && cache.meta === meta
+      && cache.sniff === sniff
       && cache.facts === facts
       && cache.userVars === userVars
       && cache.user0 === user0
@@ -83,6 +86,7 @@ export function usePreview(): PreviewResult {
       readonlySkip: readonly,
       diskExists: disk,
       meta,
+      sniff,
       facts,
       userVars,
       user0,
@@ -128,12 +132,12 @@ export function usePreview(): PreviewResult {
     const built = buildPreviewRows(entries, rules, opts, plans, firstTemplateError(rules));
     const result = finalizePreview(built, opts);
     cache = {
-      entries, rules, env, strict, readonly, disk, meta, facts, userVars, user0, replaceInvalid, invalidReplacement,
+      entries, rules, env, strict, readonly, disk, meta, sniff, facts, userVars, user0, replaceInvalid, invalidReplacement,
       nameMaxLength, longNameAction, emptyNameAction, emptyNameFallback, skipSystemHidden, nameOverrides, built,
       numbers: numbersFor(entries, plans), result,
     };
     return result;
-  }, [entries, rules, env, strict, readonly, disk, meta, facts, userVars, user0, replaceInvalid, invalidReplacement,
+  }, [entries, rules, env, strict, readonly, disk, meta, sniff, facts, userVars, user0, replaceInvalid, invalidReplacement,
     nameMaxLength, longNameAction, emptyNameAction, emptyNameFallback, skipSystemHidden, nameOverrides]);
 
   return result;

@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-24T20:34:03.048Z",
+  "generatedAt": "2026-11-24T21:23:50.544Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
-  "passed": 301,
+  "passed": 310,
   "failed": 0,
   "results": [
     {
@@ -160,13 +160,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-25 04:31 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-25 05:21 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-25 04:31 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-25 05:21 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -838,7 +838,7 @@
       "layer": "UI-triggered mock",
       "name": "交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/事件/写文件）",
       "ok": true,
-      "detail": "startup_report,load_rule_history,env_info,plugin:event|listen,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_attrs,read_times,apply_time,meta_read,meta_capabilities,list_snapshots,apply_attrs,apply_move"
+      "detail": "load_rule_history,startup_report,env_info,plugin:event|listen,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_attrs,read_times,apply_time,meta_read,meta_capabilities,list_snapshots,apply_attrs,apply_move"
     },
     {
       "layer": "UI-triggered mock",
@@ -1258,7 +1258,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmwv5j2fy1\",\"jumpState\":{\"openId\":\"rmwv5j2fy1\",\"detail\":1,\"focused\":\"rmwv5j2fy1\"}}"
+      "detail": "{\"firstRuleId\":\"rmwv7b2yk1\",\"jumpState\":{\"openId\":\"rmwv7b2yk1\",\"detail\":1,\"focused\":\"rmwv7b2yk1\"}}"
     },
     {
       "layer": "UI",
@@ -1355,6 +1355,60 @@
       "name": "缺失字段（照片选音频作曲）时该行保持原名且标记 unchanged",
       "ok": true,
       "detail": "{\"name\":\"旧照片 001.jpg\",\"unchanged\":true}"
+    },
+    {
+      "layer": "UI",
+      "name": "扩展名模式分段新增「Analyze」，共 6 项",
+      "ok": true,
+      "detail": "{\"count\":6,\"labels\":[\"Case\",\"Replace\",\"Add\",\"Number\",\"Remove\",\"Analyze\"]}"
+    },
+    {
+      "layer": "UI",
+      "name": "点「Analyze」后分段选中该项并给出文件头说明",
+      "ok": true,
+      "detail": "{\"on\":5,\"hint\":\"Reads the file header to find the real type and only fixes a wrong extension; when detection fails the name stays as is.\"}"
+    },
+    {
+      "layer": "UI",
+      "name": "规则摘要写明按文件头纠正扩展名",
+      "ok": true,
+      "detail": "Fix extension from file header"
+    },
+    {
+      "layer": "UI",
+      "name": "错标 002.jpg（实为 PNG）被纠正为 .png",
+      "ok": true,
+      "detail": "{\"name\":\"旧照片 002.jpg\",\"next\":\"旧照片 002.png\",\"unchanged\":false}"
+    },
+    {
+      "layer": "UI",
+      "name": "扩展名本来就对（001.jpg）不动名且标记 unchanged",
+      "ok": true,
+      "detail": "{\"name\":\"旧照片 001.jpg\",\"next\":\"旧照片 001.jpg\",\"unchanged\":true}"
+    },
+    {
+      "layer": "UI",
+      "name": "魔数识别不出（003.jpg）保持原名，绝不猜",
+      "ok": true,
+      "detail": "{\"name\":\"旧照片 003.jpg\",\"next\":\"旧照片 003.jpg\",\"unchanged\":true}"
+    },
+    {
+      "layer": "UI",
+      "name": "错标 logo.png（实为 JPEG）被纠正为 .jpeg",
+      "ok": true,
+      "detail": "{\"name\":\"logo.png\",\"next\":\"logo.jpeg\",\"unchanged\":false}"
+    },
+    {
+      "layer": "UI-triggered mock",
+      "name": "启用 Analyze 后真的按需调用了 sniff_extensions",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "layer": "UI",
+      "name": "切回「Case」后 Analyze 说明消失且不再纠正扩展名",
+      "ok": true,
+      "detail": "{\"on\":0,\"hint\":false,\"names\":[\"旧照片 001.jpg\",\"logo.png\",\"旧照片 002.jpg\",\"旧照片 003.jpg\"]}"
     },
     {
       "layer": "UI",
@@ -1456,7 +1510,7 @@
       "layer": "UI",
       "name": "运行后该命令记一次运行（次数 1、带上次运行时间）",
       "ok": true,
-      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/25, 04:33 AM\"}"
+      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/25, 05:23 AM\"}"
     },
     {
       "layer": "UI",
@@ -1516,7 +1570,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795552411991.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795555400360.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -1582,7 +1636,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/25 04:33:373 条 · 仅映射预览还原删除"
+      "detail": "2026/11/25 05:23:263 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -1642,7 +1696,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-25 04:33 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-25 05:23 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",
@@ -1858,6 +1912,7 @@
     "26-move-position.png",
     "27-move-markers.png",
     "27-snapshot-created.png",
+    "28-ext-analyze.png",
     "28-snapshot-preview-before.png",
     "29-snapshot-preview.png",
     "29b-snapshot-restored.png",

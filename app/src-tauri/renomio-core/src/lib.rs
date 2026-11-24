@@ -8,6 +8,7 @@ pub mod ops;
 pub mod platform;
 pub mod rename;
 pub mod scan;
+pub mod sniff;
 pub mod snapshot;
 pub mod textedit;
 
