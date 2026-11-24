@@ -60,7 +60,7 @@ npm run tauri:build
 
 已知缺口：
 - Windows 安装包未做 Authenticode 代码签名（本机无 OV/EV 证书），SmartScreen 会警告；更新用 `.sig` 已验过。
-- 已发布：`v1.2.0-alpha9`（2026-11-25，Pre-release，15 资产）为当前最新；滚动清单 release `updates` 的 `latest.json` 已指向 alpha9（三平台键齐全：windows 2,524,511 / linux 86,915,576 / mac 3,191,816）。tag CI `45491563864` 七个 job 一次全绿；6 个包离线验签全 PASS（keyid `a1d8edb60bbc50fd`，trusted comment 绑定 `version:1.2.0-alpha9`）。alpha8 的 CI 为 `45482789114`（`bundle-macos` 曾被 cancelled，`gh run rerun --job` 重跑后绿）。macOS/Linux 产物由 CI 构建（macOS ad-hoc 签名、未公证），未在真机桌面验证；繁中/日/西译文未经母语审校。
+- 已发布：`v1.2.0-alpha10`（2026-11-25，Pre-release，15 资产）为当前最新；滚动清单 release `updates` 的 `latest.json` 已指向 alpha10（三平台键齐全：windows 2,526,764 / linux 86,919,672 / mac 3,192,572）。tag CI `45496338605` 七个 job 一次全绿；6 个包离线验签全 PASS（keyid `a1d8edb60bbc50fd`，trusted comment 绑定 `version:1.2.0-alpha10`）。alpha9 的 CI 为 `45491563864`。macOS/Linux 产物由 CI 构建（macOS ad-hoc 签名、未公证），未在真机桌面验证；繁中/日/西译文未经母语审校。
 - `renomio-core` 的 `rename::tests::directory_junction_is_renamed_as_a_link` 在部分环境因联接点权限失败，属环境问题。
 - 界面层遗留（2026-11-25 清零）：`.list-tabs/.tab` 旧样式块连同 105 个死选择器一并删除（app.css −17%、shell.css −8.5%），`npm run test:css` 孤儿守卫进 CI，`scripts/test-css-orphans.mjs` 当前 0 孤儿；toast 改为让位式（右侧抽屉展开左移到抽屉左侧、底部检查器展开抬到检查器上方）；表头与行逐列几何断言实测 7 列 Δ=0、状态列表头文字与徽标 Δ=0.00（`e2e/run.mjs` 第 4 条断言起）。
 
