@@ -29,6 +29,7 @@ npm run test:drop      # 拖放状态机自测
 npm run test:history   # 输入历史自测
 npm run test:regex     # 正则方言（\1 分组引用）自测
 npm run test:case      # 大小写例外词表自测
+npm run test:css       # 孤儿样式选择器检查（CSS 有、源码无 = 死代码）
 npm run test:contrast  # 对比度
 npm run test:bundle    # 打包断言（有产物才跑 14 条产物断言）
 npm run version:check  # VERSION 与 5 处清单一致
@@ -51,13 +52,13 @@ npm run tauri:build
 
 ## 当前状态（2026-11-25，1.2.0-alpha5 已发布）
 
-已实现并有证据：F2 方案库/最近记录、F3 SYSTEM/ARCHIVE 属性、F4 文本编码批量转换、U3 表格自动列宽 + 系统文件类型图标（逐项证据见 `docs/1.1.0-收口清单.md`）；界面重构落地——检查器改为列表下方底部抽屉、八类列表页签下线（列表为唯一主视图、右栏只留规则链）、页头「清空列表」带二次确认、侧栏收敛为「文件」一组、设置移入「更多」，结构决策见 `docs/界面重构-HIG基线.md` §11–§12；规则开关几何按尺寸变量重算并有 E2E 巡检；正则替换兼容 Delphi 方言 `\1..\9`（`\\1` 为字面，引用分组超限就地报错），见 `docs/规则语义确认清单.md` 末节与 `npm run test:regex`；命令列表（FEATURE-GAP 4.10）——规则链 + 冲突策略存成命令，「套用」只载入、「运行」必进预览确认，见 `docs/FEATURE-GAP.md`；大小写例外词表——`protect` 命中的片段在六种大小写模式下保留原写法（支持 `*`/`?`、大小写不敏感），见 `docs/规则语义确认清单.md` 末节与 `npm run test:case`。
+已实现并有证据：F2 方案库/最近记录、F3 SYSTEM/ARCHIVE 属性、F4 文本编码批量转换、U3 表格自动列宽 + 系统文件类型图标（逐项证据见 `docs/1.1.0-收口清单.md`）；界面重构落地——检查器改为列表下方底部抽屉、八类列表页签下线（列表为唯一主视图、右栏只留规则链）、页头「清空列表」带二次确认、侧栏收敛为「文件」一组、设置移入「更多」，结构决策见 `docs/界面重构-HIG基线.md` §11–§12；规则开关几何按尺寸变量重算并有 E2E 巡检；正则替换兼容 Delphi 方言 `\1..\9`（`\\1` 为字面，引用分组超限就地报错），见 `docs/规则语义确认清单.md` 末节与 `npm run test:regex`；命令列表（FEATURE-GAP 4.10）——规则链 + 冲突策略存成命令，「套用」只载入、「运行」必进预览确认，见 `docs/FEATURE-GAP.md`；大小写例外词表——`protect` 命中的片段在六种大小写模式下保留原写法（支持 `*`/`?`、大小写不敏感），见 `docs/规则语义确认清单.md` 末节与 `npm run test:case`。界面遗留清零（alpha6）——死样式删除 + toast 让位 + 表头/行逐列几何断言，见 `npm run test:css` 与 e2e 几何巡检；
 
 已知缺口：
 - Windows 安装包未做 Authenticode 代码签名（本机无 OV/EV 证书），SmartScreen 会警告；更新用 `.sig` 已验过。
 - 已发布：`v1.2.0-alpha5`（2026-11-25，Pre-release，14 资产）为当前最新；滚动清单 release `updates` 的 `latest.json` 已指向 alpha5（三平台键齐全）。macOS/Linux 产物由 CI 构建（macOS ad-hoc 签名、未公证），未在真机桌面验证；繁中/日/西译文未经母语审校。
 - `renomio-core` 的 `rename::tests::directory_junction_is_renamed_as_a_link` 在部分环境因联接点权限失败，属环境问题。
-- 界面层遗留：`app.css` 里 `.list-tabs/.tab` 旧样式块已无引用；抽屉展开时 toast 会压住右下角；表头与行在「状态」列存在历史对齐偏差。
+- 界面层遗留（2026-11-25 清零）：`.list-tabs/.tab` 旧样式块连同 105 个死选择器一并删除（app.css −17%、shell.css −8.5%），`npm run test:css` 孤儿守卫进 CI，`scripts/test-css-orphans.mjs` 当前 0 孤儿；toast 改为让位式（右侧抽屉展开左移到抽屉左侧、底部检查器展开抬到检查器上方）；表头与行逐列几何断言实测 7 列 Δ=0、状态列表头文字与徽标 Δ=0.00（`e2e/run.mjs` 第 4 条断言起）。
 
 ## 发布要点
 

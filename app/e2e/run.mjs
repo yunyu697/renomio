@@ -389,6 +389,59 @@ async function main() {
     check('UI', '添加文件 → 列表出现 4 行', (await countOf('.trow')) === 4);
     await shot('01-files-added.png');
 
+    // 表头与行必须共用同一网格：逐列比对左／右边缘，偏差 > 0.5px 即视为错列
+    const colGeom = await evaluate(`(() => {
+      const head = document.querySelector('.thead');
+      const row = document.querySelector('.trow');
+      if (!head || !row) return null;
+      const ths = [...head.querySelectorAll('.th')];
+      const cells = [...row.children].filter((c) => c.classList.contains('cell'));
+      if (ths.length !== cells.length) return { count: [ths.length, cells.length], ths: ths.length, cells: cells.length };
+      const COL = ['checkbox', 'name', 'location', 'size', 'modified', 'newName', 'status'];
+      const r = (el) => { const b = el.getBoundingClientRect(); return { l: b.left, w: b.width, r: b.right, h: b.height }; };
+      return {
+        cols: ths.map((th, i) => ({
+          col: COL[i] || ('#' + i),
+          head: r(th),
+          cell: r(cells[i]),
+          label: th.textContent.trim().slice(0, 8),
+        })),
+        // 状态列：表头文字左缘 vs 行内徽标左缘（历史偏差就出在这里）
+        statusChip: (() => {
+          const chip = row.querySelector('.status');
+          const th = ths[6];
+          if (!chip || !th) return null;
+          const range = document.createRange();
+          range.selectNodeContents(th);
+          const text = range.getBoundingClientRect();
+          return { textL: text.left, chipL: r(chip).l, chipW: r(chip).w, thL: r(th).l };
+        })(),
+      };
+    })()`);
+    if (!colGeom || !colGeom.cols) {
+      check('UI', '表头与行逐列网格对齐', false, `列数与单元格数不一致：${JSON.stringify(colGeom)}`);
+    } else {
+      const deltas = colGeom.cols.map((c) => ({
+        col: c.col,
+        dLeft: +(c.head.l - c.cell.l).toFixed(2),
+        dWidth: +(c.head.w - c.cell.w).toFixed(2),
+      }));
+      const worst = deltas.reduce((m, d) => Math.max(m, Math.abs(d.dLeft), Math.abs(d.dWidth)), 0);
+      check(
+        'UI',
+        '表头与行逐列共用同一网格（7 列左右边缘偏差 ≤0.5px）',
+        worst <= 0.5,
+        `max=${worst} ${JSON.stringify(deltas)}`,
+      );
+      const chip = colGeom.statusChip;
+      check(
+        'UI',
+        '状态列：表头文字与行内徽标左缘对齐（偏差 ≤1px）',
+        chip && Math.abs(chip.textL - chip.chipL) <= 1,
+        chip ? `textL=${chip.textL.toFixed(2)} chipL=${chip.chipL.toFixed(2)} Δ=${(chip.textL - chip.chipL).toFixed(2)}` : '取不到状态徽标',
+      );
+    }
+
     // 规则链：替换 + 大小写，并测试排序
     await click('[data-testid="add-rule"]');
     await waitFor(`document.querySelector('[data-testid="rule-type-replace"]')`, '规则菜单');
@@ -1263,6 +1316,100 @@ async function main() {
     );
     await viewport(1440, 900, 1);
     await sleep(350);
+
+    /* toast 与面板的几何关系（§1.17）：右下角的提示条不许压住右侧抽屉 / 底部检查器。
+       触发方式：全部取消勾选后点页头「编辑属性」——不勾选时只弹提示，不动任何文件。 */
+    const fireToast = async () => {
+      await evaluate(`(() => {
+        const cb = document.querySelector('.thead .checkbox');
+        if (cb && cb.classList.contains('on')) cb.click();
+        return true;
+      })()`);
+      await sleep(120);
+      await click('[data-testid="edit-meta"]');
+      await waitFor(`document.querySelector('[data-testid="toast"]')`, '提示条出现', 2000);
+      await sleep(120);
+    };
+    const toastBox = () => evaluate(`(() => {
+      const host = document.querySelector('.toast-host');
+      const pill = document.querySelector('[data-testid="toast"]');
+      if (!host || !pill) return null;
+      const h = host.getBoundingClientRect();
+      const p = pill.getBoundingClientRect();
+      return {
+        drawer: host.getAttribute('data-drawer'),
+        hostRight: h.right, hostBottom: h.bottom, hostWidth: h.width,
+        pillLeft: p.left, pillRight: p.right, pillTop: p.top, pillBottom: p.bottom,
+        vw: window.innerWidth, vh: window.innerHeight,
+      };
+    })()`);
+
+    // 无抽屉：贴窗口右下，右侧留一个 --ds-space-6 边距
+    await fireToast();
+    const toastBare = await toastBox();
+    const space6 = await evaluate(`parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ds-space-6')) || 24`);
+    check(
+      'UI',
+      '无抽屉时提示条贴右侧边距（right ≈ 视口右缘 − space-6）',
+      toastBare?.drawer === '0' && Math.abs(toastBare.vw - toastBare.pillRight - space6) <= 2,
+      toastBare ? `vw=${toastBare.vw} pillRight=${toastBare.pillRight.toFixed(1)} space6=${space6} data-drawer=${toastBare.drawer}` : '取不到提示条',
+    );
+
+    // 右侧抽屉（440px 设置抽屉）展开：提示条左移让位，矩形不相交
+    await openSettings();
+    await sleep(300);
+    const toastWithDrawer = await toastBox();
+    const drawerBox = await evaluate(`(() => {
+      const d = document.querySelector('.drawer');
+      if (!d) return null;
+      const b = d.getBoundingClientRect();
+      return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, w: b.width };
+    })()`);
+    check(
+      'UI',
+      '右侧抽屉展开：提示条让位到抽屉左侧（矩形不相交）',
+      Boolean(toastWithDrawer && drawerBox)
+        && toastWithDrawer.drawer === '1'
+        && toastWithDrawer.pillRight <= drawerBox.left + 0.5,
+      toastWithDrawer && drawerBox
+        ? `pillRight=${toastWithDrawer.pillRight.toFixed(1)} drawerLeft=${drawerBox.left.toFixed(1)} drawerW=${drawerBox.w} data-drawer=${toastWithDrawer.drawer}`
+        : '取不到提示条或抽屉',
+    );
+    await shot('24-toast-drawer.png');
+    await click('.drawer-mask');
+    await waitFor(`!document.querySelector('.drawer')`, '抽屉关闭');
+    await sleep(300);
+
+    // 底部检查器展开：提示条不压住检查器
+    await fireToast();
+    const toastWithDock = await toastBox();
+    const dockBox = await evaluate(`(() => {
+      const d = document.querySelector('[data-testid="inspector"]');
+      if (!d) return null;
+      const b = d.getBoundingClientRect();
+      return { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
+    })()`);
+    const overlaps = toastWithDock && dockBox
+      ? !(toastWithDock.pillRight <= dockBox.left || toastWithDock.pillLeft >= dockBox.right
+        || toastWithDock.pillBottom <= dockBox.top || toastWithDock.pillTop >= dockBox.bottom)
+      : null;
+    check(
+      'UI',
+      '底部检查器展开：提示条与检查器矩形不相交',
+      overlaps === false,
+      toastWithDock && dockBox
+        ? `pill=[${toastWithDock.pillLeft.toFixed(0)},${toastWithDock.pillTop.toFixed(0)},${toastWithDock.pillRight.toFixed(0)},${toastWithDock.pillBottom.toFixed(0)}] dock=[${dockBox.left.toFixed(0)},${dockBox.top.toFixed(0)},${dockBox.right.toFixed(0)},${dockBox.bottom.toFixed(0)}]`
+        : '取不到提示条或检查器',
+    );
+    await evaluate(`(document.querySelector('[data-testid="toast"]')?.click(), true)`);
+    await sleep(150);
+    // 复位：重新全部勾选，后续断言依赖“全选”状态
+    await evaluate(`(() => {
+      const cb = document.querySelector('.thead .checkbox');
+      if (cb && !cb.classList.contains('on')) cb.click();
+      return true;
+    })()`);
+    await sleep(200);
 
     // 取消列表里的一行勾选，检查器目标计数必须同步（不是另一套选择状态）
     await evaluate(`(() => { document.querySelector('.trow .checkbox[aria-checked="true"]')?.click(); })()`);

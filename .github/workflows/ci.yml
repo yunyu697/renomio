@@ -74,6 +74,10 @@ jobs:
       - name: 大小写例外词表自测（18 条）
         run: npm run test:case
 
+      # 孤儿样式守卫：CSS 里出现但源码已不再引用的 .class 一律视为死代码，必须先删再合并
+      - name: 孤儿样式选择器检查
+        run: npm run test:css
+
       # 设计稿必须与实现共用同一套 --ds-* 令牌；令牌值变了但 design/ 未重新确认则失败
       - name: 设计稿令牌反例自测
         run: npm run tokens:selftest

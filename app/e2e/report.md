@@ -1,10 +1,10 @@
 # 无头浏览器 E2E 报告
 
-- 生成时间：2026-11-24T18:32:24.483Z
+- 生成时间：2026-11-24T19:12:55.310Z
 - 运行方式：无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）
 - 浏览器：`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`
 - 视口：1440×900（默认） / 1100×640@1.5x（最小尺寸）
-- 结果：**278 通过 / 0 失败**
+- 结果：**283 通过 / 0 失败**
 - 截图目录：`app/e2e/screenshots/`（已加入 `.gitignore`，仅本机保留，不随仓库分发）
 
 ## UI 层断言（DOM / 可见性 / 截图）
@@ -16,6 +16,8 @@
 | ✅ 通过 | 初始列表为空 |
 | ✅ 通过 | 「含隐藏文件」开关默认开启（true） |
 | ✅ 通过 | 添加文件 → 列表出现 4 行 |
+| ✅ 通过 | 表头与行逐列共用同一网格（7 列左右边缘偏差 ≤0.5px）（max=0 [{"col":"checkbox","dLeft":0,"dWidth":0},{"col":"name","dLeft":0,"dWidth":0},{"col":"location","dLeft":0,"dWidth":0},{"col":"size","dLeft":0,"dWidth":0},{"col":"modified","dLeft":0,"dWidth":0},{"col":"newName","dLeft":0,"dWidth":0},{"col":"status","dLeft":0,"dWidth":0}]） |
+| ✅ 通过 | 状态列：表头文字与行内徽标左缘对齐（偏差 ≤1px）（textL=1283.98 chipL=1283.98 Δ=0.00） |
 | ✅ 通过 | 规则编辑 → 原名/新名实时预览 |
 | ✅ 通过 | 冲突行显示明确状态（不静默覆盖）（["可执行","可执行","冲突","未变更"]） |
 | ✅ 通过 | 规则链排序（上移后顺序变化）（case → replace） |
@@ -28,8 +30,8 @@
 | ✅ 通过 | 应用 → 2 个完成 + 1 个冲突跳过（未改名文件不参与）（{"total":3,"done":2,"skipped":1,"failed":0}） |
 | ✅ 通过 | 冲突文件保持原名 |
 | ✅ 通过 | 撤销 → 4 个原名全部恢复（["旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg","logo.png"]） |
-| ✅ 通过 | 历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略（2026-11-25 02:30 · 更名D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤） |
-| ✅ 通过 | 历史面板：已撤销批次显示「已撤销」并说明原因（{"undoable":"0","state":"已撤销","reason":"该批次已经撤销","text":"2026-11-25 02:30 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销"}） |
+| ✅ 通过 | 历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略（2026-11-25 03:10 · 更名D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤） |
+| ✅ 通过 | 历史面板：已撤销批次显示「已撤销」并说明原因（{"undoable":"0","state":"已撤销","reason":"该批次已经撤销","text":"2026-11-25 03:10 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销"}） |
 | ✅ 通过 | 历史面板：新批次显示「可撤销」（{"undoable":"1","id":"mock-batch-2"}） |
 | ✅ 通过 | 历史面板：撤销后条目变为「已撤销」（{"undoable":"0","state":"已撤销","chip":"已撤销","reason":"该批次已经撤销"}） |
 | ✅ 通过 | 历史面板：较新批次可撤销时，「撤销到此」可用（多级撤销）（{"index":1,"undoable":"1","disabled":false}） |
@@ -78,6 +80,9 @@
 | ✅ 通过 | 抽屉可收起成一条 36px 头部（正文隐藏，不是整块消失）（{"state":"true","head":36,"body":0}） |
 | ✅ 通过 | 再点一次恢复展开（data-collapsed=false 且正文回来）（false） |
 | ✅ 通过 | ≤1100 窄窗：抽屉依旧在内容列底部（不降级成覆盖列表的浮层）（{"position":"static","mainWidth":644,"inMain":true}） |
+| ✅ 通过 | 无抽屉时提示条贴右侧边距（right ≈ 视口右缘 − space-6）（vw=1440 pillRight=1424.0 space6=16 data-drawer=0） |
+| ✅ 通过 | 右侧抽屉展开：提示条让位到抽屉左侧（矩形不相交）（pillRight=984.0 drawerLeft=1000.0 drawerW=440 data-drawer=1） |
+| ✅ 通过 | 底部检查器展开：提示条与检查器矩形不相交（pill=[1004,561,1424,599] dock=[200,611,1040,848]） |
 | ✅ 通过 | 列表取消勾选一行 → 检查器计数同步减一（同一份选择源）（作用于 3 个文件 / 列表勾选 3） |
 | ✅ 通过 | 检查器「时间」页签复用真实批量读取，行数与勾选数一致（3 行 / 勾选 3） |
 | ✅ 通过 | 检查器「元数据」页签复用真实编辑器，并说明只写入勾选的文件（只写入勾选的文件；逐字段勾选后才会保存，并保留可还原的备份。） |
@@ -193,7 +198,7 @@
 | ✅ 通过 | 冲突命中：同路径包含+排除、前缀/子目录重叠（2 条独立冲突）（{"count":2,"items":["include-exclude","path-overlap"]}） |
 | ✅ 通过 | 冲突命中：动作矛盾与正则等价合并为一条（同一对规则只出现一次）（{"count":1,"items":["regex-overlap,action-contradiction"],"badges":2,"rules":2,"modal":false}） |
 | ✅ 通过 | 冲突不阻断保存：两条规则仍在、无阻断弹窗、两条规则就地标出（{"count":1,"items":["regex-overlap,action-contradiction"],"badges":2,"rules":2,"modal":false}） |
-| ✅ 通过 | 点击冲突汇总可跳转到对应规则（展开并聚焦）（{"firstRuleId":"rmwv16tos1","jumpState":{"openId":"rmwv16tos1","detail":1,"focused":"rmwv16tos1"}}） |
+| ✅ 通过 | 点击冲突汇总可跳转到对应规则（展开并聚焦）（{"firstRuleId":"rmwv2mxxc1","jumpState":{"openId":"rmwv2mxxc1","detail":1,"focused":"rmwv2mxxc1"}}） |
 | ✅ 通过 | 冲突命中：后一条被遮蔽不可达（{"items":2,"hasShadow":true}） |
 | ✅ 通过 | 冲突不命中：模式不重叠且替换互不相干时不提示（{"panel":false,"items":0,"badges":0,"rules":2}） |
 | ✅ 通过 | 正则开启时替换串旁给出 \1 分组引用提示（含等价写法 $1）（With regex on, \1…\9 in the replacement is treated as a group reference (same as $1…$9); w） |
@@ -208,7 +213,7 @@
 | ✅ 通过 | 命令重载后仍在（写入本地存储，不是会话内存）（items=1） |
 | ✅ 通过 | 运行命令 → 关闭命令列表并进入预览确认（不动文件）（{"dialog":false,"preview":true,"rows":1,"summary":"4 items · 0 conflicts · 0 invalid · every rename uses a temp file + atomic replace; the batch journal is persisted and undoable.","sub":"","selectedForRun":4}） |
 | ✅ 通过 | 运行命令后预览列出该命令产生变化的行（{"rows":1,"selectedForRun":4,"summary":"4 items · 0 conflicts · 0 invalid · every rename uses a temp"}） |
-| ✅ 通过 | 运行后该命令记一次运行（次数 1、带上次运行时间）（{"runs":"1","meta":"1 rules · Skip conflicting rows · run 1 times · 11/25, 02:31 AM"}） |
+| ✅ 通过 | 运行后该命令记一次运行（次数 1、带上次运行时间）（{"runs":"1","meta":"1 rules · Skip conflicting rows · run 1 times · 11/25, 03:12 AM"}） |
 | ✅ 通过 | 删除命令 → 列表回到空态且本地存储同步清空（{"items":0,"empty":1,"stored":"[]"}） |
 | ✅ 通过 | 列表「下移」立即改变顺序并出现手动顺序标记（{"namesBefore":["旧照片 001.jpg","logo.png","旧照片 002.jpg","旧照片 003.jpg"],"namesAfterDown":["logo.png","旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg"],"manualChip":1}） |
 | ✅ 通过 | 手动顺序在重载后仍然保留（localStorage 会话）（{"namesAfterDown":["logo.png","旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg"],"namesReloaded":["logo.png","旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg"]}） |
@@ -218,7 +223,7 @@
 | ✅ 通过 | 同名不同路径保留两条并在界面标出重名（{"sameNameCount":2,"dupBadges":2}） |
 | ✅ 通过 | 内容相同的不同路径进入「疑似重复」分组，未静默删除（{"dupPanelBefore":1,"dupGroups":1}） |
 | ✅ 通过 | 一键去重只移除列表中的一条，磁盘文件数不变（{"countBeforeDedupe":7,"countAfterDedupe":6,"filesOnDisk":7,"filesAfterDedupe":7}） |
-| ✅ 通过 | 属性编辑：选中字段写入并回读校验通过（{"text":"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\e2e\\旅行\\旧照片 002.jpg.1795545113766.bak","ok":true,"verified":true}） |
+| ✅ 通过 | 属性编辑：选中字段写入并回读校验通过（{"text":"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\e2e\\旅行\\旧照片 002.jpg.1795547544880.bak","ok":true,"verified":true}） |
 | ✅ 通过 | 属性编辑：重新打开可见写入后的值（{"rereadTitle":"E2E 新标题"}） |
 | ✅ 通过 | 不支持格式（HEIC）明确拒绝并附文件与原因（{"unsupportedShown":1,"heicResult":{"bad":true,"text":"sample.heicHEICFailedHEIC 不支持写入：HEIC/HEIF 解码能力缺失，本版本不支持Backup：No backup"}}） |
 | ✅ 通过 | 未检查：只显示「检查更新」「打开主页」（{"phase":"idle","check":1,"action":0,"save":0,"home":1,"retry":0,"latest":0,"install":0,"size":0,"error":0}） |
@@ -229,7 +234,7 @@
 | ✅ 通过 | 之后显示已最新时仍保留「安装」按钮（{"phase":"latest","check":1,"action":0,"save":0,"home":1,"retry":0,"latest":1,"install":1,"size":0,"error":0}） |
 | ✅ 通过 | 快照：入口真实可用且哈希复选框默认关闭（false） |
 | ✅ 通过 | 快照（仅映射）→ 记录 3 条原名/新名与大小/时间，不含哈希（{"entryCount":3,"hashed":0}） |
-| ✅ 通过 | 快照列表显示「仅映射」（2026/11/25 02:31:593 条 · 仅映射预览还原删除） |
+| ✅ 通过 | 快照列表显示「仅映射」（2026/11/25 03:12:303 条 · 仅映射预览还原删除） |
 | ✅ 通过 | 快照：勾选后开启 SHA-256（true） |
 | ✅ 通过 | 快照（含哈希）→ 3 条 SHA-256 且逐条上报进度（{"id":"mock-snap-2","hashed":3}） |
 | ✅ 通过 | 快照生成 → 进度事件可取消/可观测（hash/done）（hash,done） |
@@ -239,7 +244,7 @@
 | ✅ 通过 | 还原执行 → 2 条还原、1 条跳过，批次 kind=restore 且 policy=skip（{"total":3,"done":2,"skipped":1,"failed":0}） |
 | ✅ 通过 | 还原绝不覆盖：诱饵文件保持原样，冲突条目的新名文件仍在（{"decoyIntact":12345,"afterRestoreFiles":["照片_001.jpg","旧照片 002.jpg","旧照片 003.jpg","logo.png","旧照片 001.jpg"]}） |
 | ✅ 通过 | 还原结果逐条说明跳过原因（还原结果：成功 2 条，跳过/失败 1 条批次 mock-batch-2还原已写入操作记录，可在「操作记录」里整批撤销D:\e2e\旅行\照片_002.jpg→D:\e2e\旅行\旧照片 002.jpg已还原D:\e2e\旅行\照片_003.jpg→D:\e2e\旅行\旧照片 003.jpg已还原D:\e2e\旅行\照） |
-| ✅ 通过 | 操作记录把还原标为「快照还原」且可撤销（2026-11-25 02:32 · 快照还原D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销） |
+| ✅ 通过 | 操作记录把还原标为「快照还原」且可撤销（2026-11-25 03:12 · 快照还原D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销） |
 | ✅ 通过 | 撤销还原 → 2 条回到新名（冲突条目不受影响）（["照片_001.jpg","照片_002.jpg","照片_003.jpg","logo.png","旧照片 001.jpg"]） |
 | ✅ 通过 | 删除快照 → 列表与后端同步只剩 1 条（1） |
 | ✅ 通过 | 勾选一张图片后 EXIF 入口在检查器里可用（作用于勾选文件）（1 / 作用于 1 个文件） |
@@ -307,7 +312,7 @@
 | ✅ 通过 | 模板移动后 → 4 个文件落入两级目录（d:\e2e\归类结果\jpg\2025\旧照片 001.jpg \| d:\e2e\归类结果\jpg\2025\旧照片 002.jpg \| d:\e2e\归类结果\jpg\2025\旧照片 003.jpg \| d:\e2e\归类结果\png\2025\logo.png） |
 | ✅ 通过 | 模板归类可撤销 → 路径全部回到原位置（D:\e2e\旅行\旧照片 001.jpg \| D:\e2e\旅行\旧照片 002.jpg \| D:\e2e\旅行\旧照片 003.jpg \| D:\e2e\设计\logo.png） |
 | ✅ 通过 | 拖放 drop → 调用扫描/添加路径命令，计数正确（+2）（paths=D:\e2e\新拖入\拖入 A.txt,D:\e2e\新拖入\拖入 B.txt, rows=11） |
-| ✅ 通过 | 交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/事件/写文件）（load_rule_history,startup_report,plugin:event\|listen,env_info,privilege_info,migration_info,plugin:event\|unlisten,append_log,plugin:dialog\|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog\|save,write_text_atomic,read_text_file,write_bytes_atomic,read_attrs,read_times,apply_time,meta_read,meta_capabilities,list_snapshots,apply_attrs,apply_move） |
+| ✅ 通过 | 交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/事件/写文件）（startup_report,load_rule_history,env_info,plugin:event\|listen,privilege_info,migration_info,plugin:event\|unlisten,append_log,plugin:dialog\|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog\|save,write_text_atomic,read_text_file,write_bytes_atomic,read_attrs,read_times,apply_time,meta_read,meta_capabilities,list_snapshots,apply_attrs,apply_move） |
 | ✅ 通过 | 右上角窗口按钮 → 实际调用 window API（minimize / toggle_maximize / close）（minimize,toggle_maximize,close） |
 | ✅ 通过 | 手动导入经 Tauri 命令层并回报导入/跳过数量（已导入 2 个文件，跳过 1 个已存在的文件（导入前已备份）。） |
 | ✅ 通过 | 文本编码原地覆盖：请求携带手动源编码 GB18030、目标 UTF-8 BOM，结果含回读校验与备份还原入口（{"ok":true,"verified":true,"stats":"128 → 128 字节 · D:\\e2e\\旅行\\编码样本.txt","restore":true,"call":{"path":"D:\\e2e\\旅行\\编码样本.txt","targetEncoding":"utf8bom","sourceEncoding":"gb18030","saveAs":null,"backup":true}}） |
@@ -360,6 +365,7 @@
 - 21-regex-backslash-ref.png
 - 22-commands-dialog.png
 - 23-case-protect.png
+- 24-toast-drawer.png
 - 27-snapshot-created.png
 - 28-snapshot-preview-before.png
 - 29-snapshot-preview.png
