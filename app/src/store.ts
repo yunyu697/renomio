@@ -172,6 +172,8 @@ interface AppState {
   planDialog: PlanDialogState | null;
   /** 方案库（已保存方案 + 最近 10 条）是否打开 */
   plansOpen: boolean;
+  /** 命令列表（规则链 + 冲突策略的批量作业）是否打开 */
+  commandsOpen: boolean;
   snapshotOpen: boolean;
   snapshots: SnapshotSummaryDto[];
   snapshotBusy: boolean;
@@ -337,6 +339,12 @@ interface AppState {
   closePlans: () => void;
   /** 从方案库一键载入：替换规则链并触发预览。 */
   loadSavedPlan: (name: string, rules: Rule[]) => void;
+  openCommands: () => void;
+  closeCommands: () => void;
+  /** 命令「套用」：载入规则链与冲突策略，留在列表页继续检查。 */
+  applyCommand: (name: string, rules: Rule[], policy: ConflictPolicy) => void;
+  /** 命令「运行」：载入后直接进入预览确认；列表为空时提示先添加文件。 */
+  runCommand: (name: string, rules: Rule[], policy: ConflictPolicy) => void;
 
   openSnapshots: () => Promise<void>;
   closeSnapshots: () => void;
@@ -593,6 +601,7 @@ export const useApp = create<AppState>((set, get) => ({
   metadata: { open: false, loading: false, path: '', name: '', info: null, error: null },
   planDialog: null,
   plansOpen: false,
+  commandsOpen: false,
   snapshotOpen: false,
   snapshots: [],
   snapshotBusy: false,
@@ -2010,8 +2019,43 @@ export const useApp = create<AppState>((set, get) => ({
     logger.info('plans.loaded', '从方案库载入', { name, rules: normalized.length, replaced });
   },
 
-  openSnapshots: async () => {
-    set({ snapshotOpen: true, snapshotPlan: null, snapshotPlanFor: null, snapshotResult: null });
+  openCommands: () => set({ commandsOpen: true }),
+
+  closeCommands: () => set({ commandsOpen: false }),
+
+  applyCommand: (name, rules, policy) => {
+    const normalized = normalizeRules(rules);
+    if (!normalized.length) {
+      get().showToast('warn', translate('plans.empty'));
+      return;
+    }
+    const replaced = get().rules.length;
+    get().setApplyPolicy(policy);
+    set({ rules: normalized, openRuleId: null, commandsOpen: false });
+    void pushRecentPlan(name, normalized);
+    get().showToast('success', translate('commands.applied', { name, count: normalized.length, replaced }));
+    logger.info('commands.apply', '套用命令', { name, rules: normalized.length, policy, replaced });
+  },
+
+  runCommand: (name, rules, policy) => {
+    if (!get().entries.length) {
+      get().showToast('info', translate('commands.needFiles'));
+      return;
+    }
+    const normalized = normalizeRules(rules);
+    if (!normalized.length) {
+      get().showToast('warn', translate('plans.empty'));
+      return;
+    }
+    const replaced = get().rules.length;
+    get().setApplyPolicy(policy);
+    set({ rules: normalized, openRuleId: null, commandsOpen: false, previewOpen: true });
+    void pushRecentPlan(name, normalized);
+    get().showToast('success', translate('commands.running', { name, count: normalized.length, replaced }));
+    logger.info('commands.run', '运行命令', { name, rules: normalized.length, policy, replaced });
+  },
+
+  openSnapshots: async () => {    set({ snapshotOpen: true, snapshotPlan: null, snapshotPlanFor: null, snapshotResult: null });
     const snapshots = await listSnapshots();
     set({ snapshots });
   },

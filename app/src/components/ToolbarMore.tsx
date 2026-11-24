@@ -13,6 +13,7 @@ export function ToolbarMore() {
   const { t } = useTranslation();
   const openDrawer = useApp((s) => s.openDrawer);
   const openShortcuts = useApp((s) => s.openShortcuts);
+  const openCommands = useApp((s) => s.openCommands);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -92,6 +93,16 @@ export function ToolbarMore() {
           >
             <Icon name="filter" size={14} />
             <span>{t('toolbar.filter')}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="pop-item"
+            data-testid="open-commands"
+            onClick={() => { close(); openCommands(); }}
+          >
+            <Icon name="bolt" size={14} />
+            <span>{t('toolbar.commands')}</span>
           </button>
           <button
             type="button"

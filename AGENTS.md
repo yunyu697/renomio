@@ -14,6 +14,7 @@
 - `app/src/store.ts`：唯一 zustand store，状态与跨组件动作都在这里。
 - `app/src/lib/bridge.ts`：唯一 Tauri `invoke` 出口；浏览器环境自动走 mock。新增命令需同时改 `src-tauri/src/lib.rs`、`lib/types.ts`、`lib/bridge.ts`。
 - `app/src/lib/plans.ts`：方案库与最近记录（localStorage：`renomio.saved-plans`、`renomio.recent-items`；会话键 `rename-studio.session`）。
+- `app/src/lib/commands.ts`：命令列表（规则链 + 冲突策略的批量作业，localStorage `renomio.commands`，最多 30 条、按最近使用排序；入口在「更多 → 命令」，`components/CommandsDialog.tsx`）。
 - `app/src-tauri/renomio-core/`：纯 Rust，可单独 `cargo test`；文件操作逻辑优先放这里并配集成测试。
 - `app/src-tauri/src/icons.rs`：Windows `SHGetFileInfoW` → PNG 图标（FFI，非 Windows 返回空）。
 - `app/e2e/run.mjs`：无头 E2E，断言 + 报告落 `app/e2e/report.md|json`。

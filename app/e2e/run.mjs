@@ -2879,6 +2879,112 @@ async function main() {
     );
     await clearAllRules();
 
+    // ---- 命令列表：规则链 + 冲突策略存成一条命令（保存 / 持久化 / 运行 / 删除）----
+    await addRuleType('replace');
+    await setInput('[data-testid="replace-find"]', 'logo');
+    await setInput('[data-testid="replace-with"]', 'LOGO');
+    await click('[data-testid="toolbar-more"]');
+    await waitFor(`document.querySelector('[data-testid="open-commands"]')`, '更多菜单·命令项', 6000);
+    await click('[data-testid="open-commands"]');
+    await waitFor(`document.querySelector('[data-testid="commands-dialog"]')`, '命令列表对话框', 6000);
+    const cmdEmpty = await countOf('[data-testid="commands-empty"]');
+    check('UI', '命令列表首次打开为空态（提示先排规则链再保存）', cmdEmpty === 1, `empty=${cmdEmpty}`);
+
+    await setInput('[data-testid="commands-name"]', 'logo 大写归档');
+    await click('[data-testid="commands-save"]');
+    await sleep(400);
+    const cmdItem = await evaluate(`(() => {
+      const el = document.querySelector('[data-testid="commands-item"]');
+      return el
+        ? {
+          name: el.getAttribute('data-command-name'),
+          runs: el.getAttribute('data-command-runs'),
+          policy: el.getAttribute('data-command-policy'),
+          meta: el.querySelector('[data-testid="commands-meta"]')?.textContent || '',
+        }
+        : null;
+    })()`);
+    check(
+      'UI',
+      '保存命令：列表出现该命令，带规则数、冲突策略与运行次数',
+      !!cmdItem && cmdItem.name === 'logo 大写归档' && cmdItem.runs === '0'
+        && ['skip', 'suffix', 'overwrite'].includes(cmdItem.policy) && cmdItem.meta.includes('1'),
+      JSON.stringify(cmdItem),
+    );
+    await shot('22-commands-dialog.png');
+
+    // 持久化：重载后命令仍在（localStorage）
+    await evaluate('location.reload()');
+    await waitFor(`document.querySelectorAll('.trow').length >= 3`, '重载后的列表', 15000);
+    await sleep(600);
+    await click('[data-testid="toolbar-more"]');
+    await waitFor(`document.querySelector('[data-testid="open-commands"]')`, '更多菜单·命令项（重载后）', 6000);
+    await click('[data-testid="open-commands"]');
+    await waitFor(`document.querySelector('[data-testid="commands-dialog"]')`, '命令列表对话框（重载后）', 6000);
+    const cmdPersisted = await countOf('[data-testid="commands-item"]');
+    check('UI', '命令重载后仍在（写入本地存储，不是会话内存）', cmdPersisted === 1, `items=${cmdPersisted}`);
+
+    // 重载后勾选全部文件，保证「运行」有可执行行（预览只列被勾选的行）
+    await evaluate(`(() => {
+      for (const cb of [...document.querySelectorAll('.trow .checkbox')]) {
+        if (cb.getAttribute('aria-checked') !== 'true') cb.click();
+      }
+      return true;
+    })()`);
+    await sleep(500);
+    const selectedForRun = await evaluate(`document.querySelectorAll('.trow .checkbox[aria-checked="true"]').length`);
+
+    // 运行：直接进入预览确认，不静默动文件
+    await click('[data-testid="commands-run"]');
+    await waitFor(`document.querySelector('[data-testid="preview-confirm"]')`, '命令运行后的预览确认', 8000);
+    await sleep(800);
+    const runState = await evaluate(`({
+      dialog: !!document.querySelector('[data-testid="commands-dialog"]'),
+      preview: !!document.querySelector('[data-testid="preview-confirm"]') || !!document.querySelector('[data-testid="preview-row"]'),
+      rows: document.querySelectorAll('[data-testid="preview-row"]').length,
+      summary: document.querySelector('[data-testid="preview-summary"]')?.textContent || '',
+      sub: document.querySelector('[data-testid="preview-summary"]') ? '' : (document.querySelector('.dialog-head p')?.textContent || ''),
+    })`);
+    check(
+      'UI',
+      '运行命令 → 关闭命令列表并进入预览确认（不动文件）',
+      !runState.dialog && runState.preview,
+      JSON.stringify({ ...runState, selectedForRun }),
+    );
+    check(
+      'UI',
+      '运行命令后预览列出该命令产生变化的行',
+      runState.rows > 0,
+      JSON.stringify({ rows: runState.rows, selectedForRun, summary: runState.summary.slice(0, 60) }),
+    );
+
+    // 运行后：次数 +1，并按最近使用排到最前
+    await evaluate(`document.querySelector('.modal-mask')?.click()`);
+    await waitFor(`!document.querySelector('[data-testid="preview-confirm"]')`, '预览确认关闭', 4000);
+    await sleep(500);
+    await click('[data-testid="toolbar-more"]');
+    await waitFor(`document.querySelector('[data-testid="open-commands"]')`, '更多菜单·命令项（运行后）', 6000);
+    await click('[data-testid="open-commands"]');
+    await waitFor(`document.querySelector('[data-testid="commands-dialog"]')`, '命令列表对话框（运行后）', 6000);
+    const afterRun = await evaluate(`(() => {
+      const el = document.querySelector('[data-testid="commands-item"]');
+      return el ? { runs: el.getAttribute('data-command-runs'), meta: el.querySelector('[data-testid="commands-meta"]')?.textContent || '' } : null;
+    })()`);
+    check('UI', '运行后该命令记一次运行（次数 1、带上次运行时间）', !!afterRun && afterRun.runs === '1' && afterRun.meta.includes('1'), JSON.stringify(afterRun));
+
+    // 删除：只删记录
+    await click('[data-testid="commands-delete"]');
+    await sleep(400);
+    const cmdAfterDelete = await evaluate(`({
+      items: document.querySelectorAll('[data-testid="commands-item"]').length,
+      empty: document.querySelectorAll('[data-testid="commands-empty"]').length,
+      stored: localStorage.getItem('renomio.commands'),
+    })`);
+    check('UI', '删除命令 → 列表回到空态且本地存储同步清空', cmdAfterDelete.items === 0 && cmdAfterDelete.empty === 1 && (cmdAfterDelete.stored === '[]' || cmdAfterDelete.stored === null), JSON.stringify(cmdAfterDelete));
+    await evaluate(`document.querySelector('.modal-mask')?.click()`);
+    await waitFor(`!document.querySelector('[data-testid="commands-dialog"]')`, '命令列表关闭', 4000);
+    await sleep(400);
+
     // --- alpha10：列表手动顺序 / 重名 / 重复添加 / 属性编辑 ---
     await evaluate('location.reload()');
     await waitFor(`document.querySelectorAll('.trow').length >= 3`, '重载后的文件列表', 15000);
