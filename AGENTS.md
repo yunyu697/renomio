@@ -5,7 +5,7 @@
 ## 项目
 
 - 产品：Renomio，Windows 批量重命名与文件操作工具（Tauri 2 + React 19 + TypeScript + Vite 7，核心逻辑在 Rust crate `renomio-core`）。
-- 版本：`VERSION` 是唯一来源，当前 `1.1.0-alpha7`；稳定版 `v1.0.0`。
+- 版本：`VERSION` 是唯一来源，当前 `1.2.0-alpha2`；稳定版 `v1.0.0`。
 - 仓库：`yunyu697/renomio`（源码与 Releases 同仓）。当前只发布 Windows x64。
 - 许可证见 `LICENSE`，第三方见 `THIRD-PARTY-NOTICES.md`。
 
@@ -38,24 +38,31 @@ npm run tauri build    # 产出 NSIS + MSI
 2. 文件操作验收必须脚本化（临时目录 + 断言），不靠人工点界面。
 3. 交付说明如实区分「已验证 / 未验证 / 未实现」，不伪造通过。
 4. 不要提交任何私钥、证书、令牌；本地数据在 `%APPDATA%\app.renomio.desktop`。
+5. 更新签名私钥在仓库根 `renomio-signing\renomio.key`（`.gitignore` 的 `*.key` 已覆盖，同目录的 `renomio.key.pub` 是公钥、与 `tauri.conf.json` 的 `plugins.updater.pubkey` 配对）。构建时**只以路径**注入环境变量，切勿复制进产物目录、切勿 `type`/`Get-Content` 打印正文、切勿 `git add`：
 
-## 当前状态（2026-11-11，alpha7）
+```powershell
+$env:TAURI_SIGNING_PRIVATE_KEY = (Resolve-Path "..\renomio-signing\renomio.key").Path   # 在 app/ 下
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""                                             # 该密钥为空口令
+npm run tauri:build
+```
 
-已实现并有证据：F2 方案库/最近记录、F3 SYSTEM/ARCHIVE 属性、F4 文本编码批量转换、U3 表格自动列宽 + 系统文件类型图标。逐项证据见 `docs/1.1.0-收口清单.md`。
+## 当前状态（2026-11-25，1.2.0-alpha2）
+
+已实现并有证据：F2 方案库/最近记录、F3 SYSTEM/ARCHIVE 属性、F4 文本编码批量转换、U3 表格自动列宽 + 系统文件类型图标（逐项证据见 `docs/1.1.0-收口清单.md`）；界面重构落地——检查器改为列表下方底部抽屉、八类列表页签下线（列表为唯一主视图、右栏只留规则链）、页头「清空列表」带二次确认、侧栏收敛为「文件」一组、设置移入「更多」，结构决策见 `docs/界面重构-HIG基线.md` §11–§12。
 
 已知缺口：
-- 更新用 `.sig` 未生成（无 `TAURI_SIGNING_PRIVATE_KEY`），`updates` 的 `latest.json` 仍指向 alpha5。
-- 安装包未代码签名（无证书），SmartScreen 会警告。
-- macOS/Linux 已由 CI 构建未签名产物（macOS 为 ad-hoc 签名），但未在真机桌面验证、未进 Release；繁中/日/西译文未经母语审校。
+- Windows 安装包未做 Authenticode 代码签名（本机无 OV/EV 证书），SmartScreen 会警告；更新用 `.sig` 已生成并验过，`latest.json` 已按 1.2.0-alpha2 重写，待推送后生效。
+- 1.2.0-alpha2 未 push、未建 Release；macOS/Linux 产物由 CI 构建（macOS ad-hoc 签名），未在真机桌面验证、未进 Release；繁中/日/西译文未经母语审校。
 - `renomio-core` 的 `rename::tests::directory_junction_is_renamed_as_a_link` 在部分环境因联接点权限失败，属环境问题。
+- 界面层遗留：`app.css` 里 `.list-tabs/.tab` 旧样式块已无引用；抽屉展开时 toast 会压住右下角；表头与行在「状态」列存在历史对齐偏差。
 
 ## 发布要点
 
 1. 改 `VERSION` → `npm run version:sync`。
-2. `npm run tauri build`。若日志出现「A public key has been found, but no private key」，说明未配置签名私钥；两个安装包**已经产出**，但命令会以退出码 1 结束，这不是打包失败。
-3. `npm run test:bundle`；计算 SHA-256；更新根 `README.md` 与 `app/README.md` 产物表。
+2. `npm run tauri:build`。先按「硬性约束」第 5 条把仓库外 `renomio-signing\renomio.key` 的**路径**注入 `TAURI_SIGNING_PRIVATE_KEY`（空口令），否则 `createUpdaterArtifacts` 会在产出两个安装包后因缺私钥以退出码 1 结束；有私钥时两个 `.sig` 与安装包同批产出。
+3. `npm run test:bundle`；计算 SHA-256；更新根 `README.md` 与 `app/README.md` 产物表；用 `.sig` 内容重写 `latest.json`（version / size / 文件名 / signature 四项与实际包对齐）。
 4. macOS/Linux 产物由 CI `bundle-linux` / `bundle-macos` 构建并上传 artifact（未签名，不改 Release 与 `latest.json`）。
-5. 提交 → `git tag -a v<版本>` → 推 `main` 与 tag → `gh release create <tag> --prerelease` 上传两个包与 `SHA256SUMS`。
+5. 提交 → `git tag -a v<版本>` → 推 `main` 与 tag → `gh release create <tag> --prerelease` 上传两个包、`SHA256SUMS` 与 `latest.json`。
 6. 完整步骤与签名说明见 `docs/交接说明.md` 第 7 节、`docs/签名与打包流程.md`。
 
 ## 常见坑

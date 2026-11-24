@@ -2,7 +2,7 @@
 
 MIT License — 见仓库根目录的 [LICENSE](../LICENSE)
 
-跨平台（Windows / macOS / Linux）批量文件更名工具，重构自一款商业批量改名软件（能力对账见 [docs/FEATURE-GAP.md](../docs/FEATURE-GAP.md)）。**本版由 Rename Studio 改名为 Renomio**（不是原地升级，迁移方式见「改名与旧版迁移」）。内部 crate 名 `renomio-core`、Cargo/npm 包名 `rename-studio`、本地设置键 `rename-studio.settings`、方案文件 `rename-studio.plan` 均保留不变。
+跨平台（Windows / macOS / Linux）批量文件更名工具；能力边界与缺口见 [docs/FEATURE-GAP.md](../docs/FEATURE-GAP.md)。产品名 **Renomio**，**曾用名 Rename Studio**（因重名才改名；不是原地升级，迁移方式见「改名与旧版迁移」）。内部 crate 名 `renomio-core`、Cargo/npm 包名 `rename-studio`、本地设置键 `rename-studio.settings`、方案文件 `rename-studio.plan` 均保留不变。
 
 本版聚焦 **P0：可预览、可撤销、不丢文件的安全更名流程**，并落地 **快照**、**P1 第一梯队**（元数据面板（图片 / 音频 / 文档文本字段可写）、方案导入导出、多格式导出（CSV / Excel `.xlsx` / HTML / TSV）、列设置）、**P1 第二梯队**（时间修改、只读/隐藏属性、归类移动）、**权限体验与边界用例**、**五语言界面**。
 
@@ -369,14 +369,14 @@ app/
 
 数据目录：每用户的 `%APPDATA%\app.renomio.desktop`（Tauri `app_data_dir`，随 identifier 变化），不随安装目录走；**切换安装范围不会迁移配置、日志与撤销历史**（同一用户的同一数据目录，两者共享）。**自动更新（alpha5 起）**：设置页「检查更新」读取源码仓库 `yunyu697/renomio` 滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；以 minisign 签名校验为准，支持镜像回退、仅下载与安装后重启。源码仓库已公开，安装包与更新清单与源码同仓发布；旧发行仓库 `renomio-releases` 已归档，仅保留历史下载。
 
-## 产物（本轮构建：1.1.0-alpha7）
+## 产物（本轮构建：1.2.0-alpha2）
 
 | 安装包 | 路径 | 大小 | SHA-256 |
 | --- | --- | --- | --- |
-| NSIS | `src-tauri/target/release/bundle/nsis/Renomio_1.1.0-alpha7_x64-setup.exe` | 2,487,921 字节（2.37 MiB） | `83A90904DFE7E6EF2AA66CC5721C03168D7F2AEC4509B3AF302F30219A695E17` |
-| MSI | `src-tauri/target/release/bundle/msi/Renomio_1.1.0-alpha7_x64_en-US.msi` | 3,678,208 字节（3.51 MiB） | `1B2C07D1715AF9AA0B24B778726C5BD59E0751541509323BAFF06A7FCC1292FB` |
+| NSIS | `src-tauri/target/release/bundle/nsis/Renomio_1.2.0-alpha2_x64-setup.exe` | 2,497,169 字节（2.38 MiB） | `EE53AD0CF431879D7DC324C47B627528255707BB7BF6DF1888C332BEEACF5B39` |
+| MSI | `src-tauri/target/release/bundle/msi/Renomio_1.2.0-alpha2_x64_en-US.msi` | 3,686,400 字节（3.52 MiB） | `7DDE4F741948555D5C877B930F1D191B3FC5CD2BB41B330DE2269CD1C856E49F` |
 
-两包均未代码签名。**alpha7 未生成更新用 `.sig`**（构建环境没有 `TAURI_SIGNING_PRIVATE_KEY`，`tauri build` 在产出两个安装包后以该错误退出），因此 `updates` 的 `latest.json` 仍停留在 alpha5，自动更新到 alpha7 暂不可用；需要时可本地用 minisign 密钥对两个包补签后再更新清单。`bundle.targets` 已显式设为 `["nsis", "msi"]`，`npm run tauri build` 一次产出两个包。安装范围：NSIS 安装时可选、默认所有用户（`Program Files\Renomio`）；MSI 只有机器级一种（固定 `Program Files\Renomio`、必须管理员、不提供用户级）。**该轮新增**：方案库与最近记录（F2）、SYSTEM/ARCHIVE 属性（F3）、文本编码批量转换（F4）、表格自动列宽与系统文件类型图标（U3），并包含 alpha6 之后规则卡片底部按钮贴边的间距修复。主程序为 `renomio.exe`，由 `[[bin]] name = "renomio"` 产出。以上定位由 `npm run test:bundle`（26 条断言）对实际产物把关。
+两包均未做 Authenticode 代码签名（本机无 OV/EV 证书，首次运行 SmartScreen 会提示未知发布者；证书到位后可用 `scripts/sign/windows-sign.ps1` 补签）。**本版已生成更新用 `.sig`**：构建时把仓库外的 `renomio-signing/renomio.key` 以路径注入 `TAURI_SIGNING_PRIVATE_KEY`（空口令），`tauri build` 一次产出 NSIS + MSI 两个包与两个 `.sig`；两个签名已用 `tauri.conf.json` 内置公钥离线验过——文件签名与 trusted comment 签名双 PASS，keyid `a1d8edb60bbc50fd`，trusted comment 绑定 `file` 与 `version:1.2.0-alpha2`。`updates` 的 `latest.json` 已按本版重写（含签名、字节数、文件名），待推送后生效。`bundle.targets` 显式设为 `["nsis", "msi"]`，`npm run tauri build` 一次产出两个包。安装范围：NSIS 安装时可选、默认所有用户（`Program Files\Renomio`）；MSI 只有机器级一种（固定 `Program Files\Renomio`、必须管理员、不提供用户级）。**该轮变更**：界面重构落地——检查器改为列表下方底部抽屉、八类列表页签下线（列表成为唯一主视图）、页头新增带二次确认的「清空列表」、侧栏收敛为「文件」一组、设置移入工具栏「更多」；E2E 263 通过 / 0 失败，设计令牌 69 项一致。主程序为 `renomio.exe`，由 `[[bin]] name = "renomio"` 产出。
 
 **1.1.0-alpha1 时的真实升级实测**：匿名下载公开 `v1.0.0` NSIS 包并静默安装（`/S`，5.3 s，落到 `C:\Program Files\Renomio`，ARP 显示 `1.0.0`），再用 `1.1.0-alpha1` NSIS 包静默覆盖（6.5 s，ARP 与 `renomio.exe --version` 均变为 `1.1.0-alpha1`，安装路径不变；`uninstall.exe` 重写时间为升级时刻）。卸载、快捷方式落点、两范围交叉安装、旧版并存拦截仍未验证。
 

@@ -2,7 +2,7 @@
 
 MIT License — 见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)
 
-跨平台（Windows / macOS / Linux）批量文件 / 文件夹更名工具，重构自一款商业批量改名软件（Rename Studio 的新版本，非原地升级）。当前发布版聚焦「可预览、可撤销、不丢文件」的安全更名流程。
+跨平台（Windows / macOS / Linux）批量文件 / 文件夹更名工具。产品名 **Renomio**（曾用名 Rename Studio，因与已有产品重名才改名；改名不是原地升级，见「改名与旧版迁移」）。当前发布版聚焦「可预览、可撤销、不丢文件」的安全更名流程。
 
 - 前端：React 19 + TypeScript + Vite 7
 - 桌面壳：Tauri 2（Rust）
@@ -30,12 +30,12 @@ MIT License — 见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-
 
 ## 下载与安装
 
-源码仓库已公开；**安装包与更新清单直接发布在 [yunyu697/renomio](https://github.com/yunyu697/renomio/releases)**（旧的发行仓库 `yunyu697/renomio-releases` 已于 2026-11-08 归档，仅保留历史下载）。最新发布是预发布 `v1.1.0-alpha7`（稳定版仍为 `v1.0.0`），源码 `VERSION` 与之一致；滚动更新清单 `latest.json` 仍指向 `1.1.0-alpha5`（最近一次带更新签名的版本，alpha6/alpha7 未生成 `.sig`）。下表为该版本的两个包：
+源码仓库已公开；**安装包与更新清单直接发布在 [yunyu697/renomio](https://github.com/yunyu697/renomio/releases)**（旧的发行仓库 `yunyu697/renomio-releases` 已于 2026-11-08 归档，仅保留历史下载）。远端最新发布仍是预发布 `v1.1.0-alpha7`（稳定版仍为 `v1.0.0`）。**仓库当前 `VERSION` 与本地构建产物为 `1.2.0-alpha2`，尚未推送、未建 Release**；滚动更新清单 `latest.json` 已按本版重写（指向 `1.2.0-alpha2` 的 NSIS 包与 `.sig`，清单里的 version / size / 文件名 / 签名四项已用 `tauri.conf.json` 内置公钥离线验过一致），上传后即可生效。下表为本地这版的两个包：
 
-| 包 | 文件 | 大小 | SHA-256（1.1.0-alpha7） |
+| 包 | 文件 | 大小 | SHA-256（1.2.0-alpha2） |
 | --- | --- | --- | --- |
-| NSIS（推荐，可选安装范围） | `Renomio_1.1.0-alpha7_x64-setup.exe` | 2,487,921 字节（2.37 MiB） | `83A90904DFE7E6EF2AA66CC5721C03168D7F2AEC4509B3AF302F30219A695E17` |
-| MSI（机器级单一包） | `Renomio_1.1.0-alpha7_x64_en-US.msi` | 3,678,208 字节（3.51 MiB） | `1B2C07D1715AF9AA0B24B778726C5BD59E0751541509323BAFF06A7FCC1292FB` |
+| NSIS（推荐，可选安装范围） | `Renomio_1.2.0-alpha2_x64-setup.exe` | 2,497,169 字节（2.38 MiB） | `EE53AD0CF431879D7DC324C47B627528255707BB7BF6DF1888C332BEEACF5B39` |
+| MSI（机器级单一包） | `Renomio_1.2.0-alpha2_x64_en-US.msi` | 3,686,400 字节（3.52 MiB） | `7DDE4F741948555D5C877B930F1D191B3FC5CD2BB41B330DE2269CD1C856E49F` |
 
 应用内「设置 → 检查更新」读取源码仓库滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；清单与资源地址均指向源码仓库，内置默认地址已随本版切换生效。
 
