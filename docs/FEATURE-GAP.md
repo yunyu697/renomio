@@ -79,7 +79,7 @@
 
 | # | 功能 | 状态 | 验证证据 | 与商业标杆的差距 |
 | --- | --- | --- | --- | --- |
-| 5.1 | 图片 JPEG / PNG / WebP / TIFF 十一字段读写清空（七通用字段 + IPTC Core 的 Headline / By-line Title / Credit / Source，**仅写 XMP**） | A | `verify_meta.py` 270 项 + `metaedit::image` 8 项；真实 JPEG/PNG 回读四字段一致、无 8BIM/APP13 | 原版 EXIF/IPTC/XMP 三套标签更细；我们**不写 IPTC-IIM**（PNG/WebP/TIFF 无 IIM 载体，需自写二进制编解码且有损坏风险） |
+| 5.1 | 图片 JPEG / PNG / WebP / TIFF 十一字段读写清空（七通用字段 + IPTC Core 的 Headline / By-line Title / Credit / Source；JPEG 上四字段 XMP + IPTC-IIM 双写，见 5.15） | A | `verify_meta.py` 270 项 + `metaedit::image` 8 项 + IPTC-IIM 6 项；真实 JPEG/PNG 回读四字段一致；JPEG 的 APP13 8BIM `2:105/2:85/2:110/2:115` 由 `npm run test:iptc` 用 Pillow 独立回读校验 | 原版 EXIF/IPTC/XMP 三套标签更细；PNG/WebP/TIFF 无 IIM 载体，四字段仍只写 XMP（不做伪 IIM） |
 | 5.2 | EXIF / GPS / ICC 原样保留（只改选中字段） | A | 改前改后 Pillow/ffprobe 对照；GPS/ICC 保留断言 | 原版也强调保留；持平 |
 | 5.3 | 写前备份 + 可撤销（`.bak.<ms>`） | A | 备份字节一致、restore 字节还原 | 原版有备份还原；持平 |
 | 5.4 | HEIC / HEIF | N | `bridge.ts` 明确 `writable:false`，探针拒绝并给文件与原因 | 原版支持 HEIC（推测经第三方库）；本版不做 |
@@ -93,7 +93,7 @@
 | 5.12 | DOCX / XLSX / PPTX core properties（7 字段，只改 `docProps/core.xml`） | A | `verify_docs.py` 70 项断言 + Office COM 打开校验（无修复提示） | 原版 Office 摘要字段更全（公司/经理/模板等）；我们 7 字段 |
 | 5.13 | PDF Info + XMP（Title/Author/Subject/Keywords，增量更新，页面逐字节保留） | A | pypdf strict + 原始字节前缀保留 + 页数/文本不变 | 原版 PDF 属性；我们 Info+XMP 同步，领先 |
 | 5.14 | 旧版 OLE（.doc/.xls/.ppt）、加密 PDF、xref 流 PDF | N | 明确拒绝并给原因 | 原版支持旧版 Office；本版不做 |
-| 5.15 | IPTC Core 四字段（Headline / By-line Title / Credit / Source，仅 XMP） | A（部分） | 真实 JPEG/PNG 写入并回读一致；无 8BIM/APP13 | 原版 #16 同时写 IPTC-IIM；文本编码/内容批量（#17）仍未做 |
+| 5.15 | IPTC Core 四字段（Headline / By-line Title / Credit / Source；XMP + IPTC-IIM 双写） | A | 真实 JPEG 端到端：`metaedit_probe` 走生产写路径写入，再用 Pillow `IptcImagePlugin` 独立回读 APP13 8BIM，4 个 dataset（2:105 / 2:85 / 2:110 / 2:115）逐一比对；非 ASCII 自动插 `1:90 ESC % G` 声明；清空字段删 dataset、全清则 APP13 整段消失；XMP 同步写、EXIF 与像素不变；未知 dataset / 非 Photoshop 的 APP13 / 0x040C 缩略图资源原样保留；过期 0x0406 摘要移除；`npm run test:iptc` 45 条（静态 28 + 真实文件 16 + 汇总） | 原版 #16 同时写 IPTC-IIM——已对齐；文本编码/内容批量（#17）仍未做 |
 
 ## 域六 方案、导出与系统能力
 
@@ -145,7 +145,7 @@
 | 脚本 / 编码转换 / 内码 / 加密 / 对照表高级规则 | 原版 Delphi 特性，重实现成本高且易出错；先保证核心规则链稳定 |
 | 「无限次」撤销 | 磁盘备份策略与清理规则未定；当前按批次保留备份，可多级撤销 |
 | macOS/Linux 实机验证 | 无 mac/linux 环境；代码分支就绪但不敢宣称通过 |
-| 文本编码/内容批量、IPTC-IIM 写入 | 与现有元数据模型差异大，需单独设计；本版先覆盖高频文本字段（IPTC 仅写 XMP） |
+| 文本编码/内容批量（#17） | 与现有元数据模型差异大，需单独设计；IPTC-IIM 写入已补（5.15），本项只剩文本编码与内容批量 |
 
 ## 对账中新发现、已补入本表的缺口
 
@@ -163,11 +163,12 @@
 - ~~移动子串只有「第几个字符起、取几个」的按位置定位~~——已补 **按标记**（取左右标记之间的内容，留空即不设边界，标记找不到整条跳过）与**插入到目标之前/之后**（同一目标位差一位，可精确决定落点左右），旧存档规则自动按 `by=index`/`insert=before` 兜底，语义与旧行为一致（域三 3.6，2026-11-25，alpha8）。
 - ~~扩展名规则没有「智能分析」~~——已补：Rust 侧按**文件头魔数**（前 64 字节，不解码内容）识别 20 种格式，前端扩展名规则新增 `analyze` 模式，预览时用嗅探出的真实扩展名纠正错标；**识别不出、文件头过短、目录、浏览器演示模式一律保持原名，绝不按名字猜**（域三 3.7，2026-11-25，alpha9）。
 - ~~删除规则「从尾部数」的起点朝向与标签矛盾，修剪只能剪空白~~——已修：`fromEnd` 的起点改为从末尾逆算并朝**词尾**延伸（旧实现把窗口结束在倒数第 N 个，等于删到词首）、「首尾之间」改用码点换算（emoji 不再被切半个）、两个标记全空时规则卡就地报错而非静默删空整名；修剪新增**自定义修剪字符集**（留空仍只剪空白，旧存档语义不变）（域三 3.4，2026-11-25，alpha10）。
-- 文本编码/内容批量与 IPTC-IIM 写入缺失——域五 5.15；IPTC Core 四字段已补（仅 XMP），歌词已补（域五 5.6/5.7/5.8）。
+- ~~IPTC Core 四字段只写 XMP，读 IIM 的老软件看不到~~——已补 **IPTC-IIM（APP13 8BIM 0x0404）双写**：JPEG 上 Headline/By-line Title/Credit/Source 同时写进 XMP 与 IIM，新软件读 XMP、老软件读 IIM，两边一致；非 ASCII 自动声明 `1:90 ESC % G`；未知 dataset、别家的 APP13、缩略图资源原样保留；改动 IIM 后丢弃过期 `0x0406` 摘要交给 Photoshop 重建（域五 5.15，2026-11-25，alpha11）。
+- 文本编码/内容批量仍缺——域五 5.15 的 #17 部分；IPTC Core 四字段（XMP + IIM）已齐，歌词已补（域五 5.6/5.7/5.8）。
 
 ## 统计
 
-A 有实测：58 项（另有 1 项部分覆盖）；B 仅单测：1 项；C 无验证：0 项；D 部分：2 项；E 未做：2 项；N 本版不做：5 项（合计 70 项）。
+A 有实测：59 项（无部分覆盖）；B 仅单测：1 项；C 无验证：0 项；D 部分：1 项；E 未做：2 项；N 本版不做：5 项（合计 70 项）。
 
 ## 版本闸门（已拍板 A，已解决）
 

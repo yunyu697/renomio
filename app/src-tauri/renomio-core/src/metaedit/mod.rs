@@ -212,7 +212,7 @@ pub fn capabilities() -> Vec<MetaCapability> {
     let f = |list: &[&str]| list.iter().map(|s| s.to_string()).collect::<Vec<_>>();
     let mut out = Vec::new();
     for (format, notes) in [
-        ("JPEG", "XMP + EXIF 文本字段；相机参数/GPS/ICC 原样保留"),
+        ("JPEG", "XMP + IPTC-IIM（标题/作者职位/署名/来源）+ EXIF 文本字段；相机参数/GPS/ICC 原样保留"),
         ("PNG", "XMP（iTXt XML:com.adobe.xmp）；其余块原样保留"),
         ("WebP", "XMP 块；无 VP8X 时自动补建（不重编码像素）"),
         ("TIFF", "IFD0 文本字段 + XMP 标签 700；BigTIFF 不支持"),

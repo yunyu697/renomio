@@ -1190,6 +1190,7 @@ export const enUS: Dict = {
 
   // Metadata editing
   'meta.editTitle': 'Edit file properties',
+  'meta.iptcIimNote': 'On JPEG these four IPTC Core fields go into both XMP and IPTC-IIM (APP13 8BIM): modern apps read XMP, older ones read IIM, and both stay in sync.',
   'meta.editSubtitle': 'Only the fields you check are written; everything else stays untouched. A .bak backup is created before writing.',
   'meta.editAction': 'Edit properties',
   'meta.apply': 'Write selected fields',
@@ -1230,10 +1231,10 @@ export const enUS: Dict = {
   'meta.field.genre': 'Genre',
   'meta.field.comment': 'Comment',
   'meta.field.lyrics': 'Lyrics',
-  'meta.field.headline': 'Headline',
-  'meta.field.bylineTitle': 'Byline Title',
-  'meta.field.credit': 'Credit',
-  'meta.field.source': 'Source',
+  'meta.field.headline': 'Headline (XMP + IPTC-IIM)',
+  'meta.field.bylineTitle': 'Byline Title (XMP + IPTC-IIM)',
+  'meta.field.credit': 'Credit (XMP + IPTC-IIM)',
+  'meta.field.source': 'Source (XMP + IPTC-IIM)',
   'meta.field.albumArtist': 'Album artist',
   'meta.field.cover': 'Cover',
   'meta.field.subject': 'Subject',

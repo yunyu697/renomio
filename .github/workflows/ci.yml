@@ -166,6 +166,21 @@ jobs:
       - name: cargo test（Tauri 壳，含 migrate.rs 迁移单测）
         run: cargo test --manifest-path app/src-tauri/Cargo.toml
 
+      # IPTC-IIM 守卫：静态断言 + 真实文件端到端。
+      # 真实段用 Pillow 的 IptcImagePlugin 独立回读 APP13 8BIM，
+      # 走 renomio-core 生产写路径（metaedit_probe → metaedit::edit，含备份 + 替换）。
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装 Pillow（独立回读 IPTC-IIM）
+        working-directory: app
+        run: python -m pip install --quiet pillow
+
+      - name: IPTC-IIM 自测（静态 + 真实 JPEG 回读，45 条，缺依赖即失败）
+        working-directory: app
+        run: node scripts/test-iptc.mjs --require-real
+
   bundle-checks:
     name: bundle-checks (windows / 14 条产物断言 + 13 条离线断言)
     runs-on: windows-latest

@@ -40,3 +40,6 @@ app/verify-out/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# 本机签名材料（私钥与公钥都只留本地，绝不入库）
+renomio-signing/

@@ -1190,6 +1190,7 @@ export const zhTW: Dict = {
 
   // 屬性編輯
   'meta.editTitle': '編輯檔案屬性',
+  'meta.iptcIimNote': 'JPEG 上這 4 個 IPTC Core 欄位會同時寫進 XMP 與 IPTC-IIM（APP13 8BIM）：新軟體讀 XMP、舊軟體讀 IIM，兩邊一致。',
   'meta.editSubtitle': '只寫入你勾選的欄位，未勾選的欄位保持原樣；寫入前自動產生 .bak 備份。',
   'meta.editAction': '編輯屬性',
   'meta.apply': '寫入選取欄位',
@@ -1230,10 +1231,10 @@ export const zhTW: Dict = {
   'meta.field.genre': '曲風',
   'meta.field.comment': '註解',
   'meta.field.lyrics': '歌詞',
-  'meta.field.headline': '標題（Headline）',
-  'meta.field.bylineTitle': '作者職稱',
-  'meta.field.credit': '署名',
-  'meta.field.source': '來源',
+  'meta.field.headline': '標題（Headline），寫 XMP + IPTC-IIM',
+  'meta.field.bylineTitle': '作者職稱，寫 XMP + IPTC-IIM',
+  'meta.field.credit': '署名，寫 XMP + IPTC-IIM',
+  'meta.field.source': '來源，寫 XMP + IPTC-IIM',
   'meta.field.albumArtist': '專輯演出者',
   'meta.field.cover': '封面',
   'meta.field.subject': '主題',

@@ -3829,6 +3829,11 @@ async function main() {
     await click('[data-testid="edit-meta"]');
     await waitFor(`document.querySelector('[data-testid="meta-edit-dialog"]')`, '属性编辑弹窗', 8000);
     await sleep(400);
+    const iptcNote = await evaluate(`(() => {
+      const el = document.querySelector('[data-testid="meta-iptc-note"]');
+      return { shown: !!el, text: el?.textContent?.trim() || '' };
+    })()`);
+    check('UI', 'JPEG 属性编辑：显示 IPTC-IIM 双写说明', iptcNote.shown && iptcNote.text.includes('IPTC-IIM') && iptcNote.text.length > 20, JSON.stringify(iptcNote));
     await click('[data-testid="meta-field-title-check"]');
     await setInput('[data-testid="meta-field-title-input"]', 'E2E 新标题');
     await click('[data-testid="meta-apply"]');
@@ -3870,6 +3875,8 @@ async function main() {
     await waitFor(`document.querySelector('[data-testid="meta-edit-dialog"]')`, 'HEIC 属性弹窗', 8000);
     await sleep(300);
     const unsupportedShown = await countOf('[data-testid="meta-unsupported"]');
+    const heicIptcNote = await countOf('[data-testid="meta-iptc-note"]');
+    check('UI', '不支持的格式不显示 IPTC-IIM 说明（避免误导）', heicIptcNote === 0, JSON.stringify({ heicIptcNote }));
     await click('[data-testid="meta-apply"]');
     await waitFor(`document.querySelector('[data-testid="meta-result-0"]')`, 'HEIC 拒绝结果', 8000);
     const heicResult = await evaluate(`(() => {

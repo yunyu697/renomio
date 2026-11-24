@@ -1190,6 +1190,7 @@ export const jaJP: Dict = {
 
   // プロパティ編集
   'meta.editTitle': 'ファイルのプロパティを編集',
+  'meta.iptcIimNote': 'JPEG ではこの 4 つの IPTC Core 項目を XMP と IPTC-IIM（APP13 8BIM）の両方に書き込みます。新しいソフトは XMP、古いソフトは IIM を読み、内容は一致します。',
   'meta.editSubtitle': 'チェックした項目だけを書き込み、それ以外はそのまま保持します。書き込み前に .bak バックアップを作成します。',
   'meta.editAction': 'プロパティを編集',
   'meta.apply': '選択した項目を書き込む',
@@ -1230,10 +1231,10 @@ export const jaJP: Dict = {
   'meta.field.genre': 'ジャンル',
   'meta.field.comment': 'コメント',
   'meta.field.lyrics': '歌詞',
-  'meta.field.headline': '見出し',
-  'meta.field.bylineTitle': '肩書',
-  'meta.field.credit': 'クレジット',
-  'meta.field.source': '提供元',
+  'meta.field.headline': '見出し（XMP + IPTC-IIM）',
+  'meta.field.bylineTitle': '肩書（XMP + IPTC-IIM）',
+  'meta.field.credit': 'クレジット（XMP + IPTC-IIM）',
+  'meta.field.source': '提供元（XMP + IPTC-IIM）',
   'meta.field.albumArtist': 'アルバムアーティスト',
   'meta.field.cover': 'カバー',
   'meta.field.subject': '件名',

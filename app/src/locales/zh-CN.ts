@@ -1219,6 +1219,7 @@ export const zhCN: Dict = {
 
   // 属性编辑（图片 / 音乐 / 文档）
   'meta.editTitle': '编辑文件属性',
+  'meta.iptcIimNote': 'JPEG 上这 4 个 IPTC Core 字段会同时写进 XMP 与 IPTC-IIM（APP13 8BIM）：新软件读 XMP、老软件读 IIM，两边一致。',
   'meta.editSubtitle': '只写入你勾选的字段，未勾选的字段保持原样；写入前自动生成 .bak 备份。',
   'meta.editAction': '编辑属性',
   'meta.apply': '写入选中字段',
@@ -1259,10 +1260,10 @@ export const zhCN: Dict = {
   'meta.field.genre': '流派',
   'meta.field.comment': '注释',
   'meta.field.lyrics': '歌词',
-  'meta.field.headline': '标题（Headline）',
-  'meta.field.bylineTitle': '作者职位',
-  'meta.field.credit': '署名',
-  'meta.field.source': '来源',
+  'meta.field.headline': '标题（Headline），写 XMP + IPTC-IIM',
+  'meta.field.bylineTitle': '作者职位，写 XMP + IPTC-IIM',
+  'meta.field.credit': '署名，写 XMP + IPTC-IIM',
+  'meta.field.source': '来源，写 XMP + IPTC-IIM',
   'meta.field.albumArtist': '专辑艺术家',
   'meta.field.cover': '封面',
   'meta.field.subject': '主题',

@@ -75,7 +75,7 @@ dependencies = [
 
 [[package]]
 name = "renomio-core"
-version = "1.2.0-alpha10"
+version = "1.2.0-alpha11"
 dependencies = [
  "flate2",
  "serde",

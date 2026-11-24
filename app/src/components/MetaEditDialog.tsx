@@ -212,6 +212,11 @@ export function MetaEditorBody({ paths, note, onApplied }: MetaEditorBodyProps) 
           <div className="meta-edit-hint">
             <Icon name="info" size={13} />{t('meta.editSubtitle')}
           </div>
+          {snaps.some((s) => s.kind === 'image' && s.supportedFields.includes('headline')) && (
+            <div className="meta-edit-hint" data-testid="meta-iptc-note">
+              <Icon name="info" size={13} />{t('meta.iptcIimNote')}
+            </div>
+          )}
           <div className="meta-edit-grid" data-testid="meta-fields">
             {fields.map((id) => {
               const shared = snaps.every((s) => s.supportedFields.includes(id));

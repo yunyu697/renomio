@@ -42,7 +42,7 @@
 ## 1. 图片元数据（已验）
 
 - 支持：JPEG（APP1 EXIF IFD0 + XMP 合并）、PNG（iTXt）、WebP（RIFF/VPX EXIF+XMP）、TIFF（IFD0）。
-- 字段：title / description / keywords / author / copyright / software / takenAt / headline / bylineTitle / credit / source（后四项 IPTC Core，仅写 XMP，不写 APP13/8BIM）。
+- 字段：title / description / keywords / author / copyright / software / takenAt / headline / bylineTitle / credit / source（后四项 IPTC Core；XMP 为主，JPEG 另写 IPTC-IIM / APP13 8BIM，读 IIM 的老软件也能看到）。
 - 保留：相机 Make/Model/GPS/ICC；只改勾选字段；先备份后原子替换；逐字段回读校验。
 - 不支持：HEIC/HEIF（明确拒绝并说明原因）、GIF/BMP/AVIF。
 - 实测：`verify_meta.py` 图片段全部通过（Pillow 13 校验尺寸/像素哈希/ICC/EXIF/GPS，备份字节一致，restore 后字节完全还原）。

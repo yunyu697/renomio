@@ -206,6 +206,10 @@ pub fn read_into(
     if let Some(exif) = exif {
         read_exif(&exif, fields);
     }
+    // IPTC-IIM（JPEG APP13）兜底：只补 XMP 没给出的 4 个字段，不覆盖已有值
+    if format == ImageFormat::Jpeg {
+        read_iim(&data, fields);
+    }
     if format == ImageFormat::Png {
         read_png_text(&data, fields, warnings);
     }
@@ -476,14 +480,50 @@ fn jpeg_rewrite(data: &[u8], fields: &FieldMap) -> Result<Rewrite, String> {
     let existing = jpeg_xmp(data);
     let (packet, xmp_warnings) = build_xmp(existing.as_deref(), fields);
     let app1 = xmp_app1(&packet)?;
+    let iim_wanted = fields.keys().any(|id| iim_tag(id).is_some());
+    let mut warnings = xmp_warnings;
+    let mut app13: Option<Vec<u8>> = None;
+    if iim_wanted {
+        let mut resources = jpeg_photoshop_resources(data).unwrap_or_default();
+        let existing_datasets = resources
+            .iter()
+            .find(|r| r.id == IRB_IIM)
+            .map(|r| parse_iim(&r.data))
+            .transpose()
+            .map_err(|err| format!("IPTC-IIM 结构未能解析：{err}"))?
+            .unwrap_or_default();
+        let datasets = iim_apply(&existing_datasets, fields);
 
-    let mut out = Vec::with_capacity(data.len() + app1.len() + 256);
+        // 摘要 0x0406 必须在 IIM 变动后重算；直接移除，由 Photoshop 自行重建
+        resources.retain(|r| r.id != IRB_IPTC_DIGEST);
+        let iim_index = resources.iter().position(|r| r.id == IRB_IIM);
+        if datasets.is_empty() {
+            if let Some(index) = iim_index {
+                resources.remove(index);
+            }
+        } else {
+            let res = IrbResource { id: IRB_IIM, name: Vec::new(), data: build_iim(&datasets) };
+            match iim_index {
+                Some(index) => resources[index] = res,
+                None => resources.push(res),
+            }
+        }
+        if !resources.is_empty() {
+            let mut payload = PHOTOSHOP_IRB_PREFIX.to_vec();
+            payload.extend_from_slice(&build_irb(&resources));
+            app13 = Some(app13_segment(&payload)?);
+        }
+    }
+
+    let mut out = Vec::with_capacity(data.len() + app1.len() + app13.as_ref().map_or(0, Vec::len) + 256);
     out.extend_from_slice(&data[..2]);
     out.extend_from_slice(&app1);
+    if let Some(app13) = &app13 {
+        out.extend_from_slice(app13);
+    }
 
     let mut written = Vec::new();
     let mut cleared = Vec::new();
-    let mut warnings = xmp_warnings;
     collect_changes(fields, &mut written, &mut cleared);
 
     for seg in &segs {
@@ -496,6 +536,11 @@ fn jpeg_rewrite(data: &[u8], fields: &FieldMap) -> Result<Rewrite, String> {
             && data[seg.data_start..seg.end].starts_with(XMP_JPEG_PREFIX)
         {
             continue; // 旧 XMP 段由新段取代
+        }
+        if iim_wanted && seg.marker == 0xED && seg.data_start < seg.end
+            && data[seg.data_start..seg.end].starts_with(PHOTOSHOP_IRB_PREFIX)
+        {
+            continue; // 旧 Photoshop 资源由合并后的新段取代
         }
         if seg.marker == 0xE1 && seg.data_start < seg.end {
             let payload = &data[seg.data_start..seg.end];
@@ -532,6 +577,260 @@ fn xmp_app1(packet: &str) -> Result<Vec<u8>, String> {
     seg.extend_from_slice(&[0xFF, 0xE1]);
     seg.extend_from_slice(&((payload.len() + 2) as u16).to_be_bytes());
     seg.extend_from_slice(&payload);
+    Ok(seg)
+}
+
+// ---------------------------------------------------------------------------
+// IPTC-IIM：JPEG 的 APP13 → Photoshop 3.0 IRB → 资源 0x0404
+//
+// 规范要点（写错会被别家软件读成垃圾，所以逐条对照）：
+// - APP13 载荷以 `Photoshop 3.0\0` 开头，其后是「8BIM + u16 id + 帕斯卡名 + u32 长度 + 数据」的资源块；
+//   每块数据补齐到偶数长度，名字字段本身也补齐到偶数长度。
+// - 资源 0x0404 的内容是 IIM 数据集序列：`0x1C, record, dataset, u16 长度, 数据`；
+//   长度高字节置 1 表示「后面 N 个字节是长度」（Photoshop 写 >32KB 时用这种扩展形式）。
+// - 非 ASCII 文本要先放 dataset 1:90（内容 `ESC % G`）声明 UTF-8，Photoshop 才按 UTF-8 解码。
+// - 资源 0x0406 是 IIM 的 MD5 摘要，改动 IIM 后必须重算；本实现选择**移除**该资源，
+//   避免留下过期摘要让 Photoshop 判定 IIM 被外部篡改（Photoshop 会自行重建）。
+// ---------------------------------------------------------------------------
+
+const PHOTOSHOP_IRB_PREFIX: &[u8] = b"Photoshop 3.0\0";
+const IRB_IIM: u16 = 0x0404;
+const IRB_IPTC_DIGEST: u16 = 0x0406;
+const IIM_MARKER_BYTE: u8 = 0x1C;
+/// dataset 1:90 的内容：`ESC % G`，声明整段 IIM 按 UTF-8 解释
+const IIM_UTF8_MARKER: &[u8] = b"\x1b%G";
+
+/// 字段 → IIM 的 (record, dataset)。只有这 4 个字段写 IIM，其余仍只写 XMP。
+fn iim_tag(id: &str) -> Option<(u8, u8)> {
+    Some(match id {
+        "headline" => (2, 105),
+        "bylineTitle" => (2, 85),
+        "credit" => (2, 110),
+        "source" => (2, 115),
+        _ => return None,
+    })
+}
+
+fn iim_field(record: u8, dataset: u8) -> Option<&'static str> {
+    Some(match (record, dataset) {
+        (2, 105) => "headline",
+        (2, 85) => "bylineTitle",
+        (2, 110) => "credit",
+        (2, 115) => "source",
+        _ => return None,
+    })
+}
+
+#[derive(Clone)]
+struct IrbResource {
+    id: u16,
+    name: Vec<u8>,
+    data: Vec<u8>,
+}
+
+fn parse_irb(payload: &[u8]) -> Result<Vec<IrbResource>, String> {
+    let mut out = Vec::new();
+    let mut pos = 0usize;
+    while pos + 4 <= payload.len() {
+        if &payload[pos..pos + 4] != b"8BIM" {
+            // 资源块之间允许有多余的填充字节，跳过 0 填充；遇到非 0 说明结构已坏
+            if payload[pos] == 0 {
+                pos += 1;
+                continue;
+            }
+            return Err(format!("APP13 资源块标识异常（偏移 {pos}）"));
+        }
+        let id = be_u16(payload, pos + 4).ok_or("APP13 资源 id 越界")?;
+        pos += 6;
+        // 帕斯卡名：1 字节长度 + 内容，总长度补齐到偶数
+        let name_len = *payload.get(pos).ok_or("APP13 资源名越界")? as usize;
+        let name_end = pos + 1 + name_len;
+        if name_end > payload.len() {
+            return Err("APP13 资源名越界".into());
+        }
+        let name = payload[pos + 1..name_end].to_vec();
+        pos = name_end;
+        if (1 + name_len) % 2 != 0 {
+            pos += 1; // 帕斯卡名补齐到偶数长度
+        }
+        let size = be_u32(payload, pos).ok_or("APP13 资源长度越界")? as usize;
+        pos += 4;
+        if pos + size > payload.len() {
+            return Err("APP13 资源数据越界".into());
+        }
+        let data = payload[pos..pos + size].to_vec();
+        pos += size;
+        if size % 2 != 0 {
+            pos += 1;
+        }
+        out.push(IrbResource { id, name, data });
+    }
+    Ok(out)
+}
+
+fn build_irb(resources: &[IrbResource]) -> Vec<u8> {
+    let mut out = Vec::new();
+    for res in resources {
+        out.extend_from_slice(b"8BIM");
+        out.extend_from_slice(&res.id.to_be_bytes());
+        out.push(res.name.len() as u8);
+        out.extend_from_slice(&res.name);
+        if (1 + res.name.len()) % 2 != 0 {
+            out.push(0);
+        }
+        out.extend_from_slice(&(res.data.len() as u32).to_be_bytes());
+        out.extend_from_slice(&res.data);
+        if res.data.len() % 2 != 0 {
+            out.push(0);
+        }
+    }
+    out
+}
+
+/// 解析 IIM 数据集序列：`0x1C record dataset 长度 数据`
+fn parse_iim(bytes: &[u8]) -> Result<Vec<(u8, u8, Vec<u8>)>, String> {
+    let mut out = Vec::new();
+    let mut pos = 0usize;
+    while pos < bytes.len() {
+        if bytes[pos] != IIM_MARKER_BYTE {
+            // 允许尾部填充
+            if bytes[pos] == 0 {
+                pos += 1;
+                continue;
+            }
+            return Err(format!("IIM 数据集标识异常（偏移 {pos}）"));
+        }
+        if pos + 5 > bytes.len() {
+            return Err("IIM 数据集头越界".into());
+        }
+        let record = bytes[pos + 1];
+        let dataset = bytes[pos + 2];
+        let b0 = bytes[pos + 3];
+        let (len, head) = if b0 & 0x80 != 0 {
+            let n = (b0 & 0x7F) as usize;
+            if n == 0 || n > 4 || pos + 4 + n > bytes.len() {
+                return Err("IIM 扩展长度字段非法".into());
+            }
+            let mut value = 0usize;
+            for i in 0..n {
+                value = (value << 8) | bytes[pos + 4 + i] as usize;
+            }
+            (value, 1 + n)
+        } else {
+            (((b0 as usize) << 8) | bytes[pos + 4] as usize, 2)
+        };
+        let start = pos + 3 + head;
+        if start + len > bytes.len() {
+            return Err("IIM 数据越界".into());
+        }
+        out.push((record, dataset, bytes[start..start + len].to_vec()));
+        pos = start + len;
+    }
+    Ok(out)
+}
+
+fn build_iim(datasets: &[(u8, u8, Vec<u8>)]) -> Vec<u8> {
+    let mut out = Vec::new();
+    for (record, dataset, value) in datasets {
+        out.push(IIM_MARKER_BYTE);
+        out.push(*record);
+        out.push(*dataset);
+        if value.len() <= 0x7FFF {
+            out.extend_from_slice(&(value.len() as u16).to_be_bytes());
+        } else {
+            // 扩展长度：一个字节高位置 1、低 7 位写「后面有 4 个长度的字节」
+            out.push(0x84);
+            out.extend_from_slice(&(value.len() as u32).to_be_bytes());
+        }
+        out.extend_from_slice(value);
+    }
+    out
+}
+
+/// 取出一个 JPEG 里所有 APP13 的 Photoshop IRB 资源（多个 APP13 段合并）
+fn jpeg_photoshop_resources(data: &[u8]) -> Option<Vec<IrbResource>> {
+    let segs = jpeg_segments(data).ok()?;
+    let mut merged: Vec<IrbResource> = Vec::new();
+    let mut seen = false;
+    for seg in &segs {
+        if seg.marker != 0xED || seg.data_start >= seg.end {
+            continue;
+        }
+        let payload = &data[seg.data_start..seg.end];
+        let Some(body) = payload.strip_prefix(PHOTOSHOP_IRB_PREFIX) else { continue };
+        seen = true;
+        // 结构损坏时保留整段（后续按原样输出，不做破坏性重建）
+        if let Ok(list) = parse_irb(body) {
+            for res in list {
+                if let Some(slot) = merged.iter_mut().find(|r| r.id == res.id) {
+                    *slot = res; // 同 id 出现多次时后写覆盖
+                } else {
+                    merged.push(res);
+                }
+            }
+        }
+    }
+    seen.then_some(merged)
+}
+
+/// 从 JPEG 的 IIM 读 4 个 IPTC Core 字段（仅在 XMP 未给出时使用）
+fn read_iim(data: &[u8], fields: &mut FieldMap) {
+    let Some(resources) = jpeg_photoshop_resources(data) else { return };
+    let Some(iim) = resources.iter().find(|r| r.id == IRB_IIM) else { return };
+    let Ok(datasets) = parse_iim(&iim.data) else { return };
+    for (record, dataset, value) in datasets {
+        let Some(id) = iim_field(record, dataset) else { continue };
+        if fields.contains_key(id) {
+            continue;
+        }
+        let text = String::from_utf8_lossy(&value).trim().to_string();
+        if !text.is_empty() {
+            fields.insert(id.to_string(), text);
+        }
+    }
+}
+
+/// 依字段改动重建 IIM 数据集：保留未知 dataset、替换/删除这 4 个、必要时补 UTF-8 标记
+fn iim_apply(existing: &[(u8, u8, Vec<u8>)], fields: &FieldMap) -> Vec<(u8, u8, Vec<u8>)> {
+    let mut datasets: Vec<(u8, u8, Vec<u8>)> = existing
+        .iter()
+        .filter(|(record, dataset, _)| (*record, *dataset) != (1, 90))
+        .cloned()
+        .collect();
+
+    for (id, value) in fields {
+        let Some((record, dataset)) = iim_tag(id) else { continue };
+        let slot = datasets.iter().position(|(r, d, _)| (*r, *d) == (record, dataset));
+        if value.is_empty() {
+            if let Some(index) = slot {
+                datasets.remove(index);
+            }
+        } else {
+            let bytes = value.as_bytes().to_vec();
+            match slot {
+                Some(index) => datasets[index].2 = bytes,
+                None => datasets.push((record, dataset, bytes)),
+            }
+        }
+    }
+
+    let non_ascii = datasets
+        .iter()
+        .any(|(_, _, value)| value.iter().any(|b| *b > 0x7F));
+    if non_ascii {
+        datasets.insert(0, (1, 90, IIM_UTF8_MARKER.to_vec()));
+    }
+    datasets
+}
+
+fn app13_segment(payload: &[u8]) -> Result<Vec<u8>, String> {
+    if payload.len() + 2 > 0xFFFF {
+        return Err("IPTC-IIM 数据超过 JPEG APP13 段 64 KB 上限".into());
+    }
+    let mut seg = Vec::with_capacity(payload.len() + 4);
+    seg.extend_from_slice(&[0xFF, 0xED]);
+    seg.extend_from_slice(&((payload.len() + 2) as u16).to_be_bytes());
+    seg.extend_from_slice(payload);
     Ok(seg)
 }
 
@@ -2158,6 +2457,10 @@ pub fn read_fields(format: ImageFormat, data: &[u8]) -> BTreeMap<String, String>
     if let Some(exif) = exif {
         read_exif(&exif, &mut fields);
     }
+    // IPTC-IIM 兜底：只补 XMP 没给出的 4 个字段（与 read_into 同口径）
+    if format == ImageFormat::Jpeg {
+        read_iim(data, &mut fields);
+    }
     if format == ImageFormat::Png {
         read_png_text(data, &mut fields, &mut warnings);
     }
@@ -2576,5 +2879,161 @@ mod tests {
             entry_of(&ifd0, 0x010F).ascii(&tiff, hdr.be).unwrap().trim_matches('\0'),
             "Canon"
         );
+    }
+
+    // ---- IPTC-IIM（APP13 / 8BIM 0x0404）----
+
+    fn app13_from(resources: &[IrbResource]) -> Vec<u8> {
+        let mut payload = PHOTOSHOP_IRB_PREFIX.to_vec();
+        payload.extend_from_slice(&build_irb(resources));
+        app13_segment(&payload).unwrap()
+    }
+
+    fn with_segment_after_soi(jpeg: Vec<u8>, seg: Vec<u8>) -> Vec<u8> {
+        let mut out = jpeg[..2].to_vec();
+        out.extend_from_slice(&seg);
+        out.extend_from_slice(&jpeg[2..]);
+        out
+    }
+
+    fn iim_of(data: &[u8]) -> Vec<(u8, u8, Vec<u8>)> {
+        let resources = jpeg_photoshop_resources(data).expect("应有 Photoshop 资源");
+        let iim = resources.iter().find(|r| r.id == IRB_IIM).expect("应有 IIM 资源");
+        parse_iim(&iim.data).unwrap()
+    }
+
+    fn dataset_of(datasets: &[(u8, u8, Vec<u8>)], record: u8, dataset: u8) -> Option<String> {
+        datasets
+            .iter()
+            .find(|(r, d, _)| (*r, *d) == (record, dataset))
+            .map(|(_, _, value)| String::from_utf8_lossy(value).to_string())
+    }
+
+    #[test]
+    fn iim_writes_four_fields_and_keeps_unknown_datasets() {
+        let iim = build_iim(&[
+            (2, 120, "保留我".as_bytes().to_vec()),   // 说明（我们不接管）
+            (2, 25, b"kw".to_vec()),        // 关键词
+            (2, 105, b"old headline".to_vec()),
+        ]);
+        let resources = vec![
+            IrbResource { id: IRB_IIM, name: Vec::new(), data: iim },
+            IrbResource { id: IRB_IPTC_DIGEST, name: Vec::new(), data: vec![0xAB; 16] },
+        ];
+        let data = with_segment_after_soi(sample_jpeg(), app13_from(&resources));
+
+        let rw = jpeg_rewrite(
+            &data,
+            &BTreeMap::from([
+                ("headline".to_string(), "新春游".to_string()),
+                ("credit".to_string(), "ACME".to_string()),
+            ]),
+        )
+        .unwrap();
+
+        let out = jpeg_photoshop_resources(&rw.bytes).unwrap();
+        assert!(out.iter().all(|r| r.id != IRB_IPTC_DIGEST), "摘要资源必须移除，避免留下过期 MD5");
+        let datasets = iim_of(&rw.bytes);
+        assert_eq!(dataset_of(&datasets, 2, 105).as_deref(), Some("新春游"));
+        assert_eq!(dataset_of(&datasets, 2, 110).as_deref(), Some("ACME"));
+        assert_eq!(dataset_of(&datasets, 2, 120).as_deref(), Some("保留我"), "未知 dataset 必须原样保留");
+        assert_eq!(dataset_of(&datasets, 2, 25).as_deref(), Some("kw"));
+        // 含非 ASCII 时必须带 UTF-8 标记，否则 Photoshop 按本地代码页解出乱码
+        assert_eq!(datasets[0].0, 1);
+        assert_eq!(datasets[0].1, 90);
+        assert_eq!(datasets[0].2.as_slice(), IIM_UTF8_MARKER);
+        // XMP 同时写入（老软件读 IIM、新软件读 XMP）
+        let read = read_fields(ImageFormat::Jpeg, &rw.bytes);
+        assert_eq!(read.get("headline").map(String::as_str), Some("新春游"));
+        assert_eq!(read.get("credit").map(String::as_str), Some("ACME"));
+        // 图像数据原样保留
+        assert!(rw.bytes.ends_with(&[0x11, 0x22, 0x33, 0xFF, 0xD9]));
+    }
+
+    #[test]
+    fn iim_created_from_scratch_and_dropped_when_last_field_cleared() {
+        let data = sample_jpeg();
+        let rw = jpeg_rewrite(&data, &BTreeMap::from([("credit".to_string(), "ACME".to_string())]))
+            .unwrap();
+        let resources = jpeg_photoshop_resources(&rw.bytes).expect("应新建 APP13");
+        assert_eq!(resources.len(), 1, "只有 IIM 一个资源");
+        assert_eq!(resources[0].id, IRB_IIM);
+        let datasets = iim_of(&rw.bytes);
+        assert_eq!(datasets.len(), 1, "纯 ASCII 不应带 UTF-8 标记");
+        assert_eq!(dataset_of(&datasets, 2, 110).as_deref(), Some("ACME"));
+
+        let cleared = jpeg_rewrite(&rw.bytes, &BTreeMap::from([("credit".to_string(), String::new())])).unwrap();
+        assert!(jpeg_photoshop_resources(&cleared.bytes).is_none(), "最后一个 IPTC 字段清空后 APP13 应整段消失");
+        assert!(!cleared.bytes.windows(12).any(|w| w == b"Photoshop 3"));
+    }
+
+    #[test]
+    fn iim_keeps_foreign_resources_and_foreign_app13() {
+        let resources = vec![
+            IrbResource { id: 0x040C, name: b"Thumb".to_vec(), data: vec![1, 2, 3] },
+            IrbResource { id: IRB_IIM, name: Vec::new(), data: build_iim(&[(2, 110, b"old".to_vec())]) },
+        ];
+        let mut data = with_segment_after_soi(sample_jpeg(), app13_from(&resources));
+        // 再加一个不是 Photoshop 资源的 APP13（例如别家软件自己的块），必须原样保留
+        let foreign = app13_segment(b"VendorX\0payload").unwrap();
+        data = with_segment_after_soi(data, foreign);
+
+        let rw = jpeg_rewrite(&data, &BTreeMap::from([("credit".to_string(), "new".to_string())])).unwrap();
+        let out = jpeg_photoshop_resources(&rw.bytes).unwrap();
+        let thumb = out.iter().find(|r| r.id == 0x040C).expect("缩略图资源必须保留");
+        assert_eq!(thumb.data, vec![1, 2, 3]);
+        assert_eq!(thumb.name, b"Thumb".to_vec());
+        assert_eq!(dataset_of(&iim_of(&rw.bytes), 2, 110).as_deref(), Some("new"));
+        // 两条 APP13：新的 Photoshop 资源段 + 别家原段
+        let app13_count = jpeg_segments(&rw.bytes).unwrap().iter().filter(|s| s.marker == 0xED).count();
+        assert_eq!(app13_count, 2);
+        assert!(rw.bytes.windows(8).any(|w| w == b"VendorX\0"));
+    }
+
+    #[test]
+    fn iim_untouched_when_no_iptc_field_requested() {
+        let resources = vec![IrbResource {
+            id: IRB_IIM,
+            name: Vec::new(),
+            data: build_iim(&[(2, 105, b"keep".to_vec())]),
+        }];
+        let data = with_segment_after_soi(sample_jpeg(), app13_from(&resources));
+        let rw = jpeg_rewrite(&data, &BTreeMap::from([("title".to_string(), "只改标题".to_string())])).unwrap();
+        assert_eq!(dataset_of(&iim_of(&rw.bytes), 2, 105).as_deref(), Some("keep"), "没勾 IPTC 字段就不该动 IIM");
+    }
+
+    #[test]
+    fn iim_read_falls_back_only_when_xmp_missing() {
+        let resources = vec![IrbResource {
+            id: IRB_IIM,
+            name: Vec::new(),
+            data: build_iim(&[(2, 105, "来自 IIM".as_bytes().to_vec()), (2, 115, "素材库".as_bytes().to_vec())]),
+        }];
+        let data = with_segment_after_soi(sample_jpeg(), app13_from(&resources));
+        let read = read_fields(ImageFormat::Jpeg, &data);
+        assert_eq!(read.get("headline").map(String::as_str), Some("来自 IIM"));
+        assert_eq!(read.get("source").map(String::as_str), Some("素材库"));
+
+        // XMP 也有同名属性时以 XMP 为准（不覆盖）
+        let both = jpeg_rewrite(
+            &data,
+            &BTreeMap::from([("headline".to_string(), "来自 XMP".to_string())]),
+        )
+        .unwrap();
+        let read = read_fields(ImageFormat::Jpeg, &both.bytes);
+        assert_eq!(read.get("headline").map(String::as_str), Some("来自 XMP"));
+    }
+
+    #[test]
+    fn iim_extended_length_dataset_roundtrips() {
+        let long = vec![b'a'; 40000];
+        let built = build_iim(&[(2, 120, long.clone())]);
+        // 扩展长度：0x84 + u32
+        assert_eq!(built[3], 0x84);
+        assert_eq!(&built[4..8], &40000u32.to_be_bytes());
+        let parsed = parse_iim(&built).unwrap();
+        assert_eq!(parsed.len(), 1);
+        assert_eq!(parsed[0].2.len(), 40000);
+        assert_eq!(parsed[0].2, long);
     }
 }

@@ -1190,6 +1190,7 @@ export const esES: Dict = {
 
   // Edición de propiedades
   'meta.editTitle': 'Editar propiedades del archivo',
+  'meta.iptcIimNote': 'En JPEG estos cuatro campos IPTC Core se escriben tanto en XMP como en IPTC-IIM (APP13 8BIM): las apps modernas leen XMP y las antiguas leen IIM, siempre iguales.',
   'meta.editSubtitle': 'Solo se escriben los campos marcados; el resto queda intacto. Se crea una copia .bak antes de escribir.',
   'meta.editAction': 'Editar propiedades',
   'meta.apply': 'Escribir campos seleccionados',
@@ -1230,10 +1231,10 @@ export const esES: Dict = {
   'meta.field.genre': 'Género',
   'meta.field.comment': 'Comentario',
   'meta.field.lyrics': 'Letra',
-  'meta.field.headline': 'Titular',
-  'meta.field.bylineTitle': 'Cargo del autor',
-  'meta.field.credit': 'Crédito',
-  'meta.field.source': 'Fuente',
+  'meta.field.headline': 'Titular (XMP + IPTC-IIM)',
+  'meta.field.bylineTitle': 'Cargo del autor (XMP + IPTC-IIM)',
+  'meta.field.credit': 'Crédito (XMP + IPTC-IIM)',
+  'meta.field.source': 'Fuente (XMP + IPTC-IIM)',
   'meta.field.albumArtist': 'Artista del álbum',
   'meta.field.cover': 'Carátula',
   'meta.field.subject': 'Asunto',
