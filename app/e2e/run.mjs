@@ -2823,6 +2823,62 @@ async function main() {
     }))()`);
     check('UI', '冲突不命中：模式不重叠且替换互不相干时不提示', !noConflicts.panel && noConflicts.items === 0 && noConflicts.badges === 0 && noConflicts.rules === 2, JSON.stringify(noConflicts));
 
+    // ---- 正则方言：替换串里的 \1..\9 按分组引用处理（对标 Delphi 习惯，等价 $1..$9）----
+    await clearAllRules();
+    await addRuleType('replace');
+    await setInput('[data-testid="replace-find"]', '(\\d{3})');
+    const regexChecked = await evaluate(`(() => {
+      const sw = document.querySelectorAll('.rule-detail [role="switch"]')[1];
+      return sw ? sw.getAttribute('aria-checked') : null;
+    })()`);
+    if (regexChecked !== 'true') {
+      await evaluate(`document.querySelectorAll('.rule-detail [role="switch"]')[1].click()`);
+      await sleep(250);
+    }
+    const refHint = await evaluate(`document.querySelector('[data-testid="replace-ref-hint"]')?.textContent || ''`);
+    check(
+      'UI',
+      '正则开启时替换串旁给出 \\1 分组引用提示（含等价写法 $1）',
+      refHint.includes('\\1') && refHint.includes('$1'),
+      refHint.slice(0, 90),
+    );
+
+    await setInput('[data-testid="replace-with"]', '第\\1组');
+    await sleep(800);
+    const newNamesRef = await evaluate(`[...document.querySelectorAll('.trow .new-name')].map((e) => e.textContent.trim())`);
+    const refExpanded = newNamesRef.filter((n) => /第\d{3}组/.test(n));
+    check(
+      'UI',
+      '正则替换：替换串写 \\1 时按第 1 个捕获组展开（不是字面反斜杠）',
+      refExpanded.length >= 1 && !newNamesRef.some((n) => n.includes('\\1')),
+      JSON.stringify({ expanded: refExpanded.slice(0, 3), sample: newNamesRef.slice(0, 4) }),
+    );
+    await shot('21-regex-backslash-ref.png');
+
+    await setInput('[data-testid="replace-with"]', '\\3');
+    await sleep(600);
+    const refErr = await evaluate(`document.querySelector('.rule-error')?.textContent || ''`);
+    check(
+      'UI',
+      '引用分组超出正则实际分组数 → 规则卡就地报错（不静默生成错名）',
+      refErr.includes('\\3') && refErr.includes('1'),
+      refErr.slice(0, 90),
+    );
+
+    await setInput('[data-testid="replace-with"]', '\\\\1');
+    await sleep(600);
+    const literalRef = await evaluate(`({
+      err: (document.querySelector('.rule-error')?.textContent || ''),
+      names: [...document.querySelectorAll('.trow .new-name')].map((e) => e.textContent.trim()),
+    })`);
+    check(
+      'UI',
+      '\\\\1 表示字面反斜杠：不参与分组校验、预览里保留 \\1 文本',
+      literalRef.err === '' && literalRef.names.some((n) => n.includes('\\1')),
+      JSON.stringify({ err: literalRef.err, sample: literalRef.names.slice(0, 3) }),
+    );
+    await clearAllRules();
+
     // --- alpha10：列表手动顺序 / 重名 / 重复添加 / 属性编辑 ---
     await evaluate('location.reload()');
     await waitFor(`document.querySelectorAll('.trow').length >= 3`, '重载后的文件列表', 15000);

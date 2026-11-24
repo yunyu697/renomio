@@ -26,6 +26,7 @@ npm run test:core      # cargo test -p renomio-core
 npm run test:e2e       # 无头 E2E（mock 后端）
 npm run test:drop      # 拖放状态机自测
 npm run test:history   # 输入历史自测
+npm run test:regex     # 正则方言（\1 分组引用）自测
 npm run test:contrast  # 对比度
 npm run test:bundle    # 打包断言（有产物才跑 14 条产物断言）
 npm run version:check  # VERSION 与 5 处清单一致
@@ -48,7 +49,7 @@ npm run tauri:build
 
 ## 当前状态（2026-11-25，1.2.0-alpha3）
 
-已实现并有证据：F2 方案库/最近记录、F3 SYSTEM/ARCHIVE 属性、F4 文本编码批量转换、U3 表格自动列宽 + 系统文件类型图标（逐项证据见 `docs/1.1.0-收口清单.md`）；界面重构落地——检查器改为列表下方底部抽屉、八类列表页签下线（列表为唯一主视图、右栏只留规则链）、页头「清空列表」带二次确认、侧栏收敛为「文件」一组、设置移入「更多」，结构决策见 `docs/界面重构-HIG基线.md` §11–§12。
+已实现并有证据：F2 方案库/最近记录、F3 SYSTEM/ARCHIVE 属性、F4 文本编码批量转换、U3 表格自动列宽 + 系统文件类型图标（逐项证据见 `docs/1.1.0-收口清单.md`）；界面重构落地——检查器改为列表下方底部抽屉、八类列表页签下线（列表为唯一主视图、右栏只留规则链）、页头「清空列表」带二次确认、侧栏收敛为「文件」一组、设置移入「更多」，结构决策见 `docs/界面重构-HIG基线.md` §11–§12；规则开关几何按尺寸变量重算并有 E2E 巡检；正则替换兼容 Delphi 方言 `\1..\9`（`\\1` 为字面，引用分组超限就地报错），见 `docs/规则语义确认清单.md` 末节与 `npm run test:regex`。
 
 已知缺口：
 - Windows 安装包未做 Authenticode 代码签名（本机无 OV/EV 证书），SmartScreen 会警告；更新用 `.sig` 已生成并验过，`latest.json` 已按 1.2.0-alpha3 重写，待推送后生效。

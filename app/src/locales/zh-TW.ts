@@ -488,6 +488,8 @@ export const zhTW: Dict = {
   'ruleErr.positionRange': '插入位置需介於 1–255',
   'ruleErr.emptyFind': '尋找內容為空',
   'ruleErr.badRegex': '正規表示式無效',
+  'ruleErr.refExceedsGroups': '取代字串引用了 \\{ref} 分組，但正規表示式只有 {groups} 個捕獲組',
+  'ruleHint.backslashRefs': '開啟正規表示式時，取代字串中的 \\1…\\9 會自動視為分組引用（等於 $1…$9）；要寫字面反斜線請用 \\\\1',
   'ruleErr.negativeNth': '取代次數不能為負',
   'ruleErr.rangePositive': '起始位置與長度需大於 0',
   'ruleErr.emptyCharset': '字元集為空',

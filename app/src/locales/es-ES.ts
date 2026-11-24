@@ -488,6 +488,8 @@ export const esES: Dict = {
   'ruleErr.positionRange': 'La posición debe estar entre 1 y 255',
   'ruleErr.emptyFind': 'El texto a buscar está vacío',
   'ruleErr.badRegex': 'Expresión regular no válida',
+  'ruleErr.refExceedsGroups': 'El reemplazo cita \\{ref} pero el patrón solo tiene {groups} grupo(s) de captura',
+  'ruleHint.backslashRefs': 'Con regex activo, \\1…\\9 en el reemplazo se trata como referencia de grupo (igual que $1…$9); para una barra invertida literal escribe \\\\1',
   'ruleErr.negativeNth': 'El número de reemplazos no puede ser negativo',
   'ruleErr.rangePositive': 'La posición y la longitud deben ser mayores que 0',
   'ruleErr.emptyCharset': 'El conjunto de caracteres está vacío',

@@ -26,6 +26,7 @@
     "test:drop": "node scripts/test-drop-gate.mjs",
     "test:preview": "node scripts/test-preview-finalize.mjs",
     "test:history": "node scripts/test-rule-history.mjs",
+    "test:regex": "node scripts/test-regex-dialect.mjs",
     "test:bundle": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-bundle.ps1",
     "foundation:build": "tsc -p packages/foundation/tsconfig.json"
   },

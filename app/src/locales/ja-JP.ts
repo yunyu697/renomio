@@ -488,6 +488,8 @@ export const jaJP: Dict = {
   'ruleErr.positionRange': '挿入位置は 1〜255 の範囲で指定してください',
   'ruleErr.emptyFind': '検索テキストが空です',
   'ruleErr.badRegex': '正規表現が無効です',
+  'ruleErr.refExceedsGroups': '置換文字列が \\{ref} を参照していますが、正規表現の捕獲グループは {groups} 個です',
+  'ruleHint.backslashRefs': '正規表現を有効にすると、置換文字列の \\1…\\9 はグループ参照（$1…$9 と同じ）として扱われます。文字としての円記号は \\\\1 と書きます',
   'ruleErr.negativeNth': '置換回数は負にできません',
   'ruleErr.rangePositive': '開始位置と長さは 0 より大きい必要があります',
   'ruleErr.emptyCharset': '文字集合が空です',

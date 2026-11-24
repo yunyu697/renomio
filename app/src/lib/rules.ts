@@ -84,6 +84,9 @@ export function ruleError(rule: Rule): string | null {
         } catch {
           return t('ruleErr.badRegex');
         }
+        const groups = groupCount(rule.find);
+        const ref = maxBackslashRef(rule.replace);
+        if (groups >= 0 && ref > groups) return t('ruleErr.refExceedsGroups', { ref, groups });
       }
       if (rule.nth < 0) return t('ruleErr.negativeNth');
       return null;
@@ -138,6 +141,66 @@ function applyAdd(stem: string, rule: AddRule, vars: VarContext): string {
   return fromChars(chars);
 }
 
+/**
+ * 正则替换的分组引用同时接受两种写法：
+ * - JS 方言 `$1`（原生）
+ * - Delphi 方言 `\1`（对标商业批量改名软件的习惯），`\\1` 表示字面反斜杠加数字
+ * 因此这里只把「没被转义」的 `\1`..`\9` 换成 `$1`..`$9`，其余反斜杠一律原样保留。
+ */
+export function convertBackslashRefs(replacement: string): string {
+  let out = '';
+  for (let i = 0; i < replacement.length; i += 1) {
+    const ch = replacement[i];
+    if (ch !== '\\') {
+      out += ch;
+      continue;
+    }
+    const next = replacement[i + 1];
+    const after = replacement[i + 2];
+    if (next === '\\' && after !== undefined && after >= '1' && after <= '9') {
+      out += `\\${after}`;
+      i += 2;
+      continue;
+    }
+    if (next !== undefined && next >= '1' && next <= '9') {
+      out += `$${next}`;
+      i += 1;
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
+/** 替换串里引用的最大分组序号（0 = 没有 `\n` 引用）。 */
+export function maxBackslashRef(replacement: string): number {
+  let max = 0;
+  for (let i = 0; i < replacement.length; i += 1) {
+    if (replacement[i] !== '\\') continue;
+    const next = replacement[i + 1];
+    if (next === '\\') {
+      i += 1;
+      continue;
+    }
+    if (next !== undefined && next >= '1' && next <= '9') {
+      max = Math.max(max, Number(next));
+      i += 1;
+    }
+  }
+  return max;
+}
+
+/** 正则里捕获组的数量（编译失败返回 -1）。 */
+function groupCount(pattern: string): number {
+  try {
+    const re = new RegExp(`${pattern}|`);
+    const m = re.exec('');
+    return m ? m.length - 1 : 0;
+  } catch {
+    return -1;
+  }
+}
+
 function applyReplace(stem: string, rule: ReplaceRule, vars: VarContext): string {
   if (!rule.find) return stem;
   const source = rule.regex ? rule.find : regexEscape(rule.find);
@@ -148,7 +211,8 @@ function applyReplace(stem: string, rule: ReplaceRule, vars: VarContext): string
   } catch {
     return stem;
   }
-  const replacement = expandTemplate(rule.replace, vars);
+  const expanded = expandTemplate(rule.replace, vars);
+  const replacement = rule.regex ? convertBackslashRefs(expanded) : expanded;
   if (rule.nth === 0) return stem.replace(re, replacement);
   let count = 0;
   return stem.replace(re, (match) => {

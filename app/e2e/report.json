@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-24T16:46:16.762Z",
+  "generatedAt": "2026-11-24T17:00:08.480Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
-  "passed": 264,
+  "passed": 268,
   "failed": 0,
   "results": [
     {
@@ -148,13 +148,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-25 00:44 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-25 00:58 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-25 00:44 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-25 00:58 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -1228,7 +1228,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmwuxeaw51\",\"jumpState\":{\"openId\":\"rmwuxeaw51\",\"detail\":1,\"focused\":\"rmwuxeaw51\"}}"
+      "detail": "{\"firstRuleId\":\"rmwuxw8pe1\",\"jumpState\":{\"openId\":\"rmwuxw8pe1\",\"detail\":1,\"focused\":\"rmwuxw8pe1\"}}"
     },
     {
       "layer": "UI",
@@ -1241,6 +1241,30 @@
       "name": "冲突不命中：模式不重叠且替换互不相干时不提示",
       "ok": true,
       "detail": "{\"panel\":false,\"items\":0,\"badges\":0,\"rules\":2}"
+    },
+    {
+      "layer": "UI",
+      "name": "正则开启时替换串旁给出 \\1 分组引用提示（含等价写法 $1）",
+      "ok": true,
+      "detail": "With regex on, \\1…\\9 in the replacement is treated as a group reference (same as $1…$9); w"
+    },
+    {
+      "layer": "UI",
+      "name": "正则替换：替换串写 \\1 时按第 1 个捕获组展开（不是字面反斜杠）",
+      "ok": true,
+      "detail": "{\"expanded\":[\"旧照片 第001组.jpg\",\"旧照片 第002组.jpg\",\"旧照片 第003组.jpg\"],\"sample\":[\"旧照片 第001组.jpg\",\"logo.png\",\"旧照片 第002组.jpg\",\"旧照片 第003组.jpg\"]}"
+    },
+    {
+      "layer": "UI",
+      "name": "引用分组超出正则实际分组数 → 规则卡就地报错（不静默生成错名）",
+      "ok": true,
+      "detail": "Replacement references \\3 but the pattern has only 1 capture group(s)"
+    },
+    {
+      "layer": "UI",
+      "name": "\\\\1 表示字面反斜杠：不参与分组校验、预览里保留 \\1 文本",
+      "ok": true,
+      "detail": "{\"err\":\"\",\"sample\":[\"旧照片 \\\\1.jpg\",\"logo.png\",\"旧照片 \\\\1.jpg\"]}"
     },
     {
       "layer": "UI",
@@ -1294,7 +1318,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795538735057.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795539574490.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -1360,7 +1384,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/25 00:45:413 条 · 仅映射预览还原删除"
+      "detail": "2026/11/25 00:59:403 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -1420,7 +1444,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-25 00:45 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-25 00:59 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",
@@ -1628,6 +1652,7 @@
     "19-lang-ja-JP.png",
     "19-migration-notice-dismissed.png",
     "20-legacy-import.png",
+    "21-regex-backslash-ref.png",
     "27-snapshot-created.png",
     "28-snapshot-preview-before.png",
     "29-snapshot-preview.png",

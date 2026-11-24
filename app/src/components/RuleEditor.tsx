@@ -395,6 +395,11 @@ function ReplaceEditor({ rule, patch }: { rule: ReplaceRule; patch: Patch }) {
         <Toggle on={rule.caseSensitive} label={t('f.caseSensitive')} onChange={(caseSensitive) => patch({ caseSensitive })} />
         <Toggle on={rule.regex} label={t('f.regex')} onChange={(regex) => patch({ regex })} />
       </div>
+      {rule.regex && (
+        <div className="hint-line" style={{ marginBottom: 9 }} data-testid="replace-ref-hint">
+          {t('ruleHint.backslashRefs')}
+        </div>
+      )}
       <Field label={t('f.replaceScope')}>
         <div className="field-row">
           <Seg

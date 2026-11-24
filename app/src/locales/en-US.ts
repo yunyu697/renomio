@@ -488,6 +488,8 @@ export const enUS: Dict = {
   'ruleErr.positionRange': 'Insert position must be between 1 and 255',
   'ruleErr.emptyFind': 'Find text is empty',
   'ruleErr.badRegex': 'Invalid regular expression',
+  'ruleErr.refExceedsGroups': 'Replacement references \\{ref} but the pattern has only {groups} capture group(s)',
+  'ruleHint.backslashRefs': 'With regex on, \\1…\\9 in the replacement is treated as a group reference (same as $1…$9); write \\\\1 for a literal backslash',
   'ruleErr.negativeNth': 'Replace count cannot be negative',
   'ruleErr.rangePositive': 'Start and length must be greater than 0',
   'ruleErr.emptyCharset': 'Character set is empty',
