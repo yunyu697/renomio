@@ -279,17 +279,31 @@ export interface ExtRule extends RuleBase {
   caseMode: 'upper' | 'lower';
 }
 
-export type MetaFieldKey = 'taken' | 'camera' | 'title' | 'artist' | 'album' | 'track';
+export type MetaFieldKey =
+  | 'taken' | 'camera'
+  | 'iso' | 'aperture' | 'shutter' | 'focal' | 'lens' | 'width' | 'height' | 'resolution'
+  | 'title' | 'artist' | 'album' | 'track' | 'year' | 'genre' | 'composer';
 
-/** 供「按元数据取名」使用的只读字段（Rust `rename_fields` 返回，缺失为空串）。 */
+/** 供「按元数据取名」使用的只读字段（Rust `rename_fields` 返回，缺失为空串，已做文件名安全化）。 */
 export interface MetaFields {
   path: string;
   taken: string;
   camera: string;
+  iso: string;
+  aperture: string;
+  shutter: string;
+  focal: string;
+  lens: string;
+  width: string;
+  height: string;
+  resolution: string;
   title: string;
   artist: string;
   album: string;
   track: string;
+  year: string;
+  genre: string;
+  composer: string;
 }
 
 /** 可编辑元数据的字段 id（图片 / 音频 / 文档共用一套字符串键，按格式白名单过滤）。 */

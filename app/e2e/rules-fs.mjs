@@ -33,7 +33,7 @@ function check(name, ok, detail = '') {
 function transpile(name) {
   const source = readFileSync(join(root, 'src', 'lib', `${name}.ts`), 'utf8')
     .replace("from '../i18n'", "from './i18n.mjs'")
-    .replace("from './vars'", "from './vars.mjs'");
+    .replace(/from '\.\/(vars|metaFields)'/g, "from './$1.mjs'");
   writeFileSync(
     join(outDir, `${name}.mjs`),
     ts.transpileModule(source, {
@@ -46,6 +46,7 @@ writeFileSync(
   'export function t(key, params = {}) { return key + ":" + Object.entries(params).map(([k, v]) => k + "=" + v).join(","); }\n',
 );
 transpile('vars');
+transpile('metaFields');
 transpile('rules');
 
 const sha = (buf) => createHash('sha256').update(buf).digest('hex');

@@ -32,7 +32,7 @@ function check(name, ok, detail = '') {
 function transpile(name) {
   const source = readFileSync(join(root, 'src', 'lib', `${name}.ts`), 'utf8')
     .replace(/from '\.\.\/i18n'/g, "from './i18n.mjs'")
-    .replace(/from '\.\/([a-z]+)'/g, "from './$1.mjs'");
+    .replace(/from '\.\/([a-zA-Z]+)'/g, "from './$1.mjs'");
   writeFileSync(
     join(outDir, `${name}.mjs`),
     ts.transpileModule(source, {
@@ -42,7 +42,7 @@ function transpile(name) {
 }
 
 writeFileSync(join(outDir, 'i18n.mjs'), 'export function t(key) { return key; }\n');
-for (const name of ['vars', 'rules', 'validate', 'preview']) transpile(name);
+for (const name of ['vars', 'rules', 'metaFields', 'validate', 'preview']) transpile(name);
 
 const { computePreview } = await import(pathToFileURL(join(outDir, 'preview.mjs')).href);
 const { ruleError } = await import(pathToFileURL(join(outDir, 'rules.mjs')).href);

@@ -3071,6 +3071,100 @@ async function main() {
     );
     await clearAllRules();
 
+    // ---- 按元数据取名：17 字段可选 / 真实取值 / 缺失不改名 ----
+    await addRuleType('meta');
+    const metaSelect = await evaluate(`(() => {
+      const sel = document.querySelector('[data-testid="meta-field"]');
+      if (!sel) return null;
+      return {
+        count: sel.querySelectorAll('option').length,
+        groups: [...sel.querySelectorAll('optgroup')].map((g) => g.label),
+        values: [...sel.querySelectorAll('option')].map((o) => o.value),
+      };
+    })()`);
+    check(
+      'UI',
+      '元数据字段下拉含 17 个字段、按拍摄参数 / 图像尺寸 / 音频标签三组展示',
+      metaSelect?.count === 17
+        && metaSelect.groups.length === 3
+        && ['iso', 'aperture', 'shutter', 'focal', 'lens', 'width', 'height', 'resolution', 'year', 'genre', 'composer']
+          .every((k) => metaSelect.values.includes(k)),
+      JSON.stringify(metaSelect),
+    );
+
+    const setMetaField = (value) => evaluate(`(() => {
+      const sel = document.querySelector('[data-testid="meta-field"]');
+      if (!sel) throw new Error('找不到元数据字段下拉');
+      sel.value = ${JSON.stringify(value)};
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      return sel.value;
+    })()`);
+    const metaSum = () => evaluate(`document.querySelector('.rule-card.open .sum span')?.textContent?.trim() || ''`);
+
+    await setMetaField('iso');
+    await sleep(700);
+    const isoRow = await evaluate(rowByName('旧照片 001.jpg'));
+    check('UI', '按 ISO 取值前缀取名：400「空格」旧照片 001.jpg', isoRow?.name === '400 旧照片 001.jpg', JSON.stringify(isoRow));
+    const isoSum = await metaSum();
+    check(
+      'UI',
+      '规则摘要写明来源（EXIF + ISO），不是裸字段名',
+      isoSum.includes('EXIF') && isoSum.includes('ISO'),
+      isoSum,
+    );
+
+    await setMetaField('lens');
+    await sleep(700);
+    const lensRow = await evaluate(rowByName('旧照片 001.jpg'));
+    check('UI', '按镜头取值取名：RF35mm F1.8 旧照片 001.jpg', lensRow?.name === 'RF35mm F1.8 旧照片 001.jpg', JSON.stringify(lensRow));
+
+    await setMetaField('resolution');
+    await sleep(700);
+    const resRow = await evaluate(rowByName('旧照片 001.jpg'));
+    check('UI', '按像素尺寸取值取名：5472x3648 旧照片 001.jpg', resRow?.name === '5472x3648 旧照片 001.jpg', JSON.stringify(resRow));
+    const audioOnPhoto = await evaluate(`[...document.querySelectorAll('.trow')].map((r) => ({
+      name: r.querySelector('.name-cell .txt')?.textContent || '',
+      next: r.querySelector('.new-name')?.textContent?.trim() ?? null,
+    }))`);
+    check(
+      'UI',
+      '切换字段前所有照片行都真的改了名（不是只改首行）',
+      audioOnPhoto.filter((r) => r.name.endsWith('.jpg')).every((r) => String(r.next).startsWith('5472x3648 ')),
+      JSON.stringify(audioOnPhoto.slice(0, 3)),
+    );
+
+    // 照片没有音频标签：选音频字段时该规则“不改变名称”，而不是拼出空段
+    await setMetaField('composer');
+    await sleep(700);
+    const composerRow = await evaluate(rowByName('旧照片 001.jpg'));
+    check(
+      'UI',
+      '缺失字段（照片选音频作曲）时该行保持原名且标记 unchanged',
+      composerRow?.name === '旧照片 001.jpg' && composerRow.unchanged === true,
+      JSON.stringify(composerRow),
+    );
+    await shot('25-meta-fields.png');
+    await clearAllRules();
+
+    // 编号分组下拉与「按元数据取名」共用同一张字段表
+    await addRuleType('number');
+    const groupOpts = await evaluate(`(() => {
+      const sel = document.querySelector('[data-testid="number-group"]');
+      if (!sel) return null;
+      return {
+        groups: [...sel.querySelectorAll('optgroup')].map((g) => g.label),
+        values: [...sel.querySelectorAll('option')].map((o) => o.value),
+      };
+    })()`);
+    check(
+      'UI',
+      '编号分组下拉同步新增字段（field:iso / field:resolution / field:composer）',
+      groupOpts?.groups.length === 3
+        && ['field:iso', 'field:resolution', 'field:composer'].every((v) => groupOpts.values.includes(v)),
+      JSON.stringify(groupOpts),
+    );
+    await clearAllRules();
+
     // ---- 命令列表：规则链 + 冲突策略存成一条命令（保存 / 持久化 / 运行 / 删除）----
     await addRuleType('replace');
     await setInput('[data-testid="replace-find"]', 'logo');

@@ -3,6 +3,7 @@ import { t } from '../i18n';
 import type {
   AddRule, CaseRule, DeleteRule, ExtRule, MetaFieldKey, MetaFields, MoveRule, NumberRule, ReplaceRule, Rule,
 } from './types';
+import { META_FIELDS, metaFieldLabelKey } from './metaFields';
 import { expandTemplate, scanTemplate, type VarContext } from './vars';
 
 export function splitName(name: string, isDir: boolean): { stem: string; ext: string } {
@@ -548,12 +549,31 @@ export function applyRules(
   return { stem, ext, numbers };
 }
 
-const META_FIELDS: MetaFieldKey[] = ['taken', 'camera', 'title', 'artist', 'album', 'track'];
-
 function metaFieldLabel(field: string): string {
-  const key = (META_FIELDS as string[]).includes(field) ? field : 'taken';
-  return t(`o.meta${key[0].toUpperCase()}${key.slice(1)}`);
+  const key = (META_FIELDS as string[]).includes(field) ? (field as MetaFieldKey) : 'taken';
+  return t(metaFieldLabelKey(key));
 }
+
+/** 规则卡片摘要里每个字段的说法（比编辑器里的字段名更具体，注明来源 EXIF / 音频标签）。 */
+const META_SUMMARY_KEYS: Record<MetaFieldKey, string> = {
+  taken: 'ruleSum.metaTaken',
+  camera: 'ruleSum.metaCamera',
+  iso: 'ruleSum.metaIso',
+  aperture: 'ruleSum.metaAperture',
+  shutter: 'ruleSum.metaShutter',
+  focal: 'ruleSum.metaFocal',
+  lens: 'ruleSum.metaLens',
+  width: 'ruleSum.metaWidth',
+  height: 'ruleSum.metaHeight',
+  resolution: 'ruleSum.metaResolution',
+  title: 'ruleSum.metaTitle',
+  artist: 'ruleSum.metaArtist',
+  album: 'ruleSum.metaAlbum',
+  track: 'ruleSum.metaTrack',
+  year: 'ruleSum.metaYear',
+  genre: 'ruleSum.metaGenre',
+  composer: 'ruleSum.metaComposer',
+};
 
 /** 兼容旧规则字段：perFolder → groupBy；补齐新增字段的默认值。 */
 export function normalizeRule(rule: Rule): Rule {
@@ -637,10 +657,7 @@ export function ruleSummary(rule: Rule): string {
         fixed: t('ruleSum.extFixed', { value: rule.value }),
       }[rule.mode];
     case 'meta': {
-      const label = {
-        taken: t('ruleSum.metaTaken'), camera: t('ruleSum.metaCamera'), title: t('ruleSum.metaTitle'),
-        artist: t('ruleSum.metaArtist'), album: t('ruleSum.metaAlbum'), track: t('ruleSum.metaTrack'),
-      }[rule.field] ?? rule.field;
+      const label = t(META_SUMMARY_KEYS[rule.field] ?? 'ruleSum.metaTaken');
       if (rule.mode === 'replace') return t('ruleSum.metaReplace', { label });
       const base = t(rule.mode === 'prefix' ? 'ruleSum.metaPrefix' : 'ruleSum.metaSuffix', {
         label, sep: '',

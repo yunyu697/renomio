@@ -29,7 +29,7 @@ function check(name, actual, expected) {
 function transpile(name) {
   const source = readFileSync(join(root, 'src', 'lib', `${name}.ts`), 'utf8')
     .replace("from '../i18n'", "from './i18n.mjs'")
-    .replace(/from '\.\/(rules|validate|vars|types)'/g, "from './$1.mjs'");
+    .replace(/from '\.\/(rules|validate|vars|types|metaFields)'/g, "from './$1.mjs'");
   const out = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
   }).outputText;
@@ -48,8 +48,9 @@ const urls = {
   rules: transpile('rules'),
   validate: transpile('validate'),
   vars: transpile('vars'),
+  metaFields: transpile('metaFields'),
 };
-for (const name of ['rules', 'validate', 'vars']) {
+for (const name of ['rules', 'validate', 'vars', 'metaFields']) {
   if (!existsSync(join(outDir, `${name}.mjs`))) throw new Error(`缺少转译产物 ${name}.mjs`);
 }
 

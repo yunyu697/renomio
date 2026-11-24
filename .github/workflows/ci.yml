@@ -74,6 +74,10 @@ jobs:
       - name: 大小写例外词表自测（18 条）
         run: npm run test:case
 
+      # 元数据字段守卫：前端字段表 / 五语种文案 / 规则求值 / Rust 结构体必须一一对应
+      - name: 元数据取名字段自测（17 字段，50 条）
+        run: npm run test:meta
+
       # 孤儿样式守卫：CSS 里出现但源码已不再引用的 .class 一律视为死代码，必须先删再合并
       - name: 孤儿样式选择器检查
         run: npm run test:css

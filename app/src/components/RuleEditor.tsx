@@ -5,6 +5,7 @@ import type {
   AddRule, CaseRule, DeleteRule, ExtRule, MetaRule, MoveRule, NumberRule, ReplaceRule, Rule,
 } from '../lib/types';
 import { ruleError } from '../lib/rules';
+import { META_FIELD_GROUPS, metaFieldLabelKey } from '../lib/metaFields';
 import { SAMPLE_VARS, expandTemplate } from '../lib/vars';
 
 type Patch = (patch: Record<string, unknown>) => void;
@@ -42,16 +43,6 @@ function Seg<T extends string>({
 const EMPTY_HISTORY: string[] = [];
 
 const VAR_TOKENS = ['<FILENAME>', '<NAME>', '<EXT>', '<DOTEXT>', '<SUBSTR>', '<DIFNSUBSTR>', '<DIR>', '<DATE>', '<TIME>', '<SIZE>', '<CRC32>', '<MD5>', '<SHA1>', '<USER0>', '<USER1>'];
-
-/** 编号分组可选字段（`field:<键>`）：与「按元数据取名」共用同一批只读字段。 */
-const GROUP_FIELDS: Array<[string, string]> = [
-  ['taken', 'o.metaTaken'],
-  ['camera', 'o.metaCamera'],
-  ['title', 'o.metaTitle'],
-  ['artist', 'o.metaArtist'],
-  ['album', 'o.metaAlbum'],
-  ['track', 'o.metaTrack'],
-];
 
 /**
  * 规则链输入框：historyKey 不为空时，失焦后把填过的内容按字段记入历史，
@@ -502,8 +493,14 @@ function NumberEditor({ rule, patch }: { rule: NumberRule; patch: Patch }) {
           >
             <option value="none">{t('f.groupByNone')}</option>
             <option value="parent">{t('f.groupByParent')}</option>
-            {GROUP_FIELDS.map(([field, label]) => (
-              <option key={field} value={`field:${field}`}>{t('f.groupByFieldOption', { label: t(label) })}</option>
+            {META_FIELD_GROUPS.map((group) => (
+              <optgroup key={group.titleKey} label={t(group.titleKey)}>
+                {group.fields.map((field) => (
+                  <option key={field} value={`field:${field}`}>
+                    {t('f.groupByFieldOption', { label: t(metaFieldLabelKey(field)) })}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </Field>
@@ -655,18 +652,20 @@ function MetaEditor({ rule, patch }: { rule: MetaRule; patch: Patch }) {
   return (
     <>
       <Field label={t('f.metaField')}>
-        <Seg
+        <select
+          className="input"
+          data-testid="meta-field"
           value={rule.field}
-          options={[
-            ['taken', t('o.metaTaken')],
-            ['camera', t('o.metaCamera')],
-            ['title', t('o.metaTitle')],
-            ['artist', t('o.metaArtist')],
-            ['album', t('o.metaAlbum')],
-            ['track', t('o.metaTrack')],
-          ]}
-          onChange={(field) => patch({ field })}
-        />
+          onChange={(e) => patch({ field: e.target.value })}
+        >
+          {META_FIELD_GROUPS.map((group) => (
+            <optgroup key={group.titleKey} label={t(group.titleKey)}>
+              {group.fields.map((field) => (
+                <option key={field} value={field}>{t(metaFieldLabelKey(field))}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
       </Field>
       <Field label={t('f.usage')}>
         <Seg

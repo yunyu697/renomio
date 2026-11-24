@@ -61,6 +61,156 @@ impl MetadataInfo {
     }
 }
 
+/// 供「按元数据取名」与「编号分组」共用的只读取值集合。
+/// 全部字段都是**文件名安全**的：非法字符换成 `-`，两端空白去掉，缺失为空串。
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenameFieldValues {
+    pub taken: String,
+    pub camera: String,
+    pub iso: String,
+    pub aperture: String,
+    pub shutter: String,
+    pub focal: String,
+    pub lens: String,
+    pub width: String,
+    pub height: String,
+    pub resolution: String,
+    pub title: String,
+    pub artist: String,
+    pub album: String,
+    pub track: String,
+    pub year: String,
+    pub genre: String,
+    pub composer: String,
+}
+
+/// Windows / macOS / Linux 都拒绝的字符一律换成 `-`（`/` 在文件名里等同于路径分隔符）。
+fn name_safe(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut last_dash = false;
+    for ch in raw.trim().chars() {
+        let bad = matches!(ch, '\\' | '/' | ':' | '*' | '?' | '"' | '<' | '>' | '|') || ch.is_control();
+        if bad {
+            if !last_dash {
+                out.push('-');
+            }
+            last_dash = true;
+        } else {
+            out.push(ch);
+            last_dash = false;
+        }
+    }
+    out.trim_matches('-').trim().to_string()
+}
+
+/// 从 `read_metadata` 的字段里取某个标签（按候选顺序，先命中先用）。
+fn field_of(info: &MetadataInfo, labels: &[&str]) -> String {
+    labels
+        .iter()
+        .find_map(|label| {
+            info.fields
+                .iter()
+                .find(|f| f.label == *label)
+                .map(|f| f.value.clone())
+        })
+        .unwrap_or_default()
+}
+
+/// 「曝光时间 1/250 秒」→ `1-250`；「2 秒」→ `2`。去掉单位与空格。
+fn shutter_token(raw: &str) -> String {
+    let trimmed = raw.trim().trim_end_matches("秒").trim();
+    let token = trimmed.split_whitespace().next().unwrap_or("");
+    name_safe(token)
+}
+
+/// `2.80` → `2.8`、`50.00` → `50`：元数据里 rational 固定两位小数，拼进文件名前收掉多余的 0。
+fn tidy_number(raw: &str) -> String {
+    let s = raw.trim();
+    if !s.contains('.') {
+        return s.to_string();
+    }
+    let trimmed = s.trim_end_matches('0').trim_end_matches('.');
+    if trimmed.is_empty() { "0".to_string() } else { trimmed.to_string() }
+}
+
+/// 「f/2.8」→ `2.8`；「f/16」→ `16`。
+fn aperture_token(raw: &str) -> String {
+    let trimmed = raw.trim();
+    let token = trimmed
+        .strip_prefix('f')
+        .and_then(|rest| rest.strip_prefix('/'))
+        .unwrap_or(trimmed);
+    name_safe(&tidy_number(token))
+}
+
+/// 「50 mm」→ `50mm`；「50」→ `50mm`（统一带单位，便于拼文件名）。
+fn focal_token(raw: &str) -> String {
+    let trimmed = raw.trim().trim_end_matches("mm").trim();
+    let token = trimmed.split_whitespace().next().unwrap_or("");
+    let token = name_safe(&tidy_number(token));
+    if token.is_empty() {
+        String::new()
+    } else {
+        format!("{token}mm")
+    }
+}
+
+/// 没有 EXIF 像素宽/高时（PNG / BMP / WebP / TIFF），从「尺寸」字段 `640 × 480 px` 拆出宽高。
+fn dims_from_size(info: &MetadataInfo) -> (String, String) {
+    let size = field_of(info, &["尺寸"]);
+    match size.split_once('×') {
+        Some((w, h)) => (size_part(w), size_part(h)),
+        None => (String::new(), String::new()),
+    }
+}
+
+/// `640 ` → `640`：只保留数字，去掉单位与空格。
+fn size_part(raw: &str) -> String {
+    let digits: String = raw.chars().filter(|c| c.is_ascii_digit()).collect();
+    if digits.is_empty() {
+        String::new()
+    } else {
+        name_safe(&digits)
+    }
+}
+
+pub fn rename_field_values(info: &MetadataInfo) -> RenameFieldValues {
+    let (fallback_w, fallback_h) = dims_from_size(info);
+    let width = {
+        let w = name_safe(&field_of(info, &["像素宽"]));
+        if w.is_empty() { fallback_w } else { w }
+    };
+    let height = {
+        let h = name_safe(&field_of(info, &["像素高"]));
+        if h.is_empty() { fallback_h } else { h }
+    };
+    let resolution = if width.is_empty() || height.is_empty() {
+        String::new()
+    } else {
+        format!("{width}x{height}")
+    };
+    RenameFieldValues {
+        taken: name_safe(&field_of(info, &["拍摄时间"]).replace(':', "-")),
+        camera: name_safe(&field_of(info, &["相机型号", "相机品牌"])),
+        iso: name_safe(&field_of(info, &["ISO"])),
+        aperture: aperture_token(&field_of(info, &["光圈"])),
+        shutter: shutter_token(&field_of(info, &["曝光时间"])),
+        focal: focal_token(&field_of(info, &["焦距"])),
+        lens: name_safe(&field_of(info, &["镜头"])),
+        width,
+        height,
+        resolution,
+        title: name_safe(&field_of(info, &["标题"])),
+        artist: name_safe(&field_of(info, &["艺术家"])),
+        album: name_safe(&field_of(info, &["专辑"])),
+        track: name_safe(&field_of(info, &["音轨"])),
+        year: name_safe(&field_of(info, &["年份"])),
+        genre: name_safe(&field_of(info, &["流派"])),
+        composer: name_safe(&field_of(info, &["作曲"])),
+    }
+}
+
 pub fn read_metadata(path: &str) -> Result<MetadataInfo, String> {
     let p = Path::new(path);
     let meta = fs::metadata(p).map_err(|e| format!("无法读取文件信息：{e}"))?;
@@ -531,14 +681,13 @@ fn exif_fields(tiff: &[u8]) -> Vec<MetadataField> {
     };
     let entry_num = |entry: &ExifEntry| -> Option<u32> {
         match entry.kind {
-            3 => {
-                let raw = if little {
-                    entry.value_off.to_le_bytes()
-                } else {
-                    entry.value_off.to_be_bytes()
-                };
-                Some(u16::from_le_bytes([raw[0], raw[1]]) as u32)
-            }
+            // SHORT 的值内联在 4 字节字段里：大端在高 2 字节、小端在低 2 字节。
+            // 早期实现无视文件字节序按小端读，导致大端相机（多数单反）的 ISO / 方向读错。
+            3 => Some(if little {
+                entry.value_off & 0xFFFF
+            } else {
+                entry.value_off >> 16
+            }),
             4 | 9 => Some(entry.value_off),
             _ => None,
         }
@@ -1357,6 +1506,176 @@ mod tests {
         let info = read_metadata(file.0.to_str().unwrap()).unwrap();
         let dims = info.fields.iter().find(|f| f.label == "尺寸").unwrap();
         assert_eq!(dims.value, "800 × 600 px");
+    }
+
+    /// 手写一个带完整 EXIF 的 JPEG：IFD0 放相机品牌/型号 + ExifIFD 指针，
+    /// ExifIFD 放拍摄时间、像素宽高、ISO、曝光时间、光圈、焦距、镜头。
+    /// 全部使用大端（"MM"），偏移量按本函数内的固定布局推算。
+    fn build_exif_jpeg(little: bool) -> Vec<u8> {
+        let make = b"RenomioCam\0";
+        let model = b"RC-1\0";
+        let taken = b"2025:01:04 08:00:00\0";
+        let lens = b"RF24-70mm F2.8\0";
+
+        let u16b = |v: u16| -> Vec<u8> {
+            if little {
+                v.to_le_bytes().to_vec()
+            } else {
+                v.to_be_bytes().to_vec()
+            }
+        };
+        let u32b = |v: u32| -> Vec<u8> {
+            if little {
+                v.to_le_bytes().to_vec()
+            } else {
+                v.to_be_bytes().to_vec()
+            }
+        };
+
+        // TIFF 头部 8 字节，IFD0 紧接其后
+        let ifd0_off: u32 = 8;
+        let ifd0_count = 3u16;
+        let ifd0_data: u32 = ifd0_off + 2 + 3 * 12 + 4; // 50
+        let make_off = ifd0_data; // 50
+        let model_off = make_off + make.len() as u32; // 61
+        let exif_off = model_off + model.len() as u32; // 66
+        let exif_data = exif_off + 2 + 8 * 12 + 4; // 168
+        let taken_off = exif_data;
+        let exp_off = taken_off + taken.len() as u32; // 188
+        let fnum_off = exp_off + 8; // 196
+        let focal_off = fnum_off + 8; // 204
+        let lens_off = focal_off + 8; // 212
+
+        let entry = |tag: u16, kind: u16, count: u32, value: Vec<u8>| -> Vec<u8> {
+            let mut out = Vec::new();
+            out.extend_from_slice(&u16b(tag));
+            out.extend_from_slice(&u16b(kind));
+            out.extend_from_slice(&u32b(count));
+            out.extend_from_slice(&value);
+            out
+        };
+
+        let mut t: Vec<u8> = Vec::new();
+        t.extend_from_slice(if little { b"II" } else { b"MM" });
+        t.extend_from_slice(&u16b(42));
+        t.extend_from_slice(&u32b(ifd0_off));
+
+        // ---- IFD0 ----
+        t.extend_from_slice(&u16b(ifd0_count));
+        t.extend_from_slice(&entry(0x010F, 2, make.len() as u32, u32b(make_off)));
+        t.extend_from_slice(&entry(0x0110, 2, model.len() as u32, u32b(model_off)));
+        t.extend_from_slice(&entry(0x8769, 4, 1, u32b(exif_off)));
+        t.extend_from_slice(&[0u8; 4]);
+        t.extend_from_slice(make);
+        t.extend_from_slice(model);
+
+        // ---- ExifIFD ----
+        t.extend_from_slice(&u16b(8));
+        t.extend_from_slice(&entry(0x9003, 2, taken.len() as u32, u32b(taken_off)));
+        // ISO 是 SHORT，值内联在 4 字节字段：大端占高 2 字节、小端占低 2 字节
+        let mut iso_inline = Vec::new();
+        if little {
+            iso_inline.extend_from_slice(&3200u16.to_le_bytes());
+        } else {
+            iso_inline.extend_from_slice(&3200u16.to_be_bytes());
+        }
+        iso_inline.extend_from_slice(&[0, 0]);
+        t.extend_from_slice(&entry(0x8827, 3, 1, iso_inline));
+        t.extend_from_slice(&entry(0x829A, 5, 1, u32b(exp_off)));
+        t.extend_from_slice(&entry(0x829D, 5, 1, u32b(fnum_off)));
+        t.extend_from_slice(&entry(0x920A, 5, 1, u32b(focal_off)));
+        t.extend_from_slice(&entry(0xA002, 4, 1, u32b(6000)));
+        t.extend_from_slice(&entry(0xA003, 4, 1, u32b(4000)));
+        t.extend_from_slice(&entry(0xA434, 2, lens.len() as u32, u32b(lens_off)));
+        t.extend_from_slice(&[0u8; 4]);
+        t.extend_from_slice(taken);
+        for (num, den) in [(1u32, 250u32), (28, 10), (50, 1)] {
+            t.extend_from_slice(&u32b(num));
+            t.extend_from_slice(&u32b(den));
+        }
+        t.extend_from_slice(lens);
+
+        let mut jpeg = vec![0xFF, 0xD8];
+        let app1_len = 2 + 6 + t.len();
+        jpeg.extend_from_slice(&[0xFF, 0xE1]);
+        jpeg.extend_from_slice(&(app1_len as u16).to_be_bytes());
+        jpeg.extend_from_slice(b"Exif\0\0");
+        jpeg.extend_from_slice(&t);
+        // SOF0：真实相机也会有，用来验证像素宽高优先取 EXIF
+        jpeg.extend_from_slice(&[0xFF, 0xC0, 0x00, 0x11, 0x08]);
+        jpeg.extend_from_slice(&4000u16.to_be_bytes());
+        jpeg.extend_from_slice(&6000u16.to_be_bytes());
+        jpeg.extend_from_slice(&[0x03, 0x01, 0x11, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01]);
+        jpeg.extend_from_slice(&[0xFF, 0xD9]);
+        jpeg
+    }
+
+    fn assert_camera_values(vals: &RenameFieldValues) {
+        assert_eq!(vals.taken, "2025-01-04 08-00-00");
+        assert_eq!(vals.camera, "RC-1");
+        assert_eq!(vals.iso, "3200");
+        assert_eq!(vals.aperture, "2.8");
+        assert_eq!(vals.shutter, "1-250");
+        assert_eq!(vals.focal, "50mm");
+        assert_eq!(vals.lens, "RF24-70mm F2.8");
+        assert_eq!(vals.width, "6000");
+        assert_eq!(vals.height, "4000");
+        assert_eq!(vals.resolution, "6000x4000");
+        // 该文件没有音频/文档标签，其余字段必须是空串（界面据此隐藏/回退）
+        for empty in [
+            vals.title.as_str(),
+            vals.artist.as_str(),
+            vals.album.as_str(),
+            vals.track.as_str(),
+            vals.year.as_str(),
+            vals.genre.as_str(),
+            vals.composer.as_str(),
+        ] {
+            assert!(empty.is_empty());
+        }
+    }
+
+    #[test]
+    fn rename_fields_cover_exif_shooting_params_both_byte_orders() {
+        let be = TempFile::new("exif-be.jpg", &build_exif_jpeg(false));
+        let info = read_metadata(be.0.to_str().unwrap()).unwrap();
+        assert_camera_values(&rename_field_values(&info));
+
+        // 小端 TIFF（"II"）：早期实现把 SHORT 按固定字节序读，这里固定两种字节序都对
+        let le = TempFile::new("exif-le.jpg", &build_exif_jpeg(true));
+        let info = read_metadata(le.0.to_str().unwrap()).unwrap();
+        assert_camera_values(&rename_field_values(&info));
+    }
+
+    #[test]
+    fn rename_fields_fall_back_to_size_and_audio_tags() {
+        // PNG 没有 EXIF 像素宽高，应回退到「尺寸」并拆成宽高
+        let mut png = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+        png.extend_from_slice(&13u32.to_be_bytes());
+        png.extend_from_slice(b"IHDR");
+        png.extend_from_slice(&640u32.to_be_bytes());
+        png.extend_from_slice(&480u32.to_be_bytes());
+        png.extend_from_slice(&[8, 2, 0, 0, 0]);
+        png.extend_from_slice(&[0u8; 4]);
+        png.extend_from_slice(&0u32.to_be_bytes());
+        png.extend_from_slice(b"IEND");
+        png.extend_from_slice(&[0u8; 4]);
+        let file = TempFile::new("size.png", &png);
+        let info = read_metadata(file.0.to_str().unwrap()).unwrap();
+        let vals = rename_field_values(&info);
+        assert_eq!((vals.width.as_str(), vals.height.as_str()), ("640", "480"));
+        assert_eq!(vals.resolution, "640x480");
+
+        // 缺少元数据时全部为空，不能出现 "undefined"/默认值
+        assert!(vals.camera.is_empty() && vals.iso.is_empty() && vals.shutter.is_empty());
+    }
+
+    #[test]
+    fn name_safe_strips_path_and_reserved_chars() {
+        assert_eq!(name_safe("AC/DC: Live*2025?.jpg"), "AC-DC- Live-2025-.jpg");
+        assert_eq!(name_safe("  title  "), "title");
+        assert_eq!(name_safe("<a>|b\\c"), "a-b-c");
+        assert_eq!(name_safe(""), "");
     }
 
     #[test]

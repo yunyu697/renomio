@@ -661,18 +661,15 @@ fn read_times(core: tauri::State<'_, Core>, paths: Vec<String>) -> Vec<TimeInfo>
     core.read_times(&paths)
 }
 
-/// 供「按元数据取名」规则使用的字段：EXIF 拍摄时间/相机型号、音频标题/艺术家/专辑/音轨。
-/// 只读；缺失字段返回空串。
+/// 供「按元数据取名」规则使用的字段：EXIF 拍摄参数（时间/机身/iso/光圈/快门/焦距/镜头/像素）、
+/// 音频标签（标题/艺术家/专辑/音轨/年份/流派/作曲）。只读；缺失字段返回空串，
+/// 取值与文件名安全化统一在 `renomio_core::metadata::rename_field_values` 里做，便于单测。
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct RenameFields {
     path: String,
-    taken: String,
-    camera: String,
-    title: String,
-    artist: String,
-    album: String,
-    track: String,
+    #[serde(flatten)]
+    fields: renomio_core::metadata::RenameFieldValues,
 }
 
 #[tauri::command]
@@ -680,26 +677,12 @@ fn rename_fields(paths: Vec<String>) -> Vec<RenameFields> {
     paths
         .iter()
         .map(|path| {
-            let info = renomio_core::metadata::read_metadata(path).ok();
-            // 按 labels 的先后顺序取，保证「相机型号」优先于「相机品牌」
-            let field = |labels: &[&str]| -> String {
-                labels
-                    .iter()
-                    .find_map(|label| {
-                        info.as_ref()
-                            .and_then(|m| m.fields.iter().find(|f| f.label == *label))
-                            .map(|f| f.value.clone())
-                    })
-                    .unwrap_or_default()
-            };
+            let values = renomio_core::metadata::read_metadata(path)
+                .map(|info| renomio_core::metadata::rename_field_values(&info))
+                .unwrap_or_default();
             RenameFields {
                 path: path.clone(),
-                taken: field(&["拍摄时间"]).replace(':', "-"),
-                camera: field(&["相机型号", "相机品牌"]),
-                title: field(&["标题"]),
-                artist: field(&["艺术家"]),
-                album: field(&["专辑"]),
-                track: field(&["音轨"]),
+                fields: values,
             }
         })
         .collect()
