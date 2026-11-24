@@ -369,14 +369,14 @@ app/
 
 数据目录：每用户的 `%APPDATA%\app.renomio.desktop`（Tauri `app_data_dir`，随 identifier 变化），不随安装目录走；**切换安装范围不会迁移配置、日志与撤销历史**（同一用户的同一数据目录，两者共享）。**自动更新（alpha5 起）**：设置页「检查更新」读取源码仓库 `yunyu697/renomio` 滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；以 minisign 签名校验为准，支持镜像回退、仅下载与安装后重启。源码仓库已公开，安装包与更新清单与源码同仓发布；旧发行仓库 `renomio-releases` 已归档，仅保留历史下载。
 
-## 产物（本轮构建：1.2.0-alpha4）
+## 产物（1.2.0-alpha5，三平台由 CI 构建）
 
-| 安装包 | 路径 | 大小 | SHA-256 |
+| 安装包 | 文件 | 大小 | SHA-256 |
 | --- | --- | --- | --- |
-| NSIS | `src-tauri/target/release/bundle/nsis/Renomio_1.2.0-alpha4_x64-setup.exe` | 2,500,252 字节（2.38 MiB） | `141A9564A34CA9929F543B6FD115D115A3D0A5601CF51929735226EFD757CD88` |
-| MSI | `src-tauri/target/release/bundle/msi/Renomio_1.2.0-alpha4_x64_en-US.msi` | 3,690,496 字节（3.52 MiB） | `7A60703480CB03495607B80EBE335E93FC93D9565BB18CDB74216F398DF50C23` |
+| NSIS | `Renomio_1.2.0-alpha5_x64-setup.exe` | 2,516,960 字节（2.40 MiB） | `492F83038523FA5E4DCC565FECB5E300B7BA751858174FA58CADD3AC23EEE5B1` |
+| MSI | `Renomio_1.2.0-alpha5_x64_en-US.msi` | 3,338,240 字节（3.18 MiB） | `F1D5D19B55140344E499A80DCA067B72C853ACCA89F01F8F9B34FA76D010B2A5` |
 
-两包均未做 Authenticode 代码签名（本机无 OV/EV 证书，首次运行 SmartScreen 会提示未知发布者；证书到位后可用 `scripts/sign/windows-sign.ps1` 补签）。**本版已生成更新用 `.sig`**：构建时把仓库外的 `renomio-signing/renomio.key` 以路径注入 `TAURI_SIGNING_PRIVATE_KEY`（空口令），`tauri build` 一次产出 NSIS + MSI 两个包与两个 `.sig`；两个签名已用 `tauri.conf.json` 内置公钥离线验过——文件签名与 trusted comment 签名双 PASS，keyid `a1d8edb60bbc50fd`，trusted comment 绑定 `file` 与 `version:1.2.0-alpha4`。`updates` 的 `latest.json` 已按本版重写（含签名、字节数、文件名），已覆盖到 GitHub 生效。`bundle.targets` 显式设为 `["nsis", "msi"]`，`npm run tauri build` 一次产出两个包。安装范围：NSIS 安装时可选、默认所有用户（`Program Files\Renomio`）；MSI 只有机器级一种（固定 `Program Files\Renomio`、必须管理员、不提供用户级）。**该轮变更**：新增命令列表（规则链 + 冲突策略存成可复用命令，运行只进预览确认、绝不静默改文件）；正则替换兼容 Delphi 方言 `\1..\9` 分组引用（超限就地报错）；修规则开关滑块像素级偏心。E2E 275 通过 / 0 失败，正则自测 18/18，设计令牌 69 项一致。主程序为 `renomio.exe`，由 `[[bin]] name = "renomio"` 产出。
+本轮构建发生在备用机器上，该机**没有** `renomio-signing/renomio.key`，因此没有本地预检包，上表数字全部取自 tag `v1.2.0-alpha5` 的 CI 产物。两包均未做 Authenticode 代码签名（无 OV/EV 证书，首次运行 SmartScreen 会提示未知发布者；证书到位后可用 `scripts/sign/windows-sign.ps1` 补签）。更新用 `.sig` 由 CI 以 `TAURI_SIGNING_PRIVATE_KEY`（仅路径注入、空口令）生成，6 个包（NSIS/MSI/dmg/AppImage/deb/`Renomio.app.tar.gz`）的签名都用 `tauri.conf.json` 内置公钥离线验过——文件签名与 trusted comment 签名双 PASS，keyid `a1d8edb60bbc50fd`，trusted comment 绑定 `file` 与 `version:1.2.0-alpha5`。`updates` 的 `latest.json` 已按本版重写并覆盖到 GitHub 生效。安装范围：NSIS 安装时可选、默认所有用户（`Program Files\Renomio`）；MSI 只有机器级一种（固定 `Program Files\Renomio`、必须管理员、不提供用户级）。**该轮变更**：大小写规则新增例外词表（`protect`，`iPhone`/`PDF` 这类固定写法在六种大小写模式下保留原名写法，支持 `*`/`?` 通配与大小写不敏感）。E2E 278 通过 / 0 失败，例外词自测 18/18，正则方言 18/18，设计令牌 69 项一致。主程序为 `renomio.exe`，由 `[[bin]] name = "renomio"` 产出。
 
 **1.1.0-alpha1 时的真实升级实测**：匿名下载公开 `v1.0.0` NSIS 包并静默安装（`/S`，5.3 s，落到 `C:\Program Files\Renomio`，ARP 显示 `1.0.0`），再用 `1.1.0-alpha1` NSIS 包静默覆盖（6.5 s，ARP 与 `renomio.exe --version` 均变为 `1.1.0-alpha1`，安装路径不变；`uninstall.exe` 重写时间为升级时刻）。卸载、快捷方式落点、两范围交叉安装、旧版并存拦截仍未验证。
 
