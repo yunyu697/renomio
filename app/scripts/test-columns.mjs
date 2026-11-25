@@ -3,8 +3,9 @@
  *
  * 判据：**算法本身能跑（不是只写在组件里），界面确实接上了，五语种与文档同源**。
  * 三段：
- *  A. 算法实跑：用 tsc 把 `src/lib/columnFit.ts` 编译成 ESM 再 import，逐条断言
- *     夹取 / 下界 / 上界 / pad / 空样本 / 非法输入 / 一次算多列。
+ *  A. 算法实跑：优先用 Node ≥22.18 的类型剥离直接 import `src/lib/columnFit.ts`
+ *     （CI 的 cross-os 不装 node_modules 也能跑），宿主机不支持时回落 tsc 编译再 import；
+ *     逐条断言夹取 / 下界 / 上界 / pad / 空样本 / 非法输入 / 一次算多列 / 列宽预算内边距。
  *  B. 接线：MainPane 的六条分隔线都有 testid 与双击自适应、列菜单有「自动列宽」、
  *     空列表给提示、宽度写进 settings.columnWidths，package.json / CI 各一步。
  *  C. 文档：FEATURE-GAP 1.5 行、changelog、根 README、AGENTS 同源。
@@ -33,28 +34,42 @@ const check = (name, ok, detail = '') => {
 const read = (abs) => readFileSync(abs, 'utf8');
 
 // ---- A. 算法实跑 ------------------------------------------------------------
-console.log('[A] 纯函数实跑（tsc 编译后 import）');
+console.log('[A] 纯函数实跑（优先 Node 内置类型剥离，回落 tsc 编译）');
 
 const tmp = mkdtempSync(path.join(os.tmpdir(), 'renomio-columns-'));
-const tsc = path.join(appRoot, 'node_modules', 'typescript', 'lib', 'tsc.js');
 const src = path.join(appRoot, 'src', 'lib', 'columnFit.ts');
 check('测试前置：columnFit.ts 存在', existsSync(src), src);
-check('测试前置：typescript 编译器可用', existsSync(tsc), tsc);
 
-const compiled = spawnSync(
-  process.execPath,
-  [tsc, src, '--module', 'esnext', '--target', 'es2022', '--moduleResolution', 'bundler', '--outDir', tmp, '--skipLibCheck'],
-  { encoding: 'utf8' },
-);
-check('tsc 编译 columnFit.ts 成功', compiled.status === 0, (compiled.stdout || compiled.stderr || '').slice(0, 300));
-
+// 首选：Node ≥22.18 自带类型剥离，直接 import .ts（CI 的 cross-os 不装 node_modules 也能跑）
 let mod = null;
-const outFile = path.join(tmp, 'columnFit.js');
-if (compiled.status === 0 && existsSync(outFile)) {
-  mod = await import(pathToFileURL(outFile).href);
+let route = '';
+try {
+  mod = await import(pathToFileURL(src).href);
+  route = 'node 类型剥离';
+} catch (err) {
+  const tsc = path.join(appRoot, 'node_modules', 'typescript', 'lib', 'tsc.js');
+  console.log(`  （类型剥离不可用：${String((err && err.message) || err).slice(0, 90)} → 回落 tsc）`);
+  if (existsSync(tsc)) {
+    const compiled = spawnSync(
+      process.execPath,
+      [tsc, src, '--module', 'esnext', '--target', 'es2022', '--moduleResolution', 'bundler', '--outDir', tmp, '--skipLibCheck'],
+      { encoding: 'utf8' },
+    );
+    console.log(`  （tsc 退出码 ${compiled.status}）${(compiled.stdout || compiled.stderr || '').slice(0, 200)}`);
+    const outFile = path.join(tmp, 'columnFit.js');
+    if (compiled.status === 0 && existsSync(outFile)) mod = await import(pathToFileURL(outFile).href);
+    route = 'tsc 编译';
+  }
 }
-check('编译产物可 import', !!mod && typeof mod.fitColumnWidth === 'function');
 rmSync(tmp, { recursive: true, force: true });
+
+check('算法模块已加载并能调用 fitColumnWidth', !!mod && typeof mod.fitColumnWidth === 'function', route);
+const srcBody = read(src);
+check('算法层不 import 任何模块（纯函数，可脱离浏览器与 node_modules 单测）', !/^\s*import\s/m.test(srcBody) && !/require\(/.test(srcBody));
+const tokensCss = read(path.join(appRoot, 'src', 'styles', 'design-system-tokens.css'));
+const space5 = Number((tokensCss.match(/--ds-space-5:\s*(\d+)px/) || [])[1] ?? NaN);
+const listPad = Number((read(path.join(appRoot, 'src', 'components', 'MainPane.tsx')).match(/const LIST_PAD = (\d+)/) || [])[1] ?? NaN);
+check('列宽预算扣的内边距 = 表头/行两侧各 --ds-space-5（LIST_PAD = 2 × 12px）', space5 === 12 && listPad === space5 * 2, `space-5=${space5} LIST_PAD=${listPad}`);
 
 if (mod) {
   const { clampWidth, fitColumnWidth, fitWidths } = mod;
