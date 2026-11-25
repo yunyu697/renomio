@@ -2,6 +2,7 @@
 
 pub mod datadir;
 pub mod hashing;
+pub mod ini;
 pub mod journal;
 pub mod metaedit;
 pub mod metadata;

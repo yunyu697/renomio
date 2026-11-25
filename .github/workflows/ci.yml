@@ -235,6 +235,13 @@ jobs:
       - name: 更新通道守卫（探针实跑 + 接线 + 文档同源）
         run: node scripts/test-update.mjs --require-probe
 
+      # 设置文件：JSON ⇄ INI 双向编解码（导出能原样导回是唯一判据）
+      - name: 设置文件编解码契约（ini_contract，15 条）
+        run: cargo test --manifest-path src-tauri/renomio-core/Cargo.toml --test ini_contract
+
+      - name: 设置文件导入导出守卫（探针实跑 + 接线 + 文档同源）
+        run: node scripts/test-ini.mjs --require-probe
+
   bundle-checks:
     name: bundle-checks (windows / 14 条产物断言 + 13 条离线断言)
     runs-on: windows-latest

@@ -8,6 +8,7 @@ import {
 import type {
   BatchSummary, ConflictPolicy, LocaleSetting, SavedUpdate, UpdateInfo, UpdateProgress,
 } from '../lib/types';
+import { isDesktop } from '../lib/bridge';
 import { useApp } from '../store';
 import { BrandMark } from './BrandMark';
 import { Icon } from './Icon';
@@ -574,10 +575,51 @@ function SettingsPanel() {
   const clearRuleHistory = useApp((s) => s.clearRuleHistory);
   const [limitDraft, setLimitDraft] = useState(String(historyLimit));
   const [confirmClear, setConfirmClear] = useState(false);
+  const [fileBusy, setFileBusy] = useState<'export' | 'import' | null>(null);
+  /** 设置文件编解码在 Rust 侧，浏览器演示模式没有这条链路，按钮必须禁用而不是假装成功 */
+  const canUseSettingsFile = isDesktop;
+  const showToast = useApp((s) => s.showToast);
   useEffect(() => setLimitDraft(String(historyLimit)), [historyLimit]);
   const commitLimit = () => {
     const parsed = Number(limitDraft);
     setHistoryLimit(Number.isFinite(parsed) ? parsed : historyLimit);
+  };
+
+  const doExportSettings = async () => {
+    setFileBusy('export');
+    const { exportSettingsFile } = await import('../lib/settingsFile');
+    const res = await exportSettingsFile(settings);
+    setFileBusy(null);
+    if (res.canceled) return;
+    if (!res.ok) {
+      showToast('warn', t('toast.settingsExportFail', { error: res.error ?? '' }));
+      return;
+    }
+    showToast('info', t('toast.settingsExportOk', { path: res.path ?? '' }));
+  };
+
+  const doImportSettings = async () => {
+    setFileBusy('import');
+    const { importSettingsFile } = await import('../lib/settingsFile');
+    const res = await importSettingsFile();
+    setFileBusy(null);
+    if (res.canceled) return;
+    if (res.error) {
+      showToast('warn', t('toast.settingsImportFail', { error: res.error }));
+      return;
+    }
+    const applied = res.appliedKeys ?? [];
+    if (!res.patch || applied.length === 0) {
+      showToast('warn', t('toast.settingsImportEmpty'));
+      return;
+    }
+    updateSettings(res.patch);
+    const ignored = res.ignoredKeys ?? [];
+    if (ignored.length > 0) {
+      showToast('warn', t('toast.settingsImportPartial', { applied: applied.length, ignored: ignored.join('、') }));
+    } else {
+      showToast('info', t('toast.settingsImportOk', { applied: applied.length }));
+    }
   };
 
   return (
@@ -815,6 +857,35 @@ function SettingsPanel() {
           </Row>
           <div className="drawer-note" style={{ marginTop: 8 }}>
             {t('settings.historyPath')}
+          </div>
+        </section>
+
+        <section className="settings-section" data-testid="settings-file">
+          <h4>{t('settings.fileGroup')}</h4>
+          <Row label={t('settings.fileExport')} hint={t('settings.fileExportHint')}>
+            <button
+              className="btn btn-outline"
+              type="button"
+              data-testid="settings-export"
+              disabled={!canUseSettingsFile || fileBusy !== null}
+              onClick={() => void doExportSettings()}
+            >
+              <Icon name="save" size={13} />{t('settings.fileExportAction')}
+            </button>
+          </Row>
+          <Row label={t('settings.fileImport')} hint={t('settings.fileImportHint')}>
+            <button
+              className="btn btn-outline"
+              type="button"
+              data-testid="settings-import"
+              disabled={!canUseSettingsFile || fileBusy !== null}
+              onClick={() => void doImportSettings()}
+            >
+              <Icon name="folder" size={13} />{t('settings.fileImportAction')}
+            </button>
+          </Row>
+          <div className="drawer-note" style={{ marginTop: 8 }}>
+            {canUseSettingsFile ? t('settings.fileNote') : t('settings.fileDemo')}
           </div>
         </section>
 

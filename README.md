@@ -70,6 +70,12 @@ Get-FileHash .\Renomio_<版本>_x64-setup.exe -Algorithm SHA256
 - 设置 › 运行环境显示「数据目录 / 数据目录来源 / 便携说明」，来源取值：`命令行 --data-dir`、`环境变量 RENOMIO_DATA_DIR`、`便携模式（U 盘，随程序走）`、`每用户默认位置`。
 - 有机器验证：`npm run test:datadir`（44 条，真跑 `datadir_probe` 覆盖无标记 / 有标记 / 标记冲突 / 两级覆盖 / 命令行解析），`cargo test --test datadir_contract`（11 条），CI 的 `cross-os` 在 ubuntu / windows / macos 各跑一遍。
 
+### 设置文件（`.ini`）导入导出
+
+- 设置 › **设置文件**：把整份设置（外观、名称安全策略、USER 变量、快捷键、列宽、规则链、布局）导出成一份可读的 `.ini`；换机器时导入即可复现同样的规则与界面。
+- 文件是一行一键值，可用记事本直接看和改：`;` 或 `#` 开头是注释，嵌套对象用点路径（`layout.side = 400`），数组用下标（`userVars[0] = ...`，规则是 `[rules]` 分节下的 `[0].type = replace`），空对象/空数组写作 `{}` / `[]`。
+- 导入**只接受已知键且类型匹配**：未知键、类型不符、缺字段的规则条目会被丢弃并在提示里计数；语法错误（重复键、下标跳号、引号未闭合）会带行号报出来，且**当前设置一个字都不改**。
+- 编解码只在 `renomio-core/src/ini.rs` 一处实现；有机器验证：`cargo test --test ini_contract`（15 条）与 `npm run test:ini`（66 条，含整份设置往返一致与 6 类坏文件的行号断言）。
 ### 已知限制
 
 - **旧版 Rename Studio 必须先卸载。** 新版 identifier 与 MSI UpgradeCode 均已变更，不是原地升级。安装器会按「旧显示名 + 旧 UpgradeCode」检测旧版，命中后给出卸载命令并中止。**卸载旧版时不要勾选「删除应用数据」**，否则新版无法导入你的配置与撤销历史。

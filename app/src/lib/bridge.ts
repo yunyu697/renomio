@@ -791,6 +791,18 @@ export async function openTextFile(filters: TextFileFilter[]): Promise<{ cancele
   }
 }
 
+/** 设置导出：JSON 设置对象 → INI 文本；编解码只在 Rust core 一处实现。 */
+export async function settingsToIni(json: string): Promise<string> {
+  if (!isDesktop) throw new Error('浏览器演示模式：INI 编解码需要桌面端');
+  return invoke<string>('settings_to_ini', { value: json });
+}
+
+/** 设置导入：INI 文本 → JSON 设置对象；语法错误带行号，业务校验在前端做。 */
+export async function settingsFromIni(text: string): Promise<string> {
+  if (!isDesktop) throw new Error('浏览器演示模式：INI 编解码需要桌面端');
+  return invoke<string>('settings_from_ini', { text });
+}
+
 /** 演示模式的只读元数据样本（不读取真实文件）。 */
 export function demoMetadata(path: string): MetadataInfo {
   const name = path.split(/[\\/]/).pop() ?? path;

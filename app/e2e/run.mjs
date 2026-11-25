@@ -3968,6 +3968,55 @@ async function main() {
     const retained = await updateButtons();
     check('UI', '之后显示已最新时仍保留「安装」按钮', retained.phase === 'latest' && retained.latest === 1 && retained.install === 1 && retained.action === 0, JSON.stringify(retained));
 
+    // --- 5) 设置页「设置文件（.ini）」导入导出（演示模式禁用但必须可见且文案本地化） ---
+    const fileSection = await evaluate(`(() => {
+      const sec = document.querySelector('[data-testid="settings-file"]');
+      if (!sec) return null;
+      const exp = sec.querySelector('[data-testid="settings-export"]');
+      const imp = sec.querySelector('[data-testid="settings-import"]');
+      const note = sec.querySelector('.drawer-note');
+      const expRect = exp?.getBoundingClientRect();
+      const impRect = imp?.getBoundingClientRect();
+      return {
+        export: !!exp,
+        import: !!imp,
+        exportDisabled: exp?.disabled === true,
+        importDisabled: imp?.disabled === true,
+        exportLabel: exp?.textContent?.trim() ?? '',
+        importLabel: imp?.textContent?.trim() ?? '',
+        stacked: !!expRect && !!impRect && impRect.top > expRect.top,
+        rawKeys: sec.innerText.includes('settings.file') || sec.innerText.includes('toast.settings'),
+        note: note?.textContent?.trim() ?? '',
+      };
+    })()`);
+    check('UI', '设置页有「设置文件」分区，导出/导入两个按钮都在', fileSection?.export === true && fileSection?.import === true, JSON.stringify(fileSection));
+    check('UI', '设置文件：两项分行排布且标签非空', fileSection?.stacked === true && fileSection.exportLabel.length > 0 && fileSection.importLabel.length > 0, JSON.stringify(fileSection));
+    check('UI', '设置文件：文案已本地化（无原始 i18n key）且附说明', fileSection && !fileSection.rawKeys && fileSection.note.length > 0, JSON.stringify(fileSection));
+
+    // 点「导出」：必须真的调到 settings_to_ini 命令；这条链在这个 mock 下拿不到结果时只能给失败提示，不许假装成功
+    if (await evaluate(`Boolean(document.querySelector('[data-testid="toast"]'))`)) {
+      await click('[data-testid="toast"]');
+      await sleep(250);
+    }
+    await click('[data-testid="settings-export"]');
+    await waitFor(`document.querySelector('[data-testid="toast"]')`, '设置导出提示', 6000);
+    const exportToast = await evaluate(`(() => {
+      const el = document.querySelector('[data-testid="toast"]');
+      return { kind: el?.className ?? '', text: el?.querySelector('[data-testid="toast-text"]')?.textContent ?? '' };
+    })()`);
+    check(
+      'UI',
+      '导出入口给出失败提示而非假成功（命令链未接通时不许声称已导出）',
+      exportToast.kind.includes('error') || exportToast.kind.includes('warn'),
+      JSON.stringify(exportToast),
+    );
+    const exportEnabledAgain = await evaluate(`document.querySelector('[data-testid="settings-export"]')?.disabled === false`);
+    check('UI', '导出失败后按钮恢复可用（不卡在忙状态）', exportEnabledAgain === true, String(exportEnabledAgain));
+    await click('[data-testid="toast"]');
+    await sleep(150);
+    const importReady = await evaluate(`document.querySelector('[data-testid="settings-import"]')?.disabled === false`);
+    check('UI', '导入按钮可点击（文件选择由系统对话框承担）', importReady === true, String(importReady));
+
     // --- 快照：生成（哈希默认关）/ 预览 / 冲突跳过不覆盖 / 还原可撤销 ---
     await evaluate('localStorage.clear()');
     await send('Page.navigate', { url: `http://127.0.0.1:${HTTP_PORT}/index.html?lang=zh-CN` });

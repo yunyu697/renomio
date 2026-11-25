@@ -828,6 +828,21 @@ fn read_text_file(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| format!("读取失败：{e}"))
 }
 
+/// 设置导出：JSON 设置对象 → INI 文本（纯函数，落盘交给 write_text_atomic）。
+#[tauri::command]
+fn settings_to_ini(value: String) -> Result<String, String> {
+    let json: serde_json::Value =
+        serde_json::from_str(&value).map_err(|e| format!("设置数据不是合法 JSON：{e}"))?;
+    renomio_core::ini::to_ini(&json)
+}
+
+/// 设置导入：INI 文本 → JSON 设置对象；语法错误带行号，业务校验在前端按白名单做。
+#[tauri::command]
+fn settings_from_ini(text: String) -> Result<String, String> {
+    let value = renomio_core::ini::from_ini(&text)?;
+    serde_json::to_string(&value).map_err(|e| format!("设置数据无法序列化：{e}"))
+}
+
 /// 文本编码探测（只读）：BOM / 合法 UTF-8 确认；GB18030 仅试探并标记未确认。
 #[tauri::command]
 fn text_detect(path: String) -> Result<renomio_core::textedit::TextDetect, String> {
@@ -1360,6 +1375,8 @@ pub fn run() {
             apply_attrs,
             apply_move,
             read_text_file,
+            settings_to_ini,
+            settings_from_ini,
             text_detect,
             text_save,
             text_save_batch,

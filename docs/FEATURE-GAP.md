@@ -111,7 +111,8 @@
 | 6.10 | 快捷键（Ctrl O / Ctrl Shift O / Ctrl K / Ctrl Enter / Ctrl Z） | A | 键位窗 5 条绑定可查看/录制/恢复默认；冲突检测（占用时提示并拒绝）；Esc 分层（录制中只取消录制）；绑定持久化并在刷新后生效；e2e 9 条断言（列表、默认值、录制、冲突、Esc、持久化、旧键失效/新键生效、恢复默认） | 原版快捷键列表窗已对齐；暂不支持无修饰键（如 F2）绑定，避免与输入冲突 |
 | 6.11 | 跨平台 macOS / Linux | A | `platform::PlatformReport` 是平台差异的**单一事实来源**（OS/分隔符/大小写默认/路径阈值与硬上限/btime 三态+原因/「隐藏·系统·存档仅 Windows」+原因/长路径前缀）；`tests/platform_contract.rs` **11 条**逐 OS 断言（含只读位真实往返、非 Windows 属性写入必须逐条失败并带原因、Windows 名称规则与宿主无关）；`examples/platform_probe.rs` 输出 JSON，`npm run test:platform` 在宿主 OS 逐字段比对；CI 新增 `cross-os` 矩阵（**ubuntu-latest / windows-latest / macos-latest**）跑同一份 core 测试 + 平台契约 + 探针（三平台实跑记录见本轮 tag CI 的 `cross-os` 三个 job） | 原版仅 Windows；我们代码与测试三平台齐备，**但只在 CI 无头环境实跑**（macOS ad-hoc 未公证、Linux 未做桌面真机手工点验） |
 | 6.12 | 便携模式（U 盘）：程序旁放 `renomio.portable` 即把配置、批次记录、撤销历史与备份挪到 `<程序目录>/data`；`--data-dir <路径>` 与 `RENOMIO_DATA_DIR` 可再覆盖；标记在但目录不可用时回落到每用户目录并给出原因 | A | `renomio-core/src/datadir.rs`（四级优先级 + 标记 + 真实可写探针）、`tests/datadir_contract.rs` **11 条**（优先级、真实落盘、回落原因、CLI 解析、序列化、EnvInfo 三字段）、`examples/datadir_probe.rs` 与 `npm run test:datadir` **44 条**（真跑探针 5 个场景 + 接线 + 文档同源）；界面设置 › 运行环境显示「数据目录 / 来源 / 便携说明」；`migrate::info_skipped` 保证便携或覆盖时不自动迁移旧数据 | 原版 #32/#33 的便携/免安装；我们按标记文件实现，未做免安装压缩包分发与 INI 导入导出 |
-| 6.13 | 资源管理器右键菜单 / 快捷方式 / INI 导入导出 / 自我修复 / UAC 工具 | E | 无实现 | 原版 #32/#33；本版不做 |
+| 6.13 | 资源管理器右键菜单 / 快捷方式 / 自我修复 / UAC 工具 | E | 无实现 | 原版 #32/#33；本版不做（INI 导入导出已拆出 6.14 并实现） |
+| 6.14 | 设置导入导出（`.ini`） | A | `renomio-core/src/ini.rs` 是唯一编解码实现：顶层标量进 `[@root]`、对象/数组各自分节、点路径与 `[i]` 下标、`{}`/`[]` 保留空容器、会被读错类型的字符串自动加引号、注释 `;`/`#` 与 CRLF/BOM 容忍、重复键与下标乱序/跳号**带行号拒绝**；`tests/ini_contract.rs` **15 条**（真实设置形状往返、空容器、伪标量字符串、坏文件逐条报错、顶层数组分节、按钮不走旁路）、`examples/ini_probe.rs` 与 `npm run test:ini` **66 条**（真跑探针往返/手写文件/6 类坏文件/两次导出字节一致 + 接线 + 五语种文案 + 文档同源）；Tauri 命令 `settings_to_ini` / `settings_from_ini`，前端导入按 `DEFAULT_SETTINGS` 形状做**白名单校验**（未知键/类型不符/坏规则条目丢弃计数），设置 › 设置文件两个按钮 + 五语种文案；CI `cross-os` 三平台各跑契约与脚本 | 原版用 INI 存配置；我们补的是**可读可手改的设置导入导出**，与 localStorage 持久化并存；`self-repair`/快捷方式/右键菜单仍属 6.13 未做 |
 
 ---
 
@@ -142,7 +143,7 @@
 | WMA/APE/WAV/AIFF 标签 | 格式私有/复杂，收益低；继续保持「明确拒绝」，不静默跳过 |
 | 旧版 OLE（.doc/.xls/.ppt） | 二进制复合文档写入风险高；旧版文件可由用户另存为新格式 |
 | 加密 PDF、xref 流 PDF | 加密需密钥与算法；xref 流解析复杂度高，增量写入易损坏 |
-| 资源管理器右键 / 快捷方式 / INI 导入导出 / UAC 工具 / 自我修复 | 平台集成与安装器成本高，非核心价值（便携模式已单列 6.12 并实现） |
+| 资源管理器右键 / 快捷方式 / UAC 工具 / 自我修复 | 平台集成与安装器成本高，非核心价值（便携模式 6.12、设置导入导出 6.14 已单列并实现） |
 | 脚本 / 编码转换 / 内码 / 加密 / 对照表高级规则 | 原版 Delphi 特性，重实现成本高且易出错；先保证核心规则链稳定 |
 | 「无限次」撤销 | 磁盘备份策略与清理规则未定；当前按批次保留备份，可多级撤销 |
 | macOS/Linux 实机验证 | 无 mac/linux 环境；代码分支就绪但不敢宣称通过 |
@@ -168,11 +169,12 @@
 - ~~跨平台 macOS / Linux 只有代码分支、没有实机验证~~——已补：`platform::PlatformReport` 统一承载全部平台差异（OS/分隔符/大小写默认/路径警告与硬上限/btime 三态及原因/「隐藏·系统·存档仅 Windows」及原因/长路径前缀），`tests/platform_contract.rs` 11 条逐 OS 断言（只读位真实往返、非 Windows 属性写入必须逐条失败并带原因、Windows 名称规则与宿主无关、`\\?\` 不重复叠加），`examples/platform_probe.rs` 与 `npm run test:platform` 在宿主 OS 逐字段比对，CI 新增 `cross-os` 矩阵在 **ubuntu / windows / macos 三个真实 OS** 各跑一遍 core 测试。顺带修掉 README 一处「看着对实际不对」：非 Windows 的属性写入并非 no-op，而是逐条失败并给原因（域六 6.11，2026-11-25，alpha12）。
 - ~~U 盘便携 / 数据目录只能写死在每用户目录~~——已补 **便携模式**：程序旁放 `renomio.portable` 就把数据目录切到 `<程序目录>/data`，另可用 `--data-dir <路径>` 或 `RENOMIO_DATA_DIR` 覆盖（优先级：命令行 > 环境变量 > 便携标记 > 每用户目录）；便携标记在但 `data` 建不出来（同名文件/无写权限）时**回落到每用户目录并把原因写进 `dataRootNote` 交给界面显示**，不静默丢数据。数据目录解析收敛到 `renomio-core/src/datadir.rs`，`tests/datadir_contract.rs` 11 条 + `npm run test:datadir` 44 条（真跑 `datadir_probe` 的 5 个场景），CI 的 `cross-os` 三平台各跑一遍；便携/覆盖时 `migrate::info_skipped` 跳过自动迁移，旧数据目录保留可手动导入（域六 6.12 拆分并置 A，2026-11-25，alpha13）。
 - ~~更新通道在 alpha9 装机上失效~~——已修：版本比较改由 `renomio_core::version` 唯一实现，`alpha` 序号按**数值**比较（`alpha9 < alpha10 < alpha13`）；旧实现把整段 `alphaN` 当 semver 字母数字标识符做字符串比较，`alpha10 < alpha9`，于是装在 1.2.0-alpha9 的客户端永远认为已是最新。新增 `tests/version_contract.rs` 11 条、`examples/version_probe.rs` 探针、`npm run test:update` 与 CI `cross-os` 三平台各跑一遍（2026-11-25，alpha14）。
+- ~~设置在换机器 / 手改时无处可搬~~——已补 **设置导入导出 `.ini`**（域六 6.14）：导出把整份设置（外观、名称安全策略、USER 变量、快捷键、列宽、规则链、布局）编成一行一键值的文本文件，导入时由 Rust core 解析（语法错误带行号），前端再按默认设置的形状做**类型白名单**，未知键、类型不符与被丢弃的坏规则条目都计数回显——不会出现「导进去一半把界面搞坏」。导出-再导入逐键一致由 `tests/ini_contract.rs`（15 条）与 `npm run test:ini`（66 条）守住。
 - 文本编码/内容批量仍缺——域五 5.15 的 #17 部分；IPTC Core 四字段（XMP + IIM）已齐，歌词已补（域五 5.6/5.7/5.8）。
 
 ## 统计
 
-A 有实测：61 项（无部分覆盖）；B 仅单测：1 项；C 无验证：0 项；D 部分：0 项；E 未做：2 项；N 本版不做：5 项（合计 71 项）。
+A 有实测：63 项（无部分覆盖）；B 仅单测：1 项；C 无验证：0 项；D 部分：0 项；E 未做：2 项；N 本版不做：5 项（合计 71 项）。
 
 ## 版本闸门（已拍板 A，已解决）
 
