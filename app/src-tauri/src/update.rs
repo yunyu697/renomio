@@ -241,11 +241,11 @@ fn verify_bytes(
 }
 
 fn is_newer(remote: &str, current: &str) -> Result<bool, String> {
-    let remote =
-        semver::Version::parse(remote).map_err(|e| format!("清单版本号 {remote} 不合法：{e}"))?;
-    let current =
-        semver::Version::parse(current).map_err(|e| format!("当前版本号 {current} 不合法：{e}"))?;
-    Ok(remote > current)
+    // 比较逻辑放在 core：`alpha` 序号按数值比较（alpha9 < alpha10 < alpha13）。
+    // 直接用 semver 比较整段 `alphaN` 会得出 alpha10 < alpha9，让装在 alpha9
+    // 上的客户端永远看不到后续版本（2026-11-25 更新通道失效的根因）。
+    renomio_core::version::is_newer(remote, current)
+        .map_err(|err| format!("版本比较失败：{err}"))
 }
 
 fn pick_asset(manifest: &UpdateManifest) -> Result<PlatformAsset, String> {
@@ -974,6 +974,15 @@ mod tests {
         assert!(!is_newer("1.0.0-alpha4", "1.0.0-alpha5").unwrap());
         assert!(!is_newer("1.0.0-alpha4", "1.0.0-alpha4").unwrap());
         assert!(is_newer("1.0.0", "1.0.0-alpha5").unwrap());
+    }
+
+    #[test]
+    fn version_compare_handles_digit_width_boundary() {
+        // 回归：alpha9 是单数字序号，直接字符串比较会让 alpha10 显得更旧
+        assert!(is_newer("1.2.0-alpha10", "1.2.0-alpha9").unwrap());
+        assert!(is_newer("1.2.0-alpha13", "1.2.0-alpha9").unwrap());
+        assert!(!is_newer("1.2.0-alpha9", "1.2.0-alpha13").unwrap());
+        assert!(!is_newer("1.2.0-alpha9", "1.2.0-alpha9").unwrap());
     }
 
     #[test]

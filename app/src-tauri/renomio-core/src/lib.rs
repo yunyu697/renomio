@@ -12,6 +12,7 @@ pub mod scan;
 pub mod sniff;
 pub mod snapshot;
 pub mod textedit;
+pub mod version;
 
 use std::path::{Path, PathBuf};
 

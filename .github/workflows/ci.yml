@@ -228,6 +228,13 @@ jobs:
       - name: 数据目录探针与守卫
         run: node scripts/test-datadir.mjs --require-probe
 
+      # 更新通道：alpha 序号按数值比较（alpha9 < alpha10），防止 alpha9 装机看不到后续版本
+      - name: 版本比较契约测试（version_contract，11 条）
+        run: cargo test --manifest-path src-tauri/renomio-core/Cargo.toml --test version_contract
+
+      - name: 更新通道守卫（探针实跑 + 接线 + 文档同源）
+        run: node scripts/test-update.mjs --require-probe
+
   bundle-checks:
     name: bundle-checks (windows / 14 条产物断言 + 13 条离线断言)
     runs-on: windows-latest

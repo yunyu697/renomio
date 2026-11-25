@@ -2732,14 +2732,13 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rename-studio"
-version = "1.2.0-alpha13"
+version = "1.2.0-alpha14"
 dependencies = [
  "base64 0.23.1",
  "minisign-verify",
  "png",
  "renomio-core",
  "reqwest",
- "semver",
  "serde",
  "serde_json",
  "tauri",
@@ -2750,7 +2749,7 @@ dependencies = [
 
 [[package]]
 name = "renomio-core"
-version = "1.2.0-alpha13"
+version = "1.2.0-alpha14"
 dependencies = [
  "flate2",
  "serde",

@@ -39,6 +39,8 @@ MIT License — 见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-
 
 应用内「设置 → 检查更新」读取源码仓库滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；清单与资源地址均指向源码仓库，内置默认地址已随本版切换生效。
 
+更新判定按 **`alpha` 序号数值比较**（`alpha9 < alpha10 < alpha13`），不是字符串序——2026-11-25 的 alpha13 曾让装在 `1.2.0-alpha9` 的客户端检查不到更新（旧实现把整段 `alphaN` 当 semver 的字母数字标识符，`alpha10 < alpha9`），alpha14 起改由 `renomio_core::version` 统一比较，并有 `npm run test:update` 与三平台 CI 断言钉住。**装在 `1.2.0-alpha9` 及更早版本的机器**因为跑的是旧逻辑，自己看不到后续版本，需要手工装一次 alpha14（或更新版本），之后通道自动恢复。
+
 版本规则：唯一可改的版本号是仓库根 `VERSION`，其余（`app/package.json`、`app/packages/foundation/package.json`、`app/src-tauri/tauri.conf.json`、两个 `Cargo.toml`）由 `npm run version:sync` 注入；tag（如 `v1.1.0-alpha8`）必须与 `VERSION` 一致，段位（第二/三段与 alpha 序号）≤ 10。版本闸门按推送类型分档：**分支推送**（含 `main`）只要求 `VERSION` 不低于最新已发布 alpha，等于可通过、低于即拦截；**tag 推送**仍要求严格递增，alpha 复用与倒退一律拦截（`version` job 的 16 条反例自测覆盖这三种情形）。MSI 的 `ProductVersion` 只能是纯数字，故 `wix.version` 由同一 VERSION 的数字核注入（alpha 阶段取 `1.1.0`），包文件名仍带 alpha 号。
 
 校验方式（PowerShell）：
