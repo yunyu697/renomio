@@ -234,7 +234,9 @@ export const enUS: Dict = {
   'main.refreshHint': 'Re-check disk conflicts',
   'main.columns': 'Columns',
   'main.columnsHint': 'Show / hide columns, drag the header edge to resize (auto-saved)',
-  'main.resetWidths': 'Reset widths',
+  'main.autoFitColumns': 'Auto-fit columns',
+  'main.autoFitEmpty': 'The list is empty, nothing to measure',
+   'main.resetWidths': 'Reset widths',
   'main.widthHint': 'Drag the right edge of a header to resize; settings are saved automatically.',
   'main.removeSelected': 'Remove selected',
   'main.removeHint': 'Remove selected items from the list (files on disk are untouched)',
@@ -1354,3 +1356,4 @@ export const enUS: Dict = {
   'toast.noDuplicates': 'Nothing to dedupe',
   'toast.dupScanFailed': 'Duplicate scan failed: {message}',
 };
+

@@ -234,7 +234,9 @@ export const esES: Dict = {
   'main.refreshHint': 'Volver a comprobar conflictos de disco',
   'main.columns': 'Columnas',
   'main.columnsHint': 'Mostrar / ocultar columnas; arrastre el borde del encabezado para ajustar el ancho (guardado automático)',
-  'main.resetWidths': 'Restablecer anchos',
+  'main.autoFitColumns': 'Ajustar columnas',
+  'main.autoFitEmpty': 'La lista está vacía, no hay nada que medir',
+   'main.resetWidths': 'Restablecer anchos',
   'main.widthHint': 'Arrastre el borde derecho de un encabezado para ajustar el ancho; se guarda automáticamente.',
   'main.removeSelected': 'Quitar selección',
   'main.removeHint': 'Quitar de la lista los elementos seleccionados (sin tocar el disco)',
@@ -1354,3 +1356,4 @@ export const esES: Dict = {
   'toast.noDuplicates': 'Nada que deduplicar',
   'toast.dupScanFailed': 'Error al buscar duplicados: {message}',
 };
+

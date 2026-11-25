@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-25T08:49:46.355Z",
+  "generatedAt": "2026-11-25T11:44:37.152Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
-  "passed": 343,
+  "passed": 349,
   "failed": 0,
   "results": [
     {
@@ -160,13 +160,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-25 16:47 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-25 19:42 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-25 16:47 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-25 19:42 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -335,6 +335,42 @@
       "name": "拖动表头调整列宽并持久化",
       "ok": true,
       "detail": "285→325px, stored=325"
+    },
+    {
+      "layer": "UI",
+      "name": "列菜单有「自动列宽」按钮且文案本地化",
+      "ok": true,
+      "detail": "label=自动列宽"
+    },
+    {
+      "layer": "UI",
+      "name": "自动列宽写入每列宽度并夹在上下界内",
+      "ok": true,
+      "detail": "{\"name\":140,\"size\":62,\"modified\":108,\"newName\":150,\"status\":96}"
+    },
+    {
+      "layer": "UI",
+      "name": "自动列宽后 name 列真的按内容变宽（不小于最小可读宽）",
+      "ok": true,
+      "detail": "140px"
+    },
+    {
+      "layer": "UI",
+      "name": "双击分隔线只自适应这一列（size 落在 62..96，name 不变）",
+      "ok": true,
+      "detail": "size=62, name=140"
+    },
+    {
+      "layer": "UI",
+      "name": "自动列宽后表头与行仍逐列对齐（各列左边界最大 Δ ≤ 1px）",
+      "ok": true,
+      "detail": "Δ=0"
+    },
+    {
+      "layer": "UI",
+      "name": "重置列宽清空自定义宽度",
+      "ok": true,
+      "detail": "{}"
     },
     {
       "layer": "UI",
@@ -838,7 +874,7 @@
       "layer": "UI-triggered mock",
       "name": "交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/事件/写文件）",
       "ok": true,
-      "detail": "load_rule_history,startup_report,env_info,plugin:event|listen,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_attrs,read_times,apply_time,meta_read,meta_capabilities,list_snapshots,apply_attrs,apply_move"
+      "detail": "startup_report,load_rule_history,plugin:event|listen,env_info,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_attrs,read_times,apply_time,meta_read,meta_capabilities,list_snapshots,apply_attrs,apply_move"
     },
     {
       "layer": "UI-triggered mock",
@@ -988,7 +1024,7 @@
       "layer": "UI",
       "name": "元变量与序号组合的实时预览（logo.png → logo_001.png）",
       "ok": true,
-      "detail": "logo.pngMetadata86 KB2025-01-04 09:00logo_001.png.pngReadySpaceF2Del"
+      "detail": "logo.pngMetadataD:\\e2e\\设计86 KB2025-01-04 09:00logo_001.png.pngReadySpaceF2Del"
     },
     {
       "layer": "UI",
@@ -1270,7 +1306,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmwvvsyvn1\",\"jumpState\":{\"openId\":\"rmwvvsyvn1\",\"detail\":1,\"focused\":\"rmwvvsyvn1\"}}"
+      "detail": "{\"firstRuleId\":\"rmww21thl1\",\"jumpState\":{\"openId\":\"rmww21thl1\",\"detail\":1,\"focused\":\"rmww21thl1\"}}"
     },
     {
       "layer": "UI",
@@ -1618,7 +1654,7 @@
       "layer": "UI",
       "name": "运行后该命令记一次运行（次数 1、带上次运行时间）",
       "ok": true,
-      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/25, 04:49 PM\"}"
+      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/25, 07:43 PM\"}"
     },
     {
       "layer": "UI",
@@ -1684,7 +1720,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795596554680.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795607045337.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -1834,7 +1870,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/25 16:49:213 条 · 仅映射预览还原删除"
+      "detail": "2026/11/25 19:44:123 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -1894,7 +1930,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-25 16:49 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-25 19:44 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",

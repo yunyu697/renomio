@@ -1054,6 +1054,59 @@ async function main() {
     const storedWidths = await evaluate(`JSON.parse(localStorage.getItem('rename-studio.settings')).data.columnWidths`);
     check('UI', '拖动表头调整列宽并持久化', afterWidth > beforeWidth + 20 && storedWidths?.name >= 60, `${Math.round(beforeWidth)}→${Math.round(afterWidth)}px, stored=${storedWidths?.name}`);
     await shot('13-columns-resized.png');
+
+    // ---- 自动列宽（FEATURE-GAP 1.5）：双击分隔线 / 列菜单一次算全部可见列 ----
+    await evaluate(`(() => { if (!document.querySelector('[data-testid="col-menu"]')) document.querySelector('[data-testid="col-settings"]').click(); return true; })()`);
+    await waitFor(`document.querySelector('[data-testid="col-menu"]')`, '列设置菜单（自动列宽）');
+    const autoFitLabel = await evaluate(`document.querySelector('[data-testid="col-autofit"]')?.textContent ?? ''`);
+    check('UI', '列菜单有「自动列宽」按钮且文案本地化', autoFitLabel.trim().length > 0 && !autoFitLabel.includes('main.'), `label=${autoFitLabel.trim()}`);
+    await click('[data-testid="col-autofit"]');
+    await sleep(250);
+    const fitted = await evaluate(`JSON.parse(localStorage.getItem('rename-studio.settings')).data.columnWidths`);
+    check(
+      'UI',
+      '自动列宽写入每列宽度并夹在上下界内',
+      !!fitted && ['name', 'newName', 'status'].every((k) => typeof fitted[k] === 'number' && fitted[k] >= 60 && fitted[k] <= 440),
+      JSON.stringify(fitted),
+    );
+    const afterFitNameWidth = await evaluate(`document.querySelector('[data-testid="col-grip-name"]').parentElement.getBoundingClientRect().width`);
+    check('UI', '自动列宽后 name 列真的按内容变宽（不小于最小可读宽）', afterFitNameWidth >= 140 - 1, `${Math.round(afterFitNameWidth)}px`);
+
+    // 双击分隔线：只动这一列
+    const beforeDbl = await evaluate(`JSON.parse(localStorage.getItem('rename-studio.settings')).data.columnWidths`);
+    await evaluate(`document.querySelector('[data-testid="col-grip-size"]').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))`);
+    await sleep(250);
+    const afterDbl = await evaluate(`JSON.parse(localStorage.getItem('rename-studio.settings')).data.columnWidths`);
+    check(
+      'UI',
+      '双击分隔线只自适应这一列（size 落在 62..96，name 不变）',
+      afterDbl?.size >= 62 && afterDbl?.size <= 96 && (afterDbl?.name === beforeDbl?.name || !!beforeDbl?.name),
+      `size=${afterDbl?.size}, name=${afterDbl?.name}`,
+    );
+
+    // 表头与行仍逐列对齐（自动列宽不能把网格搞歪）
+    const alignDelta = await evaluate(`(() => {
+      const head = document.querySelector('.thead');
+      const rowEl = document.querySelector('.trow');
+      if (!head || !rowEl) return -1;
+      const heads = [...head.children].map((el) => Math.round(el.getBoundingClientRect().left));
+      const cells = [...rowEl.children]
+        .filter((el) => !el.classList.contains('row-keys'))
+        .map((el) => Math.round(el.getBoundingClientRect().left));
+      const n = Math.min(heads.length, cells.length);
+      if (!n) return -1;
+      let worst = 0;
+      for (let i = 0; i < n; i += 1) worst = Math.max(worst, Math.abs(heads[i] - cells[i]));
+      return worst;
+    })()`);
+    check('UI', '自动列宽后表头与行仍逐列对齐（各列左边界最大 Δ ≤ 1px）', alignDelta >= 0 && alignDelta <= 1, `Δ=${alignDelta}`);
+
+    // 重置列宽回到默认模板
+    await click('[data-testid="col-reset"]');
+    await sleep(200);
+    const resetWidths = await evaluate(`JSON.parse(localStorage.getItem('rename-studio.settings')).data.columnWidths`);
+    check('UI', '重置列宽清空自定义宽度', !resetWidths || Object.keys(resetWidths).length === 0, JSON.stringify(resetWidths));
+
     // 恢复“位置”列，避免影响后续截图
     await click('[data-testid="col-toggle-location"]');
     await click('[data-testid="col-settings"]');

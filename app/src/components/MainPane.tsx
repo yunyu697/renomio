@@ -7,6 +7,7 @@ import { useMarquee } from '../hooks/useMarquee';
 import { useListKeys } from '../hooks/useListKeys';
 import { formatSize, formatTime } from '../lib/format';
 import { fileKind } from '../lib/rules';
+import { fitColumnWidth, type FitSpec } from '../lib/columnFit';
 import { useTranslation } from '../i18n';
 import type { ColumnKey, PreviewRow, RowStatus } from '../lib/types';
 import { useApp } from '../store';
@@ -56,6 +57,24 @@ const COLUMN_FLEX: Record<ColumnKey, string> = {
   modified: '92px',
   newName: 'minmax(150px, 1.3fr)',
   status: '96px',
+};
+
+/** 自动列宽的上界与两侧非文本占位（勾选框 / 类型图标 / 状态点 / 内边距）。 */
+const COLUMN_MAX: Record<ColumnKey, number> = {
+  name: 440,
+  location: 340,
+  size: 96,
+  modified: 132,
+  newName: 440,
+  status: 148,
+};
+const COLUMN_PAD: Record<ColumnKey, number> = {
+  name: 56,
+  location: 22,
+  size: 26,
+  modified: 22,
+  newName: 28,
+  status: 34,
 };
 
 const STATUS_CLASS: Record<RowStatus, string> = {
@@ -154,12 +173,85 @@ export function MainPane() {
 
   const visibleColumns = COLUMN_DEFS.filter((c) => columns[c.key]);
   const widthOf = (key: ColumnKey) => dragWidths[key] ?? columnWidths[key];
+  /** 表头/行两侧的内边距（`--ds-space-5` × 2）：算列宽预算时必须扣掉，否则会多算一列导致横向滚动条。 */
+  const LIST_PAD = 24;
+
+  /** 文本测量：借用行内单元格的计算字体算宽度，和列表里真正渲染的字号/字体保持一致。 */
+  const measureCtx = useRef<CanvasRenderingContext2D | null>(null);
+  const textWidth = (text: string): number => {
+    if (!measureCtx.current) {
+      measureCtx.current = document.createElement('canvas').getContext('2d');
+    }
+    const ctx = measureCtx.current;
+    if (!ctx) return text.length * 9;
+    const probe = document.querySelector('.trow .cell .txt, .trow .cell .dims, .trow .cell .new-name, .thead .th');
+    const style = probe ? getComputedStyle(probe) : null;
+    ctx.font = style
+      ? `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+      : '13px system-ui';
+    return ctx.measureText(text).width;
+  };
+
+  /** 每列参与测量的样本：就是列表里真正显示的那串文本（含表头文案）。 */
+  const columnSamples = (key: ColumnKey): string[] => {
+    const header = t(`column.${key}`);
+    switch (key) {
+      case 'name':
+        return [header, ...rows.map((r) => r.entry.name)];
+      case 'location':
+        return [header, ...rows.map((r) => r.entry.parent)];
+      case 'size':
+        return [header, ...rows.map((r) => (r.entry.isDir ? '—' : formatSize(r.entry.size)))];
+      case 'modified':
+        return [header, ...rows.map((r) => formatTime(r.entry.modified))];
+      case 'newName':
+        return [header, ...rows.map((r) => r.newName)];
+      case 'status':
+        return [header, ...rows.map((r) => t(STATUS_KEY[r.status]))];
+      default:
+        return [header];
+    }
+  };
+
+  const fitSpec = (key: ColumnKey): FitSpec => ({
+    min: COLUMN_MIN[key],
+    max: COLUMN_MAX[key],
+    pad: COLUMN_PAD[key],
+  });
+
+  /** 单列自适应（表头分隔线双击）。 */
+  const fitColumn = (key: ColumnKey) => {
+    if (!rows.length) {
+      showToast('info', t('main.autoFitEmpty'));
+      return;
+    }
+    setDragWidths((prev) => {
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    updateSettings({
+      columnWidths: { ...columnWidths, [key]: fitColumnWidth(columnSamples(key), textWidth, fitSpec(key)) },
+    });
+  };
+
+  /** 全部可见列一次自适应（列菜单「自动列宽」）。 */
+  const fitAllColumns = () => {
+    if (!rows.length) {
+      showToast('info', t('main.autoFitEmpty'));
+      return;
+    }
+    const next = { ...columnWidths };
+    for (const key of shownKeys) next[key] = fitColumnWidth(columnSamples(key), textWidth, fitSpec(key));
+    updateSettings({ columnWidths: next });
+  };
   /** 按可用宽度收敛列：保留 name，优先保留 newName/status，次要列在窄窗隐藏，避免列被裁。 */
   const shownKeys = (() => {
     const all = visibleColumns.map((c) => c.key);
     if (!listWidth) return all;
     const keep: ColumnKey[] = [];
-    let used = 34;
+    let used = 34 + LIST_PAD;
     for (const key of [...all].sort((a, b) => COLUMN_RANK[a] - COLUMN_RANK[b])) {
       const min = widthOf(key) || COLUMN_MIN[key];
       if (!keep.length || used + min <= listWidth) {
@@ -181,7 +273,7 @@ export function MainPane() {
   const cols = `34px ${shownKeys
     .map((key) => {
       const width = widthOf(key);
-      const room = listWidth ? listWidth - 34 : 0;
+      const room = listWidth ? listWidth - 34 - LIST_PAD : 0;
       if (width && room >= Math.max(60, width)) return `minmax(0, ${Math.max(60, width)}px)`;
       if (compact && key === 'name') return 'minmax(140px, 2.4fr)';
       if (compact && key === 'newName') return 'minmax(150px, 1fr)';
@@ -700,6 +792,15 @@ export function MainPane() {
                 <button
                   className="col-reset"
                   type="button"
+                  data-testid="col-autofit"
+                  onClick={fitAllColumns}
+                >
+                  {t('main.autoFitColumns')}
+                </button>
+                <button
+                  className="col-reset"
+                  type="button"
+                  data-testid="col-reset"
                   onClick={() => updateSettings({ columnWidths: {} })}
                 >
                   {t('main.resetWidths')}
@@ -816,33 +917,33 @@ export function MainPane() {
           {shown.name && (
             <div className="th sortable resizable" onClick={() => toggleSort('name')}>
               {t('column.name')} <Icon name={listSort.key === 'name' ? (listSort.dir === -1 ? 'chevron-up' : 'chevron-down') : 'sort'} size={11} />
-              <span className="col-grip" data-testid="col-grip-name" onMouseDown={(e) => beginResize('name', e)} />
+              <span className="col-grip" data-testid="col-grip-name" onMouseDown={(e) => beginResize('name', e)} onDoubleClick={() => fitColumn('name')} />
             </div>
           )}
           {shown.location && (
             <div className="th resizable">
-              {t('column.location')}<span className="col-grip" onMouseDown={(e) => beginResize('location', e)} />
+              {t('column.location')}<span className="col-grip" data-testid="col-grip-location" onMouseDown={(e) => beginResize('location', e)} onDoubleClick={() => fitColumn('location')} />
             </div>
           )}
           {shown.size && (
             <div className="th resizable" style={{ justifyContent: 'flex-end' }} onClick={() => toggleSort('size')}>
-              {t('column.size')}<span className="col-grip" onMouseDown={(e) => beginResize('size', e)} />
+              {t('column.size')}<span className="col-grip" data-testid="col-grip-size" onMouseDown={(e) => beginResize('size', e)} onDoubleClick={() => fitColumn('size')} />
             </div>
           )}
           {shown.modified && (
             <div className="th sortable resizable" onClick={() => toggleSort('modified')}>
               {t('column.modified')} <Icon name={listSort.key === 'modified' ? (listSort.dir === -1 ? 'chevron-up' : 'chevron-down') : 'sort'} size={11} />
-              <span className="col-grip" onMouseDown={(e) => beginResize('modified', e)} />
+              <span className="col-grip" data-testid="col-grip-modified" onMouseDown={(e) => beginResize('modified', e)} onDoubleClick={() => fitColumn('modified')} />
             </div>
           )}
           {shown.newName && (
             <div className="th resizable">
-              {t('column.newName')}<span className="col-grip" onMouseDown={(e) => beginResize('newName', e)} />
+              {t('column.newName')}<span className="col-grip" data-testid="col-grip-newName" onMouseDown={(e) => beginResize('newName', e)} onDoubleClick={() => fitColumn('newName')} />
             </div>
           )}
           {shown.status && (
             <div className="th resizable">
-              {t('column.status')}<span className="col-grip" onMouseDown={(e) => beginResize('status', e)} />
+              {t('column.status')}<span className="col-grip" data-testid="col-grip-status" onMouseDown={(e) => beginResize('status', e)} onDoubleClick={() => fitColumn('status')} />
             </div>
           )}
         </div>
@@ -1084,3 +1185,4 @@ export function MainPane() {
     </section>
   );
 }
+

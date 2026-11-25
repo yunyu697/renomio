@@ -1,10 +1,10 @@
 # 无头浏览器 E2E 报告
 
-- 生成时间：2026-11-25T08:49:46.355Z
+- 生成时间：2026-11-25T11:44:37.152Z
 - 运行方式：无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）
 - 浏览器：`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`
 - 视口：1440×900（默认） / 1100×640@1.5x（最小尺寸）
-- 结果：**343 通过 / 0 失败**
+- 结果：**349 通过 / 0 失败**
 - 截图目录：`app/e2e/screenshots/`（已加入 `.gitignore`，仅本机保留，不随仓库分发）
 
 ## UI 层断言（DOM / 可见性 / 截图）
@@ -30,8 +30,8 @@
 | ✅ 通过 | 应用 → 2 个完成 + 1 个冲突跳过（未改名文件不参与）（{"total":3,"done":2,"skipped":1,"failed":0}） |
 | ✅ 通过 | 冲突文件保持原名 |
 | ✅ 通过 | 撤销 → 4 个原名全部恢复（["旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg","logo.png"]） |
-| ✅ 通过 | 历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略（2026-11-25 16:47 · 更名D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤） |
-| ✅ 通过 | 历史面板：已撤销批次显示「已撤销」并说明原因（{"undoable":"0","state":"已撤销","reason":"该批次已经撤销","text":"2026-11-25 16:47 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销"}） |
+| ✅ 通过 | 历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略（2026-11-25 19:42 · 更名D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤） |
+| ✅ 通过 | 历史面板：已撤销批次显示「已撤销」并说明原因（{"undoable":"0","state":"已撤销","reason":"该批次已经撤销","text":"2026-11-25 19:42 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销"}） |
 | ✅ 通过 | 历史面板：新批次显示「可撤销」（{"undoable":"1","id":"mock-batch-2"}） |
 | ✅ 通过 | 历史面板：撤销后条目变为「已撤销」（{"undoable":"0","state":"已撤销","chip":"已撤销","reason":"该批次已经撤销"}） |
 | ✅ 通过 | 历史面板：较新批次可撤销时，「撤销到此」可用（多级撤销）（{"index":1,"undoable":"1","disabled":false}） |
@@ -58,6 +58,12 @@
 | ✅ 通过 | 隐藏“位置”列 → 表头与行同步减少（th=6, cell=6） |
 | ✅ 通过 | 列显示设置持久化（localStorage） |
 | ✅ 通过 | 拖动表头调整列宽并持久化（285→325px, stored=325） |
+| ✅ 通过 | 列菜单有「自动列宽」按钮且文案本地化（label=自动列宽） |
+| ✅ 通过 | 自动列宽写入每列宽度并夹在上下界内（{"name":140,"size":62,"modified":108,"newName":150,"status":96}） |
+| ✅ 通过 | 自动列宽后 name 列真的按内容变宽（不小于最小可读宽）（140px） |
+| ✅ 通过 | 双击分隔线只自适应这一列（size 落在 62..96，name 不变）（size=62, name=140） |
+| ✅ 通过 | 自动列宽后表头与行仍逐列对齐（各列左边界最大 Δ ≤ 1px）（Δ=0） |
+| ✅ 通过 | 重置列宽清空自定义宽度（{}） |
 | ✅ 通过 | 时间面板 → 不支持的创建时间字段禁用并标注 |
 | ✅ 通过 | 时间预览 → 原值 → 新值（默认平移 1 天）（2025-01-01 08:00→2025-01-02 08:00） |
 | ✅ 通过 | 时间预览随偏移量实时变化（2025-01-01 08:00→2025-01-02 08:00 → 2025-01-01 08:00→2025-01-03 08:00） |
@@ -153,7 +159,7 @@
 | ✅ 通过 | en-US @150%：页面无横向溢出，按钮/表头/侧栏/操作条无截断（{"innerWidth":1100,"scrollWidth":1100,"buttons":[],"headers":[],"nav":[],"actions":[],"rows":4}） |
 | ✅ 通过 | 变量插入面板列出常用元变量（FILENAME/NAME/EXT/SUBSTR/DIFNSUBSTR/CRC32/USER1/#）（var-toggle,var-panel,var-FILENAME,var-NAME,var-EXT,var-DOTEXT,var-SUBSTR,var-DIFNSUBSTR,var-DIR,var-DATE,var-TIME,var-SIZE,var-CRC32,var-MD5,var-SHA1,var-USER0,var-USER1,var-#） |
 | ✅ 通过 | 点击变量插入到表达式（<#><NAME>） |
-| ✅ 通过 | 元变量与序号组合的实时预览（logo.png → logo_001.png）（logo.pngMetadata86 KB2025-01-04 09:00logo_001.png.pngReadySpaceF2Del） |
+| ✅ 通过 | 元变量与序号组合的实时预览（logo.png → logo_001.png）（logo.pngMetadataD:\e2e\设计86 KB2025-01-04 09:00logo_001.png.pngReadySpaceF2Del） |
 | ✅ 通过 | 变量面板实时示例（IMG_2048_1.jpg） |
 | ✅ 通过 | 规则链为单栏：无两栏网格、编辑器嵌在卡片内、同一时间只展开一条（{"display":"flex","grid":"none","details":1,"inCard":true,"cards":3,"twoColumnDetail":false}） |
 | ✅ 通过 | 规则链初始顺序为 replace,number,case（replace,number,case） |
@@ -200,7 +206,7 @@
 | ✅ 通过 | 冲突命中：同路径包含+排除、前缀/子目录重叠（2 条独立冲突）（{"count":2,"items":["include-exclude","path-overlap"]}） |
 | ✅ 通过 | 冲突命中：动作矛盾与正则等价合并为一条（同一对规则只出现一次）（{"count":1,"items":["regex-overlap,action-contradiction"],"badges":2,"rules":2,"modal":false}） |
 | ✅ 通过 | 冲突不阻断保存：两条规则仍在、无阻断弹窗、两条规则就地标出（{"count":1,"items":["regex-overlap,action-contradiction"],"badges":2,"rules":2,"modal":false}） |
-| ✅ 通过 | 点击冲突汇总可跳转到对应规则（展开并聚焦）（{"firstRuleId":"rmwvvsyvn1","jumpState":{"openId":"rmwvvsyvn1","detail":1,"focused":"rmwvvsyvn1"}}） |
+| ✅ 通过 | 点击冲突汇总可跳转到对应规则（展开并聚焦）（{"firstRuleId":"rmww21thl1","jumpState":{"openId":"rmww21thl1","detail":1,"focused":"rmww21thl1"}}） |
 | ✅ 通过 | 冲突命中：后一条被遮蔽不可达（{"items":2,"hasShadow":true}） |
 | ✅ 通过 | 冲突不命中：模式不重叠且替换互不相干时不提示（{"panel":false,"items":0,"badges":0,"rules":2}） |
 | ✅ 通过 | 正则开启时替换串旁给出 \1 分组引用提示（含等价写法 $1）（With regex on, \1…\9 in the replacement is treated as a group reference (same as $1…$9); w） |
@@ -257,7 +263,7 @@
 | ✅ 通过 | 命令重载后仍在（写入本地存储，不是会话内存）（items=1） |
 | ✅ 通过 | 运行命令 → 关闭命令列表并进入预览确认（不动文件）（{"dialog":false,"preview":true,"rows":1,"summary":"4 items · 0 conflicts · 0 invalid · every rename uses a temp file + atomic replace; the batch journal is persisted and undoable.","sub":"","selectedForRun":4}） |
 | ✅ 通过 | 运行命令后预览列出该命令产生变化的行（{"rows":1,"selectedForRun":4,"summary":"4 items · 0 conflicts · 0 invalid · every rename uses a temp"}） |
-| ✅ 通过 | 运行后该命令记一次运行（次数 1、带上次运行时间）（{"runs":"1","meta":"1 rules · Skip conflicting rows · run 1 times · 11/25, 04:49 PM"}） |
+| ✅ 通过 | 运行后该命令记一次运行（次数 1、带上次运行时间）（{"runs":"1","meta":"1 rules · Skip conflicting rows · run 1 times · 11/25, 07:43 PM"}） |
 | ✅ 通过 | 删除命令 → 列表回到空态且本地存储同步清空（{"items":0,"empty":1,"stored":"[]"}） |
 | ✅ 通过 | 列表「下移」立即改变顺序并出现手动顺序标记（{"namesBefore":["旧照片 001.jpg","logo.png","旧照片 002.jpg","旧照片 003.jpg"],"namesAfterDown":["logo.png","旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg"],"manualChip":1}） |
 | ✅ 通过 | 手动顺序在重载后仍然保留（localStorage 会话）（{"namesAfterDown":["logo.png","旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg"],"namesReloaded":["logo.png","旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg"]}） |
@@ -268,7 +274,7 @@
 | ✅ 通过 | 内容相同的不同路径进入「疑似重复」分组，未静默删除（{"dupPanelBefore":1,"dupGroups":1}） |
 | ✅ 通过 | 一键去重只移除列表中的一条，磁盘文件数不变（{"countBeforeDedupe":7,"countAfterDedupe":6,"filesOnDisk":7,"filesAfterDedupe":7}） |
 | ✅ 通过 | JPEG 属性编辑：显示 IPTC-IIM 双写说明（{"shown":true,"text":"On JPEG these four IPTC Core fields go into both XMP and IPTC-IIM (APP13 8BIM): modern apps read XMP, older ones read IIM, and both stay in sync."}） |
-| ✅ 通过 | 属性编辑：选中字段写入并回读校验通过（{"text":"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\e2e\\旅行\\旧照片 002.jpg.1795596554680.bak","ok":true,"verified":true}） |
+| ✅ 通过 | 属性编辑：选中字段写入并回读校验通过（{"text":"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\e2e\\旅行\\旧照片 002.jpg.1795607045337.bak","ok":true,"verified":true}） |
 | ✅ 通过 | 属性编辑：重新打开可见写入后的值（{"rereadTitle":"E2E 新标题"}） |
 | ✅ 通过 | 不支持的格式不显示 IPTC-IIM 说明（避免误导）（{"heicIptcNote":0}） |
 | ✅ 通过 | 不支持格式（HEIC）明确拒绝并附文件与原因（{"unsupportedShown":1,"heicResult":{"bad":true,"text":"sample.heicHEICFailedHEIC 不支持写入：HEIC/HEIF 解码能力缺失，本版本不支持Backup：No backup"}}） |
@@ -293,7 +299,7 @@
 | ✅ 通过 | 自检结束后两个按钮都恢复可用（不卡在忙状态）（true） |
 | ✅ 通过 | 快照：入口真实可用且哈希复选框默认关闭（false） |
 | ✅ 通过 | 快照（仅映射）→ 记录 3 条原名/新名与大小/时间，不含哈希（{"entryCount":3,"hashed":0}） |
-| ✅ 通过 | 快照列表显示「仅映射」（2026/11/25 16:49:213 条 · 仅映射预览还原删除） |
+| ✅ 通过 | 快照列表显示「仅映射」（2026/11/25 19:44:123 条 · 仅映射预览还原删除） |
 | ✅ 通过 | 快照：勾选后开启 SHA-256（true） |
 | ✅ 通过 | 快照（含哈希）→ 3 条 SHA-256 且逐条上报进度（{"id":"mock-snap-2","hashed":3}） |
 | ✅ 通过 | 快照生成 → 进度事件可取消/可观测（hash/done）（hash,done） |
@@ -303,7 +309,7 @@
 | ✅ 通过 | 还原执行 → 2 条还原、1 条跳过，批次 kind=restore 且 policy=skip（{"total":3,"done":2,"skipped":1,"failed":0}） |
 | ✅ 通过 | 还原绝不覆盖：诱饵文件保持原样，冲突条目的新名文件仍在（{"decoyIntact":12345,"afterRestoreFiles":["照片_001.jpg","旧照片 002.jpg","旧照片 003.jpg","logo.png","旧照片 001.jpg"]}） |
 | ✅ 通过 | 还原结果逐条说明跳过原因（还原结果：成功 2 条，跳过/失败 1 条批次 mock-batch-2还原已写入操作记录，可在「操作记录」里整批撤销D:\e2e\旅行\照片_002.jpg→D:\e2e\旅行\旧照片 002.jpg已还原D:\e2e\旅行\照片_003.jpg→D:\e2e\旅行\旧照片 003.jpg已还原D:\e2e\旅行\照） |
-| ✅ 通过 | 操作记录把还原标为「快照还原」且可撤销（2026-11-25 16:49 · 快照还原D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销） |
+| ✅ 通过 | 操作记录把还原标为「快照还原」且可撤销（2026-11-25 19:44 · 快照还原D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销） |
 | ✅ 通过 | 撤销还原 → 2 条回到新名（冲突条目不受影响）（["照片_001.jpg","照片_002.jpg","照片_003.jpg","logo.png","旧照片 001.jpg"]） |
 | ✅ 通过 | 删除快照 → 列表与后端同步只剩 1 条（1） |
 | ✅ 通过 | 勾选一张图片后 EXIF 入口在检查器里可用（作用于勾选文件）（1 / 作用于 1 个文件） |
@@ -371,7 +377,7 @@
 | ✅ 通过 | 模板移动后 → 4 个文件落入两级目录（d:\e2e\归类结果\jpg\2025\旧照片 001.jpg \| d:\e2e\归类结果\jpg\2025\旧照片 002.jpg \| d:\e2e\归类结果\jpg\2025\旧照片 003.jpg \| d:\e2e\归类结果\png\2025\logo.png） |
 | ✅ 通过 | 模板归类可撤销 → 路径全部回到原位置（D:\e2e\旅行\旧照片 001.jpg \| D:\e2e\旅行\旧照片 002.jpg \| D:\e2e\旅行\旧照片 003.jpg \| D:\e2e\设计\logo.png） |
 | ✅ 通过 | 拖放 drop → 调用扫描/添加路径命令，计数正确（+2）（paths=D:\e2e\新拖入\拖入 A.txt,D:\e2e\新拖入\拖入 B.txt, rows=11） |
-| ✅ 通过 | 交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/事件/写文件）（load_rule_history,startup_report,env_info,plugin:event\|listen,privilege_info,migration_info,plugin:event\|unlisten,append_log,plugin:dialog\|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog\|save,write_text_atomic,read_text_file,write_bytes_atomic,read_attrs,read_times,apply_time,meta_read,meta_capabilities,list_snapshots,apply_attrs,apply_move） |
+| ✅ 通过 | 交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/事件/写文件）（startup_report,load_rule_history,plugin:event\|listen,env_info,privilege_info,migration_info,plugin:event\|unlisten,append_log,plugin:dialog\|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog\|save,write_text_atomic,read_text_file,write_bytes_atomic,read_attrs,read_times,apply_time,meta_read,meta_capabilities,list_snapshots,apply_attrs,apply_move） |
 | ✅ 通过 | 右上角窗口按钮 → 实际调用 window API（minimize / toggle_maximize / close）（minimize,toggle_maximize,close） |
 | ✅ 通过 | 手动导入经 Tauri 命令层并回报导入/跳过数量（已导入 2 个文件，跳过 1 个已存在的文件（导入前已备份）。） |
 | ✅ 通过 | 启用 Analyze 后真的按需调用了 sniff_extensions（1） |

@@ -234,7 +234,9 @@ export const zhTW: Dict = {
   'main.refreshHint': '重新檢查磁碟衝突',
   'main.columns': '欄位設定',
   'main.columnsHint': '顯示 / 隱藏欄位，拖曳欄頭右緣調整欄寬（自動儲存）',
-  'main.resetWidths': '重設欄寬',
+  'main.autoFitColumns': '自動欄寬',
+  'main.autoFitEmpty': '清單為空，沒有可量測的內容',
+   'main.resetWidths': '重設欄寬',
   'main.widthHint': '拖曳欄頭右緣可調整欄寬，設定會自動儲存。',
   'main.removeSelected': '移除選取',
   'main.removeHint': '從清單移除選取項（不刪除磁碟檔案）',
@@ -1354,3 +1356,4 @@ export const zhTW: Dict = {
   'toast.noDuplicates': '沒有需要去重的項目',
   'toast.dupScanFailed': '查重失敗：{message}',
 };
+

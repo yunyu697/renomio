@@ -334,6 +334,7 @@ app/
 - 更新通道：`npm run test:update` → **39 通过 / 0 失败**（真跑 `cargo run --example version_probe`，逐条核对 alpha 序号按数值比较：`alpha9 → alpha13` 必须为 newer、`alpha19 → alpha20` 跨数字位宽、正式版高于任何 alpha、同版本不算更新；再静态断言 `update.rs` 只调 `renomio_core::version::is_newer`、`src-tauri` 已移除 `semver` 裸比、CI 在 `cross-os` 三平台都跑契约与本源脚本）。
 - 设置文件：`npm run test:ini` → **66 通过 / 0 失败**（真跑 `cargo run --example ini_probe`：整份设置导出后逐键导回一致、手写 .ini（注释 / CRLF / 引号 / 数组 / 嵌套）逐字段核对、6 类坏文件必须带行号报错（重复键 / 键在分节前 / 下标跳号 / 引号未闭合 / 缺等号 / 分节名非法）、同一份设置两次导出字节一致；再接线上断言命令注册、前端只走 core、导入白名单、按钮与五语种文案、CI 两步、文档同源）。
 - 数据目录自检与修复：`npm run test:repair` → **90 通过 / 0 失败**（真跑 `cargo run --example repair_probe` 覆盖 12 组场景：干净目录零发现、缺 4 个子目录全部 info 且被重建、坏批次**隔离而不删除**且隔离副本字节不变、空文件 detail 写明「空文件」、id 不符是 warn、坏快照与 id 不符各一码、`rule-history.json` 只认顶层数组/对象、临时文件「刚写不删 / 超 24 小时才删」、孤儿备份只提示、同毫秒重跑幂等、缺根目录被建而根是文件不可修、`check` 全程不写盘、报告键名 camelCase；再接线上断言两条 Tauri 命令与 core 委派、前端桥接与界面按钮、五语种 25 条文案、CI 两步、文档同源）。
+- 列宽自适应：`npm run test:columns` → **56 通过 / 0 失败**（用 tsc 把 `src/lib/columnFit.ts` 编译成 ESM 后真跑纯函数：夹取上下界、空样本、pad、超长内容、NaN/Infinity 不产出 `px: NaN`、一次算多列；再断言界面六条分隔线的 testid 与双击自适应、列菜单「自动列宽」、空列表提示、宽度写进 settings、五语种两条文案、CI 一步、文档同源）。
 - 跨平台实跑：CI `cross-os` 矩阵（ubuntu-latest / windows-latest / macos-latest）各跑一遍 `tests/platform_contract.rs` + `renomio-core` 全量测试 + 平台守卫——「Windows 可写 btime、Linux 只读、macOS 不支持、非 Windows 属性写入必须显式失败」这些结论因此有实机断言，不只是文档说法。
 - 桌面壳编译与测试：`cargo test --manifest-path src-tauri/Cargo.toml` → **19 passed / 1 ignored** ✅（含失败原因归类、旧数据迁移 4 例、用真实 journal 验证迁移后仍可撤销）
 - 无头浏览器 E2E：`npm run test:e2e` → **343 通过 / 0 失败** ✅（配置层 + UI 层 + UI 触发的 mock 命令层 + 真实文件脚本汇总（元变量、八规则、智能更名策略、编号高级、条件分支等）；`PERF=1` 时另加 4 项性能断言），仓库只保留最新一次报告文本 `e2e/report.md` / `e2e/report.json`；截图写入本机 `e2e/screenshots/`（已 `.gitignore`），仓库内不提供截图链接，需要留存请取 CI artifact 或本地文件
@@ -467,3 +468,6 @@ app/
 ## 工作方式约定
 
 构建、测试、验证一律后台执行；禁止在用户会话中启动带 GUI 的进程（`tauri dev`、有头浏览器、文件管理器）；文件操作验收用临时目录 + 断言脚本，不靠人工点界面。完整约定与常用后台命令见 [../CONTRIBUTING.md](../CONTRIBUTING.md)。
+
+
+

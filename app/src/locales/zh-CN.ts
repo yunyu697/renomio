@@ -231,7 +231,9 @@ export const zhCN: Dict = {
   'main.refreshHint': '重新检查磁盘冲突',
   'main.columns': '列设置',
   'main.columnsHint': '显示 / 隐藏列，拖动表头右缘调整列宽（自动保存）',
-  'main.resetWidths': '重置列宽',
+  'main.autoFitColumns': '自动列宽',
+  'main.autoFitEmpty': '列表为空，没有可测量的内容',
+   'main.resetWidths': '重置列宽',
   'main.widthHint': '拖动表头右缘可调整列宽，设置会自动保存。',
   'main.removeSelected': '移除选中',
   'main.removeHint': '从列表移除选中项（不删除磁盘文件）',
@@ -1469,3 +1471,4 @@ export const zhCN: Dict = {
   'ops.undoThis': '撤销本次',
   'ops.undoing': '正在撤销…',
 };
+

@@ -234,7 +234,9 @@ export const jaJP: Dict = {
   'main.refreshHint': 'ディスク競合を再確認',
   'main.columns': '列設定',
   'main.columnsHint': '列の表示 / 非表示、見出しの右端をドラッグして幅を調整（自動保存）',
-  'main.resetWidths': '列幅をリセット',
+  'main.autoFitColumns': '列幅を自動調整',
+  'main.autoFitEmpty': '一覧が空のため測定できません',
+   'main.resetWidths': '列幅をリセット',
   'main.widthHint': '見出しの右端をドラッグして幅を調整できます。設定は自動保存されます。',
   'main.removeSelected': '選択を削除',
   'main.removeHint': '選択項目を一覧から削除（ディスク上のファイルは変更しません）',
@@ -1354,3 +1356,4 @@ export const jaJP: Dict = {
   'toast.noDuplicates': '重複除去の対象はありません',
   'toast.dupScanFailed': '重複検索に失敗：{message}',
 };
+
