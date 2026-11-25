@@ -71,6 +71,10 @@ jobs:
       - name: 正则方言自测（\1 / \0 引用与 nth 展开，28 条）
         run: npm run test:regex
 
+      # 执行筛选守卫：纯函数（保留/排除叠加、空匹配不落地）+ 路径条内联入口接线 + 文档同源
+      - name: 执行筛选自测（23 条）
+        run: npm run test:filter
+
       - name: 大小写例外词表自测（18 条）
         run: npm run test:case
 

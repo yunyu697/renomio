@@ -3049,6 +3049,70 @@ async function main() {
     }))()`);
     check('UI', '冲突不命中：模式不重叠且替换互不相干时不提示', !noConflicts.panel && noConflicts.items === 0 && noConflicts.badges === 0 && noConflicts.rules === 2, JSON.stringify(noConflicts));
 
+    // ---- 执行筛选：入口在路径条筛选组内联（不再藏在更多菜单里）----
+    await setInput('[data-testid="include-pattern"]', '');
+    await setInput('[data-testid="exclude-pattern"]', '');
+    await sleep(300);
+    const filterIdle = await evaluate(`(() => ({
+      btn: document.querySelector('[data-testid="filter-apply"]') ? 1 : 0,
+      rows: document.querySelectorAll('.trow').length,
+    }))()`);
+    check('UI', '筛选组：没填条件时不显示执行按钮', filterIdle.btn === 0 && filterIdle.rows > 0, JSON.stringify(filterIdle));
+
+    await setInput('[data-testid="include-pattern"]', 'nomatch-zzz');
+    await sleep(300);
+    const filterShown = await evaluate(`(() => {
+      const el = document.querySelector('[data-testid="filter-apply"]');
+      return { btn: el ? 1 : 0, label: el ? el.textContent.trim() : '', hint: el ? (el.getAttribute('title') || '') : '' };
+    })()`);
+    check('UI', '筛选组：填了条件后按钮出现在条件旁边，并带说明', filterShown.btn === 1 && filterShown.label.length > 0 && filterShown.hint.length > 0, JSON.stringify(filterShown));
+
+    // 一条都不匹配：不许把列表清空
+    const beforeFilter = await evaluate(`document.querySelectorAll('.trow').length`);
+    await click('[data-testid="filter-apply"]');
+    await sleep(400);
+    const noMatchResult = await evaluate(`(() => ({
+      rows: document.querySelectorAll('.trow').length,
+      toast: (document.querySelector('[data-testid="toast-text"]') || {}).textContent || '',
+    }))()`);
+    check('UI', '执行筛选：一条都不匹配时列表不动并给出提示', noMatchResult.rows === beforeFilter && /没有对象匹配|Nothing matches|Nada coincide|一致する項目はありません/.test(noMatchResult.toast), JSON.stringify(noMatchResult));
+
+    // 全匹配：不丢行，提示保留 N / N
+    await setInput('[data-testid="include-pattern"]', '*');
+    await sleep(300);
+    await click('[data-testid="filter-apply"]');
+    await sleep(400);
+    const allMatchResult = await evaluate(`(() => ({
+      rows: document.querySelectorAll('.trow').length,
+      toast: (document.querySelector('[data-testid="toast-text"]') || {}).textContent || '',
+    }))()`);
+    check('UI', '执行筛选：通配符匹配全部时行数不变并给出保留数', allMatchResult.rows === beforeFilter && /保留|Kept|Se conservaron|保持/.test(allMatchResult.toast), JSON.stringify(allMatchResult));
+
+    await setInput('[data-testid="include-pattern"]', '');
+    await setInput('[data-testid="exclude-pattern"]', '');
+    await sleep(300);
+    // Enter 也能执行（键盘可走通），Esc 清空当前框
+    await setInput('[data-testid="include-pattern"]', 'nomatch-yyy');
+    await keyOn('[data-testid="include-pattern"]', 'Enter');
+    const enterToast = await evaluate(`(document.querySelector('[data-testid="toast-text"]') || {}).textContent || ''`);
+    check('UI', '执行筛选：输入框里按 Enter 与点按钮等效', /没有对象匹配|Nothing matches|Nada coincide|一致する項目はありません/.test(enterToast), enterToast.slice(0, 40));
+    await keyOn('[data-testid="include-pattern"]', 'Escape');
+    const escCleared = await evaluate(`(() => ({
+      value: document.getElementById('include-pattern').value,
+      btn: document.querySelector('[data-testid="filter-apply"]') ? 1 : 0,
+    }))()`);
+    check('UI', '执行筛选：Esc 清空条件并收起按钮', escCleared.value === '' && escCleared.btn === 0, JSON.stringify(escCleared));
+
+    // 更多菜单不该再塞执行动作
+    await openMoreMenu();
+    const moreMenu = await evaluate(`(() => ({
+      filterItem: document.querySelectorAll('[data-testid="filter-files"]').length,
+      items: document.querySelectorAll('[data-testid="toolbar-more-menu"] .pop-item').length,
+    }))()`);
+    check('UI', '更多菜单：不再有「筛选」项（入口已内联）', moreMenu.filterItem === 0 && moreMenu.items >= 2, JSON.stringify(moreMenu));
+    await click('[data-testid="toolbar-more"]');
+    await sleep(200);
+
     // ---- 正则方言：替换串里的 \1..\9 按分组引用处理（对标 Delphi 习惯，等价 $1..$9）----
     await clearAllRules();
     await addRuleType('replace');

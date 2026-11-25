@@ -41,6 +41,7 @@
     "test:ini": "node scripts/test-ini.mjs --require-probe",
     "test:repair": "node scripts/test-repair.mjs",
     "test:columns": "node scripts/test-columns.mjs",
+    "test:filter": "node scripts/test-filter.mjs",
     "test:bundle": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-bundle.ps1",
     "foundation:build": "tsc -p packages/foundation/tsconfig.json"
   },

@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-25T14:10:06.370Z",
+  "generatedAt": "2026-11-25T14:45:01.768Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
-  "passed": 351,
+  "passed": 358,
   "failed": 0,
   "results": [
     {
@@ -160,13 +160,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-25 22:07 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-25 22:42 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-25 22:07 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-25 22:42 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -874,7 +874,7 @@
       "layer": "UI-triggered mock",
       "name": "交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/事件/写文件）",
       "ok": true,
-      "detail": "startup_report,load_rule_history,env_info,plugin:event|listen,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_attrs,read_times,apply_time,meta_read,meta_capabilities,list_snapshots,apply_attrs,apply_move"
+      "detail": "load_rule_history,startup_report,plugin:event|listen,env_info,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_attrs,read_times,apply_time,meta_read,meta_capabilities,list_snapshots,apply_attrs,apply_move"
     },
     {
       "layer": "UI-triggered mock",
@@ -1306,7 +1306,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmww78vs41\",\"jumpState\":{\"openId\":\"rmww78vs41\",\"detail\":1,\"focused\":\"rmww78vs41\"}}"
+      "detail": "{\"firstRuleId\":\"rmww8hq7o1\",\"jumpState\":{\"openId\":\"rmww8hq7o1\",\"detail\":1,\"focused\":\"rmww8hq7o1\"}}"
     },
     {
       "layer": "UI",
@@ -1319,6 +1319,48 @@
       "name": "冲突不命中：模式不重叠且替换互不相干时不提示",
       "ok": true,
       "detail": "{\"panel\":false,\"items\":0,\"badges\":0,\"rules\":2}"
+    },
+    {
+      "layer": "UI",
+      "name": "筛选组：没填条件时不显示执行按钮",
+      "ok": true,
+      "detail": "{\"btn\":0,\"rows\":4}"
+    },
+    {
+      "layer": "UI",
+      "name": "筛选组：填了条件后按钮出现在条件旁边，并带说明",
+      "ok": true,
+      "detail": "{\"btn\":1,\"label\":\"Keep matches\",\"hint\":\"Remove rows that do not match the include/exclude globs above — list only, nothing on disk is touched\"}"
+    },
+    {
+      "layer": "UI",
+      "name": "执行筛选：一条都不匹配时列表不动并给出提示",
+      "ok": true,
+      "detail": "{\"rows\":4,\"toast\":\"Nothing matches the current filter (of 4); the list is unchanged\"}"
+    },
+    {
+      "layer": "UI",
+      "name": "执行筛选：通配符匹配全部时行数不变并给出保留数",
+      "ok": true,
+      "detail": "{\"rows\":4,\"toast\":\"Kept 4 of 4 items after filtering\"}"
+    },
+    {
+      "layer": "UI",
+      "name": "执行筛选：输入框里按 Enter 与点按钮等效",
+      "ok": true,
+      "detail": "Nothing matches the current filter (of 4"
+    },
+    {
+      "layer": "UI",
+      "name": "执行筛选：Esc 清空条件并收起按钮",
+      "ok": true,
+      "detail": "{\"value\":\"\",\"btn\":0}"
+    },
+    {
+      "layer": "UI",
+      "name": "更多菜单：不再有「筛选」项（入口已内联）",
+      "ok": true,
+      "detail": "{\"filterItem\":0,\"items\":3}"
     },
     {
       "layer": "UI",
@@ -1666,7 +1708,7 @@
       "layer": "UI",
       "name": "运行后该命令记一次运行（次数 1、带上次运行时间）",
       "ok": true,
-      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/25, 10:09 PM\"}"
+      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/25, 10:44 PM\"}"
     },
     {
       "layer": "UI",
@@ -1732,7 +1774,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795615774606.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795617870003.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -1882,7 +1924,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/25 22:09:413 条 · 仅映射预览还原删除"
+      "detail": "2026/11/25 22:44:363 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -1942,7 +1984,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-25 22:09 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-25 22:44 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",
