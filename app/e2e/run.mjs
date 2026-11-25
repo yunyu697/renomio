@@ -3103,6 +3103,53 @@ async function main() {
       literalRef.err === '' && literalRef.names.some((n) => n.includes('\\1')),
       JSON.stringify({ err: literalRef.err, sample: literalRef.names.slice(0, 3) }),
     );
+
+    // \0 整段匹配（Delphi 方言）：替换串写 [\0] 时展开为整段匹配，不留字面反斜杠
+    await setInput('[data-testid="replace-with"]', '[\\0]');
+    await sleep(700);
+    const wholeMatch = await evaluate(`[...document.querySelectorAll('.trow .new-name')].map((e) => e.textContent.trim())`);
+    check(
+      'UI',
+      '正则替换：替换串写 \\0 时展开为整段匹配（Delphi 方言）',
+      wholeMatch.some((n) => /\[\d{3}\]/.test(n)) && !wholeMatch.some((n) => n.includes('\\0')),
+      JSON.stringify(wholeMatch.slice(0, 4)),
+    );
+
+    // 只替换第 2 个匹配：替换串里的 \1 仍要展开（不能把 $1 / \1 原样写进名字）
+    await setInput('[data-testid="replace-find"]', '(\\d)');
+    await setInput('[data-testid="replace-with"]', '[\\1]');
+    await evaluate(`document.querySelectorAll('[data-testid="replace-scope"] span')[1].click()`);
+    await sleep(300);
+    await setInput('[data-testid="replace-nth"]', '2');
+    await sleep(700);
+    const nthTitles = await evaluate(
+      `[...document.querySelectorAll('.trow .new-name')].map((e) => e.getAttribute('title') || '').filter(Boolean)`,
+    );
+    const nthExpected = nthTitles.map((title) => {
+      const [oldName, newName] = title.split(' → ');
+      const dot = oldName.lastIndexOf('.');
+      const stem = dot > 0 ? oldName.slice(0, dot) : oldName;
+      const ext = dot > 0 ? oldName.slice(dot) : '';
+      let seen = 0;
+      let expected = '';
+      for (const ch of stem) {
+        if (ch >= '0' && ch <= '9') {
+          seen += 1;
+          expected += seen === 2 ? `[${ch}]` : ch;
+        } else expected += ch;
+      }
+      return { oldName, newName, expected: seen >= 2 ? expected + ext : oldName };
+    });
+    const nthOk = nthExpected.length > 0
+      && nthExpected.every((r) => r.newName === r.expected)
+      && !nthExpected.some((r) => r.newName.includes('$1') || r.newName.includes('\\1'));
+    check(
+      'UI',
+      '只替换第 2 个匹配：替换串 \\1 仍按捕获组展开（不写进字面）',
+      nthOk,
+      JSON.stringify(nthExpected.slice(0, 3)),
+    );
+    await shot('21b-regex-nth-whole.png');
     await clearAllRules();
 
     // ---- 大小写例外词表：被保护片段在 upper 后保留原写法 ----

@@ -68,7 +68,7 @@ jobs:
       - name: 输入历史逻辑自测（26 条）
         run: npm run test:history
 
-      - name: 正则方言自测（\1 分组引用，18 条）
+      - name: 正则方言自测（\1 / \0 引用与 nth 展开，28 条）
         run: npm run test:regex
 
       - name: 大小写例外词表自测（18 条）
@@ -200,6 +200,10 @@ jobs:
         with:
           node-version: 22
 
+      # 真实文件闭环要就地打包 src/lib/rules.ts，因此这里装前端依赖（esbuild）
+      - name: 安装前端依赖（esbuild，供规则引擎实跑）
+        run: npm ci --ignore-scripts
+
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
@@ -252,6 +256,10 @@ jobs:
       # 列宽自适应：纯函数实跑（tsc 编译后 import）+ 界面接线 + 五语种
       - name: 列宽自适应守卫（算法实跑 + 接线 + 文档同源）
         run: node scripts/test-columns.mjs
+
+      # 正则替换的真实文件闭环：真实规则引擎算新名 → core 两阶段改名 → 磁盘核对 → 真实撤销
+      - name: 正则替换真实文件闭环（21 条，含撤销）
+        run: node scripts/test-regex-real.mjs
 
   bundle-checks:
     name: bundle-checks (windows / 14 条产物断言 + 13 条离线断言)
