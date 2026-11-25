@@ -2808,6 +2808,32 @@ async function main() {
       settingsLayout.picks === 5 && settingsLayout.thumbs === 5 && !settingsLayout.rawKeys && settingsLayout.sizeInput && settingsLayout.reset,
       JSON.stringify(settingsLayout),
     );
+    // 数据目录来源：默认（非便携）必须渲染出来源文案（五语种任一，且不能是原始 key）
+    const rootSourceText = await evaluate(
+      `(document.querySelector('[data-testid="data-root-source"]')?.innerText ?? '').trim()`,
+    );
+    const defaultSourceLabels = [
+      '每用户默认位置',
+      '每位使用者預設位置',
+      'Per-user default',
+      'ユーザーごとの既定位置',
+      'Ubicación predeterminada por usuario',
+    ];
+    check(
+      'UI',
+      '设置 › 运行环境显示数据目录来源（默认 = 每用户默认位置）',
+      defaultSourceLabels.some((label) => rootSourceText.includes(label)) && !rootSourceText.includes('settings.'),
+      rootSourceText,
+    );
+    const portableNoteVisible = await evaluate(
+      `!!document.querySelector('[data-testid="portable-note"]')`,
+    );
+    check(
+      'UI',
+      '非便携模式不显示便携说明，也不显示回落原因',
+      portableNoteVisible === false,
+      String(portableNoteVisible),
+    );
     await click('[data-testid="settings-layout-compact"]');
     await sleep(300);
     const settingsView = await evaluate(`document.querySelector('.workspace').getAttribute('data-view')`);

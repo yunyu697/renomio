@@ -56,13 +56,23 @@ Get-FileHash .\Renomio_<版本>_x64-setup.exe -Algorithm SHA256
 - **NSIS（`...setup.exe`）：双范围，安装时可选。** 默认「所有用户」→ `C:\Program Files\Renomio`；也可选「仅为我安装」→ `%LocalAppData%\Programs\Renomio`。两种选择都会先弹 UAC（Tauri 的 `both` 模式即使用户选当前用户也需要管理员权限）。
 - **MSI（`...msi`）：只有机器级一种。** 固定装到 `C:\Program Files\Renomio`，必须管理员，**向导里没有范围选择页**，不提供用户级安装。需要用户范围请用 NSIS 包。
 - **不要在同一台机器上混装两个范围或两种安装器。** NSIS 能识别并卸载已有的 MSI 版；**MSI 不识别 NSIS 版**，先装 NSIS 再装 MSI 会留下两条卸载项与两个同名快捷方式。NSIS 重新安装时若把范围改成相反一侧，安装器会在写文件前提示并中止（已装的一侧需先卸载）。
-- 数据目录与安装范围无关，固定为每用户的 `%APPDATA%\app.renomio.desktop`；切换范围不会迁移配置、日志与撤销历史。
+- 默认数据目录与安装范围无关，为每用户的 `%APPDATA%\app.renomio.desktop`；切换范围不会迁移配置、日志与撤销历史。需要用 U 盘随身携带时见下方 [便携模式](#便携模式u-盘)。
+
+### 便携模式（U 盘）
+
+- 在 `renomio.exe` 所在目录放一个空文件 `renomio.portable`，数据目录就变成该目录下的 `data/`（配置、批次记录、撤销历史、备份全在里面）；把整个程序目录拷到 U 盘即可带走全部数据。
+- 也可显式指定目录：`renomio.exe --data-dir E:\RenomioData`，或设置环境变量 `RENOMIO_DATA_DIR=E:\RenomioData`。
+- 优先级：`--data-dir` > `RENOMIO_DATA_DIR` > `renomio.portable`（程序旁的 `data/`）> 每用户默认目录。
+- **标记在但目录不可用**（程序目录只读、`data` 被同名文件占住等）时**不会静默失败**：自动回落到每用户默认目录，并把原因显示在 设置 › 运行环境。
+- 便携 / 覆盖模式下**不自动迁移**旧版 Rename Studio 的数据（旧目录原样保留，可在设置里手动「从旧版导入数据」导入到当前数据目录）。
+- 设置 › 运行环境显示「数据目录 / 数据目录来源 / 便携说明」，来源取值：`命令行 --data-dir`、`环境变量 RENOMIO_DATA_DIR`、`便携模式（U 盘，随程序走）`、`每用户默认位置`。
+- 有机器验证：`npm run test:datadir`（44 条，真跑 `datadir_probe` 覆盖无标记 / 有标记 / 标记冲突 / 两级覆盖 / 命令行解析），`cargo test --test datadir_contract`（11 条），CI 的 `cross-os` 在 ubuntu / windows / macos 各跑一遍。
 
 ### 已知限制
 
 - **旧版 Rename Studio 必须先卸载。** 新版 identifier 与 MSI UpgradeCode 均已变更，不是原地升级。安装器会按「旧显示名 + 旧 UpgradeCode」检测旧版，命中后给出卸载命令并中止。**卸载旧版时不要勾选「删除应用数据」**，否则新版无法导入你的配置与撤销历史。
 - **Windows 安装包未做代码签名**，首次运行会触发 Windows SmartScreen（「Windows 已保护你的电脑」）。请核对上面的 SHA-256 后再选择「仍要运行」。本轮没有签名证书，签名与时间戳流程尚未执行。
-- **Windows 仍是唯一进入 GitHub Release 的平台。** macOS（`.app` / `.dmg`）与 Linux（`.deb` / `.AppImage`）现在由 CI 真实构建、并生成与 `plugins.updater.pubkey` 配对的 updater 签名（`.sig`）后作为 **Actions artifact** 提供下载，但仍**未公证、未发布到 Release**，`updates` 的 `latest.json` 目前也只有 `windows-x86_64` 一个键——详见下方 [Linux 与 macOS 产物](#linux-与-macos-产物ad-hoc--updater-签名)。
+- **三个平台都已进 GitHub Release。** Windows（NSIS / MSI）、Linux（`.deb` / `.AppImage`）、macOS（`.dmg` / `Renomio.app.tar.gz` / `arm64.app.zip`）都由 tag CI 真实构建、带与 `plugins.updater.pubkey` 配对的 updater 签名并上传到同一 Release；滚动 `latest.json` 三平台键齐全。限制仍在：macOS 为 ad-hoc 签名**未公证**（Gatekeeper 需手动放行），Windows 无 Authenticode 证书（SmartScreen 提示），Linux 未做发行版签名——详见下方 [Linux 与 macOS 产物](#linux-与-macos-产物ad-hoc--updater-签名)。
 - **Linux 需要系统中文字体。** 界面不自带字体，系统缺 Noto CJK 等中文字体时，所有中文会渲染成空心方块（豆腐块）。安装方式见 [中文字体依赖](#中文字体依赖linux)。
 - 安装向导界面、需要 UAC 的安装/卸载、安装后首次启动的真实窗口交互，本轮均未在自动化中执行（按项目约定不在会话里启动带 GUI 或会弹 UAC 的进程）；因此「装到 `Program Files` 的落点、卸载残留、快捷方式位置、旧版并存拦截弹窗」属于**静态核验**结论，不是真机验收。
 - 真实 Explorer 拖放、提权后的拖放（UIPI 会拦截）、真实物理跨盘移动、EXIF 拍摄时间写入在真实相机样张上的表现（功能已实现，本机只用自造 JPEG 结构测试）、快照窗在桌面端真实 UI 上的操作（Rust 真实文件测试与浏览器 mock 均已覆盖）均未完成或未验证。

@@ -1,7 +1,7 @@
 {
   "name": "rename-studio",
   "private": true,
-  "version": "1.2.0-alpha12",
+  "version": "1.2.0-alpha13",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -35,6 +35,7 @@
     "test:del": "node scripts/test-del.mjs",
     "test:iptc": "node scripts/test-iptc.mjs",
     "test:platform": "node scripts/test-platform.mjs --require-probe",
+    "test:datadir": "node scripts/test-datadir.mjs --require-probe",
     "test:bundle": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-bundle.ps1",
     "foundation:build": "tsc -p packages/foundation/tsconfig.json"
   },

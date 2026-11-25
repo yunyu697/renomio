@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-24T22:50:37.225Z",
+  "generatedAt": "2026-11-24T23:39:34.252Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
-  "passed": 328,
+  "passed": 330,
   "failed": 0,
   "results": [
     {
@@ -160,13 +160,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-25 06:48 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-25 07:37 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-25 06:48 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-25 07:37 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -1202,6 +1202,18 @@
     },
     {
       "layer": "UI",
+      "name": "设置 › 运行环境显示数据目录来源（默认 = 每用户默认位置）",
+      "ok": true,
+      "detail": "Per-user default"
+    },
+    {
+      "layer": "UI",
+      "name": "非便携模式不显示便携说明，也不显示回落原因",
+      "ok": true,
+      "detail": "false"
+    },
+    {
+      "layer": "UI",
       "name": "设置面板切换 preset → 视图立即切换到 compact",
       "ok": true,
       "detail": "compact"
@@ -1258,7 +1270,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmwvaeh871\",\"jumpState\":{\"openId\":\"rmwvaeh871\",\"detail\":1,\"focused\":\"rmwvaeh871\"}}"
+      "detail": "{\"firstRuleId\":\"rmwvc5fp41\",\"jumpState\":{\"openId\":\"rmwvc5fp41\",\"detail\":1,\"focused\":\"rmwvc5fp41\"}}"
     },
     {
       "layer": "UI",
@@ -1606,7 +1618,7 @@
       "layer": "UI",
       "name": "运行后该命令记一次运行（次数 1、带上次运行时间）",
       "ok": true,
-      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/25, 06:49 AM\"}"
+      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/25, 07:38 AM\"}"
     },
     {
       "layer": "UI",
@@ -1672,7 +1684,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795560606589.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795563543993.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -1744,7 +1756,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/25 06:50:123 条 · 仅映射预览还原删除"
+      "detail": "2026/11/25 07:39:093 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -1804,7 +1816,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-25 06:50 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-25 07:39 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",

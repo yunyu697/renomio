@@ -1,5 +1,6 @@
 //! Renomio 核心：只做文件系统与事务，不依赖 Tauri / 前端。
 
+pub mod datadir;
 pub mod hashing;
 pub mod journal;
 pub mod metaedit;
@@ -30,6 +31,12 @@ pub struct EnvInfo {
     pub path_warn_threshold: usize,
     pub path_hard_limit: usize,
     pub data_dir: String,
+    /// 数据目录来源：cli-arg / env-var / portable-marker / os-default
+    pub data_root_source: String,
+    /// 便携模式是否真的生效
+    pub portable: bool,
+    /// 回落或忽略原因（没有异常为 null）
+    pub data_root_note: Option<String>,
     /// Linux 通常无法写入创建时间
     pub creation_time_writable: bool,
     pub long_path_support: bool,
@@ -39,11 +46,24 @@ pub struct Core {
     store: BatchStore,
     platform: Platform,
     case_sensitive: bool,
+    root: datadir::DataRoot,
 }
 
 impl Core {
+    /// 直接用给定位图当数据目录（来源记为每用户默认，便于测试与旧调用方）。
     pub fn new(data_dir: impl AsRef<Path>) -> Self {
-        let data_dir = data_dir.as_ref().to_path_buf();
+        let path = data_dir.as_ref().to_string_lossy().to_string();
+        Self::new_at(datadir::DataRoot {
+            path,
+            source: datadir::RootSource::OsDefault,
+            portable: false,
+            note: None,
+        })
+    }
+
+    /// 用解析好的数据目录（便携模式 / 命令行 / 环境变量）建核心，来源与原因一并保留给界面。
+    pub fn new_at(root: datadir::DataRoot) -> Self {
+        let data_dir = PathBuf::from(&root.path);
         let _ = std::fs::create_dir_all(&data_dir);
         let platform = Platform::current();
         let case_sensitive = probe_case_sensitivity(&data_dir);
@@ -51,7 +71,12 @@ impl Core {
             store: BatchStore::new(&data_dir),
             platform,
             case_sensitive,
+            root,
         }
+    }
+
+    pub fn data_root(&self) -> &datadir::DataRoot {
+        &self.root
     }
 
     pub fn env(&self, windows_safe: bool) -> EnvInfo {
@@ -68,6 +93,9 @@ impl Core {
             path_warn_threshold: self.platform.path_warn_threshold(),
             path_hard_limit: self.platform.path_hard_limit(),
             data_dir: self.store.data_dir().to_string_lossy().to_string(),
+            data_root_source: self.root.source.as_str().to_string(),
+            portable: self.root.portable,
+            data_root_note: self.root.note.clone(),
             // 仅 Windows 可通过 SetFileTime 改写创建时间
             creation_time_writable: self.platform == Platform::Windows,
             long_path_support: self.platform == Platform::Windows,

@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 
@@ -1253,9 +1254,43 @@ pub fn run() {
     // 迁移必须在 Core::new 之前完成：Core 会创建/写入新数据目录，之后就分不清「新目录本来就存在」。
     let new_dir = migrate::data_root(APP_IDENTIFIER);
     let old_dir = migrate::data_root(LEGACY_IDENTIFIER);
+
+    // 数据目录解析：命令行 --data-dir > 环境变量 > 便携标记 > 每用户目录（全部逻辑在 core 里，可测）。
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+        .unwrap_or_else(|| PathBuf::from("."));
+    let cli_dir = renomio_core::datadir::parse_cli_args(std::env::args());
+    let env_dir = std::env::var(renomio_core::datadir::ENV_KEY).ok();
+    let root = renomio_core::datadir::resolve(
+        &exe_dir,
+        &new_dir,
+        cli_dir.as_deref(),
+        env_dir.as_deref(),
+    );
+    let overridden = root.source != renomio_core::datadir::RootSource::OsDefault;
+    startup_log(
+        "data_root",
+        &format!(
+            "source={} portable={} path={}",
+            root.source.as_str(),
+            root.portable,
+            root.path
+        ),
+    );
+    let legacy = if overridden {
+        // 数据目录被改写：不自动迁移旧版数据（旧目录仍在，设置页可手动导入到当前数据目录）
+        migrate::info_skipped(&old_dir, Path::new(&root.path))
+    } else {
+        migrate::run(&old_dir, &new_dir, LEGACY_PRODUCT_NAME, PRODUCT_NAME)
+    };
     let migration = migrate::MigrationState::new(
-        migrate::run(&old_dir, &new_dir, LEGACY_PRODUCT_NAME, PRODUCT_NAME),
-        new_dir,
+        legacy,
+        if overridden {
+            PathBuf::from(&root.path)
+        } else {
+            new_dir
+        },
         old_dir,
     );
 
@@ -1263,12 +1298,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
             startup_log("setup_begin", "");
-            let data_dir = app
-                .path()
-                .app_data_dir()
-                .map_err(|e| format!("无法获取应用数据目录：{e}"))?;
             app.manage(migration);
-            app.manage(Core::new(data_dir));
+            app.manage(Core::new_at(root.clone()));
             update::cleanup_stale_parts();
             startup_log("core_ready", "Core::new done");
             if let Some(window) = app.get_webview_window("main") {

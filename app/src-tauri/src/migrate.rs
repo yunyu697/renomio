@@ -157,6 +157,15 @@ fn base_info(old_dir: &Path, new_dir: &Path) -> MigrationInfo {
     }
 }
 
+/// 数据目录被便携标记 / `--data-dir` / `RENOMIO_DATA_DIR` 改写时跳过自动迁移：返回 `skipped-override`，
+/// `new_dir` 指向**实际生效**的数据目录（手动「从旧版导入」也会落到这里）。
+pub fn info_skipped(old_dir: &Path, new_dir: &Path) -> MigrationInfo {
+    MigrationInfo {
+        status: "skipped-override".into(),
+        ..base_info(old_dir, new_dir)
+    }
+}
+
 /// 首次启动时执行迁移。`new_dir` 必须尚不存在才迁移。
 pub fn run(old_dir: &Path, new_dir: &Path, old_product: &str, new_product: &str) -> MigrationInfo {
     let mut info = base_info(old_dir, new_dir);

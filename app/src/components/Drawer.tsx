@@ -883,7 +883,27 @@ function SettingsPanel() {
             <b>{t('settings.pathWarn')}</b><span>{t('settings.pathWarnUnit', { count: env.pathWarnThreshold })}</span>
             <b>{t('settings.longPath')}</b><span>{env.longPathSupport ? t('settings.longPathEnabled') : t('settings.longPathDisabled')}</span>
             <b>{t('settings.dataDir')}</b><span style={{ fontFamily: 'var(--mono)', wordBreak: 'break-all' }}>{env.dataDir}</span>
+            <b>{t('settings.dataRootSource')}</b>
+            <span data-testid="data-root-source">
+              {env.dataRootSource === 'portable-marker'
+                ? t('settings.sourcePortable')
+                : env.dataRootSource === 'cli-arg'
+                  ? t('settings.sourceCli')
+                  : env.dataRootSource === 'env-var'
+                    ? t('settings.sourceEnv')
+                    : t('settings.sourceDefault')}
+            </span>
           </div>
+          {env.portable && (
+            <div className="drawer-note" style={{ marginTop: 10 }} data-testid="portable-note">
+              {t('settings.portableNote')}
+            </div>
+          )}
+          {env.dataRootNote && (
+            <div className="drawer-note" style={{ marginTop: 10 }} data-testid="data-root-note">
+              {env.dataRootNote}
+            </div>
+          )}
           {isDemo && <div className="drawer-note" style={{ marginTop: 10 }}>{t('settings.demoEnv')}</div>}
         </section>
       </div>

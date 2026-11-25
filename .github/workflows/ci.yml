@@ -220,6 +220,14 @@ jobs:
       - name: 平台能力探针与守卫
         run: node scripts/test-platform.mjs --require-probe
 
+      # 数据目录契约：命令行 --data-dir > 环境变量 > 便携标记 > 每用户目录；
+      # 标记在但 data 不可用时必须回落并给出原因（三平台各自真实建目录/写探针）
+      - name: 数据目录契约测试（datadir_contract，11 条）
+        run: cargo test --manifest-path src-tauri/renomio-core/Cargo.toml --test datadir_contract
+
+      - name: 数据目录探针与守卫
+        run: node scripts/test-datadir.mjs --require-probe
+
   bundle-checks:
     name: bundle-checks (windows / 14 条产物断言 + 13 条离线断言)
     runs-on: windows-latest

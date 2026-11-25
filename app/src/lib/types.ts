@@ -37,6 +37,12 @@ export interface EnvInfo {
   pathWarnThreshold: number;
   pathHardLimit: number;
   dataDir: string;
+  /** 数据目录来源：命令行 --data-dir / 环境变量 / 便携标记 / 每用户默认 */
+  dataRootSource: 'cli-arg' | 'env-var' | 'portable-marker' | 'os-default';
+  /** 便携模式是否真的生效（标记存在但目录不可用时为 false） */
+  portable: boolean;
+  /** 回落或忽略的原因；没有异常时为 null */
+  dataRootNote: string | null;
   creationTimeWritable: boolean;
   longPathSupport: boolean;
 }

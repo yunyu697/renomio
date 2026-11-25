@@ -110,7 +110,8 @@
 | 6.9 | 检查更新 / 自动更新（签名校验） | A | alpha7/8 更新链路实测；`update.rs` | 原版 WinINet 升级组件；我们 Tauri updater + 签名，领先 |
 | 6.10 | 快捷键（Ctrl O / Ctrl Shift O / Ctrl K / Ctrl Enter / Ctrl Z） | A | 键位窗 5 条绑定可查看/录制/恢复默认；冲突检测（占用时提示并拒绝）；Esc 分层（录制中只取消录制）；绑定持久化并在刷新后生效；e2e 9 条断言（列表、默认值、录制、冲突、Esc、持久化、旧键失效/新键生效、恢复默认） | 原版快捷键列表窗已对齐；暂不支持无修饰键（如 F2）绑定，避免与输入冲突 |
 | 6.11 | 跨平台 macOS / Linux | A | `platform::PlatformReport` 是平台差异的**单一事实来源**（OS/分隔符/大小写默认/路径阈值与硬上限/btime 三态+原因/「隐藏·系统·存档仅 Windows」+原因/长路径前缀）；`tests/platform_contract.rs` **11 条**逐 OS 断言（含只读位真实往返、非 Windows 属性写入必须逐条失败并带原因、Windows 名称规则与宿主无关）；`examples/platform_probe.rs` 输出 JSON，`npm run test:platform` 在宿主 OS 逐字段比对；CI 新增 `cross-os` 矩阵（**ubuntu-latest / windows-latest / macos-latest**）跑同一份 core 测试 + 平台契约 + 探针（三平台实跑记录见本轮 tag CI 的 `cross-os` 三个 job） | 原版仅 Windows；我们代码与测试三平台齐备，**但只在 CI 无头环境实跑**（macOS ad-hoc 未公证、Linux 未做桌面真机手工点验） |
-| 6.12 | 资源管理器右键菜单 / 快捷方式 / U 盘便携 / INI / 自我修复 / UAC 工具 | E | 无实现 | 原版 #32/#33；本版不做 |
+| 6.12 | 便携模式（U 盘）：程序旁放 `renomio.portable` 即把配置、批次记录、撤销历史与备份挪到 `<程序目录>/data`；`--data-dir <路径>` 与 `RENOMIO_DATA_DIR` 可再覆盖；标记在但目录不可用时回落到每用户目录并给出原因 | A | `renomio-core/src/datadir.rs`（四级优先级 + 标记 + 真实可写探针）、`tests/datadir_contract.rs` **11 条**（优先级、真实落盘、回落原因、CLI 解析、序列化、EnvInfo 三字段）、`examples/datadir_probe.rs` 与 `npm run test:datadir` **44 条**（真跑探针 5 个场景 + 接线 + 文档同源）；界面设置 › 运行环境显示「数据目录 / 来源 / 便携说明」；`migrate::info_skipped` 保证便携或覆盖时不自动迁移旧数据 | 原版 #32/#33 的便携/免安装；我们按标记文件实现，未做免安装压缩包分发与 INI 导入导出 |
+| 6.13 | 资源管理器右键菜单 / 快捷方式 / INI 导入导出 / 自我修复 / UAC 工具 | E | 无实现 | 原版 #32/#33；本版不做 |
 
 ---
 
@@ -141,7 +142,7 @@
 | WMA/APE/WAV/AIFF 标签 | 格式私有/复杂，收益低；继续保持「明确拒绝」，不静默跳过 |
 | 旧版 OLE（.doc/.xls/.ppt） | 二进制复合文档写入风险高；旧版文件可由用户另存为新格式 |
 | 加密 PDF、xref 流 PDF | 加密需密钥与算法；xref 流解析复杂度高，增量写入易损坏 |
-| 资源管理器右键 / 便携模式 / UAC 工具 / 自我修复 | 平台集成与安装器成本高，非核心价值 |
+| 资源管理器右键 / 快捷方式 / INI 导入导出 / UAC 工具 / 自我修复 | 平台集成与安装器成本高，非核心价值（便携模式已单列 6.12 并实现） |
 | 脚本 / 编码转换 / 内码 / 加密 / 对照表高级规则 | 原版 Delphi 特性，重实现成本高且易出错；先保证核心规则链稳定 |
 | 「无限次」撤销 | 磁盘备份策略与清理规则未定；当前按批次保留备份，可多级撤销 |
 | macOS/Linux 实机验证 | 无 mac/linux 环境；代码分支就绪但不敢宣称通过 |
@@ -165,11 +166,12 @@
 - ~~删除规则「从尾部数」的起点朝向与标签矛盾，修剪只能剪空白~~——已修：`fromEnd` 的起点改为从末尾逆算并朝**词尾**延伸（旧实现把窗口结束在倒数第 N 个，等于删到词首）、「首尾之间」改用码点换算（emoji 不再被切半个）、两个标记全空时规则卡就地报错而非静默删空整名；修剪新增**自定义修剪字符集**（留空仍只剪空白，旧存档语义不变）（域三 3.4，2026-11-25，alpha10）。
 - ~~IPTC Core 四字段只写 XMP，读 IIM 的老软件看不到~~——已补 **IPTC-IIM（APP13 8BIM 0x0404）双写**：JPEG 上 Headline/By-line Title/Credit/Source 同时写进 XMP 与 IIM，新软件读 XMP、老软件读 IIM，两边一致；非 ASCII 自动声明 `1:90 ESC % G`；未知 dataset、别家的 APP13、缩略图资源原样保留；改动 IIM 后丢弃过期 `0x0406` 摘要交给 Photoshop 重建（域五 5.15，2026-11-25，alpha11）。
 - ~~跨平台 macOS / Linux 只有代码分支、没有实机验证~~——已补：`platform::PlatformReport` 统一承载全部平台差异（OS/分隔符/大小写默认/路径警告与硬上限/btime 三态及原因/「隐藏·系统·存档仅 Windows」及原因/长路径前缀），`tests/platform_contract.rs` 11 条逐 OS 断言（只读位真实往返、非 Windows 属性写入必须逐条失败并带原因、Windows 名称规则与宿主无关、`\\?\` 不重复叠加），`examples/platform_probe.rs` 与 `npm run test:platform` 在宿主 OS 逐字段比对，CI 新增 `cross-os` 矩阵在 **ubuntu / windows / macos 三个真实 OS** 各跑一遍 core 测试。顺带修掉 README 一处「看着对实际不对」：非 Windows 的属性写入并非 no-op，而是逐条失败并给原因（域六 6.11，2026-11-25，alpha12）。
+- ~~U 盘便携 / 数据目录只能写死在每用户目录~~——已补 **便携模式**：程序旁放 `renomio.portable` 就把数据目录切到 `<程序目录>/data`，另可用 `--data-dir <路径>` 或 `RENOMIO_DATA_DIR` 覆盖（优先级：命令行 > 环境变量 > 便携标记 > 每用户目录）；便携标记在但 `data` 建不出来（同名文件/无写权限）时**回落到每用户目录并把原因写进 `dataRootNote` 交给界面显示**，不静默丢数据。数据目录解析收敛到 `renomio-core/src/datadir.rs`，`tests/datadir_contract.rs` 11 条 + `npm run test:datadir` 44 条（真跑 `datadir_probe` 的 5 个场景），CI 的 `cross-os` 三平台各跑一遍；便携/覆盖时 `migrate::info_skipped` 跳过自动迁移，旧数据目录保留可手动导入（域六 6.12 拆分并置 A，2026-11-25，alpha13）。
 - 文本编码/内容批量仍缺——域五 5.15 的 #17 部分；IPTC Core 四字段（XMP + IIM）已齐，歌词已补（域五 5.6/5.7/5.8）。
 
 ## 统计
 
-A 有实测：60 项（无部分覆盖）；B 仅单测：1 项；C 无验证：0 项；D 部分：0 项；E 未做：2 项；N 本版不做：5 项（合计 70 项）。
+A 有实测：61 项（无部分覆盖）；B 仅单测：1 项；C 无验证：0 项；D 部分：0 项；E 未做：2 项；N 本版不做：5 项（合计 71 项）。
 
 ## 版本闸门（已拍板 A，已解决）
 

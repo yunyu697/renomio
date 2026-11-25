@@ -25,6 +25,9 @@ export const demoEnv: EnvInfo = {
   pathWarnThreshold: 240,
   pathHardLimit: 32767,
   dataDir: '浏览器演示模式',
+  dataRootSource: 'os-default',
+  portable: false,
+  dataRootNote: null,
   creationTimeWritable: true,
   longPathSupport: true,
 };
