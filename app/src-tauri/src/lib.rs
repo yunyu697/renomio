@@ -843,6 +843,20 @@ fn settings_from_ini(text: String) -> Result<String, String> {
     serde_json::to_string(&value).map_err(|e| format!("设置数据无法序列化：{e}"))
 }
 
+/// 数据目录自检（只读）：列出缺失目录、坏批次 / 坏快照 / 坏输入历史、残留临时文件、孤儿备份。
+/// 返回的 `findings` 每项都带稳定 `code`，界面按 code 翻译。
+#[tauri::command]
+fn data_dir_check(core: tauri::State<'_, Core>) -> renomio_core::repair::Report {
+    core.repair_check()
+}
+
+/// 数据目录修复：建缺失目录、把坏文件隔离到 `repair-quarantine/<时间戳>/…`（不删除用户数据），
+/// 只清理超过 24 小时的自身临时文件。幂等。
+#[tauri::command]
+fn data_dir_repair(core: tauri::State<'_, Core>) -> renomio_core::repair::Report {
+    core.repair_fix()
+}
+
 /// 文本编码探测（只读）：BOM / 合法 UTF-8 确认；GB18030 仅试探并标记未确认。
 #[tauri::command]
 fn text_detect(path: String) -> Result<renomio_core::textedit::TextDetect, String> {
@@ -1377,6 +1391,8 @@ pub fn run() {
             read_text_file,
             settings_to_ini,
             settings_from_ini,
+            data_dir_check,
+            data_dir_repair,
             text_detect,
             text_save,
             text_save_batch,

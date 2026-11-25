@@ -242,6 +242,13 @@ jobs:
       - name: 设置文件导入导出守卫（探针实跑 + 接线 + 文档同源）
         run: node scripts/test-ini.mjs --require-probe
 
+      # 数据目录自检与修复：只隔离不删除、幂等、临时文件按 24 小时判定
+      - name: 数据目录自检契约（repair_contract，15 条）
+        run: cargo test --manifest-path src-tauri/renomio-core/Cargo.toml --test repair_contract
+
+      - name: 数据目录自检守卫（探针实跑 + 接线 + 文档同源）
+        run: node scripts/test-repair.mjs --require-probe
+
   bundle-checks:
     name: bundle-checks (windows / 14 条产物断言 + 13 条离线断言)
     runs-on: windows-latest

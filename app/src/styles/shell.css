@@ -411,6 +411,81 @@ body {
   font-size: var(--ds-font-size-12); color: var(--ds-color-text-2); line-height: var(--ds-leading-base);
 }
 
+/* 数据自检结果：错误红、警告黄、提示灰，一条一行，路径用等宽字体 */
+.repair-report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+  margin-top: var(--ds-space-4);
+  padding: var(--ds-space-4);
+  border: 1px solid var(--ds-color-line);
+  border-radius: var(--ds-radius-role-panel);
+  background: var(--ds-color-surface);
+}
+
+.repair-report[data-severity='error'] {
+  border-color: var(--ds-color-danger);
+}
+
+.repair-report[data-severity='warn'] {
+  border-color: var(--ds-color-warn);
+}
+
+.repair-summary {
+  font-size: var(--ds-font-size-12);
+  font-weight: var(--ds-font-weight-600);
+  color: var(--ds-color-text);
+  line-height: var(--ds-leading-base);
+}
+
+.repair-subtitle {
+  font-size: var(--ds-font-size-12);
+  color: var(--ds-color-text-2);
+  line-height: var(--ds-leading-base);
+}
+
+.repair-item {
+  display: grid;
+  grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr);
+  gap: var(--ds-space-2) var(--ds-space-3);
+  padding: var(--ds-space-2) 0;
+  border-top: 1px solid var(--ds-color-line);
+  font-size: var(--ds-font-size-12);
+  line-height: var(--ds-leading-base);
+}
+
+.repair-item b {
+  color: var(--ds-color-text);
+  font-weight: var(--ds-font-weight-600);
+}
+
+.repair-item[data-severity='error'] b {
+  color: var(--ds-color-danger);
+}
+
+.repair-item[data-severity='warn'] b {
+  color: var(--ds-color-warn);
+}
+
+.repair-item .mono {
+  grid-column: 2;
+  color: var(--ds-color-text-2);
+  word-break: break-all;
+}
+
+.repair-detail {
+  grid-column: 2;
+  color: var(--ds-color-text-2);
+  word-break: break-word;
+}
+
+.repair-fixed,
+.repair-skipped {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+}
+
 .drawer-empty {
   padding: var(--ds-space-7) var(--ds-space-4); text-align: center; color: var(--ds-color-text-2); font-size: var(--ds-font-size-12);
 }

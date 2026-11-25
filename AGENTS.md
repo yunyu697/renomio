@@ -37,6 +37,7 @@ npm run test:del       # 删除规则守卫（四模式语义/从尾部数朝向
 npm run test:iptc      # IPTC-IIM 守卫（静态断言 + 真实 JPEG 用 Pillow 独立回读 APP13 8BIM）
 npm run test:platform  # 平台能力契约守卫（跑 platform_probe 与宿主 OS 逐字段比对；CI 三平台矩阵各跑一遍）
 npm run test:datadir   # 数据目录契约守卫（跑 datadir_probe 覆盖便携/命令行/环境变量/回落五场景；CI 三平台矩阵各跑一遍）
+npm run test:repair    # 数据目录自检与修复守卫（cargo test --test repair_contract + 跑 repair_probe；隔离而非删除、临时文件 24h、幂等；CI 三平台矩阵各跑一遍）
 npm run test:contrast  # 对比度
 npm run test:bundle    # 打包断言（有产物才跑 14 条产物断言）
 npm run version:check  # VERSION 与 5 处清单一致

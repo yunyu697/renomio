@@ -6,9 +6,10 @@ import {
   checkUpdate, downloadUpdate, installSavedUpdate, onUpdateProgress, openHomepage,
 } from '../lib/bridge';
 import type {
-  BatchSummary, ConflictPolicy, LocaleSetting, SavedUpdate, UpdateInfo, UpdateProgress,
+  BatchSummary, ConflictPolicy, LocaleSetting, RepairReportDto, SavedUpdate, UpdateInfo, UpdateProgress,
 } from '../lib/types';
 import { isDesktop } from '../lib/bridge';
+import { actionLabelKey, countReport, findingTitleKey, isClean, sortFindings, worstSeverity } from '../lib/repair';
 import { useApp } from '../store';
 import { BrandMark } from './BrandMark';
 import { Icon } from './Icon';
@@ -578,6 +579,8 @@ function SettingsPanel() {
   const [fileBusy, setFileBusy] = useState<'export' | 'import' | null>(null);
   /** 设置文件编解码在 Rust 侧，浏览器演示模式没有这条链路，按钮必须禁用而不是假装成功 */
   const canUseSettingsFile = isDesktop;
+  const [repairBusy, setRepairBusy] = useState<'check' | 'fix' | null>(null);
+  const [repairReport, setRepairReport] = useState<RepairReportDto | null>(null);
   const showToast = useApp((s) => s.showToast);
   useEffect(() => setLimitDraft(String(historyLimit)), [historyLimit]);
   const commitLimit = () => {
@@ -619,6 +622,26 @@ function SettingsPanel() {
       showToast('warn', t('toast.settingsImportPartial', { applied: applied.length, ignored: ignored.join('、') }));
     } else {
       showToast('info', t('toast.settingsImportOk', { applied: applied.length }));
+    }
+  };
+
+  const runRepair = async (mode: 'check' | 'fix') => {
+    setRepairBusy(mode);
+    try {
+      const { dataDirCheck, dataDirRepair } = await import('../lib/bridge');
+      const report = mode === 'check' ? await dataDirCheck() : await dataDirRepair();
+      setRepairReport(report);
+      if (mode === 'fix') {
+        const counts = countReport(report);
+        showToast(
+          counts.errors === 0 ? 'info' : 'warn',
+          t('toast.repairDone', { fixed: counts.fixed, remaining: counts.errors }),
+        );
+      }
+    } catch (err) {
+      showToast('warn', t('toast.repairFail', { error: err instanceof Error ? err.message : String(err) }));
+    } finally {
+      setRepairBusy(null);
     }
   };
 
@@ -887,6 +910,96 @@ function SettingsPanel() {
           <div className="drawer-note" style={{ marginTop: 8 }}>
             {canUseSettingsFile ? t('settings.fileNote') : t('settings.fileDemo')}
           </div>
+        </section>
+
+        <section className="settings-section" data-testid="repair-section">
+          <h4>{t('settings.repairGroup')}</h4>
+          <Row label={t('settings.repairCheck')} hint={t('settings.repairCheckHint')}>
+            <button
+              className="btn btn-outline"
+              type="button"
+              data-testid="repair-check"
+              disabled={!isDesktop || repairBusy !== null}
+              onClick={() => void runRepair('check')}
+            >
+              <Icon name="search" size={13} />{t('settings.repairCheckAction')}
+            </button>
+          </Row>
+          <Row label={t('settings.repairFix')} hint={t('settings.repairFixHint')}>
+            <button
+              className="btn btn-outline"
+              type="button"
+              data-testid="repair-fix"
+              disabled={!isDesktop || repairBusy !== null}
+              onClick={() => void runRepair('fix')}
+            >
+              <Icon name="check" size={13} />{t('settings.repairFixAction')}
+            </button>
+          </Row>
+          {repairReport && (
+            <div
+              className="repair-report"
+              data-testid="repair-report"
+              data-ok={repairReport.ok ? 'true' : 'false'}
+              data-severity={worstSeverity(repairReport)}
+            >
+              <div className="repair-summary" data-testid="repair-summary">
+                {isClean(repairReport)
+                  ? t('settings.repairClean', { scanned: repairReport.scanned })
+                  : t('settings.repairSummary', {
+                      scanned: repairReport.scanned,
+                      errors: countReport(repairReport).errors,
+                      warnings: countReport(repairReport).warnings,
+                      info: countReport(repairReport).info,
+                    })}
+              </div>
+              {sortFindings(repairReport.findings).map((f) => (
+                <div
+                  className="repair-item"
+                  data-testid="repair-finding"
+                  data-code={f.code}
+                  data-severity={f.severity}
+                  key={`${f.code}:${f.path}`}
+                >
+                  <b>{t(findingTitleKey(f.code))}</b>
+                  <span className="mono">{f.path}</span>
+                  <span className="repair-detail">{f.detail}</span>
+                </div>
+              ))}
+              {repairReport.fixed.length > 0 && (
+                <div className="repair-fixed" data-testid="repair-fixed" data-count={repairReport.fixed.length}>
+                  <div className="repair-subtitle">{t('settings.repairFixedSummary', { fixed: repairReport.fixed.length })}</div>
+                  {repairReport.fixed.map((it) => (
+                    <div className="repair-item" data-code={it.code} data-action={it.action} key={`${it.code}:${it.path}`}>
+                      <b>{t(findingTitleKey(it.code))}</b>
+                      <span className="mono">{it.path}</span>
+                      <span className="repair-detail">{t(actionLabelKey(it.action))}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {repairReport.skipped.length > 0 && (
+                <div className="repair-skipped" data-testid="repair-skipped" data-count={repairReport.skipped.length}>
+                  <div className="repair-subtitle">{t('settings.repairSkippedSummary', { skipped: repairReport.skipped.length })}</div>
+                  {repairReport.skipped.map((f) => (
+                    <div className="repair-item" data-code={f.code} key={`skip:${f.code}:${f.path}`}>
+                      <b>{t(findingTitleKey(f.code))}</b>
+                      <span className="mono">{f.path}</span>
+                      <span className="repair-detail">{f.detail}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {repairReport.quarantine && (
+                <div className="drawer-note" data-testid="repair-quarantine">
+                  {t('settings.repairQuarantine', { path: repairReport.quarantine })}
+                </div>
+              )}
+              <div className="drawer-note mono" style={{ wordBreak: 'break-all' }}>
+                {repairReport.root}
+              </div>
+            </div>
+          )}
         </section>
 
         <UpdateSection />

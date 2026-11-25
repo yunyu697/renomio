@@ -9,6 +9,7 @@ pub mod metadata;
 pub mod ops;
 pub mod platform;
 pub mod rename;
+pub mod repair;
 pub mod scan;
 pub mod sniff;
 pub mod snapshot;
@@ -243,5 +244,20 @@ impl Core {
     /// 批量读取只读元数据；单条失败逐条返回，不中断整批。
     pub fn metadata_batch(&self, paths: &[String]) -> Vec<metadata::BatchMetadata> {
         metadata::read_metadata_batch(paths)
+    }
+
+    /// 当前实际生效的数据目录（便携 / 命令行 / 环境变量 / 每用户默认解析后的结果）。
+    pub fn data_dir(&self) -> &Path {
+        self.store.data_dir()
+    }
+
+    /// 数据目录自检（只读，不写任何文件）。
+    pub fn repair_check(&self) -> repair::Report {
+        repair::check(self.store.data_dir())
+    }
+
+    /// 数据目录修复：只隔离不删除，幂等。
+    pub fn repair_fix(&self) -> repair::Report {
+        repair::fix(self.store.data_dir(), journal::now_ms())
     }
 }

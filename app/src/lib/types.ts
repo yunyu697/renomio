@@ -951,3 +951,33 @@ export interface SavedUpdate {
   source: string;
   size: number;
 }
+
+/** 数据目录自检中的一条发现；`code` 稳定，界面按 code 翻译。 */
+export interface RepairFindingDto {
+  code: string;
+  /** error 阻断使用 / warn 有风险 / info 仅提示 */
+  severity: 'error' | 'warn' | 'info' | string;
+  /** 相对数据目录，统一 `/` 分隔；数据目录本身用绝对路径 */
+  path: string;
+  detail: string;
+  fixable: boolean;
+}
+
+/** 一次修复动作：`create-dir` 建目录 / `quarantine` 隔离 / `delete-temp` 清理临时文件。 */
+export interface RepairFixedDto {
+  code: string;
+  path: string;
+  action: 'create-dir' | 'quarantine' | 'delete-temp' | string;
+  target?: string | null;
+}
+
+/** 自检 / 修复报告。`fixed`、`skipped` 只在修复时非空。 */
+export interface RepairReportDto {
+  root: string;
+  ok: boolean;
+  scanned: number;
+  findings: RepairFindingDto[];
+  fixed: RepairFixedDto[];
+  skipped: RepairFindingDto[];
+  quarantine?: string | null;
+}

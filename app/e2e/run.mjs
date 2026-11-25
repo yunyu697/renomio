@@ -4017,6 +4017,65 @@ async function main() {
     const importReady = await evaluate(`document.querySelector('[data-testid="settings-import"]')?.disabled === false`);
     check('UI', '导入按钮可点击（文件选择由系统对话框承担）', importReady === true, String(importReady));
 
+    // --- 6) 设置页「数据自检与修复」（6.15）：只读检查 + 不删数据的修复 ---
+    const repairSection = await evaluate(`(() => {
+      const sec = document.querySelector('[data-testid="repair-section"]');
+      if (!sec) return null;
+      const chk = sec.querySelector('[data-testid="repair-check"]');
+      const fix = sec.querySelector('[data-testid="repair-fix"]');
+      const chkRect = chk?.getBoundingClientRect();
+      const fixRect = fix?.getBoundingClientRect();
+      const note = sec.querySelector('.drawer-note');
+      return {
+        check: !!chk,
+        fix: !!fix,
+        checkLabel: chk?.textContent?.trim() ?? '',
+        fixLabel: fix?.textContent?.trim() ?? '',
+        stacked: !!chkRect && !!fixRect && fixRect.top > chkRect.top,
+        rawKeys: sec.innerText.includes('settings.repair') || sec.innerText.includes('toast.repair'),
+        notes: sec.querySelectorAll('.drawer-note').length,
+        results: document.querySelectorAll('[data-testid="repair-report"]').length,
+        noteText: note?.textContent?.trim() ?? '',
+      };
+    })()`);
+    check('UI', '设置页有「数据自检与修复」分区，检查/修复两个按钮都在', repairSection?.check === true && repairSection?.fix === true, JSON.stringify(repairSection));
+    check('UI', '自检分区：两项分行排布且标签非空', repairSection?.stacked === true && repairSection.checkLabel.length > 0 && repairSection.fixLabel.length > 0, JSON.stringify(repairSection));
+    check('UI', '自检分区：文案已本地化（无原始 i18n key）', repairSection && !repairSection.rawKeys, JSON.stringify(repairSection));
+    check('UI', '自检分区：未点击时不平白显示结果块', repairSection?.results === 0, JSON.stringify(repairSection));
+
+    if (await evaluate(`Boolean(document.querySelector('[data-testid="toast"]'))`)) {
+      await click('[data-testid="toast"]');
+      await sleep(200);
+    }
+    await click('[data-testid="repair-check"]');
+    await sleep(600);
+    const repairAfterCheck = await evaluate(`(() => {
+      const el = document.querySelector('[data-testid="toast"]');
+      const report = document.querySelector('[data-testid="repair-report"]');
+      return {
+        toast: el ? (el.className + ' | ' + (el.querySelector('[data-testid="toast-text"]')?.textContent ?? '')) : '',
+        report: report ? { ok: report.dataset.ok, severity: report.dataset.severity, findings: report.querySelectorAll('[data-testid="repair-finding"]').length } : null,
+        rawKeys: document.body.innerText.includes('settings.repair') || document.body.innerText.includes('toast.repair'),
+      };
+    })()`);
+    check(
+      'UI',
+      '点「开始检查」要么给出真实报告，要么明确失败；不许两者都没有',
+      repairAfterCheck.report !== null || repairAfterCheck.toast.length > 0,
+      JSON.stringify(repairAfterCheck),
+    );
+    check('UI', '自检结果里不出现原始 i18n key', repairAfterCheck.rawKeys === false, JSON.stringify(repairAfterCheck));
+    const repairEnabledAgain = await evaluate(`(() => {
+      const chk = document.querySelector('[data-testid="repair-check"]');
+      const fix = document.querySelector('[data-testid="repair-fix"]');
+      return chk?.disabled === false && fix?.disabled === false;
+    })()`);
+    check('UI', '自检结束后两个按钮都恢复可用（不卡在忙状态）', repairEnabledAgain === true, String(repairEnabledAgain));
+    if (await evaluate(`Boolean(document.querySelector('[data-testid="toast"]'))`)) {
+      await click('[data-testid="toast"]');
+      await sleep(150);
+    }
+
     // --- 快照：生成（哈希默认关）/ 预览 / 冲突跳过不覆盖 / 还原可撤销 ---
     await evaluate('localStorage.clear()');
     await send('Page.navigate', { url: `http://127.0.0.1:${HTTP_PORT}/index.html?lang=zh-CN` });

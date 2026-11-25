@@ -5,7 +5,7 @@ import type {
   ExifInventoryDto, FileTypeIconDto, LegacyImportReport, MetaCapabilityDto,
   MetaEditRequestDto, MetaEditResultDto, MetadataInfo, MetaFields, MetaSnapshotDto, MigrationInfo,
   MoveItemDto, MoveSpecDto, OpTargetDto, OpsOutcome,
-  PrivilegeInfo, SavedUpdate, ScanResultDto, SnapshotDto, SnapshotPlanItemDto, SnapshotProgress,
+  PrivilegeInfo, RepairReportDto, SavedUpdate, ScanResultDto, SnapshotDto, SnapshotPlanItemDto, SnapshotProgress,
   SnapshotRestoreResult, SnapshotSummaryDto, StartupMark, TextBatchRequestDto, TextBatchResultDto,
   TextDetectDto, TextSaveRequestDto,
   TextSaveResultDto, TimeInfo, TimeSpecDto, UndoOutcome,
@@ -801,6 +801,18 @@ export async function settingsToIni(json: string): Promise<string> {
 export async function settingsFromIni(text: string): Promise<string> {
   if (!isDesktop) throw new Error('浏览器演示模式：INI 编解码需要桌面端');
   return invoke<string>('settings_from_ini', { text });
+}
+
+/** 数据目录自检（只读）：不写任何文件，返回带稳定 code 的发现列表。 */
+export async function dataDirCheck(): Promise<RepairReportDto> {
+  if (!isDesktop) throw new Error('浏览器演示模式：没有真实数据目录');
+  return invoke<RepairReportDto>('data_dir_check');
+}
+
+/** 数据目录修复：建缺失目录、坏文件隔离（不删除）、清理超 24 小时的临时文件；幂等。 */
+export async function dataDirRepair(): Promise<RepairReportDto> {
+  if (!isDesktop) throw new Error('浏览器演示模式：没有真实数据目录');
+  return invoke<RepairReportDto>('data_dir_repair');
 }
 
 /** 演示模式的只读元数据样本（不读取真实文件）。 */
