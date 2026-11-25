@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type KeyboardEvent } from 'react';
 import { parentPath } from '../lib/format';
 import { useTranslation } from '../i18n';
 import { useApp } from '../store';
@@ -18,6 +18,8 @@ export function PathBar() {
   const setIncludeDirs = useApp((s) => s.setIncludeDirs);
   const includeHidden = useApp((s) => s.includeHidden);
   const setIncludeHidden = useApp((s) => s.setIncludeHidden);
+  const applyCurrentFilter = useApp((s) => s.applyCurrentFilter);
+  const hasPattern = Boolean(includePattern.trim() || excludePattern.trim());
 
   const rootLabel = useMemo(() => {
     if (!entries.length) return t('path.none');
@@ -29,6 +31,17 @@ export function PathBar() {
       ? `${top[0]} (${top[1]})`
       : t('path.locations', { path: parentPath(top[0]) || top[0], count: parents.size });
   }, [entries, t]);
+
+  /** 筛选输入框的键盘约定：Enter 执行筛选，Esc 清空当前框（不回退已填条件）。 */
+  const keyInFilter = (event: KeyboardEvent<HTMLInputElement>, clear: () => void) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      applyCurrentFilter();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      clear();
+    }
+  };
 
   return (
     <div className="pathbar">
@@ -42,10 +55,11 @@ export function PathBar() {
           id="include-pattern"
           className="chip-input"
           value={includePattern}
-          placeholder="*.jpg *.png"
+          placeholder="*.jpg;*.png"
           aria-label={t('path.keepAria')}
           data-testid="include-pattern"
           onChange={(e) => setIncludePattern(e.target.value)}
+          onKeyDown={(e) => keyInFilter(e, () => setIncludePattern(''))}
         />
         {includePattern && (
           <span className="x" onClick={() => setIncludePattern('')} role="button" aria-label={t('path.clearKeep')}>×</span>
@@ -60,11 +74,26 @@ export function PathBar() {
           aria-label={t('path.excludeAria')}
           data-testid="exclude-pattern"
           onChange={(e) => setExcludePattern(e.target.value)}
+          onKeyDown={(e) => keyInFilter(e, () => setExcludePattern(''))}
         />
         {excludePattern && (
           <span className="x" onClick={() => setExcludePattern('')} role="button" aria-label={t('path.clearExclude')}>×</span>
         )}
       </span>
+      {/* 执行筛选只在填了条件时出现，就贴在条件旁边；Enter 同效，Esc 清空当前输入框 */}
+      {hasPattern && (
+        <button
+          type="button"
+          className="chip chip-accent chip-action"
+          data-testid="filter-apply"
+          title={t('path.applyFilterHint')}
+          aria-label={t('path.applyFilter')}
+          onClick={applyCurrentFilter}
+        >
+          <Icon name="filter" size={12} />
+          {t('path.applyFilter')}
+        </button>
+      )}
       <div className="right">
         <LayoutSwitch />
         <span className="switch-row" title={t('path.recursiveHint')}>

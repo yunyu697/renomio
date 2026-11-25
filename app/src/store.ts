@@ -12,7 +12,8 @@ import {
   removeHistoryEntry, type RuleHistory,
 } from './lib/history';
 import { baseName, parentPath } from './lib/format';
-import { matchesAny, splitPatterns } from './lib/glob';
+import { splitPatterns } from './lib/glob';
+import { applyPatternFilter } from './lib/patternFilter';
 import { isPermissionRelated } from './lib/permission';
 import { computePreview } from './lib/preview';
 import { parsePlan, planFilter, serializePlan } from './lib/plan';
@@ -1180,20 +1181,24 @@ export const useApp = create<AppState>((set, get) => ({
 
   applyCurrentFilter: () => {
     const s = get();
-    const inc = splitPatterns(s.includePattern);
-    const exc = splitPatterns(s.excludePattern);
-    if (!inc.length && !exc.length) {
-      get().showToast('info', translate('toast.needPattern'));
+    const outcome = applyPatternFilter(
+      s.entries,
+      s.includePattern,
+      s.excludePattern,
+      !s.env.caseSensitive,
+      (e) => e.path,
+    );
+    if (outcome.status === 'no-pattern') {
+      get().showToast('warn', translate('toast.needPattern'));
       return;
     }
-    const before = s.entries.length;
-    const filtered = s.entries.filter((e) => {
-      if (inc.length && !matchesAny(inc, e.path, !s.env.caseSensitive)) return false;
-      if (exc.length && matchesAny(exc, e.path, !s.env.caseSensitive)) return false;
-      return true;
-    });
-    set({ entries: filtered });
-    get().showToast('info', translate('toast.filtered', { filtered: filtered.length, before }));
+    if (outcome.status === 'no-match') {
+      // 一组都没匹配上就不动列表：宁可没反应，也不能一次点击把列表清空
+      get().showToast('warn', translate('toast.filterNoMatch', { total: outcome.total }));
+      return;
+    }
+    set({ entries: outcome.kept });
+    get().showToast('info', translate('toast.filtered', { filtered: outcome.kept.length, before: outcome.total }));
   },
 
   setSearch: (value) => set({ search: value }),

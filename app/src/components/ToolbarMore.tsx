@@ -85,19 +85,6 @@ export function ToolbarMore() {
             type="button"
             role="menuitem"
             className="pop-item"
-            data-testid="filter-files"
-            onClick={() => {
-              close();
-              document.getElementById('include-pattern')?.focus();
-            }}
-          >
-            <Icon name="filter" size={14} />
-            <span>{t('toolbar.filter')}</span>
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="pop-item"
             data-testid="open-commands"
             onClick={() => { close(); openCommands(); }}
           >

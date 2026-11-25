@@ -26,9 +26,13 @@ export function wildcardMatch(pattern: string, text: string, caseInsensitive: bo
   return pi === p.length;
 }
 
+/**
+ * 通配符列表分隔符：`;` `|` 与换行（粘贴多行时也能用）。
+ * 刻意不按空格/逗号切：路径与文件名本身可能带空格或逗号（`*My Files*`、`*a,b*`），切了会拆坏。
+ */
 export function splitPatterns(raw: string): string[] {
   return raw
-    .split(/[;|]/)
+    .split(/[;|\n\r]+/)
     .map((p) => p.trim())
     .filter(Boolean);
 }
