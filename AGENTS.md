@@ -87,4 +87,4 @@ npm run tauri:build
 
 ## 文档索引
 
-`docs/交接说明.md`（总入口）、`docs/1.1.0-收口清单.md`、`docs/规则语义确认清单.md`、`docs/签名与打包流程.md`、`docs/FEATURE-GAP.md`、`docs/P0-完成度与验证说明.md`、`CONTRIBUTING.md`。
+`docs/交接说明.md`（总入口）、`docs/1.1.0-收口清单.md`、`docs/规则语义确认清单.md`、`docs/签名与打包流程.md`、`docs/更新链路真机记录.md`（应用内更新链真机跑通记录 + 复现脚本）、`docs/FEATURE-GAP.md`、`docs/P0-完成度与验证说明.md`、`CONTRIBUTING.md`。
