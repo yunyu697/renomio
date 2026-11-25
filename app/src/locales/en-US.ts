@@ -520,7 +520,7 @@ export const enUS: Dict = {
   'ruleErr.emptyFind': 'Find text is empty',
   'ruleErr.badRegex': 'Invalid regular expression',
   'ruleErr.refExceedsGroups': 'Replacement references \\{ref} but the pattern has only {groups} capture group(s)',
-  'ruleHint.backslashRefs': 'With regex on, \\1…\\9 in the replacement is treated as a group reference (same as $1…$9); write \\\\1 for a literal backslash',
+  'ruleHint.backslashRefs': 'With regex on, \\1…\\9 in the replacement are group references (same as $1…$9) and \\0 is the whole match; write \\\\1 for a literal backslash',
   'ruleErr.negativeNth': 'Replace count cannot be negative',
   'ruleErr.rangePositive': 'Start and length must be greater than 0',
   'ruleErr.markerRequired': 'Marker mode needs at least one marker',

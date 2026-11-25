@@ -394,12 +394,13 @@ function ReplaceEditor({ rule, patch }: { rule: ReplaceRule; patch: Patch }) {
       <Field label={t('f.replaceScope')}>
         <div className="field-row">
           <Seg
+            testId="replace-scope"
             value={rule.nth === 0 ? 'all' : 'nth'}
             options={[['all', t('f.all')], ['nth', t('f.onlyNth')]]}
             onChange={(mode) => patch({ nth: mode === 'all' ? 0 : 1 })}
           />
           {rule.nth > 0 && (
-            <NumberInput value={rule.nth} min={1} onChange={(nth) => patch({ nth })} />
+            <NumberInput testId="replace-nth" value={rule.nth} min={1} onChange={(nth) => patch({ nth })} />
           )}
         </div>
       </Field>

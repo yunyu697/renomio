@@ -527,7 +527,7 @@ export const zhCN: Dict = {
   'ruleErr.emptyFind': '查找内容为空',
   'ruleErr.badRegex': '正则表达式无效',
   'ruleErr.refExceedsGroups': '替换串引用了 \\{ref} 分组，但正则只有 {groups} 个捕获组',
-  'ruleHint.backslashRefs': '正则开启时，替换串里的 \\1…\\9 自动按分组引用处理（等价 $1…$9）；要写字面反斜杠请用 \\\\1',
+  'ruleHint.backslashRefs': '正则开启时，替换串里的 \\1…\\9 按分组引用处理（等价 $1…$9），\\0 表示整段匹配；要写字面反斜杠请用 \\\\1',
   'ruleErr.negativeNth': '替换次数不能为负',
   'ruleErr.rangePositive': '起始位置与长度需大于 0',
   'ruleErr.markerRequired': '按标记移动时，起止标记至少要填一个',

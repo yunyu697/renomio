@@ -150,9 +150,10 @@ function applyAdd(stem: string, rule: AddRule, vars: VarContext): string {
 
 /**
  * 正则替换的分组引用同时接受两种写法：
- * - JS 方言 `$1`（原生）
- * - Delphi 方言 `\1`（对标商业批量改名软件的习惯），`\\1` 表示字面反斜杠加数字
- * 因此这里只把「没被转义」的 `\1`..`\9` 换成 `$1`..`$9`，其余反斜杠一律原样保留。
+ * - JS 方言 `$1` / `$&`（原生）
+ * - Delphi 方言 `\1` / `\0`（对标商业批量改名软件的习惯），`\\1` / `\\0` 表示字面反斜杠加数字
+ * 因此这里只把「没被转义」的 `\0` 换成 `$&`（整段匹配）、`\1`..`\9` 换成 `$1`..`$9`，
+ * 其余反斜杠一律原样保留。
  */
 export function convertBackslashRefs(replacement: string): string {
   let out = '';
@@ -164,13 +165,52 @@ export function convertBackslashRefs(replacement: string): string {
     }
     const next = replacement[i + 1];
     const after = replacement[i + 2];
-    if (next === '\\' && after !== undefined && after >= '1' && after <= '9') {
+    if (next === '\\' && after !== undefined && after >= '0' && after <= '9') {
       out += `\\${after}`;
       i += 2;
       continue;
     }
+    if (next === '0') {
+      out += '$&';
+      i += 1;
+      continue;
+    }
     if (next !== undefined && next >= '1' && next <= '9') {
       out += `$${next}`;
+      i += 1;
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
+/**
+ * 按 JS 替换串语法展开 `$1`..`$9` / `$&` / `$$`。
+ * 指定「第 n 个匹配」时必须自己展开：`String.replace` 的回调形式会把返回值当字面，
+ * 不会解析 `$` 引用，直接 return 替换串会把 `$1` 原样写进文件名。
+ */
+function expandDollarRefs(template: string, match: RegExpExecArray): string {
+  let out = '';
+  for (let i = 0; i < template.length; i += 1) {
+    const ch = template[i];
+    if (ch !== '$') {
+      out += ch;
+      continue;
+    }
+    const next = template[i + 1];
+    if (next === '$') {
+      out += '$';
+      i += 1;
+      continue;
+    }
+    if (next === '&') {
+      out += match[0];
+      i += 1;
+      continue;
+    }
+    if (next !== undefined && next >= '1' && next <= '9') {
+      out += match[Number(next)] ?? '';
       i += 1;
       continue;
     }
@@ -221,11 +261,20 @@ function applyReplace(stem: string, rule: ReplaceRule, vars: VarContext): string
   const expanded = expandTemplate(rule.replace, vars);
   const replacement = rule.regex ? convertBackslashRefs(expanded) : expanded;
   if (rule.nth === 0) return stem.replace(re, replacement);
+  // 只替换第 nth 个匹配：用 exec 逐个找，命中后按捕获组自行展开替换串
   let count = 0;
-  return stem.replace(re, (match) => {
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(stem)) !== null) {
     count += 1;
-    return count === rule.nth ? replacement : match;
-  });
+    if (count === rule.nth) {
+      const head = stem.slice(0, m.index);
+      const tail = stem.slice(m.index + m[0].length);
+      return head + expandDollarRefs(replacement, m) + tail;
+    }
+    // 零宽匹配要手动前进，否则 lastIndex 不动会死循环
+    if (m[0].length === 0) re.lastIndex += 1;
+  }
+  return stem;
 }
 
 /**
