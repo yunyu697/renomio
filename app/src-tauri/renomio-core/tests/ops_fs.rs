@@ -1137,3 +1137,242 @@ fn move_copy_keeps_dangling_link_as_link() {
     );
     assert!(!moved.exists(), "目标确实不存在，说明链接没有被实体化");
 }
+
+// ---------- 硬链接：跨盘移动必须保住「同一个文件的多个名字」 ----------
+
+/// 建硬链接：同卷即可，不需要任何权限（与符号链接不同）。
+fn make_hard_link(src: &Path, dst: &Path) -> bool {
+    fs::hard_link(native_path(src), native_path(dst)).is_ok()
+}
+
+#[cfg(unix)]
+fn link_count(path: &Path) -> Option<u32> {
+    use std::os::unix::fs::MetadataExt;
+    fs::metadata(native_path(path))
+        .ok()
+        .map(|meta| meta.nlink() as u32)
+}
+
+#[cfg(windows)]
+fn link_count(path: &Path) -> Option<u32> {
+    use std::ffi::c_void;
+    use std::os::windows::ffi::OsStrExt;
+
+    #[repr(C)]
+    #[derive(Default)]
+    struct ByHandle {
+        attributes: u32,
+        creation: [u32; 2],
+        access: [u32; 2],
+        write: [u32; 2],
+        volume: u32,
+        size_high: u32,
+        size_low: u32,
+        links: u32,
+        index_high: u32,
+        index_low: u32,
+    }
+
+    type Handle = *mut c_void;
+    extern "system" {
+        fn CreateFileW(
+            name: *const u16,
+            access: u32,
+            share: u32,
+            security: *mut c_void,
+            disposition: u32,
+            flags: u32,
+            template: Handle,
+        ) -> Handle;
+        fn GetFileInformationByHandle(handle: Handle, info: *mut ByHandle) -> i32;
+        fn CloseHandle(handle: Handle) -> i32;
+    }
+
+    let wide: Vec<u16> = native_path(path)
+        .as_os_str()
+        .encode_wide()
+        .chain(Some(0))
+        .collect();
+    let handle = unsafe {
+        CreateFileW(
+            wide.as_ptr(),
+            0x0080, // FILE_READ_ATTRIBUTES
+            0x0000_0007,
+            std::ptr::null_mut(),
+            3, // OPEN_EXISTING
+            0x0200_0000, // FILE_FLAG_BACKUP_SEMANTICS
+            std::ptr::null_mut(),
+        )
+    };
+    if handle as usize == usize::MAX {
+        return None;
+    }
+    let mut info = ByHandle::default();
+    let ok = unsafe { GetFileInformationByHandle(handle, &mut info) };
+    unsafe {
+        CloseHandle(handle);
+    }
+    if ok == 0 {
+        return None;
+    }
+    Some(info.links)
+}
+
+#[cfg(not(any(unix, windows)))]
+fn link_count(_path: &Path) -> Option<u32> {
+    None
+}
+
+#[test]
+fn move_copy_preserves_hard_links_inside_directory() {
+    let t = Temp::new("hardlink-inside");
+    let tree = t.root.join("tree");
+    fs::create_dir_all(native_path(&tree.join("deep"))).unwrap();
+    let first = tree.join("a.txt");
+    fs::write(native_path(&first), b"v1").unwrap();
+    let second = tree.join("b.txt");
+    let nested = tree.join("deep").join("c.txt");
+    if !make_hard_link(&first, &second) || !make_hard_link(&first, &nested) {
+        eprintln!("跳过 move_copy_preserves_hard_links_inside_directory：当前文件系统不支持硬链接");
+        return;
+    }
+    assert_eq!(link_count(&first), Some(3), "造出来的三个名字应共享同一份数据");
+    // 移动前先确认探针手段本身有效：改 a.txt，b.txt 立刻看到
+    fs::write(native_path(&first), b"v2").unwrap();
+    assert_eq!(fs::read_to_string(native_path(&second)).unwrap(), "v2");
+    fs::write(native_path(&first), b"v1").unwrap();
+
+    let dest = t.root.join("moved");
+    let core = t.core();
+    let outcome = core
+        .apply_move(vec![move_item(&tree, &dest, true)], &move_spec())
+        .unwrap();
+    assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
+    assert!(!tree.exists(), "源目录应已移走");
+
+    assert!(
+        dest.join("deep").join("c.txt").exists(),
+        "子目录里的名字也要搬过来"
+    );
+    assert_eq!(
+        link_count(&dest.join("a.txt")),
+        Some(3),
+        "三个名字必须仍是同一个文件的硬链接（旧实现各复制一份独立副本）"
+    );
+    assert_eq!(
+        link_count(&dest.join("deep").join("c.txt")),
+        Some(3),
+        "跨子目录的那一份也必须共享"
+    );
+    // 内容探针：改一处，三处同步变化
+    fs::write(native_path(&dest.join("a.txt")), b"v3").unwrap();
+    assert_eq!(
+        fs::read_to_string(native_path(&dest.join("b.txt"))).unwrap(),
+        "v3",
+        "硬链接失效时这里仍是 v1"
+    );
+    assert_eq!(
+        fs::read_to_string(native_path(&dest.join("deep").join("c.txt"))).unwrap(),
+        "v3",
+        "子目录里的硬链接也必须生效"
+    );
+    assert_eq!(
+        fs::read_to_string(native_path(&dest.join("a.txt"))).unwrap(),
+        "v3",
+        "读回的必须就是最后写入的内容"
+    );
+    assert!(left_temp_files(&t.root).is_empty(), "不应残留临时副本");
+
+    let undo = core.undo(&outcome.batch.id).unwrap();
+    assert_eq!(undo.restored.len(), 1, "{:?}", undo.failed);
+    assert!(tree.exists(), "撤销应把目录搬回原位");
+    assert!(!dest.exists(), "撤销后目标位置不应残留");
+    assert_eq!(
+        link_count(&tree.join("a.txt")),
+        Some(3),
+        "撤销时也要保住硬链接关系（搬回去同样要过复制/校验）"
+    );
+    fs::write(native_path(&tree.join("a.txt")), b"v4").unwrap();
+    assert_eq!(
+        fs::read_to_string(native_path(&tree.join("b.txt"))).unwrap(),
+        "v4",
+        "撤销后三个名字仍必须共享数据"
+    );
+}
+
+#[test]
+fn move_copy_does_not_link_identical_but_separate_files() {
+    let t = Temp::new("hardlink-fake");
+    let tree = t.root.join("tree");
+    fs::create_dir_all(native_path(&tree)).unwrap();
+    fs::write(native_path(&tree.join("x.txt")), b"same").unwrap();
+    fs::write(native_path(&tree.join("y.txt")), b"same").unwrap();
+    assert_eq!(
+        link_count(&tree.join("x.txt")),
+        Some(1),
+        "两个文件内容相同但不是同一个文件"
+    );
+
+    let dest = t.root.join("moved");
+    let core = t.core();
+    let outcome = core
+        .apply_move(vec![move_item(&tree, &dest, true)], &move_spec())
+        .unwrap();
+    assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
+
+    assert_eq!(
+        link_count(&dest.join("x.txt")),
+        Some(1),
+        "内容相同不能当成硬链接合并（会把两个独立文件粘在一起）"
+    );
+    assert_eq!(link_count(&dest.join("y.txt")), Some(1));
+    fs::write(native_path(&dest.join("x.txt")), b"changed").unwrap();
+    assert_eq!(
+        fs::read_to_string(native_path(&dest.join("y.txt"))).unwrap(),
+        "same",
+        "两个独立文件必须互不影响"
+    );
+}
+
+#[test]
+fn move_copy_leaves_out_of_scope_hard_link_partner_alone() {
+    let t = Temp::new("hardlink-outside");
+    let outside = t.root.join("outside");
+    fs::create_dir_all(native_path(&outside)).unwrap();
+    let partner = outside.join("partner.txt");
+    fs::write(native_path(&partner), b"shared").unwrap();
+    let tree = t.root.join("tree");
+    fs::create_dir_all(native_path(&tree)).unwrap();
+    let inside = tree.join("only.txt");
+    if !make_hard_link(&partner, &inside) {
+        eprintln!(
+            "跳过 move_copy_leaves_out_of_scope_hard_link_partner_alone：当前文件系统不支持硬链接"
+        );
+        return;
+    }
+    assert_eq!(link_count(&partner), Some(2));
+
+    let dest = t.root.join("moved");
+    let core = t.core();
+    let outcome = core
+        .apply_move(vec![move_item(&tree, &dest, true)], &move_spec())
+        .unwrap();
+    assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
+
+    assert_eq!(
+        link_count(&dest.join("only.txt")),
+        Some(1),
+        "同伴不在移动范围内：目标位置只能是独立副本，不能把范围外的文件拖进来"
+    );
+    assert_eq!(
+        link_count(&partner),
+        Some(1),
+        "范围外的同伴内容仍在，但它的另一个名字（源目录里的那份）已被删除"
+    );
+    fs::write(native_path(&dest.join("only.txt")), b"edited").unwrap();
+    assert_eq!(
+        fs::read_to_string(native_path(&partner)).unwrap(),
+        "shared",
+        "独立副本写入不得回写影响范围外的原文件"
+    );
+}
