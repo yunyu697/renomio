@@ -42,7 +42,7 @@ function transpile(name) {
 }
 
 writeFileSync(join(outDir, 'i18n.mjs'), 'export function t(key) { return key; }\n');
-for (const name of ['vars', 'rules', 'metaFields', 'validate', 'preview']) transpile(name);
+for (const name of ['vars', 'rules', 'metaFields', 'validate', 'preview', 'mapTable']) transpile(name);
 
 const { computePreview } = await import(pathToFileURL(join(outDir, 'preview.mjs')).href);
 const { ruleError } = await import(pathToFileURL(join(outDir, 'rules.mjs')).href);

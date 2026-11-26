@@ -75,6 +75,10 @@ jobs:
       - name: 执行筛选自测（23 条）
         run: npm run test:filter
 
+      # 对照表守卫：解析（分隔符/注释/转义/上限/错误码）+ 单遍最长匹配不连锁 + 引擎接线 + 五语种 + 文档同源
+      - name: 对照表规则自测（70 条）
+        run: npm run test:map
+
       - name: 大小写例外词表自测（18 条）
         run: npm run test:case
 

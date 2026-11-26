@@ -35,7 +35,7 @@ function transpile(name) {
   const source = readFileSync(join(root, 'src', 'lib', `${name}.ts`), 'utf8').replace(
     "from '../i18n'",
     "from './i18n.mjs'",
-  ).replace(/from '\.\/(rules|metaFields|vars)'/g, "from './$1.mjs'");
+  ).replace(/from '\.\/(rules|metaFields|vars|mapTable)'/g, "from './$1.mjs'");
   const out = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
   }).outputText;
@@ -51,6 +51,7 @@ writeFileSync(
 const varsUrl = transpile('vars');
 const rulesUrl = transpile('rules');
 transpile('metaFields');
+transpile('mapTable');
 
 /** 独立实现的 CRC32（逐位算法，和被测实现的查表法不同） */
 function crc32(buf) {

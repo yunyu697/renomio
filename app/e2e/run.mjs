@@ -3113,6 +3113,73 @@ async function main() {
     await click('[data-testid="toolbar-more"]');
     await sleep(200);
 
+    // ---- 对照表（map 规则）：新增类型 → 整段映射 → 条目计数 → 坏行拦下 ----
+    await clearAllRules();
+    const setArea = (selector, value) =>
+      evaluate(`(() => {
+        const el = document.querySelector(${JSON.stringify(selector)});
+        if (!el) throw new Error('找不到多行输入框 ${selector}');
+        const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+        setter.call(el, ${JSON.stringify(value)});
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+      })()`);
+    const firstRowNames = () => evaluate(`(() => {
+      const row = document.querySelector('.trow');
+      const oldName = row && row.querySelector('.txt') ? row.querySelector('.txt').textContent.trim() : '';
+      const dot = oldName.lastIndexOf('.');
+      const stem = dot > 0 ? oldName.slice(0, dot) : oldName;
+      const ext = dot > 0 ? oldName.slice(dot) : '';
+      const newName = row && row.querySelector('.new-name') ? row.querySelector('.new-name').textContent.trim() : '';
+      return { oldName, stem, ext, newName };
+    })()`);
+    const mapCountNumber = async () => {
+      const text = await textOf('[data-testid="map-entries-count"]');
+      const digits = (text.match(/\d+/) || [''])[0];
+      return digits ? Number(digits) : -1;
+    };
+
+    await addRuleType('map');
+    const mapCard = await evaluate(`(() => ({
+      card: document.querySelectorAll('[data-testid="rule-card"][data-rule-type="map"]').length,
+      table: document.querySelector('[data-testid="map-table"]') ? 1 : 0,
+      cases: document.querySelector('[data-testid="map-case"]') ? 1 : 0,
+      hint: document.querySelector('[data-testid="map-hint"]') ? 1 : 0,
+    }))()`);
+    check('UI', '对照表：规则菜单可新增 map 规则，编辑器有表格框、大小写开关与提示',
+      mapCard.card === 1 && mapCard.table === 1 && mapCard.cases === 1 && mapCard.hint === 1, JSON.stringify(mapCard));
+
+    const mapBefore = await firstRowNames();
+    await setArea('[data-testid="map-table"]', `${mapBefore.stem}=MAPED`);
+    await sleep(700);
+    const mapAfter = await firstRowNames();
+    check('UI', '对照表：整段旧名映射成新词，扩展名保持不变',
+      mapBefore.stem.length > 0 && mapAfter.newName === `MAPED${mapBefore.ext}`,
+      JSON.stringify({ mapBefore, mapAfter }));
+
+    await setArea('[data-testid="map-table"]', `${mapBefore.stem}=MAPED\nNOT_IN_LISTMAP=X`);
+    await sleep(600);
+    const mapCount = await mapCountNumber();
+    check('UI', '对照表：条目计数按实际可解析的条数显示', mapCount === 2, String(mapCount));
+
+    await setArea('[data-testid="map-table"]', 'MAP_NO_SEP_LINE');
+    await sleep(600);
+    const mapBad = await evaluate(`(() => {
+      const box = document.querySelector('[data-testid="map-errors"]');
+      const row = document.querySelector('.trow');
+      return {
+        errors: box ? box.querySelectorAll('div').length : 0,
+        text: box ? box.textContent.trim() : '',
+        newName: row && row.querySelector('.new-name') ? row.querySelector('.new-name').textContent.trim() : '',
+      };
+    })()`);
+    check('UI', '对照表：坏行就地报错（带行号），且该规则不参与改名',
+      mapBad.errors >= 1 && mapBad.text.length > 0 && mapBad.newName === mapBefore.oldName,
+      JSON.stringify({ mapBad, old: mapBefore.oldName }));
+
+    await clearAllRules();
+    await sleep(300);
+
     // ---- 正则方言：替换串里的 \1..\9 按分组引用处理（对标 Delphi 习惯，等价 $1..$9）----
     await clearAllRules();
     await addRuleType('replace');
