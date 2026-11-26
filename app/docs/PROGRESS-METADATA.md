@@ -52,7 +52,7 @@
 - 支持：MP3（ID3v2.3 UTF-16 / v2.4 UTF-8）、FLAC（Vorbis comment + PICTURE）、M4A/MP4（ilst/covr）、OGG Vorbis（+framing bit）、Opus（OpusTags）。
 - 字段：title / artist / album / year / track / genre / comment / albumArtist / lyrics / cover（lyrics：MP3 `USLT`、FLAC/OGG `LYRICS`、M4A `©lyr`）。
 - 本轮修复：MP3 TXXX(comment) 与 COMM 同步；Vorbis 键统一小写且 comment 兼容 DESCRIPTION；OGG Vorbis 注释头补 framing bit；FLAC 封面按读取口径（type 3 优先，否则任取首个图片块）替换/清空，兼容 ffmpeg 写的 pic_type=0。
-- 不支持：WMA(ASF) / APE / AIFF / WAV（明确拒绝，不静默跳过）。
+- WMA(ASF) / APE / AIFF / WAV：**alpha23 起已支持只读**（容器参数 + 文本标签，见 `docs/FEATURE-GAP.md` 5.11）；写入仍不做，界面标注「只读」。
 - 实测：`verify_meta.py` 音频段 270 项断言 0 失败（含批量逐文件回传、中文/日文标签、解码帧 md5 不变、封面换/清）。
 
 ## 3. 文档属性（已验）
