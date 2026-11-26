@@ -1,7 +1,7 @@
 {
   "name": "rename-studio",
   "private": true,
-  "version": "1.2.0-alpha21",
+  "version": "1.2.0-alpha22",
   "type": "module",
   "workspaces": [
     "packages/*"
