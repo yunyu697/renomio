@@ -1,6 +1,6 @@
 [package]
 name = "renomio-core"
-version = "1.2.0-alpha21"
+version = "1.2.0-alpha22"
 edition = "2021"
 description = "Renomio 文件系统核心：扫描、校验、两阶段改名、批次撤销"
 license = "MIT"
@@ -10,7 +10,12 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # 仅用于 DOCX 内部的 deflate 解压；不引入完整 zip 依赖
 flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
+encoding_rs = "0.8.44"
 
 # 目录联接（junction）：跨盘移动时保留目录链接，且不需要「创建符号链接」特权
 [target.'cfg(windows)'.dependencies]
 junction = "1.4"
+
+[dev-dependencies]
+# 测试里用 GBK 编码器生成真实字节，避免手抄码位抄错
+encoding_rs = "0.8"

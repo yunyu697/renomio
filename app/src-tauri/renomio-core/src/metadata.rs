@@ -252,9 +252,7 @@ pub fn read_metadata(path: &str) -> Result<MetadataInfo, String> {
     } else if is_text_ext(&ext) {
         text_file(&data, &ext)
     } else if data.starts_with(b"\xD0\xCF\x11\xE0") {
-        let mut info = MetadataInfo::new("document", "旧版 Office 文档（OLE）");
-        info.warn("旧版 .doc/.xls/.ppt 的属性解析尚未实现，只能显示文件基础信息");
-        info
+        document_ole(&data)
     } else {
         MetadataInfo::new("other", "未识别的文件类型")
     };
@@ -1108,6 +1106,80 @@ fn audio_flac(data: &[u8], size: u64) -> MetadataInfo {
 // ---------------------------------------------------------------------------
 // 文档
 // ---------------------------------------------------------------------------
+
+/// 旧版 Office 与其它 OLE 复合文档：先认类型，再读摘要流；读不了的明确拒绝并给原因。
+///
+/// 这些格式的文件头完全一样（`D0 CF 11 E0 A1 B1 1A E1`），只按文件头判断会把
+/// Windows 安装包、Outlook 邮件、加密的 Office 包全都报成「旧版 Office 文档」。
+/// 现在按根存储 CLSID 与流名分开认，并在拒绝时写清**为什么**读不了。
+fn document_ole(data: &[u8]) -> MetadataInfo {
+    let file = match crate::cfb::CompoundFile::parse(data) {
+        Ok(file) => file,
+        Err(reason) => {
+            let mut info = MetadataInfo::new("other", "OLE 复合文档（结构无法解析）");
+            info.warn(format!("文件头声明是 OLE 复合文档，但结构读取失败：{reason}"));
+            info.warn("该文件不会被尝试修改；需要属性请用原应用打开。");
+            return info;
+        }
+    };
+    let kind = file.kind();
+    let mut info = MetadataInfo::new(kind.metadata_kind(), kind.label());
+    if let Some(reason) = kind.refusal_reason() {
+        info.warn(reason);
+        return info;
+    }
+    match file
+        .stream("SummaryInformation")
+        .and_then(|bytes| crate::cfb::read_property_set(&bytes).ok())
+    {
+        Some(set) => {
+            for (id, label) in [
+                (2, "标题"),
+                (3, "主题"),
+                (4, "作者"),
+                (5, "关键词"),
+                (6, "备注"),
+                (7, "模板"),
+                (8, "最后修改者"),
+                (9, "修订号"),
+            ] {
+                if let Some(value) = set.text(id) {
+                    info.push(label, value.to_string());
+                }
+            }
+            for (id, label) in [(12, "创建时间（UTC）"), (13, "最后保存（UTC）")] {
+                if let Some(ms) = set.time(id) {
+                    let text = crate::cfb::utc_text_from_unix_ms(ms);
+                    if !text.is_empty() {
+                        info.push(label, text);
+                    }
+                }
+            }
+            for (id, label) in [(14, "页数"), (15, "字数"), (16, "字符数")] {
+                if let Some(n) = set.int(id) {
+                    if n > 0 {
+                        info.push(label, n.to_string());
+                    }
+                }
+            }
+            if let Some(app) = set.text(18) {
+                info.push("生成应用", app.to_string());
+            }
+        }
+        None => info.warn("这个文件没有可读的摘要流（可能由非 Office 工具生成，或摘要已被删除）"),
+    }
+    if let Some(set) = file
+        .stream("DocumentSummaryInformation")
+        .and_then(|bytes| crate::cfb::read_property_set(&bytes).ok())
+    {
+        for (id, label) in [(2, "类别"), (4, "经理"), (15, "公司")] {
+            if let Some(value) = set.text(id) {
+                info.push(label, value.to_string());
+            }
+        }
+    }
+    info
+}
 
 fn document_pdf(data: &[u8]) -> MetadataInfo {
     let mut info = MetadataInfo::new("document", "PDF 文档");
