@@ -1,6 +1,6 @@
 import type { ShortcutId } from './shortcuts';
 
-export type RuleType = 'add' | 'replace' | 'delete' | 'number' | 'move' | 'case' | 'ext' | 'meta';
+export type RuleType = 'add' | 'replace' | 'delete' | 'number' | 'move' | 'case' | 'ext' | 'meta' | 'map';
 
 export interface Entry {
   id: string;
@@ -567,8 +567,15 @@ export interface MetaRule extends RuleBase {
   separator: string;
 }
 
+/** 对照表：整表原文（一行一条「旧=新」），按最长键单遍替换文件名主干 */
+export interface MapRule extends RuleBase {
+  type: 'map';
+  table: string;
+  caseSensitive: boolean;
+}
+
 export type Rule =
-  | AddRule | ReplaceRule | DeleteRule | NumberRule | MoveRule | CaseRule | ExtRule | MetaRule;
+  | AddRule | ReplaceRule | DeleteRule | NumberRule | MoveRule | CaseRule | ExtRule | MetaRule | MapRule;
 
 export type RowStatus = 'ready' | 'unchanged' | 'conflict' | 'warn' | 'invalid' | 'off';
 

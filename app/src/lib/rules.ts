@@ -1,9 +1,10 @@
 /** 规则引擎：纯函数，输入原名 + 规则链，输出新名。所有语义在 README 中固化说明。 */
 import { t } from '../i18n';
 import type {
-  AddRule, CaseRule, DeleteRule, ExtRule, MetaFieldKey, MetaFields, MoveRule, NumberRule, ReplaceRule, Rule,
+  AddRule, CaseRule, DeleteRule, ExtRule, MapRule, MetaFieldKey, MetaFields, MoveRule, NumberRule, ReplaceRule, Rule,
 } from './types';
 import { META_FIELDS, metaFieldLabelKey } from './metaFields';
+import { applyMapping, mapErrorKey, parseMapTable } from './mapTable';
 import { expandTemplate, scanTemplate, type VarContext } from './vars';
 
 export function splitName(name: string, isDir: boolean): { stem: string; ext: string } {
@@ -125,6 +126,15 @@ export function ruleError(rule: Rule): string | null {
       return null;
     case 'meta':
       return null;
+    case 'map': {
+      const parsed = parseMapTable(rule.table, rule.caseSensitive);
+      if (parsed.errors.length) {
+        const first = parsed.errors[0];
+        return t(mapErrorKey(first.code), { line: first.line, text: first.text });
+      }
+      if (parsed.entries.length === 0) return t('ruleErr.mapEmpty');
+      return null;
+    }
     default:
       return null;
   }
@@ -664,6 +674,12 @@ export function applyRules(
         }
         break;
       }
+      case 'map': {
+        // 表已在 ruleError 里校验过；这里再解析一次是纯函数、无副作用，避免结论依赖调用顺序
+        const parsed = parseMapTable(rule.table, rule.caseSensitive);
+        if (parsed.entries.length) stem = applyMapping(stem, parsed.entries, rule.caseSensitive);
+        break;
+      }
       default:
         break;
     }
@@ -716,6 +732,15 @@ export function normalizeRule(rule: Rule): Rule {
     // trimChars 是本轮新增字段：旧存档缺省为空串，等价于「只剪空白」，行为不变
     const legacy = rule as DeleteRule & { trimChars?: string };
     return { ...legacy, trimChars: typeof legacy.trimChars === 'string' ? legacy.trimChars : '' };
+  }
+  if (rule.type === 'map') {
+    // 手改存档 / 旧计划文件可能缺字段：补齐后再进解析，避免 undefined 崩掉整条链
+    const legacy = rule as MapRule & Partial<Pick<MapRule, 'table' | 'caseSensitive'>>;
+    return {
+      ...legacy,
+      table: typeof legacy.table === 'string' ? legacy.table : '',
+      caseSensitive: !!legacy.caseSensitive,
+    };
   }
   if (rule.type !== 'number') return rule;
   const legacy = rule as NumberRule & { perFolder?: boolean };
@@ -819,6 +844,10 @@ export function ruleSummary(rule: Rule): string {
         label, sep: '',
       });
       return `${base}${rule.separator ? t('ruleSum.metaSep', { sep: rule.separator }) : ''}`;
+    }
+    case 'map': {
+      const parsed = parseMapTable(rule.table, rule.caseSensitive);
+      return t(rule.caseSensitive ? 'ruleSum.mapCase' : 'ruleSum.map', { n: parsed.entries.length });
     }
     default:
       return '';

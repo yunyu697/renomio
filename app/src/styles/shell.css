@@ -242,6 +242,20 @@ body {
   padding-left: var(--ds-space-4);
 }
 
+/* 对照表输入：多行文本域，按内容撑高（.input 默认是单行高度） */
+.map-table {
+  height: auto;
+  min-height: 108px;
+  padding: var(--ds-space-2) var(--ds-space-4);
+  line-height: var(--ds-leading-base);
+  resize: vertical;
+}
+
+.hint-line.map-error {
+  color: var(--ds-color-danger);
+  border-left-color: var(--ds-color-danger);
+}
+
 /* 添加规则菜单：portal 到 body + fixed 定位，不受侧栏/滚动容器裁剪，窄窗口也完整可见 */
 
 .rule-menu-pop {

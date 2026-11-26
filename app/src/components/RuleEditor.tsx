@@ -2,9 +2,10 @@ import { useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from '../i18n';
 import { useApp } from '../store';
 import type {
-  AddRule, CaseRule, DeleteRule, ExtRule, MetaRule, MoveRule, NumberRule, ReplaceRule, Rule,
+  AddRule, CaseRule, DeleteRule, ExtRule, MapRule, MetaRule, MoveRule, NumberRule, ReplaceRule, Rule,
 } from '../lib/types';
 import { ruleError } from '../lib/rules';
+import { mapErrorKey, parseMapTable } from '../lib/mapTable';
 import { META_FIELD_GROUPS, metaFieldLabelKey } from '../lib/metaFields';
 import { SAMPLE_VARS, expandTemplate } from '../lib/vars';
 
@@ -315,6 +316,7 @@ export function RuleEditor({ rule, patch }: { rule: Rule; patch: Patch }) {
       {rule.type === 'case' && <CaseEditor rule={rule} patch={patch} />}
       {rule.type === 'ext' && <ExtEditor rule={rule} patch={patch} />}
       {rule.type === 'meta' && <MetaEditor rule={rule} patch={patch} />}
+      {rule.type === 'map' && <MapEditor rule={rule} patch={patch} />}
       {error && <div className="rule-error">{error}</div>}
     </div>
   );
@@ -735,6 +737,45 @@ function MetaEditor({ rule, patch }: { rule: MetaRule; patch: Patch }) {
         </Field>
       )}
       <div className="hint-line">{t('f.metaHint')}</div>
+    </>
+  );
+}
+
+function MapEditor({ rule, patch }: { rule: MapRule; patch: Patch }) {
+  const { t } = useTranslation();
+  const parsed = parseMapTable(rule.table, rule.caseSensitive);
+  const shown = parsed.errors.slice(0, 3);
+  return (
+    <>
+      <Field label={t('f.mapTable')}>
+        <textarea
+          className="input mono map-table"
+          data-testid="map-table"
+          rows={6}
+          spellCheck={false}
+          value={rule.table}
+          placeholder={t('ph.mapTable')}
+          onChange={(e) => patch({ table: e.target.value })}
+        />
+      </Field>
+      <div className="hint-line" data-testid="map-hint">{t('f.mapHint')}</div>
+      <Toggle
+        on={rule.caseSensitive}
+        label={t('f.mapCaseSensitive')}
+        onChange={(caseSensitive) => patch({ caseSensitive })}
+        testId="map-case"
+      />
+      {shown.length > 0 && (
+        <div className="hint-line map-error" data-testid="map-errors">
+          {shown.map((err) => (
+            <div key={`${err.line}-${err.code}`}>{t(mapErrorKey(err.code), { line: err.line, text: err.text })}</div>
+          ))}
+          <div data-testid="map-entries-count">{t('f.mapCount', { n: parsed.entries.length })}</div>
+        </div>
+      )}
+      {shown.length === 0 && parsed.entries.length > 0 && (
+        <div className="hint-line" data-testid="map-entries-count">{t('f.mapCount', { n: parsed.entries.length })}</div>
+      )}
     </>
   );
 }

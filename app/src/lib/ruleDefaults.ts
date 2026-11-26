@@ -1,6 +1,6 @@
 /** 新增规则时的默认值：与设计稿“规则配置”保持一致 */
 import type {
-  AddRule, CaseRule, DeleteRule, ExtRule, MetaRule, MoveRule, NumberRule, ReplaceRule, Rule, RuleType,
+  AddRule, CaseRule, DeleteRule, ExtRule, MapRule, MetaRule, MoveRule, NumberRule, ReplaceRule, Rule, RuleType,
 } from './types';
 
 export function createRuleDefaults(type: RuleType, id: string): Rule {
@@ -65,9 +65,15 @@ export function createRuleDefaults(type: RuleType, id: string): Rule {
       };
       return rule;
     }
+    case 'map': {
+      const rule: MapRule = {
+        id, type: 'map', enabled: true, table: '', caseSensitive: false,
+      };
+      return rule;
+    }
     default:
       throw new Error(`未知规则类型：${String(type)}`);
   }
 }
 
-export const RULE_TYPES: RuleType[] = ['replace', 'add', 'delete', 'number', 'move', 'case', 'ext', 'meta'];
+export const RULE_TYPES: RuleType[] = ['replace', 'add', 'delete', 'number', 'move', 'case', 'ext', 'meta', 'map'];
