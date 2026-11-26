@@ -5,7 +5,10 @@
 //! 2. 逐条执行，单条失败只记录原因，不影响其它条目；
 //! 3. 移动先尝试同盘 rename；跨盘（或强制测试）走「复制 → 逐字节校验 → 删除源」，
 //!    任一步失败都回滚，绝不出现「源已删除而副本不完整」；
-//! 4. 三种操作都可在批次历史中撤销。
+//! 4. 三种操作都可在批次历史中撤销；
+//! 5. 符号链接与目录联接一律**保链**（不跟随、不降级）：
+//!    复制时只在目标位置重建同类链接，删除时只删链接本身；
+//!    重建失败（Windows 无「创建符号链接」权限、且目录链接无法退化为联接）时明确报错，源保持原样。
 
 use std::collections::HashSet;
 use std::fs;
@@ -635,7 +638,9 @@ pub fn apply_time(
                 // 先写元数据再写文件时间：元数据改写会刷新 mtime
                 let request = crate::metaedit::MetaEditRequest {
                     path: op.path.clone(),
-                    fields: [("takenAt".to_string(), local_iso(ms))].into_iter().collect(),
+                    fields: [("takenAt".to_string(), local_iso(ms))]
+                        .into_iter()
+                        .collect(),
                     cover_path: None,
                     clear_cover: false,
                     backup: false,
@@ -864,9 +869,8 @@ pub fn apply_attrs(
 /// 四个属性一起写入；任何一步失败都回滚已改的属性，保证条目要么全成功要么保持原状。
 fn apply_attr_values(path: &Path, want: AttrValues, old: AttrValues) -> Result<(), String> {
     let native = native_path(path);
-    let flags_changed = want.hidden != old.hidden
-        || want.system != old.system
-        || want.archive != old.archive;
+    let flags_changed =
+        want.hidden != old.hidden || want.system != old.system || want.archive != old.archive;
     let mut flags_written = false;
 
     #[cfg(windows)]
@@ -1070,9 +1074,7 @@ pub fn apply_move(
         }
         let source = PathBuf::from(&op.path);
         let target = PathBuf::from(op.target.clone().unwrap_or_default());
-        let is_dir = fs::symlink_metadata(native_path(&source))
-            .map(|m| m.is_dir())
-            .unwrap_or(false);
+        let kind = entry_kind(&source);
         let result = (|| -> Result<(), String> {
             if let Some(parent) = target.parent() {
                 if !exists_native(parent) {
@@ -1080,7 +1082,7 @@ pub fn apply_move(
                         .map_err(|e| format!("创建目标目录失败：{e}"))?;
                 }
             }
-            move_path(&source, &target, spec.force_copy, &batch_id, index, is_dir)
+            move_path(&source, &target, spec.force_copy, &batch_id, index, kind)
         })();
         match result {
             Ok(()) => {
@@ -1173,16 +1175,14 @@ pub fn undo_ops(store: &BatchStore, id: &str) -> Result<UndoOutcome, String> {
                     });
                     continue;
                 }
-                let is_dir = fs::symlink_metadata(native_path(Path::new(&target)))
-                    .map(|m| m.is_dir())
-                    .unwrap_or(false);
+                let kind = entry_kind(Path::new(&target));
                 let result = move_path(
                     Path::new(&target),
                     Path::new(&op.path),
                     false,
                     &format!("undo-{id}"),
                     restored.len(),
-                    is_dir,
+                    kind,
                 );
                 match result {
                     Ok(()) => restored.push(AppliedChange {
@@ -1361,19 +1361,38 @@ fn is_cross_device(err: &std::io::Error) -> bool {
 
 fn remove_path(path: &Path) -> std::io::Result<()> {
     let native = native_path(path);
-    if !native.exists() {
-        return Ok(());
+    let meta = match fs::symlink_metadata(&native) {
+        Ok(meta) => meta,
+        // 已经不存在：视为删除完成。旧实现用 exists()，会把悬空链接当成「不存在」而漏删。
+        Err(_) => return Ok(()),
+    };
+    if meta.file_type().is_symlink() {
+        // 只删链接本身，目标内容一律不动。
+        // Windows 的目录联接 / 目录符号链接必须走 remove_dir；Unix 上那会报 ENOTDIR，回落 remove_file。
+        let points_to_dir = fs::metadata(&native).map(|m| m.is_dir()).unwrap_or(false);
+        let first = if points_to_dir {
+            fs::remove_dir(&native)
+        } else {
+            fs::remove_file(&native)
+        };
+        return match first {
+            Ok(()) => Ok(()),
+            Err(first_err) => {
+                let second = if points_to_dir {
+                    fs::remove_file(&native)
+                } else {
+                    fs::remove_dir(&native)
+                };
+                second.map_err(|_| first_err)
+            }
+        };
     }
-    if fs::symlink_metadata(&native)
-        .map(|m| m.is_dir())
-        .unwrap_or(false)
-    {
+    if meta.is_dir() {
         fs::remove_dir_all(&native)
     } else {
         fs::remove_file(&native)
     }
 }
-
 fn missing_ancestors(dir: &Path) -> Vec<PathBuf> {
     let mut chain: Vec<PathBuf> = Vec::new();
     let mut current = Some(dir.to_path_buf());
@@ -1398,29 +1417,191 @@ fn free_temp(parent: &Path, tag: &str, index: usize) -> PathBuf {
     parent.join(format!(".renomio-move-{tag}-{index}-fallback.tmp"))
 }
 
+/// 条目类型。链接永远是「链接本身」：不跟随目标，也不降级成普通文件。
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum EntryKind {
+    Link,
+    Dir,
+    File,
+}
+
+fn entry_kind(path: &Path) -> EntryKind {
+    match fs::symlink_metadata(native_path(path)) {
+        Ok(meta) if meta.file_type().is_symlink() => EntryKind::Link,
+        Ok(meta) if meta.is_dir() => EntryKind::Dir,
+        _ => EntryKind::File,
+    }
+}
+
+/// 复制链接本身（不跟随）：读出目标字符串，在目标位置重建同类链接。
+///
+/// Unix 用 `symlink` 原样保留相对/绝对目标；Windows 先试同级符号链接，
+/// 没有创建权限（1314 = ERROR_PRIVILEGE_NOT_HELD）时目录链接退化为目录联接
+/// （junction 不需要特权），文件符号链接则明确报错、源保持原样。
+fn copy_link(from: &Path, to: &Path) -> std::io::Result<()> {
+    let target = fs::read_link(native_path(from))?;
+    let points_to_dir = fs::metadata(native_path(from))
+        .map(|m| m.is_dir())
+        .unwrap_or(false);
+    #[cfg(unix)]
+    {
+        let _ = points_to_dir;
+        std::os::unix::fs::symlink(&target, native_path(to))
+    }
+    #[cfg(windows)]
+    {
+        create_win_link(&target, to, points_to_dir, from)
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = (target, points_to_dir);
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "当前平台不支持重建符号链接",
+        ))
+    }
+}
+
+#[cfg(windows)]
+fn create_win_link(
+    target: &Path,
+    at: &Path,
+    points_to_dir: bool,
+    link_path: &Path,
+) -> std::io::Result<()> {
+    use std::os::windows::fs as winfs;
+    let attempt = if points_to_dir {
+        winfs::symlink_dir(target, native_path(at))
+    } else {
+        winfs::symlink_file(target, native_path(at))
+    };
+    match attempt {
+        Ok(()) => Ok(()),
+        // 半成功：Windows 在「未提权创建符号链接」路径上会报 1314 但链接其实已经建好；
+        // 不先实测落地情况就退化去建联接，会对着已存在的链接再建联接，报「已存在 / 重分析点数据无效」。
+        Err(_) if win_link_landed(at, target) => Ok(()),
+        Err(err) if err.raw_os_error() == Some(1314) && !points_to_dir => Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "重建文件符号链接需要「创建符号链接」权限：请打开系统的「开发者模式」，或以管理员身份运行",
+        )),
+        Err(err) if err.raw_os_error() == Some(1314) => {
+            let absolute = absolute_link_target(target, link_path)?;
+            junction_create(&absolute, at).map_err(|fail| {
+                std::io::Error::new(
+                    fail.kind(),
+                    format!("重建目录联接失败（目标 {}）：{fail}", absolute.display()),
+                )
+            })
+        }
+        Err(err) => Err(err),
+    }
+}
+
+/// 链接到底有没有落地（并且指向同一个地方）。
+///
+/// 先比「是不是链接」，再比目标：原样保留的相对目标直接字符串相等即可认可；
+/// 绝对目标则用 `canonicalize` 归一后比对（Windows 路径大小写不敏感）。
+#[cfg(windows)]
+fn win_link_landed(at: &Path, target: &Path) -> bool {
+    let native = native_path(at);
+    let is_link = fs::symlink_metadata(&native)
+        .map(|meta| meta.file_type().is_symlink())
+        .unwrap_or(false);
+    if !is_link {
+        return false;
+    }
+    if fs::read_link(&native)
+        .map(|stored| stored == target)
+        .unwrap_or(false)
+    {
+        return true;
+    }
+    let resolved = if target.is_absolute() {
+        target.to_path_buf()
+    } else {
+        match native.parent() {
+            Some(parent) => parent.join(target),
+            None => return false,
+        }
+    };
+    match (fs::canonicalize(&resolved), fs::canonicalize(&native)) {
+        (Ok(a), Ok(b)) => a
+            .to_string_lossy()
+            .eq_ignore_ascii_case(&b.to_string_lossy()),
+        _ => false,
+    }
+}
+
+/// 目录联接只接受绝对本地路径，这里把链接里的目标归一化成那种形态。
+#[cfg(windows)]
+fn absolute_link_target(target: &Path, link_path: &Path) -> std::io::Result<PathBuf> {
+    let resolved = if target.is_absolute() {
+        target.to_path_buf()
+    } else {
+        match link_path.parent() {
+            Some(parent) => parent.join(target),
+            None => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "链接目标为相对路径且缺少父目录",
+                ))
+            }
+        }
+    };
+    let text = resolved.to_string_lossy().to_string();
+    let plain = if let Some(rest) = text.strip_prefix("\\\\?\\UNC\\") {
+        format!("\\\\{rest}")
+    } else if let Some(rest) = text.strip_prefix("\\\\?\\") {
+        rest.to_string()
+    } else {
+        text
+    };
+    Ok(PathBuf::from(plain))
+}
+
+/// 用目录联接（junction）重建目录链接。目录联接不需要「创建符号链接」特权，
+/// 是普通用户下保留目录链接的唯一手段。
+///
+/// 缓冲区布局由 `junction` crate 负责：手写 `REPARSE_DATA_BUFFER` 在本机实测会随
+/// 路径长度、非 ASCII 目录名随机退化成 4392/4394（同一份代码一会儿成功一会儿失败），
+/// 与其继续猜偏移/长度约定，不如用社区长期验证过的实现。
+#[cfg(windows)]
+fn junction_create(target: &Path, at: &Path) -> std::io::Result<()> {
+    let native = native_path(at);
+    // junction::create 要求链接路径尚不存在；这里只在「空目录占位」的情况下清掉，
+    // 一旦占位目录里有东西就报错，绝不删用户数据。
+    if fs::symlink_metadata(&native).is_ok() {
+        if fs::read_dir(&native)?.next().is_some() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "目标位置已存在且非空，无法建立目录联接",
+            ));
+        }
+        fs::remove_dir(&native)?;
+    }
+    if let Some(parent) = native.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    junction::create(target, &native)
+}
+
 fn copy_dir_all(from: &Path, to: &Path) -> std::io::Result<()> {
     fs::create_dir_all(native_path(to))?;
     for entry in fs::read_dir(native_path(from))? {
         let entry = entry?;
-        let file_type = entry.file_type()?;
-        // 符号链接 / 目录联接可能指向目录外，跨盘复制时不做跟随，避免复制不完整或递归
-        if file_type.is_symlink() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Unsupported,
-                "目录中包含符号链接或联接，跨盘移动暂不支持",
-            ));
-        }
         let src = entry.path();
         let dest = native_path(to).join(entry.file_name());
-        if file_type.is_dir() {
-            copy_dir_all(&src, &dest)?;
-        } else {
-            fs::copy(&src, &dest)?;
+        // 链接一律不跟随：重建链接本身，既不会把目录外内容搬进来，也不会踩进递归环
+        match entry_kind(&src) {
+            EntryKind::Link => copy_link(&src, &dest)?,
+            EntryKind::Dir => copy_dir_all(&src, &dest)?,
+            EntryKind::File => {
+                fs::copy(&src, &dest)?;
+            }
         }
     }
     Ok(())
 }
-
 fn compare_files(a: &Path, b: &Path) -> Result<(), String> {
     let na = native_path(a);
     let nb = native_path(b);
@@ -1457,9 +1638,53 @@ fn compare_files(a: &Path, b: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn verify_copy(from: &Path, temp: &Path, is_dir: bool) -> Result<(), String> {
-    if !is_dir {
-        return compare_files(from, temp);
+/// 复制过来的链接必须还是链接，且指向同一个地方。
+///
+/// 这是本轮最关键的一条守卫：旧实现跨盘复制链接会**跟随目标**，
+/// 把链接静默替换成目标内容的普通副本，源链接随后被删除——文件名还在、语义没了。
+fn compare_links(a: &Path, b: &Path) -> Result<(), String> {
+    let na = native_path(a);
+    let nb = native_path(b);
+    let is_link_a = fs::symlink_metadata(&na)
+        .map_err(|e| format!("读取源链接失败：{e}"))?
+        .file_type()
+        .is_symlink();
+    let is_link_b = fs::symlink_metadata(&nb)
+        .map_err(|e| format!("读取副本失败：{e}"))?
+        .file_type()
+        .is_symlink();
+    if !is_link_a {
+        return Err(format!("源 {} 不是链接", a.display()));
+    }
+    if !is_link_b {
+        return Err(format!("链接被复制成了普通文件或目录（{}）", b.display()));
+    }
+    let target_a = fs::read_link(&na).map_err(|e| format!("读取源链接目标失败：{e}"))?;
+    let target_b = fs::read_link(&nb).map_err(|e| format!("读取副本链接目标失败：{e}"))?;
+    if target_a == target_b {
+        return Ok(());
+    }
+    // Windows 上目录符号链接可能退化为目录联接：目标的文字形式会变成绝对路径，
+    // 只要解析后指向同一位置就视为通过。
+    let same_target = match (fs::canonicalize(&na), fs::canonicalize(&nb)) {
+        (Ok(pa), Ok(pb)) => pa == pb,
+        _ => false,
+    };
+    if same_target {
+        return Ok(());
+    }
+    Err(format!(
+        "链接目标不一致（{} vs {}）",
+        target_a.display(),
+        target_b.display()
+    ))
+}
+
+fn verify_copy(from: &Path, temp: &Path, kind: EntryKind) -> Result<(), String> {
+    match kind {
+        EntryKind::Link => return compare_links(from, temp),
+        EntryKind::File => return compare_files(from, temp),
+        EntryKind::Dir => {}
     }
     let src_dir = native_path(from);
     let dst_dir = native_path(temp);
@@ -1470,13 +1695,14 @@ fn verify_copy(from: &Path, temp: &Path, is_dir: bool) -> Result<(), String> {
         let name = entry.file_name();
         let src = src_dir.join(&name);
         let dst = dst_dir.join(&name);
-        if !dst.exists() {
+        // 用 symlink_metadata 判存在：悬空链接也要算「副本已就位」
+        if fs::symlink_metadata(&dst).is_err() {
             return Err(format!("目录副本缺少 {} ", name.to_string_lossy()));
         }
-        if entry.file_type().map_err(|e| e.to_string())?.is_dir() {
-            verify_copy(&src, &dst, true)?;
-        } else {
-            compare_files(&src, &dst)?;
+        match entry_kind(&src) {
+            EntryKind::Link => compare_links(&src, &dst)?,
+            EntryKind::Dir => verify_copy(&src, &dst, EntryKind::Dir)?,
+            EntryKind::File => compare_files(&src, &dst)?,
         }
         count += 1;
     }
@@ -1488,7 +1714,6 @@ fn verify_copy(from: &Path, temp: &Path, is_dir: bool) -> Result<(), String> {
     }
     Ok(())
 }
-
 /// 移动一个文件/目录：同盘 rename；跨盘或 force_copy 时复制 → 校验 → 删除源。
 fn move_path(
     from: &Path,
@@ -1496,7 +1721,7 @@ fn move_path(
     force_copy: bool,
     batch_tag: &str,
     index: usize,
-    is_dir: bool,
+    kind: EntryKind,
 ) -> Result<(), String> {
     if !force_copy {
         match rename_native(from, to) {
@@ -1511,18 +1736,19 @@ fn move_path(
 
     let parent = to.parent().ok_or_else(|| "目标路径无效".to_string())?;
     let temp = free_temp(parent, batch_tag, index);
-    let copied = if is_dir {
-        copy_dir_all(from, &temp).map_err(|e| format!("复制目录失败：{e}"))
-    } else {
-        fs::copy(native_path(from), native_path(&temp))
+    let copied = match kind {
+        // 链接：只重建链接本身。旧实现走 fs::copy 会跟随目标，把链接静默变成普通副本。
+        EntryKind::Link => copy_link(from, &temp).map_err(|e| format!("重建链接失败：{e}")),
+        EntryKind::Dir => copy_dir_all(from, &temp).map_err(|e| format!("复制目录失败：{e}")),
+        EntryKind::File => fs::copy(native_path(from), native_path(&temp))
             .map(|_| ())
-            .map_err(|e| format!("复制文件失败：{e}"))
+            .map_err(|e| format!("复制文件失败：{e}")),
     };
     if let Err(err) = copied {
         let _ = remove_path(&temp);
         return Err(format!("{err}；源文件未改动"));
     }
-    if let Err(err) = verify_copy(from, &temp, is_dir) {
+    if let Err(err) = verify_copy(from, &temp, kind) {
         let _ = remove_path(&temp);
         return Err(format!("复制校验失败（{err}），已删除副本，源文件未改动"));
     }
@@ -1531,7 +1757,7 @@ fn move_path(
         return Err(format!("副本落位失败：{err}；源文件未改动"));
     }
     if let Err(err) = remove_path(from) {
-        if is_dir {
+        if kind == EntryKind::Dir {
             // 目录删除可能部分完成，此时删除副本才是真正的数据丢失；保留副本并明确告警
             return Err(format!(
                 "源目录删除未完成（{err}）；已保留完整副本：{}，请先确认副本再手动清理源目录",
@@ -1577,12 +1803,16 @@ fn is_hidden(path: &Path) -> std::io::Result<bool> {
 
 #[cfg(windows)]
 fn has_system(path: &Path) -> bool {
-    win_flags(path).map(|f| f & FILE_ATTRIBUTE_SYSTEM != 0).unwrap_or(false)
+    win_flags(path)
+        .map(|f| f & FILE_ATTRIBUTE_SYSTEM != 0)
+        .unwrap_or(false)
 }
 
 #[cfg(windows)]
 fn has_archive(path: &Path) -> bool {
-    win_flags(path).map(|f| f & FILE_ATTRIBUTE_ARCHIVE != 0).unwrap_or(false)
+    win_flags(path)
+        .map(|f| f & FILE_ATTRIBUTE_ARCHIVE != 0)
+        .unwrap_or(false)
 }
 
 #[cfg(not(windows))]
@@ -1756,5 +1986,111 @@ mod undo_log_tests {
             ..spec
         };
         assert_eq!(random_ms_for("C:/tmp/a.txt", &reversed), 1_600_066_541_469);
+    }
+}
+
+#[cfg(test)]
+#[cfg(unix)]
+mod link_verify_tests {
+    use super::*;
+
+    /// 校验环节不能只看「大小/内容一致」：链接被实体化成普通文件时内容也一致，
+    /// 必须靠「还是不是链接 + 目标是否一致」判出来，否则源链接被删后语义就丢了。
+    #[test]
+    fn compare_links_rejects_link_downgraded_to_regular_file() {
+        let dir = std::env::temp_dir().join("renomio-core-link-verify-unit");
+        let _ = fs::remove_dir_all(&dir);
+        let _ = fs::create_dir_all(&dir);
+        let real = dir.join("target.txt");
+        fs::write(&real, b"payload").unwrap();
+        let good = dir.join("good-link.txt");
+        std::os::unix::fs::symlink(&real, &good).unwrap();
+        compare_links(&good, &good).expect("同一个链接应通过校验");
+
+        let copied = dir.join("copied.txt");
+        fs::write(&copied, b"payload").unwrap();
+        let err = compare_links(&good, &copied).expect_err("链接被复制成普通文件必须判失败");
+        assert!(err.contains("普通文件"), "{err}");
+
+        let other = dir.join("other.txt");
+        fs::write(&other, b"payload").unwrap();
+        let other_link = dir.join("other-link.txt");
+        std::os::unix::fs::symlink(&other, &other_link).unwrap();
+        assert!(
+            compare_links(&good, &other_link).is_err(),
+            "指向不同目标的链接必须判失败"
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(all(test, windows))]
+mod win_link_tests {
+    use super::*;
+
+    /// 唯一临时目录：带非 ASCII 目录名 + 较长路径，正好复现手写 REPARSE 缓冲区时的失败几何。
+    fn scratch(tag: &str) -> PathBuf {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        std::env::temp_dir()
+            .join(format!("renomio-core-{tag}-{stamp}"))
+            .join("归档")
+    }
+
+    /// Windows 上 `symlink_dir` 会「报 1314 但链接已落地」；直接退化建联接就会撞「已存在」。
+    /// 这里断言：重建目录链接最终一定拿到一个指向原目标的链接，且不报错。
+    #[test]
+    fn create_win_link_yields_working_directory_link() {
+        let dir = scratch("win-link");
+        fs::create_dir_all(&dir).unwrap();
+        let real = dir.join("real");
+        fs::create_dir_all(&real).unwrap();
+        fs::write(real.join("data.txt"), b"payload").unwrap();
+
+        let at = dir.join("alias");
+        create_win_link(&Path::new("real"), &at, true, &at)
+            .expect("重建目录链接不应报错（半成功也要认）");
+        assert!(win_link_landed(&at, Path::new("real")), "链接应指向 real");
+        assert_eq!(
+            fs::read_to_string(at.join("data.txt")).unwrap(),
+            "payload",
+            "透过链接应能读到目标内容"
+        );
+        let _ = remove_path(&at);
+        let _ = fs::remove_dir_all(dir.parent().unwrap());
+    }
+
+    /// 目录联接（junction）是普通用户下保留目录链接的兜底手段，必须能建、且不覆盖已有内容。
+    #[test]
+    fn junction_create_handles_placeholder_and_refuses_non_empty() {
+        let dir = scratch("win-junction");
+        fs::create_dir_all(&dir).unwrap();
+        let real = dir.join("real");
+        fs::create_dir_all(&real).unwrap();
+
+        let empty = dir.join("placeholder");
+        fs::create_dir_all(&empty).unwrap();
+        junction_create(&real, &empty).expect("空占位目录应能被替换成联接");
+        assert!(
+            fs::symlink_metadata(&empty)
+                .unwrap()
+                .file_type()
+                .is_symlink(),
+            "建立后应是一个重分析点"
+        );
+        assert_eq!(fs::read_link(&empty).unwrap(), real, "联接目标应是 real");
+
+        let busy = dir.join("busy");
+        fs::create_dir_all(&busy).unwrap();
+        fs::write(busy.join("keep.txt"), b"keep").unwrap();
+        let err = junction_create(&real, &busy).expect_err("非空目录必须拒绝");
+        assert!(err.to_string().contains("非空"), "{err}");
+        assert!(busy.join("keep.txt").exists(), "拒绝时不得删除已有内容");
+
+        let _ = remove_path(&empty);
+        let _ = fs::remove_dir_all(dir.parent().unwrap());
     }
 }
