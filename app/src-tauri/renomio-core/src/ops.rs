@@ -8,9 +8,10 @@
 //! 4. 三种操作都可在批次历史中撤销；
 //! 5. 符号链接与目录联接一律**保链**（不跟随、不降级）：
 //!    复制时只在目标位置重建同类链接，删除时只删链接本身；
-//!    重建失败（Windows 无「创建符号链接」权限、且目录链接无法退化为联接）时明确报错，源保持原样。
+//!    重建失败（Windows 无「创建符号链接」权限、且目录链接无法退化为联接）时明确报错，源保持原样；
+//! 6. 硬链接关系也保：同一个文件的多个名字不在目标位置各复制一份，而是先复制一次、其余建硬链接。
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -1585,7 +1586,111 @@ fn junction_create(target: &Path, at: &Path) -> std::io::Result<()> {
     junction::create(target, &native)
 }
 
+/// 普通文件的身份：同一个文件的所有硬链接共享这一对「卷号 + 文件号」。
+/// 只对 `nlink > 1` 的文件返回，普通文件不参与硬链接合并。
+#[cfg(unix)]
+fn file_identity(_path: &Path, meta: &fs::Metadata) -> Option<(u64, u64)> {
+    use std::os::unix::fs::MetadataExt;
+    if meta.nlink() > 1 {
+        return Some((meta.dev(), meta.ino()));
+    }
+    None
+}
+
+/// Windows 侧只能走 GetFileInformationByHandle：MetadataExt 的 file_index / number_of_links 仍是 unstable。
+#[cfg(windows)]
+fn file_identity(path: &Path, _meta: &fs::Metadata) -> Option<(u64, u64)> {
+    win_file_identity(path)
+}
+
+#[cfg(not(any(unix, windows)))]
+fn file_identity(_path: &Path, _meta: &fs::Metadata) -> Option<(u64, u64)> {
+    None
+}
+
+#[cfg(windows)]
+fn win_file_identity(path: &Path) -> Option<(u64, u64)> {
+    use std::ffi::c_void;
+    use std::os::windows::ffi::OsStrExt;
+
+    #[repr(C)]
+    #[derive(Default)]
+    struct ByHandle {
+        attributes: u32,
+        creation: [u32; 2],
+        access: [u32; 2],
+        write: [u32; 2],
+        volume: u32,
+        size_high: u32,
+        size_low: u32,
+        links: u32,
+        index_high: u32,
+        index_low: u32,
+    }
+
+    type Handle = *mut c_void;
+    extern "system" {
+        fn CreateFileW(
+            name: *const u16,
+            access: u32,
+            share: u32,
+            security: *mut c_void,
+            disposition: u32,
+            flags: u32,
+            template: Handle,
+        ) -> Handle;
+        fn GetFileInformationByHandle(handle: Handle, info: *mut ByHandle) -> i32;
+        fn CloseHandle(handle: Handle) -> i32;
+    }
+
+    const FILE_READ_ATTRIBUTES: u32 = 0x0080;
+    const SHARE_ALL: u32 = 0x0000_0007;
+    const OPEN_EXISTING: u32 = 3;
+    const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x0200_0000;
+    const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+
+    let wide: Vec<u16> = native_path(path)
+        .as_os_str()
+        .encode_wide()
+        .chain(Some(0))
+        .collect();
+    let handle = unsafe {
+        CreateFileW(
+            wide.as_ptr(),
+            FILE_READ_ATTRIBUTES,
+            SHARE_ALL,
+            std::ptr::null_mut(),
+            OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
+            std::ptr::null_mut(),
+        )
+    };
+    if handle as usize == usize::MAX {
+        return None;
+    }
+    let mut info = ByHandle::default();
+    let ok = unsafe { GetFileInformationByHandle(handle, &mut info) };
+    unsafe {
+        CloseHandle(handle);
+    }
+    if ok == 0 || info.links < 2 {
+        return None;
+    }
+    let index = ((info.index_high as u64) << 32) | info.index_low as u64;
+    Some((info.volume as u64, index))
+}
+
 fn copy_dir_all(from: &Path, to: &Path) -> std::io::Result<()> {
+    let mut hard_links: HashMap<(u64, u64), PathBuf> = HashMap::new();
+    copy_dir_tree(from, to, &mut hard_links)
+}
+
+/// 复制目录树：链接重建（保链），硬链接关系也保。
+fn copy_dir_tree(
+    from: &Path,
+    to: &Path,
+    hard_links: &mut HashMap<(u64, u64), PathBuf>,
+) -> std::io::Result<()> {
     fs::create_dir_all(native_path(to))?;
     for entry in fs::read_dir(native_path(from))? {
         let entry = entry?;
@@ -1594,11 +1699,36 @@ fn copy_dir_all(from: &Path, to: &Path) -> std::io::Result<()> {
         // 链接一律不跟随：重建链接本身，既不会把目录外内容搬进来，也不会踩进递归环
         match entry_kind(&src) {
             EntryKind::Link => copy_link(&src, &dest)?,
-            EntryKind::Dir => copy_dir_all(&src, &dest)?,
-            EntryKind::File => {
-                fs::copy(&src, &dest)?;
+            EntryKind::Dir => copy_dir_tree(&src, &dest, hard_links)?,
+            EntryKind::File => copy_file_keeping_hard_links(&src, &dest, hard_links)?,
+        }
+    }
+    Ok(())
+}
+
+/// 复制普通文件，并保住「同一个文件的多个名字」（硬链接）。
+///
+/// 旧实现每个名字都 `fs::copy` 一份独立字节：文件内容对了，但**同一份数据的多个名字
+/// 变成了互不相干的副本**，之后改一个名字里文件，另一个名字里看不到变化。
+/// 第二个及以后的名字改为在目标位置建硬链接指向先复制出来的那一份；
+/// 目标卷不支持硬链接时退回普通复制（内容仍正确，只是关系不保）。
+fn copy_file_keeping_hard_links(
+    src: &Path,
+    dest: &Path,
+    hard_links: &mut HashMap<(u64, u64), PathBuf>,
+) -> std::io::Result<()> {
+    let meta = fs::metadata(native_path(src))?;
+    let key = file_identity(src, &meta);
+    if let Some(key) = key {
+        if let Some(first) = hard_links.get(&key).cloned() {
+            if fs::hard_link(native_path(&first), &dest).is_ok() {
+                return Ok(());
             }
         }
+    }
+    fs::copy(&src, &dest)?;
+    if let Some(key) = key {
+        hard_links.insert(key, dest.to_path_buf());
     }
     Ok(())
 }
