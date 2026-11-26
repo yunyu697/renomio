@@ -3,11 +3,14 @@
 //! 让界面可以展示“已读取的基础信息 + 为什么没有更多”。
 
 use std::fs;
-use std::io::Read;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
 /// 最多读取 8MB 用于头部/尾部解析，避免把超大媒体文件整体读入内存。
 const MAX_PARSE_BYTES: u64 = 8 * 1024 * 1024;
+
+/// 文件超过头部上限时，再读一段尾部（标签常写在文件末尾：WAV 的 LIST/INFO、APEv2 footer）。
+const TAIL_PARSE_BYTES: u64 = 1024 * 1024;
 
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -218,11 +221,24 @@ pub fn read_metadata(path: &str) -> Result<MetadataInfo, String> {
         return Err("文件夹没有可读取的文件元数据".into());
     }
     let mut data = Vec::new();
-    fs::File::open(p)
-        .map_err(|e| format!("无法打开文件：{e}"))?
-        .take(MAX_PARSE_BYTES)
-        .read_to_end(&mut data)
-        .map_err(|e| format!("读取文件失败：{e}"))?;
+    let mut tail = Vec::new();
+    {
+        let mut file = fs::File::open(p).map_err(|e| format!("无法打开文件：{e}"))?;
+        file.by_ref()
+            .take(MAX_PARSE_BYTES)
+            .read_to_end(&mut data)
+            .map_err(|e| format!("读取文件失败：{e}"))?;
+        // 只有头部被截断时才读尾部，否则尾部就是头部的后半段，重复解析没有意义
+        if meta.len() > data.len() as u64 {
+            let tail_len = TAIL_PARSE_BYTES.min(meta.len());
+            file.seek(SeekFrom::Start(meta.len() - tail_len))
+                .map_err(|e| format!("定位文件尾部失败：{e}"))?;
+            file.by_ref()
+                .take(tail_len)
+                .read_to_end(&mut tail)
+                .map_err(|e| format!("读取文件尾部失败：{e}"))?;
+        }
+    }
 
     let size = meta.len();
     let ext = p
@@ -241,6 +257,8 @@ pub fn read_metadata(path: &str) -> Result<MetadataInfo, String> {
         image_bmp(&data)
     } else if data.starts_with(b"RIFF") && data.get(8..12) == Some(b"WEBP".as_ref()) {
         image_webp(&data)
+    } else if let Some(probe) = crate::audio_container::probe(&data, &tail) {
+        audio_container_meta(probe)
     } else if data.starts_with(b"ID3") || looks_like_mpeg(&data, 0) {
         audio_mp3(&data, size)
     } else if data.starts_with(b"fLaC") {
@@ -814,6 +832,60 @@ fn rational(tiff: &[u8], offset: u32, count: u32, little: bool) -> Option<String
 // ---------------------------------------------------------------------------
 // 音乐
 // ---------------------------------------------------------------------------
+
+/// 把音频容器的解析结果转成展示信息（WAV / AIFF / APE / WMA）。
+fn audio_container_meta(probe: crate::audio_container::AudioProbe) -> MetadataInfo {
+    let mut info = MetadataInfo::new("audio", &probe.format);
+    if let Some(rate) = probe.sample_rate {
+        info.push("采样率", format!("{:.1} kHz", rate as f64 / 1000.0));
+    }
+    if let Some(channels) = probe.channels {
+        let text = match channels {
+            1 => "1（单声道）".to_string(),
+            2 => "2（立体声）".to_string(),
+            n => n.to_string(),
+        };
+        info.push("声道", text);
+    }
+    if let Some(bits) = probe.bits {
+        info.push("位深", format!("{bits} bit"));
+    }
+    if let Some(ms) = probe.duration_ms {
+        info.push("时长", format_duration_ms(ms));
+    }
+    for (key, value) in probe.tags {
+        let label = match key.as_str() {
+            "title" => "标题",
+            "artist" => "艺术家",
+            "album" => "专辑",
+            "year" => "年份",
+            "genre" => "流派",
+            "track" => "音轨",
+            "composer" => "作曲",
+            "comment" => "备注",
+            "copyright" => "版权",
+            "rating" => "评分",
+            "software" => "生成软件",
+            "codec" => "编码",
+            _ => continue,
+        };
+        info.push(label, value);
+    }
+    for warning in probe.warnings {
+        info.warn(warning);
+    }
+    info
+}
+
+fn format_duration_ms(ms: u64) -> String {
+    let seconds = ms / 1000;
+    let (hours, minutes, secs) = (seconds / 3600, (seconds / 60) % 60, seconds % 60);
+    if hours > 0 {
+        format!("{hours}:{minutes:02}:{secs:02}")
+    } else {
+        format!("{minutes}:{secs:02}")
+    }
+}
 
 fn looks_like_mpeg(data: &[u8], start: usize) -> bool {
     data.get(start) == Some(&0xFF)

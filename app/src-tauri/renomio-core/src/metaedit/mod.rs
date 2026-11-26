@@ -258,16 +258,17 @@ pub fn capabilities() -> Vec<MetaCapability> {
             notes: notes.into(),
         });
     }
+    // 这几种容器本版本只读（属性面板能读参数与标签），不支持写回
     for (format, notes) in [
-        ("WMA (ASF)", "不支持：ASF 容器需要另行解析，本版本如实拒绝"),
-        ("APE", "不支持：Monkey's Audio 标签本版本未实现"),
-        ("AIFF", "不支持写入"),
-        ("WAV", "不支持写入（RIFF INFO 未实现）"),
+        ("WMA (ASF)", "只读：文件属性里的时长、流属性里的采样率/声道/位深、内容描述与扩展内容描述里的标题/作者/专辑/流派/年份/音轨；不支持写回"),
+        ("APE", "只读：APEv2 标签（标题/艺术家/专辑/年份/流派/音轨/作曲/备注）；头数据未压缩时还能读采样率/声道/位深/时长；不支持写回"),
+        ("AIFF", "只读：COMM 块（采样率/声道/位深/时长）+ NAME/AUTH/ANNO 文本块；不支持写回"),
+        ("WAV", "只读：fmt 块（采样率/声道/位深）+ data 长度算时长 + LIST/INFO 标签（含写在文件末尾的）；RF64 大文件同样解析；不支持写回"),
     ] {
         out.push(MetaCapability {
             kind: "audio".into(),
             format: format.into(),
-            read: false,
+            read: true,
             write: false,
             fields: vec![],
             notes: notes.into(),
@@ -289,13 +290,14 @@ pub fn capabilities() -> Vec<MetaCapability> {
         });
     }
     for (format, notes) in [
-        ("DOC/XLS/PPT (OLE)", "旧版二进制 Office 不支持写入"),
+        ("DOC/XLS/PPT (OLE)", "只读：认类型（Word/Excel/PowerPoint/Visio/Publisher）并读 SummaryInformation / DocumentSummaryInformation；安装包/邮件/加密包明确拒绝；不支持写入"),
         ("ODT/ODS/ODP", "OpenDocument 不支持写入"),
     ] {
         out.push(MetaCapability {
             kind: "document".into(),
             format: format.into(),
-            read: false,
+            // 旧版 OLE 已能读摘要，只是不能写
+            read: matches!(format, "DOC/XLS/PPT (OLE)"),
             write: false,
             fields: vec![],
             notes: notes.into(),
@@ -369,16 +371,16 @@ pub fn detect(path: &Path, head: &[u8]) -> Format {
         return Format::Audio(audio::AudioFormat::Ogg);
     }
     if head.starts_with(&[0x30, 0x26, 0xB2, 0x75, 0x8E, 0x66, 0xCF, 0x11]) {
-        return unsupported("audio", "WMA (ASF)", "WMA/ASF 容器本版本不支持，未做静默跳过");
+        return unsupported("audio", "WMA (ASF)", "WMA/ASF 只读（属性面板可读参数与标签），本版本不支持写回");
     }
     if head.starts_with(b"MAC ") || head.starts_with(b"MP+") {
-        return unsupported("audio", "APE", "Monkey's Audio 标签本版本不支持");
+        return unsupported("audio", "APE", "Monkey's Audio 只读（APEv2 标签与未压缩头数据），本版本不支持写回");
     }
     if head.starts_with(b"FORM") && head.get(8..12) == Some(b"AIFF".as_ref()) {
-        return unsupported("audio", "AIFF", "AIFF 标签本版本不支持写入");
+        return unsupported("audio", "AIFF", "AIFF 只读（COMM 与文本块），本版本不支持写回");
     }
     if head.starts_with(b"RIFF") && head.get(8..12) == Some(b"WAVE".as_ref()) {
-        return unsupported("audio", "WAV", "WAV 的 RIFF INFO 标签本版本不支持写入");
+        return unsupported("audio", "WAV", "WAV 只读（fmt/INFO 与 RF64），本版本不支持写回");
     }
     if head.starts_with(b"%PDF") {
         return Format::Doc(doc::DocFormat::Pdf);
@@ -392,7 +394,7 @@ pub fn detect(path: &Path, head: &[u8]) -> Format {
         };
     }
     if head.starts_with(&[0xD0, 0xCF, 0x11, 0xE0]) {
-        return unsupported("document", "DOC/XLS/PPT (OLE)", "旧版二进制 Office 格式不支持写入");
+        return unsupported("document", "DOC/XLS/PPT (OLE)", "旧版 OLE 只读（摘要属性），本版本不支持写回");
     }
     unsupported("other", "未识别格式", "没有匹配的元数据写入器")
 }

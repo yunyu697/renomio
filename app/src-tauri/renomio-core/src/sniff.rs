@@ -48,6 +48,20 @@ pub fn sniff_magic(head: &[u8]) -> Option<&'static str> {
             _ => None,
         };
     }
+    // AIFF/AIFC 与 WAV 同属 IFF 家族，但用大端 FORM
+    if head.starts_with(b"FORM") {
+        return match at(head, 8, 4) {
+            Some(b"AIFF") | Some(b"AIFC") => Some("aiff"),
+            _ => None,
+        };
+    }
+    // Monkey's Audio 与 WMA（ASF 容器）的魔数
+    if head.starts_with(b"MAC ") {
+        return Some("ape");
+    }
+    if head.starts_with(&[0x30, 0x26, 0xB2, 0x75, 0x8E, 0x66, 0xCF, 0x11]) {
+        return Some("wma");
+    }
     // ftyp 家族：MP4 / M4A / MOV / HEIC
     if at(head, 4, 4) == Some(b"ftyp") {
         return match at(head, 8, 4) {
@@ -148,6 +162,13 @@ mod tests {
     fn riff_and_ftyp_families_are_split_by_brand() {
         assert_eq!(sniff_magic(b"RIFF\x24\x00\x00\x00WEBPVP8 "), Some("webp"));
         assert_eq!(sniff_magic(b"RIFF\x24\x00\x00\x00WAVEfmt "), Some("wav"));
+        assert_eq!(sniff_magic(b"FORM\x00\x00\x01\x0eAIFFCOMM"), Some("aiff"));
+        assert_eq!(sniff_magic(b"FORM\x00\x00\x01\x0eAIFCCOMM"), Some("aiff"));
+        assert_eq!(sniff_magic(b"MAC \x9a\x0f\x00\x00\x00\x00"), Some("ape"));
+        assert_eq!(
+            sniff_magic(&[0x30, 0x26, 0xB2, 0x75, 0x8E, 0x66, 0xCF, 0x11, 0xA6, 0xD9, 0x00, 0xAA]),
+            Some("wma")
+        );
         assert_eq!(sniff_magic(b"RIFF\x24\x00\x00\x00AVI LIST"), Some("avi"));
         assert_eq!(sniff_magic(b"RIFF\x24\x00\x00\x00XXXXVP8 "), None);
         assert_eq!(sniff_magic(b"\x00\x00\x00\x18ftypmp42"), Some("mp4"));
