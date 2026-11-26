@@ -307,10 +307,16 @@ fn time_shift_accumulates_when_applied_again() {
     };
     let first = core.apply_time(vec![target(&file)], &spec).unwrap();
     let after_one = mtime_ms(&core, &file);
-    assert!((after_one - (base + 3_600_000)).abs() <= 2, "first={after_one} base={base}");
+    assert!(
+        (after_one - (base + 3_600_000)).abs() <= 2,
+        "first={after_one} base={base}"
+    );
     let second = core.apply_time(vec![target(&file)], &spec).unwrap();
     let after_two = mtime_ms(&core, &file);
-    assert!((after_two - (base + 7_200_000)).abs() <= 2, "second={after_two}");
+    assert!(
+        (after_two - (base + 7_200_000)).abs() <= 2,
+        "second={after_two}"
+    );
     core.undo(&second.batch.id).unwrap();
     assert!((mtime_ms(&core, &file) - after_one).abs() <= 2);
     core.undo(&first.batch.id).unwrap();
@@ -334,7 +340,9 @@ fn time_random_is_deterministic_and_in_range() {
         fields: vec!["mtime".into(), "atime".into()],
         ..Default::default()
     };
-    let outcome = core.apply_time(vec![target(&a), target(&b)], &spec).unwrap();
+    let outcome = core
+        .apply_time(vec![target(&a), target(&b)], &spec)
+        .unwrap();
     assert_eq!(outcome.applied.len(), 2, "{:?}", outcome.failed);
     let av = mtime_ms(&core, &a);
     let bv = mtime_ms(&core, &b);
@@ -356,7 +364,11 @@ fn time_write_exif_uses_new_value() {
     let t = Temp::new("time-exif");
     let path = t.root.join("shot.jpg");
     // 最小 JPEG：SOI + SOS(len=2) + EOI；元数据走 XMP APP1
-    fs::write(native_path(&path), [0xFF, 0xD8, 0xFF, 0xDA, 0x00, 0x02, 0xFF, 0xD9]).unwrap();
+    fs::write(
+        native_path(&path),
+        [0xFF, 0xD8, 0xFF, 0xDA, 0x00, 0x02, 0xFF, 0xD9],
+    )
+    .unwrap();
     let core = t.core();
     let fixed = 1_577_934_245_000i64; // 2020-01-02T03:04:05Z
     let spec = TimeSpec {
@@ -405,7 +417,12 @@ fn attrs_invert_and_undo_restores_original() {
     let set = core
         .apply_attrs(
             vec![target(&file)],
-            &AttrSpec { readonly: Some(AttrAction::Set), hidden: None, system: None, archive: None },
+            &AttrSpec {
+                readonly: Some(AttrAction::Set),
+                hidden: None,
+                system: None,
+                archive: None,
+            },
         )
         .unwrap();
     assert!(core.read_attrs(&[path_str.clone()])[0].readonly);
@@ -414,12 +431,16 @@ fn attrs_invert_and_undo_restores_original() {
     let invert = core
         .apply_attrs(
             vec![target(&file)],
-            &AttrSpec { readonly: Some(AttrAction::Invert), hidden: None, system: None, archive: None },
+            &AttrSpec {
+                readonly: Some(AttrAction::Invert),
+                hidden: None,
+                system: None,
+                archive: None,
+            },
         )
         .unwrap();
     assert_eq!(invert.applied.len(), 1, "{:?}", invert.failed);
-    let before: serde_json::Value =
-        serde_json::from_str(&invert.applied[0].before).unwrap();
+    let before: serde_json::Value = serde_json::from_str(&invert.applied[0].before).unwrap();
     assert_eq!(before["readonly"], serde_json::json!(true));
     assert!(!core.read_attrs(&[path_str.clone()])[0].readonly);
 
@@ -427,7 +448,12 @@ fn attrs_invert_and_undo_restores_original() {
     let again = core
         .apply_attrs(
             vec![target(&file)],
-            &AttrSpec { readonly: Some(AttrAction::Invert), hidden: None, system: None, archive: None },
+            &AttrSpec {
+                readonly: Some(AttrAction::Invert),
+                hidden: None,
+                system: None,
+                archive: None,
+            },
         )
         .unwrap();
     assert!(core.read_attrs(&[path_str.clone()])[0].readonly);
@@ -443,7 +469,12 @@ fn attrs_invert_and_undo_restores_original() {
     let keep = core
         .apply_attrs(
             vec![target(&file)],
-            &AttrSpec { readonly: Some(AttrAction::Invert), hidden: None, system: None, archive: None },
+            &AttrSpec {
+                readonly: Some(AttrAction::Invert),
+                hidden: None,
+                system: None,
+                archive: None,
+            },
         )
         .unwrap();
     assert!(!core.read_attrs(&[file.to_string_lossy().to_string()])[0].readonly);
@@ -457,7 +488,12 @@ fn attrs_invert_and_undo_restores_original() {
         let hide = core
             .apply_attrs(
                 vec![target(&file)],
-                &AttrSpec { readonly: None, hidden: Some(AttrAction::Invert), system: None, archive: None },
+                &AttrSpec {
+                    readonly: None,
+                    hidden: Some(AttrAction::Invert),
+                    system: None,
+                    archive: None,
+                },
             )
             .unwrap();
         let path_str = file.to_string_lossy().to_string();
@@ -878,4 +914,226 @@ fn undo_logs_btime_skip_and_appends() {
     // 追加而非覆盖：两次撤销后恰好 2 行
     let raw = fs::read_to_string(native_path(&log_path)).unwrap();
     assert_eq!(raw.lines().count(), 2, "日志必须追加而不是覆盖：{raw}");
+}
+
+// ---------- 链接（符号链接 / 目录联接）：跨盘移动必须保链，不能跟随成实体副本 ----------
+
+/// 指向 target 的目录链接：Windows 用 mklink /J（不需要管理员权限），Unix 用 symlink。
+/// 返回 false 表示当前环境建不了链接，用例跳过而不是伪造通过。
+fn make_dir_link(target: &Path, link: &Path) -> bool {
+    #[cfg(windows)]
+    {
+        use std::process::Command;
+        let status = Command::new("cmd")
+            .args(["/C", "mklink", "/J"])
+            .arg(native_path(link))
+            .arg(native_path(target))
+            .status();
+        matches!(status, Ok(s) if s.success())
+    }
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(target, native_path(link)).is_ok()
+    }
+    #[cfg(not(any(windows, unix)))]
+    {
+        let _ = (target, link);
+        false
+    }
+}
+
+/// 文件符号链接：Unix 免权限；Windows 需要「创建符号链接」权限，这里不覆盖。
+#[cfg(unix)]
+fn make_file_link(target: &Path, link: &Path) -> bool {
+    std::os::unix::fs::symlink(target, native_path(link)).is_ok()
+}
+
+fn is_link(path: &Path) -> bool {
+    fs::symlink_metadata(native_path(path))
+        .map(|meta| meta.file_type().is_symlink())
+        .unwrap_or(false)
+}
+
+fn same_resolved(a: &Path, b: &Path) -> bool {
+    match (
+        fs::canonicalize(native_path(a)),
+        fs::canonicalize(native_path(b)),
+    ) {
+        (Ok(pa), Ok(pb)) => pa == pb,
+        _ => false,
+    }
+}
+
+fn move_spec() -> MoveSpec {
+    MoveSpec {
+        create_dirs: true,
+        roots: vec![],
+        force_copy: true, // 强制走「复制 → 校验 → 删除源」，等价于真实跨盘路径
+    }
+}
+
+fn move_item(source: &Path, target: &Path, is_dir: bool) -> MoveItem {
+    MoveItem {
+        id: source.to_string_lossy().to_string(),
+        source: source.to_string_lossy().to_string(),
+        target: target.to_string_lossy().to_string(),
+        is_dir,
+    }
+}
+
+#[test]
+fn move_copy_preserves_links_inside_directory() {
+    let t = Temp::new("link-inside");
+    let outside = t.root.join("outside");
+    fs::create_dir_all(native_path(&outside)).unwrap();
+    fs::write(native_path(&outside.join("mark.txt")), b"outside").unwrap();
+
+    let tree = t.root.join("tree");
+    fs::create_dir_all(native_path(&tree.join("deep"))).unwrap();
+    fs::write(native_path(&tree.join("deep").join("inner.txt")), b"inner").unwrap();
+    let link = tree.join("link");
+    if !make_dir_link(&outside, &link) {
+        eprintln!("跳过 move_copy_preserves_links_inside_directory：当前环境无法创建目录链接");
+        return;
+    }
+
+    let dest = t.root.join("moved");
+    let core = t.core();
+    let outcome = core
+        .apply_move(vec![move_item(&tree, &dest, true)], &move_spec())
+        .unwrap();
+    assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
+
+    assert!(!tree.exists(), "源目录应已移走");
+    assert!(
+        dest.join("deep").join("inner.txt").exists(),
+        "目录内的普通内容应完整复制"
+    );
+    assert!(
+        is_link(&dest.join("link")),
+        "目录里的链接必须仍是链接，不得复制成实体目录"
+    );
+    assert!(
+        same_resolved(&dest.join("link"), &outside),
+        "链接应仍指向原来的目录"
+    );
+    assert!(
+        outside.join("mark.txt").exists(),
+        "链接目标的内容不能被搬走或删除"
+    );
+    assert!(left_temp_files(&t.root).is_empty(), "不应残留临时副本");
+}
+
+#[test]
+fn move_copy_recreates_top_level_link_instead_of_dereferencing() {
+    let t = Temp::new("link-top");
+    let real = t.root.join("real");
+    fs::create_dir_all(native_path(&real)).unwrap();
+    fs::write(native_path(&real.join("data.txt")), b"payload").unwrap();
+
+    let link = t.root.join("link");
+    if !make_dir_link(&real, &link) {
+        eprintln!(
+            "跳过 move_copy_recreates_top_level_link_instead_of_dereferencing：当前环境无法创建目录链接"
+        );
+        return;
+    }
+
+    let dest = t.root.join("归档").join("link");
+    let core = t.core();
+    let outcome = core
+        .apply_move(vec![move_item(&link, &dest, true)], &move_spec())
+        .unwrap();
+    assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
+
+    assert!(is_link(&dest), "顶层链接必须被重建为链接");
+    assert!(same_resolved(&dest, &real), "重建后目标不变");
+    assert!(
+        fs::symlink_metadata(native_path(&link)).is_err(),
+        "源链接应被删除"
+    );
+    assert!(
+        real.join("data.txt").exists(),
+        "链接目标的内容不能被搬走（旧实现会把链接实体化成副本）"
+    );
+    assert_eq!(
+        fs::read_to_string(native_path(&dest.join("data.txt"))).unwrap(),
+        "payload",
+        "重建的链接应仍能透过链接读到目标内容"
+    );
+
+    let undo = core.undo(&outcome.batch.id).unwrap();
+    assert_eq!(undo.restored.len(), 1, "{:?}", undo.failed);
+    assert!(is_link(&link), "撤销应把链接还原成链接");
+    assert!(same_resolved(&link, &real), "撤销后目标不变");
+    assert!(
+        fs::symlink_metadata(native_path(&dest)).is_err(),
+        "撤销后目标位置不应残留"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn move_copy_recreates_file_symlink_keeping_relative_target() {
+    let t = Temp::new("link-file");
+    let file = t.file("payload.txt", "content");
+    let link = t.root.join("alias.txt");
+    if !make_file_link(Path::new("payload.txt"), &link) {
+        eprintln!(
+            "跳过 move_copy_recreates_file_symlink_keeping_relative_target：无法创建符号链接"
+        );
+        return;
+    }
+
+    let dest = t.root.join("dest").join("alias.txt");
+    let core = t.core();
+    let outcome = core
+        .apply_move(vec![move_item(&link, &dest, false)], &move_spec())
+        .unwrap();
+    assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
+
+    assert!(is_link(&dest), "文件链接必须仍是链接");
+    assert_eq!(
+        fs::read_link(native_path(&dest)).unwrap(),
+        PathBuf::from("payload.txt"),
+        "相对目标必须原样保留（不是绝对化、不是实体化）"
+    );
+    assert!(
+        fs::symlink_metadata(native_path(&link)).is_err(),
+        "源链接应被删除"
+    );
+    assert_eq!(
+        fs::read_to_string(native_path(&file)).unwrap(),
+        "content",
+        "原目标文件内容不变"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn move_copy_keeps_dangling_link_as_link() {
+    let t = Temp::new("link-dangling");
+    let tree = t.root.join("tree");
+    fs::create_dir_all(native_path(&tree)).unwrap();
+    let dangling = tree.join("broken.txt");
+    if !make_file_link(Path::new("missing-target.txt"), &dangling) {
+        eprintln!("跳过 move_copy_keeps_dangling_link_as_link：无法创建符号链接");
+        return;
+    }
+
+    let dest = t.root.join("moved");
+    let core = t.core();
+    let outcome = core
+        .apply_move(vec![move_item(&tree, &dest, true)], &move_spec())
+        .unwrap();
+    assert_eq!(outcome.applied.len(), 1, "{:?}", outcome.failed);
+
+    let moved = dest.join("broken.txt");
+    assert!(is_link(&moved), "悬空链接也要作为链接保留");
+    assert_eq!(
+        fs::read_link(native_path(&moved)).unwrap(),
+        PathBuf::from("missing-target.txt"),
+        "悬空链接的相对目标原样保留"
+    );
+    assert!(!moved.exists(), "目标确实不存在，说明链接没有被实体化");
 }

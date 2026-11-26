@@ -65,6 +65,10 @@ jobs:
       - name: 拖放状态机自测（21 条）
         run: npm run test:drop
 
+      # 预览收尾守卫：两遍收尾与旧实现（按行 map + 多次 filter）逐条等价（随机表 300 组）+ 增量重算一致性
+      - name: 预览收尾自测（20 条）
+        run: npm run test:preview
+
       - name: 输入历史逻辑自测（26 条）
         run: npm run test:history
 

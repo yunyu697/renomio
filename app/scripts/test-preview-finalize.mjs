@@ -26,7 +26,7 @@ writeFileSync(
 function transpile(name) {
   const source = readFileSync(join(root, 'src', 'lib', `${name}.ts`), 'utf8')
     .replace("from '../i18n'", "from './i18n.mjs'")
-    .replace(/from '\.\/(rules|validate|vars|types|metaFields)'/g, "from './$1.mjs'");
+    .replace(/from '\.\/(rules|validate|vars|types|metaFields|mapTable)'/g, "from './$1.mjs'");
   const out = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
   }).outputText;
@@ -41,6 +41,7 @@ const urls = {
   validate: transpile('validate'),
   vars: transpile('vars'),
   metaFields: transpile('metaFields'),
+  mapTable: transpile('mapTable'),
 };
 const P = await import(urls.preview);
 const V = await import(urls.validate);
