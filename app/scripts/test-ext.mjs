@@ -126,7 +126,7 @@ check('App 在 analyze 规则启用时才按需加载', appSrc.includes("r.type 
 
 // 9. Rust 侧：魔数覆盖与命令注册（防「前端做完了、后端没接」）
 const sniffSrc = readFileSync(path.join(appRoot, 'src-tauri', 'renomio-core', 'src', 'sniff.rs'), 'utf8');
-for (const ext of ['jpg', 'png', 'gif', 'bmp', 'tif', 'webp', 'wav', 'avi', 'mp4', 'm4a', 'mov', 'heic', 'pdf', 'zip', 'gz', '7z', 'rar', 'flac', 'ogg', 'mp3']) {
+for (const ext of ['jpg', 'png', 'gif', 'bmp', 'tif', 'webp', 'wav', 'avi', 'mp4', 'm4a', 'mov', 'heic', 'avif', 'pdf', 'zip', 'gz', '7z', 'rar', 'flac', 'ogg', 'mp3']) {
   check(`sniff.rs 覆盖 ${ext}`, sniffSrc.includes(`"${ext}"`), ext);
 }
 check('sniff.rs 只读文件头（HEAD_LEN=64）', sniffSrc.includes('HEAD_LEN') && sniffSrc.includes('64'));

@@ -37,7 +37,17 @@ function ensureDir(dir) {
 
 function writeFile(p, content = '') {
   ensureDir(path.dirname(p));
-  fs.writeFileSync(nativePath(p), content);
+  const target = nativePath(p);
+  // 上一次跑剩下的只读样本（POSIX 0444 / Windows 只读属性）会直接 EPERM，
+  // 重跑前先放开写位，保证生成器可重复执行。
+  try {
+    if (fs.existsSync(target) && (fs.statSync(target).mode & 0o200) === 0) {
+      fs.chmodSync(target, 0o644);
+    }
+  } catch {
+    // 放开失败就让后面的写抛真实错误
+  }
+  fs.writeFileSync(target, content);
 }
 
 function writeReadonly(p, content = '') {
