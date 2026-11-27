@@ -305,7 +305,8 @@ export type MetaFieldKey =
   | 'taken' | 'camera'
   | 'iso' | 'aperture' | 'shutter' | 'focal' | 'lens' | 'width' | 'height' | 'resolution'
   | 'title' | 'artist' | 'album' | 'track' | 'year' | 'genre' | 'composer'
-  | 'fontFamily' | 'fontStyle' | 'fontVersion';
+  | 'fontFamily' | 'fontStyle' | 'fontVersion'
+  | 'fileVersion';
 
 /** 供「按元数据取名」使用的只读字段（Rust `rename_fields` 返回，缺失为空串，已做文件名安全化）。 */
 export interface MetaFields {
@@ -330,6 +331,7 @@ export interface MetaFields {
   fontFamily: string;
   fontStyle: string;
   fontVersion: string;
+  fileVersion: string;
 }
 
 /** 可编辑元数据的字段 id（图片 / 音频 / 文档共用一套字符串键，按格式白名单过滤）。 */
@@ -891,7 +893,7 @@ export interface MetadataField {
 }
 
 export interface MetadataInfo {
-  kind: 'image' | 'audio' | 'document' | 'text' | 'font' | 'other';
+  kind: 'image' | 'audio' | 'document' | 'text' | 'font' | 'exe' | 'other';
   format: string;
   readOnly: boolean;
   fields: MetadataField[];

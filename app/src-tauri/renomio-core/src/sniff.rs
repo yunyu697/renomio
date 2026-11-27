@@ -7,8 +7,11 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-/// 读取文件头时最多读多少字节（`ftyp` 家族、WEBP / WAV / AVI 都落在前 12 字节内）。
-const HEAD_LEN: usize = 64;
+/// 读取文件头时最多读多少字节。
+///
+/// 常见容器都落在前 64 字节内；PE 的 `PE\0\0` 签名在 `e_lfanew`（通常 0x80）处，
+/// 因此放宽到 1 KiB 才能把 EXE / DLL 分开而不是只按 `MZ` 猜。
+const HEAD_LEN: usize = 1024;
 
 /// 按文件头字节判定扩展名。`head` 可以是文件开头若干字节，允许短于 12 字节。
 ///
@@ -61,6 +64,19 @@ pub fn sniff_magic(head: &[u8]) -> Option<&'static str> {
     }
     if head.starts_with(&[0x30, 0x26, 0xB2, 0x75, 0x8E, 0x66, 0xCF, 0x11]) {
         return Some("wma");
+    }
+    // PE：`MZ` 之后按 e_lfanew 找 `PE\0\0`，再按 COFF 头特性位区分 EXE / DLL
+    if head.starts_with(b"MZ") {
+        let lfanew = at(head, 0x3C, 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize);
+        if let Some(off) = lfanew.filter(|off| *off > 0 && *off + 24 <= head.len()) {
+            if at(head, off, 4) == Some(b"PE\0\0") {
+                let characteristics = at(head, off + 22, 2)
+                    .map(|b| u16::from_le_bytes([b[0], b[1]]))
+                    .unwrap_or(0);
+                return Some(if characteristics & 0x2000 != 0 { "dll" } else { "exe" });
+            }
+        }
+        return None;
     }
     // 字体：TrueType 集合 / CFF 轮廓的 OpenType / TrueType（含 Apple `true` 与 Type 1 封装）
     if head.starts_with(b"ttcf") {

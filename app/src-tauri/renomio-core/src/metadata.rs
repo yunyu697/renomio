@@ -89,6 +89,7 @@ pub struct RenameFieldValues {
     pub font_family: String,
     pub font_style: String,
     pub font_version: String,
+    pub file_version: String,
 }
 
 /// Windows / macOS / Linux 都拒绝的字符一律换成 `-`（`/` 在文件名里等同于路径分隔符）。
@@ -217,6 +218,7 @@ pub fn rename_field_values(info: &MetadataInfo) -> RenameFieldValues {
         font_family: name_safe(&field_of(info, &["字体名"])),
         font_style: name_safe(&field_of(info, &["字形"])),
         font_version: name_safe(&font_version_token(&field_of(info, &["字体版本"]))),
+        file_version: name_safe(&field_of(info, &["文件版本"])),
     }
 }
 
@@ -281,6 +283,9 @@ pub fn read_metadata(path: &str) -> Result<MetadataInfo, String> {
     } else if let Some(probe) = crate::font::probe(&data) {
         // TTF / OTF / TTC：族名、字形、版本、字重、字形数与设计网格
         font_meta(probe)
+    } else if let Some(probe) = crate::pe::probe(&data) {
+        // EXE / DLL / SYS：PE 头 + VS_VERSIONINFO（文件版本 / 产品名 / 公司 / 版权）
+        pe_meta(probe)
     } else if data.starts_with(b"ID3") || looks_like_mpeg(&data, 0) {
         audio_mp3(&data, size)
     } else if data.starts_with(b"fLaC") {
@@ -921,6 +926,58 @@ fn font_meta(probe: crate::font::FontProbe) -> MetadataInfo {
     }
     if let Some(license) = probe.license {
         info.push("授权", license);
+    }
+    for warning in probe.warnings {
+        info.warn(warning);
+    }
+    info
+}
+
+/// PE（EXE / DLL / SYS）：头信息 + 版本资源。
+fn pe_meta(probe: crate::pe::PeProbe) -> MetadataInfo {
+    let mut info = MetadataInfo::new("exe", &probe.format);
+    if let Some(bitness) = probe.bitness {
+        info.push(
+            "位数",
+            format!("{bitness} 位（PE32{}）", if bitness == 64 { "+" } else { "" }),
+        );
+    }
+    if let Some(machine) = probe.machine {
+        info.push("目标架构", machine);
+    }
+    if let Some(subsystem) = probe.subsystem {
+        info.push("子系统", subsystem);
+    }
+    if let Some(built) = probe.built {
+        info.push("编译时间", built);
+    }
+    if let Some(version) = probe.file_version {
+        info.push("文件版本", version);
+    }
+    if let Some(version) = probe.product_version {
+        info.push("产品版本", version);
+    }
+    // 版本资源里的字符串：常见键翻成中文标签，其余按原键名展示（不丢信息）
+    for entry in &probe.strings {
+        let label = match entry.key.as_str() {
+            "CompanyName" => "公司名",
+            "ProductName" => "产品名",
+            "FileDescription" => "文件说明",
+            "LegalCopyright" => "版权",
+            "OriginalFilename" => "原始文件名",
+            "InternalName" => "内部名",
+            "LegalTrademarks" => "商标",
+            "Comments" => "注释",
+            "PrivateBuild" => "私有构建",
+            "SpecialBuild" => "特殊构建",
+            "FileVersion" => "版本资源·文件版本",
+            "ProductVersion" => "版本资源·产品版本",
+            other => other,
+        };
+        info.push(label, entry.value.clone());
+    }
+    if let Some(language) = probe.language {
+        info.push("版本资源语言", language);
     }
     for warning in probe.warnings {
         info.warn(warning);

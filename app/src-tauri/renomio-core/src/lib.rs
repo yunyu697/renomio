@@ -12,6 +12,7 @@ pub mod journal;
 pub mod metaedit;
 pub mod metadata;
 pub mod ops;
+pub mod pe;
 pub mod pdf;
 pub mod platform;
 pub mod rename;

@@ -326,6 +326,21 @@ pub fn capabilities() -> Vec<MetaCapability> {
             notes: notes.into(),
         });
     }
+    for (format, notes) in [(
+        "EXE/DLL (PE)",
+        "只读：PE 头（位数 / 架构 / 子系统 / 编译时间）与 `.rsrc` 里的 `VS_VERSIONINFO`\
+         （文件版本 / 产品版本 / 公司 / 产品名 / 文件说明 / 版权 / 原始文件名 / 内部名等）；\
+         不做反汇编、不校验证书，写入需重建资源节与校验和，本版本不支持",
+    )] {
+        out.push(MetaCapability {
+            kind: "exe".into(),
+            format: format.into(),
+            read: true,
+            write: false,
+            fields: vec![],
+            notes: notes.into(),
+        });
+    }
     out
 }
 
@@ -434,6 +449,13 @@ pub fn detect(path: &Path, head: &[u8]) -> Format {
     }
     if head.starts_with(&[0xD0, 0xCF, 0x11, 0xE0]) {
         return unsupported("document", "DOC/XLS/PPT (OLE)", "旧版 OLE 只读（摘要属性），本版本不支持写回");
+    }
+    if head.starts_with(b"MZ") {
+        return unsupported(
+            "exe",
+            "PE 可执行文件（EXE/DLL）",
+            "PE 版本资源只读（属性面板可读文件版本 / 产品名 / 公司 / 版权等），写入需重建资源节与校验和，本版本不支持",
+        );
     }
     unsupported("other", "未识别格式", "没有匹配的元数据写入器")
 }

@@ -410,6 +410,9 @@ function demoKindOf(path: string): { kind: string; format: string; writable: boo
   if (['ttf', 'otf', 'ttc', 'otc'].includes(ext)) {
     return { kind: 'font', format: ext.toUpperCase(), writable: false };
   }
+  if (ext === 'exe' || ext === 'dll' || ext === 'sys') {
+    return { kind: 'exe', format: `PE (${ext.toUpperCase()})`, writable: false };
+  }
   return { kind: 'other', format: ext.toUpperCase() || '未知', writable: false };
 }
 
@@ -547,6 +550,7 @@ function demoCapabilities(): MetaCapabilityDto[] {
     { kind: 'document', format: 'PDF', read: true, write: true, fields: f(['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category']), notes: 'xref 表/流/对象流均可读（含 PNG 预测器），加密只报算法；写入限经典 xref 增量更新' },
     { kind: 'document', format: 'DOC/XLS/PPT (OLE)', read: true, write: false, fields: f(['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment']), notes: '只读：认类型并读摘要属性；不支持写回' },
     { kind: 'font', format: 'TTF/OTF/TTC', read: true, write: false, fields: f(['fontFamily', 'fontStyle', 'fontVersion', 'fontFullName', 'postscript', 'weight', 'italic', 'glyphs', 'unitsPerEm', 'faces']), notes: '只读：name 表族名/字形/全名/PostScript 名/版本/设计者/授权，OS/2 字重与斜体，maxp 字形数，head 设计网格；TTC 报集合内字体数；不支持写入' },
+    { kind: 'exe', format: 'EXE/DLL (PE)', read: true, write: false, fields: f(['fileVersion', 'productVersion', 'companyName', 'productName', 'fileDescription', 'copyright', 'originalFilename', 'internalName', 'bitness', 'machine', 'subsystem', 'built']), notes: '只读：PE 头位宽/架构/子系统/编译时间，版本资源里的文件版本、产品名、公司、版权等；写入需重建资源节与校验和，不支持' },
   ];
 }
 

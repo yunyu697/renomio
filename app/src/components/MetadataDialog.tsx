@@ -15,6 +15,7 @@ export function MetadataDialog() {
     audio: 'meta.audio',
     document: 'meta.document',
     font: 'meta.font',
+    exe: 'meta.exe',
     other: 'meta.other',
   };
 

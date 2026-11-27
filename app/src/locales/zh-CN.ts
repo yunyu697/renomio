@@ -518,10 +518,12 @@ export const zhCN: Dict = {
   'o.metaFontFamily': '字体名',
   'o.metaFontStyle': '字形',
   'o.metaFontVersion': '字体版本',
+  'o.metaFileVersion': '文件版本',
   'metaGroup.shooting': '拍摄参数',
   'metaGroup.pixels': '图像尺寸',
   'metaGroup.audio': '音频标签',
   'metaGroup.font': '字体信息',
+  'metaGroup.pe': '可执行文件',
   'ph.insert': '例如 旅行_',
   'ph.left': '留空则从开头',
   'ph.right': '留空则到结尾',
@@ -632,6 +634,7 @@ export const zhCN: Dict = {
   'ruleSum.metaFontFamily': '字体名',
   'ruleSum.metaFontStyle': '字形',
   'ruleSum.metaFontVersion': '字体版本',
+  'ruleSum.metaFileVersion': '文件版本',
 
   // 预览与执行
   'policy.skip': '跳过冲突行',
@@ -748,6 +751,7 @@ export const zhCN: Dict = {
   'meta.document': '文档',
   'meta.other': '其他',
   'meta.font': '字体',
+  'meta.exe': '可执行文件',
 
   // 方案
   'plan.exportTitle': '保存更名方案',
