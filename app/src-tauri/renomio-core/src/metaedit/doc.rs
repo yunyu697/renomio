@@ -679,23 +679,39 @@ fn pdf_trailer(data: &[u8]) -> Result<PdfTrailer, String> {
     if startxref >= data.len() {
         return Err("PDF startxref 指向越界".into());
     }
-    let at = &data[startxref..];
-    if !at.starts_with(b"xref") {
-        return Err("PDF 使用 xref 流（PDF 1.5+）：只读可解析，写入需要经典 xref 表".into());
+    let lead = data[startxref..]
+        .iter()
+        .take_while(|b| b.is_ascii_whitespace())
+        .count();
+    let at = &data[startxref + lead..];
+    if at.starts_with(b"xref") {
+        let from = String::from_utf8_lossy(&data[startxref..]).to_string();
+        let trailer_at = from
+            .find("trailer")
+            .ok_or("PDF 缺少 trailer 字典（可能使用了 xref 流）")?;
+        let dict_at = from[trailer_at..]
+            .find("<<")
+            .map(|i| i + trailer_at)
+            .ok_or("PDF trailer 字典格式无法解析")?;
+        let (s, e) = pdf_dict_span(&from, dict_at).ok_or("PDF trailer 字典未闭合")?;
+        return Ok(PdfTrailer {
+            dict: from[s..e].to_string(),
+            startxref,
+        });
     }
-    let from = String::from_utf8_lossy(&data[startxref..]).to_string();
-    let trailer_at = from
-        .find("trailer")
-        .ok_or("PDF 缺少 trailer 字典（可能使用了 xref 流）")?;
-    let dict_at = from[trailer_at..]
-        .find("<<")
-        .map(|i| i + trailer_at)
-        .ok_or("PDF trailer 字典格式无法解析")?;
-    let (s, e) = pdf_dict_span(&from, dict_at).ok_or("PDF trailer 字典未闭合")?;
-    Ok(PdfTrailer {
-        dict: from[s..e].to_string(),
-        startxref,
-    })
+    // PDF 1.5+：startxref 指向一个 xref 流对象，trailer 键就在该对象的字典里
+    let from = String::from_utf8_lossy(at).to_string();
+    let head: Vec<&str> = from.split_whitespace().take(3).collect();
+    if head.len() < 3 || head[2] != "obj" {
+        return Err("PDF startxref 未指向 xref 表或 xref 流对象".into());
+    }
+    let dict_at = from.find("<<").ok_or("PDF xref 流缺少字典")?;
+    let (s, e) = pdf_dict_span(&from, dict_at).ok_or("PDF xref 流字典未闭合")?;
+    let dict = from[s..e].to_string();
+    if pdf_dict_get(&dict, "Type").as_deref() != Some("/XRef") {
+        return Err("PDF startxref 指向的对象不是 xref 流（/Type /XRef 缺失）".into());
+    }
+    Ok(PdfTrailer { dict, startxref })
 }
 
 fn pdf_dict_get(dict: &str, key: &str) -> Option<String> {
@@ -1047,14 +1063,22 @@ fn pdf_rewrite(data: &[u8], fields: &FieldMap) -> Result<Rewrite, String> {
     let old_info_num = pdf_dict_get(&trailer.dict, "Info")
         .and_then(|r| r.split_whitespace().next().map(|s| s.to_string()))
         .and_then(|n| n.parse::<usize>().ok());
+    let mut old_info_in_stream = false;
     if let Some(num) = old_info_num {
         if let Some(entries) = pdf_info_entries(data, num) {
             info_entries = entries;
+        } else {
+            old_info_in_stream = true;
         }
     }
     let mut written = Vec::new();
     let mut cleared = Vec::new();
     let mut warnings = Vec::new();
+    if old_info_in_stream {
+        warnings.push(
+            "原 Info 字典位于对象流（压缩存储），已新建 Info：Producer/CreationDate 等旧字段可能未保留".into(),
+        );
+    }
     for (id, key) in PDF_KEYS {
         let Some(value) = fields.get(*id) else { continue };
         let value = value.trim();
