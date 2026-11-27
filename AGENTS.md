@@ -97,7 +97,7 @@ PDF 写回支持 xref 流 + 应用图标占比修正（alpha33，域五 5.14 的
 已知缺口：
 - Windows 安装包未做 Authenticode 代码签名（本机无 OV/EV 证书），SmartScreen 会警告；更新用 `.sig` 已验过。
 - PDF 写回仍不支持 Catalog / Info 全部落在对象流的文件（Info 在对象流会警告并新建，Catalog 在对象流直接拒绝）。
-已发布：`v1.2.0-alpha32`（2026-11-27，Pre-release，15 资产）为当前最新；滚动清单 release `updates` 的 `latest.json` 已指向 alpha32（三平台键齐全：windows 2,765,438 / linux 87,194,104 / mac 3,481,242，pub_date `2026-11-27T08:34:53Z`，线上回读与本地逐字节一致（SHA-256 `e40fef29…6f3be9`，2331 B），13 包按 asset `digest` 与本地 `SHA256SUMS` 逐条相符）；上一版 `v1.2.0-alpha31` 资产保留。
+已发布：`v1.2.0-alpha33`（2026-11-27，Pre-release，15 资产）为当前最新；滚动清单 release `updates` 的 `latest.json` 已指向 alpha33（三平台键齐全：windows 2,767,142 / linux 87,198,200 / mac 3,491,854，pub_date `2026-11-27T09:17:41Z`，线上回读与本地逐字节一致（SHA-256 `e276a199…3db84d`，2177 B，`gh release download` 回读通道；`gh api … | Set-Content` 会把二进制转文本，别用），13 包按 asset `digest` 与本地 `SHA256SUMS` 逐条相符，六签名包离线验签全 PASS）；上一版 `v1.2.0-alpha32` 资产保留。
 
 - `renomio-core` 的 `rename::tests::directory_junction_is_renamed_as_a_link` 在部分环境因联接点权限失败，属环境问题。
 - 界面层遗留（2026-11-25 清零）：`.list-tabs/.tab` 旧样式块连同 105 个死选择器一并删除（app.css −17%、shell.css −8.5%），`npm run test:css` 孤儿守卫进 CI，`scripts/test-css-orphans.mjs` 当前 0 孤儿；toast 改为让位式（右侧抽屉展开左移到抽屉左侧、底部检查器展开抬到检查器上方）；表头与行逐列几何断言实测 7 列 Δ=0、状态列表头文字与徽标 Δ=0.00（`e2e/run.mjs` 第 4 条断言起）。
@@ -121,6 +121,7 @@ PDF 写回支持 xref 流 + 应用图标占比修正（alpha33，域五 5.14 的
 - Windows 上想读「链接数 / 文件号」别用 `MetadataExt`：`file_index` / `number_of_links` / `volume_serial_number` 仍是 nightly 的 `windows_by_handle`，稳定版 `cargo check` 直接 E0658；改走 `GetFileInformationByHandle`（`CreateFileW` + `FILE_READ_ATTRIBUTES` + `FILE_FLAG_BACKUP_SEMANTICS|OPEN_REPARSE_POINT`）。
 - Windows `symlink_dir` / `symlink_file` 在未提权时会**返回 1314 但链接已经建好**：判断「到底建没建成」必须实测（`symlink_metadata` + `read_link`/`canonicalize`），只看错误码会把半成功当失败；建 junction 前也要先确认目标位置确实不存在（`junction` crate 走 `FILE_CREATE`，占位目录得先清掉）。
 - 整包 `cargo fmt` 会把历史未格式化的文件一起重排（一次二十多个纯格式改动）：本地只格式化本次改动的文件，别对 `renomio-core` 全量跑。
+- `bundle-linux` 偶发失败在 `apt-get update`：`packages.microsoft.com/ubuntu/<新 LTS>/prod … 403 Forbidden / no longer signed`（微软源与 runner 新镜像不同步）。与代码无关，同一 job 换个时间跑通常就过；`gh run rerun <id> --failed` 重跑即可，别改 workflow。
 
 ## 文档索引
 
