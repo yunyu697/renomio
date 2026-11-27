@@ -44,7 +44,8 @@
 - 支持：JPEG（APP1 EXIF IFD0 + XMP 合并）、PNG（iTXt）、WebP（RIFF/VPX EXIF+XMP）、TIFF（IFD0）。
 - 字段：title / description / keywords / author / copyright / software / takenAt / headline / bylineTitle / credit / source（后四项 IPTC Core；XMP 为主，JPEG 另写 IPTC-IIM / APP13 8BIM，读 IIM 的老软件也能看到）。
 - 保留：相机 Make/Model/GPS/ICC；只改勾选字段；先备份后原子替换；逐字段回读校验。
-- 不支持：HEIC/HEIF（明确拒绝并说明原因）、GIF/BMP/AVIF。
+- 只读（可看不可写）：GIF（版本、尺寸、调色板色数、帧数、是否动画、`NETSCAPE2.0` 循环次数、注释、逐帧延时总时长）、BMP（头部类型、尺寸与扫描方向、位深、压缩方式、DPI、调色板色数）、AVIF（`ispe` 尺寸、`pixi`/`av1C` 位深、通道数、`auxC` alpha 平面、`stsz` 帧数）——由 `renomio-core/src/image_container.rs` 解析，属性面板给「只读」，写入明确拒绝并说明原因。
+- 不支持：HEIC/HEIF（明确拒绝并说明原因）；GIF/BMP/AVIF 的**写入**（只读解析已就绪，写回不做）。
 - 实测：`verify_meta.py` 图片段全部通过（Pillow 13 校验尺寸/像素哈希/ICC/EXIF/GPS，备份字节一致，restore 后字节完全还原）。
 
 ## 2. 音乐标签（已验）
