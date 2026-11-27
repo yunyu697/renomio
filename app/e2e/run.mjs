@@ -3341,10 +3341,10 @@ async function main() {
     })()`);
     check(
       'UI',
-      '元数据字段下拉含 20 个字段、按拍摄参数 / 图像尺寸 / 音频标签 / 字体信息四组展示',
-      metaSelect?.count === 20
-        && metaSelect.groups.length === 4
-        && ['iso', 'aperture', 'shutter', 'focal', 'lens', 'width', 'height', 'resolution', 'year', 'genre', 'composer', 'fontFamily', 'fontStyle', 'fontVersion']
+      '元数据字段下拉含 21 个字段、按拍摄参数 / 图像尺寸 / 音频标签 / 字体信息 / 可执行文件五组展示',
+      metaSelect?.count === 21
+        && metaSelect.groups.length === 5
+        && ['iso', 'aperture', 'shutter', 'focal', 'lens', 'width', 'height', 'resolution', 'year', 'genre', 'composer', 'fontFamily', 'fontStyle', 'fontVersion', 'fileVersion']
           .every((k) => metaSelect.values.includes(k)),
       JSON.stringify(metaSelect),
     );
@@ -3844,9 +3844,9 @@ async function main() {
     })()`);
     check(
       'UI',
-      '编号分组下拉同步新增字段（field:iso / field:resolution / field:composer / field:fontFamily）',
-      groupOpts?.groups.length === 4
-        && ['field:iso', 'field:resolution', 'field:composer', 'field:fontFamily'].every((v) => groupOpts.values.includes(v)),
+      '编号分组下拉同步新增字段（field:iso / field:resolution / field:composer / field:fontFamily / field:fileVersion）',
+      groupOpts?.groups.length === 5
+        && ['field:iso', 'field:resolution', 'field:composer', 'field:fontFamily', 'field:fileVersion'].every((v) => groupOpts.values.includes(v)),
       JSON.stringify(groupOpts),
     );
     await clearAllRules();

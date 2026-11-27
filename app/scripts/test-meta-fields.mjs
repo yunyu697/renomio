@@ -48,10 +48,11 @@ const EXPECTED = [
   'width', 'height', 'resolution',
   'title', 'artist', 'album', 'track', 'year', 'genre', 'composer',
   'fontFamily', 'fontStyle', 'fontVersion',
+  'fileVersion',
 ];
 
 // 1. 字段表本身
-check('字段数量 20', META_FIELDS.length === 20, String(META_FIELDS.length));
+check('字段数量 21', META_FIELDS.length === 21, String(META_FIELDS.length));
 check('字段顺序与 Rust 侧一致', EXPECTED.every((k, i) => META_FIELDS[i] === k), META_FIELDS.join(','));
 check('无重复字段', new Set(META_FIELDS).size === META_FIELDS.length);
 check(
@@ -67,7 +68,7 @@ for (const lang of locales) {
   const src = readFileSync(path.join(appRoot, 'src', 'locales', `${lang}.ts`), 'utf8');
   const missing = META_FIELDS.map(metaFieldLabelKey).filter((key) => !src.includes(`'${key}':`));
   const missingGroups = META_FIELD_GROUPS.map((g) => g.titleKey).filter((key) => !src.includes(`'${key}':`));
-  check(`${lang} 的 20 个字段文案齐全`, missing.length === 0, missing.join(','));
+  check(`${lang} 的 21 个字段文案齐全`, missing.length === 0, missing.join(','));
   check(`${lang} 的分组标题齐全`, missingGroups.length === 0, missingGroups.join(','));
 }
 
@@ -94,6 +95,7 @@ const meta = {
   fontFamily: '思源黑体',
   fontStyle: 'Bold',
   fontVersion: '2.004',
+  fileVersion: '1.2.0.27',
 };
 const ctx = { vars: {}, nextNumber: () => 1, peekNumber: () => 1, meta };
 
@@ -122,6 +124,7 @@ const expectPrefix = {
   fontFamily: '思源黑体_原名.jpg',
   fontStyle: 'Bold_原名.jpg',
   fontVersion: '2.004_原名.jpg',
+  fileVersion: '1.2.0.27_原名.jpg',
 };
 for (const field of META_FIELDS) {
   const out = applyRules({ stem: '原名', ext: 'jpg' }, false, [prefixRule(field)], '', ctx, true);
@@ -142,7 +145,7 @@ const suffixed = applyRules(
 check('suffix 用法：追加分辨率', suffixed.stem === '原名_6000x4000', JSON.stringify(suffixed));
 
 // 5. 字段缺失必须“不改变名称”，而不是拼出空段或 undefined
-for (const field of ['iso', 'lens', 'year', 'composer', 'fontFamily']) {
+for (const field of ['iso', 'lens', 'year', 'composer', 'fontFamily', 'fileVersion']) {
   const out = applyRules(
     { stem: '原名', ext: 'jpg' }, false, [prefixRule(field)], '',
     { vars: {}, nextNumber: () => 1, peekNumber: () => 1, meta: { path: 'x', [field]: '' } }, true,
@@ -158,7 +161,7 @@ const noMeta = applyRules(
 check('无 meta 上下文不改变名称', `${noMeta.stem}.${noMeta.ext}` === '原名.jpg', `${noMeta.stem}.${noMeta.ext}`);
 
 // 7. 编号分组：新增字段可以当分组键，未识别键回退 none
-for (const field of ['iso', 'width', 'year', 'composer', 'fontFamily']) {
+for (const field of ['iso', 'width', 'year', 'composer', 'fontFamily', 'fileVersion']) {
   const rule = normalizeRule({
     id: 'n1', type: 'number', enabled: true, expression: '<#>', start: 1, step: 1, digits: 2,
     padChar: '0', groupBy: `field:${field}`, exclude: '', byPath: false, writeVar: '', onlyChecked: false,
@@ -173,7 +176,7 @@ const bogus = normalizeRule({
 });
 check('未知分组字段回退 none', bogus.groupBy === 'none', bogus.groupBy);
 
-// 8. Rust 侧字段映射不能少项：源码里 20 个字段名都要出现在 rename_field_values 里
+// 8. Rust 侧字段映射不能少项：源码里 21 个字段名都要出现在 rename_field_values 里
 const coreSrc = readFileSync(
   path.join(appRoot, 'src-tauri', 'renomio-core', 'src', 'metadata.rs'),
   'utf8',
