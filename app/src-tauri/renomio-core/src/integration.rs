@@ -1,4 +1,4 @@
-//! 资源管理器集成：每用户右键菜单（注册表计划）与 `.lnk` 快捷方式字节生成。
+//! 资源管理器集成：每用户右键菜单（注册表计划 + Windows 注册表读写）。
 //!
 //! 设计取舍：
 //! - **只写 HKCU**（`Software\Classes\...`），不需要管理员权限，卸载程序/用户自己都能删干净；
@@ -6,12 +6,10 @@
 //! - 菜单计划（[`menu_entries`]）是**纯数据**，任何平台都能算、都能测；真正落注册表的
 //!   [`apply_menu`] / [`remove_menu`] / [`menu_state`] 只在 Windows 上有效，其他平台
 //!   返回「不支持」而不是假装成功。
-//! - 快捷方式**不调 COM**：直接按 Shell Link（`.lnk`）二进制规范生成字节。好处是纯函数、
-//!   可逐字段断言、不依赖 `IShellLink`（也就不会在测试里弹 Explorer 的东西）。
-//!   生成的结构是「LinkInfo（含 Unicode 本地路径）+ 名称 / 工作目录 / 参数 / 图标」，
-//!   没有写 `IDList`——桌面与开始菜单都用得到，且少了 PIDL 序列化这一层风险。
-
-use std::path::Path;
+//! - 路径校验按 **Windows 语义**判断绝对路径（`C:\...` 或 `\\server\share`），不看宿主平台：
+//!   这些路径本来就是要写进注册表给 Windows 用的，在 Linux/macOS 上也算合法输入。
+//! - 快捷方式不在这里：手写 `.lnk` 字节缺少 IDList/PIDL，系统读回目标为空，已废弃；
+//!   现在由桌面端 `src-tauri/src/shortcut.rs` 调 COM（`IShellLinkW` + `IPersistFile`）生成。
 
 /// 右键菜单项的作用域。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
@@ -86,13 +84,29 @@ pub struct MenuState {
     pub detail: String,
 }
 
+/// 按 Windows 语义判断绝对路径：`C:\...` / `C:/...` / `\\server\share\...`。
+///
+/// 不用 `std::path::Path::is_absolute`：它按宿主平台判定，同一份注册表计划在 Linux 上会被
+/// 误判成相对路径（而 `C:\...` 本来就是给 Windows 用的）。
+fn is_windows_absolute(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    if bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/')
+    {
+        return true;
+    }
+    path.starts_with("\\\\")
+}
+
 /// 程序路径校验：必须是绝对路径、不含引号与换行（命令行要原样引用它）。
 pub fn validate_exe(exe: &str) -> Result<(), String> {
     let trimmed = exe.trim();
     if trimmed.is_empty() {
         return Err("程序路径为空".to_string());
     }
-    if !Path::new(trimmed).is_absolute() {
+    if !is_windows_absolute(trimmed) {
         return Err(format!("程序路径必须是绝对路径：{trimmed}"));
     }
     if trimmed.contains('"') {
@@ -255,5 +269,16 @@ mod tests {
         let entries = menu_entries(exe).unwrap();
         assert_eq!(entries[0].command, format!("\"{exe}\" \"%1\""));
         assert_eq!(entries[2].command, format!("\"{exe}\" \"%V\""));
+    }
+
+    #[test]
+    fn windows_absolute_is_host_independent() {
+        // 这些路径要写进 Windows 注册表：在 Linux/macOS 上跑同一份测试也必须算绝对路径
+        assert!(is_windows_absolute("C:\\Renomio\\renomio.exe"));
+        assert!(is_windows_absolute("C:/Renomio/renomio.exe"));
+        assert!(is_windows_absolute("\\\\server\\share\\renomio.exe"));
+        assert!(!is_windows_absolute("renomio.exe"));
+        assert!(!is_windows_absolute(".\\renomio.exe"));
+        assert!(!is_windows_absolute("/usr/bin/renomio"));
     }
 }

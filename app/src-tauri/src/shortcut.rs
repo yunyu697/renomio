@@ -7,11 +7,6 @@
 
 use std::path::Path;
 
-/// 平台是否支持创建快捷方式。
-pub const fn supported() -> bool {
-    cfg!(windows)
-}
-
 #[cfg(windows)]
 pub fn create_shortcut(
     lnk: &Path,
@@ -64,7 +59,7 @@ pub fn create_shortcut(
             let file: IPersistFile = link
                 .cast()
                 .map_err(|e| format!("转换为 IPersistFile 失败：{e}"))?;
-            file.Save(PCWSTR(lnk_wide.as_ptr()), true.into())
+            file.Save(PCWSTR(lnk_wide.as_ptr()), true)
                 .map_err(|e| format!("保存快捷方式失败：{e}"))?;
             Ok(())
         })();
@@ -160,6 +155,10 @@ mod tests {
 
     #[test]
     fn unsupported_platform_is_explicit() {
-        assert_eq!(supported(), cfg!(windows));
+        // 非 Windows 的 `create_shortcut` 必须直接报错，不能悄悄返回成功
+        #[cfg(not(windows))]
+        assert!(super::create_shortcut(Path::new("x.lnk"), "C:\\a.exe", "", "", "").is_err());
+        #[cfg(windows)]
+        assert!(cfg!(windows));
     }
 }
