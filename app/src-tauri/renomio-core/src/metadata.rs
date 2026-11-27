@@ -286,6 +286,9 @@ pub fn read_metadata(path: &str) -> Result<MetadataInfo, String> {
     } else if let Some(probe) = crate::pe::probe(&data) {
         // EXE / DLL / SYS：PE 头 + VS_VERSIONINFO（文件版本 / 产品名 / 公司 / 版权）
         pe_meta(probe)
+    } else if let Some(probe) = crate::apk::probe(&data, &tail, size) {
+        // APK：ZIP 中央目录 + 二进制 AndroidManifest.xml + resources.arsc 资源字符串
+        apk_meta(probe)
     } else if data.starts_with(b"ID3") || looks_like_mpeg(&data, 0) {
         audio_mp3(&data, size)
     } else if data.starts_with(b"fLaC") {
@@ -979,6 +982,118 @@ fn pe_meta(probe: crate::pe::PeProbe) -> MetadataInfo {
     if let Some(language) = probe.language {
         info.push("版本资源语言", language);
     }
+    for warning in probe.warnings {
+        info.warn(warning);
+    }
+    info
+}
+
+// ---------------------------------------------------------------------------
+// Android 安装包
+// ---------------------------------------------------------------------------
+
+/// API 等级 → Android 版本名（只覆盖常见档，未知档只显示数字）。
+fn android_version(api: &str) -> Option<&'static str> {
+    let level: u32 = api.parse().ok()?;
+    Some(match level {
+        1 => "1.0",
+        2 => "1.1",
+        3 => "1.5",
+        4 => "1.6",
+        5 => "2.0",
+        6 => "2.0.1",
+        7 => "2.1",
+        8 => "2.2",
+        9 => "2.3",
+        10 => "2.3.3",
+        11 => "3.0",
+        12 => "3.1",
+        13 => "3.2",
+        14 => "4.0",
+        15 => "4.0.3",
+        16 => "4.1",
+        17 => "4.2",
+        18 => "4.3",
+        19 => "4.4",
+        20 => "4.4W",
+        21 => "5.0",
+        22 => "5.1",
+        23 => "6.0",
+        24 => "7.0",
+        25 => "7.1",
+        26 => "8.0",
+        27 => "8.1",
+        28 => "9",
+        29 => "10",
+        30 => "11",
+        31 => "12",
+        32 => "12L",
+        33 => "13",
+        34 => "14",
+        35 => "15",
+        36 => "16",
+        _ => return None,
+    })
+}
+
+fn sdk_field(api: &str) -> String {
+    match android_version(api) {
+        Some(name) => format!("{api}（Android {name}）"),
+        None => api.to_string(),
+    }
+}
+
+fn apk_meta(probe: crate::apk::ApkProbe) -> MetadataInfo {
+    let mut info = MetadataInfo::new("apk", &probe.format);
+    if let Some(package) = probe.package {
+        info.push("包名", package);
+    }
+    if let Some(version) = probe.version_name {
+        info.push("文件版本", version);
+    }
+    if let Some(code) = probe.version_code {
+        info.push("版本号", code.to_string());
+    }
+    if let Some(label) = probe.label {
+        info.push("应用名称", label);
+    }
+    if let Some(api) = probe.min_sdk {
+        info.push("最低 SDK", sdk_field(&api));
+    }
+    if let Some(api) = probe.target_sdk {
+        info.push("目标 SDK", sdk_field(&api));
+    }
+    if let Some(api) = probe.compile_sdk {
+        info.push("编译 SDK", sdk_field(&api));
+    }
+    if let Some(activity) = probe.main_activity {
+        info.push("主活动", activity);
+    }
+    if let Some(icon) = probe.icon {
+        info.push("图标资源", icon);
+    }
+    if let Some(flag) = probe.debuggable {
+        info.push("可调试", if flag { "是" } else { "否" }.to_string());
+    }
+    if let Some(flag) = probe.allow_backup {
+        info.push("允许备份", if flag { "是" } else { "否" }.to_string());
+    }
+    if !probe.permissions.is_empty() {
+        let mut shown = probe.permissions.iter().take(6).cloned().collect::<Vec<_>>().join("、");
+        if probe.permissions.len() > 6 {
+            shown.push_str(&format!(" 等 {} 项", probe.permissions.len()));
+        }
+        info.push("声明权限", shown);
+    }
+    info.push("声明权限数", probe.permissions.len().to_string());
+    let signature = match (probe.sign_block, probe.sign_v1) {
+        (true, true) => "APK Signing Block（v2/v3）+ META-INF v1 签名",
+        (true, false) => "APK Signing Block（v2/v3）",
+        (false, true) => "仅 META-INF v1 签名",
+        (false, false) => "未发现签名块或 v1 签名（可能未签名）",
+    };
+    info.push("签名", signature.to_string());
+    info.push("包内条目", probe.entry_count.to_string());
     for warning in probe.warnings {
         info.warn(warning);
     }

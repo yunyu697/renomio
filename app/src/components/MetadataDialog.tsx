@@ -16,6 +16,7 @@ export function MetadataDialog() {
     document: 'meta.document',
     font: 'meta.font',
     exe: 'meta.exe',
+    apk: 'meta.apk',
     other: 'meta.other',
   };
 

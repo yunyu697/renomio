@@ -735,6 +735,7 @@ export const esES: Dict = {
   'meta.other': 'Otro',
   'meta.font': 'Fuente',
   'meta.exe': 'Ejecutable',
+  'meta.apk': 'Paquete de Android',
   'plan.exportTitle': 'Guardar plan de renombrado',
   'plan.importTitle': 'Importar plan de renombrado',
   'plan.exportSub': 'Guarde la cadena de reglas como JSON con versión y checksum, importable en otros equipos.',
@@ -1383,4 +1384,5 @@ export const esES: Dict = {
   'toast.noDuplicates': 'Nada que deduplicar',
   'toast.dupScanFailed': 'Error al buscar duplicados: {message}',
 };
+
 

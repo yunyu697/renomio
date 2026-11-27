@@ -341,6 +341,16 @@ pub fn capabilities() -> Vec<MetaCapability> {
             notes: notes.into(),
         });
     }
+    out.push(MetaCapability {
+        kind: "apk".into(),
+        format: "APK (Android 安装包)".into(),
+        read: true,
+        write: false,
+        fields: vec![],
+        notes: "只读：ZIP 中央目录 + 二进制 `AndroidManifest.xml`（包名 / 版本名 / 版本号 / 应用名称 / 最低与目标 SDK / 编译 SDK / 主活动 / 声明权限 / 可调试 / 允许备份 / 图标资源）+ `resources.arsc` 解析 `@string` 资源引用；\
+                签名只判断「APK Signing Block 是否存在」与 META-INF v1 文件，不做签名校验、不反编译 dex，写回需重建 ZIP 与签名块，本版本不支持"
+            .into(),
+    });
     out
 }
 
@@ -444,6 +454,11 @@ pub fn detect(path: &Path, head: &[u8]) -> Format {
             "docx" | "docm" => Format::Doc(doc::DocFormat::Docx),
             "xlsx" | "xlsm" => Format::Doc(doc::DocFormat::Xlsx),
             "pptx" | "pptm" => Format::Doc(doc::DocFormat::Pptx),
+            "apk" => unsupported(
+                "apk",
+                "APK",
+                "APK 只读（属性面板可读包名 / 版本名 / 版本号 / 应用名称 / min·target SDK / 主活动 / 权限 / 签名类型），写回需重建 ZIP 与签名块，本版本不支持",
+            ),
             _ => unsupported("document", "ZIP/OOXML", "无法从扩展名判断 OOXML 子类型（需 .docx/.xlsx/.pptx）"),
         };
     }

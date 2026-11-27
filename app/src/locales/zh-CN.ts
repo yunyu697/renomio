@@ -752,6 +752,7 @@ export const zhCN: Dict = {
   'meta.other': '其他',
   'meta.font': '字体',
   'meta.exe': '可执行文件',
+  'meta.apk': 'Android 安装包',
 
   // 方案
   'plan.exportTitle': '保存更名方案',
@@ -1498,4 +1499,5 @@ export const zhCN: Dict = {
   'ops.undoThis': '撤销本次',
   'ops.undoing': '正在撤销…',
 };
+
 

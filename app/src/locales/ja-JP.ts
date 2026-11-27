@@ -735,6 +735,7 @@ export const jaJP: Dict = {
   'meta.other': 'その他',
   'meta.font': 'フォント',
   'meta.exe': '実行ファイル',
+  'meta.apk': 'Android パッケージ',
   'plan.exportTitle': '改名プランを保存',
   'plan.importTitle': '改名プランを読み込み',
   'plan.exportSub': '現在のルールチェーンをバージョンとチェックサム付き JSON として保存し、他の端末で読み込めます。',
@@ -1383,4 +1384,5 @@ export const jaJP: Dict = {
   'toast.noDuplicates': '重複除去の対象はありません',
   'toast.dupScanFailed': '重複検索に失敗：{message}',
 };
+
 

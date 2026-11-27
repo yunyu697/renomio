@@ -735,6 +735,7 @@ export const enUS: Dict = {
   'meta.other': 'Other',
   'meta.font': 'Font',
   'meta.exe': 'Executable',
+  'meta.apk': 'Android package',
   'plan.exportTitle': 'Save rename plan',
   'plan.importTitle': 'Import rename plan',
   'plan.exportSub': 'Save the current rule chain as JSON with version and checksum, importable on other machines.',
@@ -1383,4 +1384,5 @@ export const enUS: Dict = {
   'toast.noDuplicates': 'Nothing to dedupe',
   'toast.dupScanFailed': 'Duplicate scan failed: {message}',
 };
+
 

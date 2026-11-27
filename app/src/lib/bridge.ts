@@ -413,6 +413,9 @@ function demoKindOf(path: string): { kind: string; format: string; writable: boo
   if (ext === 'exe' || ext === 'dll' || ext === 'sys') {
     return { kind: 'exe', format: `PE (${ext.toUpperCase()})`, writable: false };
   }
+  if (ext === 'apk') {
+    return { kind: 'apk', format: 'APK (Android)', writable: false };
+  }
   return { kind: 'other', format: ext.toUpperCase() || '未知', writable: false };
 }
 
@@ -551,6 +554,7 @@ function demoCapabilities(): MetaCapabilityDto[] {
     { kind: 'document', format: 'DOC/XLS/PPT (OLE)', read: true, write: false, fields: f(['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment']), notes: '只读：认类型并读摘要属性；不支持写回' },
     { kind: 'font', format: 'TTF/OTF/TTC', read: true, write: false, fields: f(['fontFamily', 'fontStyle', 'fontVersion', 'fontFullName', 'postscript', 'weight', 'italic', 'glyphs', 'unitsPerEm', 'faces']), notes: '只读：name 表族名/字形/全名/PostScript 名/版本/设计者/授权，OS/2 字重与斜体，maxp 字形数，head 设计网格；TTC 报集合内字体数；不支持写入' },
     { kind: 'exe', format: 'EXE/DLL (PE)', read: true, write: false, fields: f(['fileVersion', 'productVersion', 'companyName', 'productName', 'fileDescription', 'copyright', 'originalFilename', 'internalName', 'bitness', 'machine', 'subsystem', 'built']), notes: '只读：PE 头位宽/架构/子系统/编译时间，版本资源里的文件版本、产品名、公司、版权等；写入需重建资源节与校验和，不支持' },
+    { kind: 'apk', format: 'APK (Android)', read: true, write: false, fields: f(['fileVersion', 'packageName', 'appLabel', 'versionCode', 'minSdk', 'targetSdk', 'compileSdk', 'mainActivity', 'permissions', 'debuggable', 'allowBackup', 'icon', 'signature']), notes: '只读：AndroidManifest 的包名/版本名/版本号/应用名称/SDK/主活动/权限/可调试、resources.arsc 资源字符串、签名块与 v1 签名是否存在；不校验签名、不反编译，写回需重建 ZIP 与签名块，不支持' },
   ];
 }
 

@@ -893,7 +893,7 @@ export interface MetadataField {
 }
 
 export interface MetadataInfo {
-  kind: 'image' | 'audio' | 'document' | 'text' | 'font' | 'exe' | 'other';
+  kind: 'image' | 'audio' | 'document' | 'text' | 'font' | 'exe' | 'apk' | 'other';
   format: string;
   readOnly: boolean;
   fields: MetadataField[];

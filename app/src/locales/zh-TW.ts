@@ -735,6 +735,7 @@ export const zhTW: Dict = {
   'meta.other': '其他',
   'meta.font': '字型',
   'meta.exe': '可執行檔',
+  'meta.apk': 'Android 安裝包',
   'plan.exportTitle': '儲存更名方案',
   'plan.importTitle': '匯入更名方案',
   'plan.exportSub': '將目前規則鏈儲存為 JSON，包含版本號與校驗值，可在其他裝置匯入。',
@@ -1383,4 +1384,5 @@ export const zhTW: Dict = {
   'toast.noDuplicates': '沒有需要去重的項目',
   'toast.dupScanFailed': '查重失敗：{message}',
 };
+
 

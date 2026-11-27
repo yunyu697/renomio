@@ -1,5 +1,6 @@
 //! Renomio 核心：只做文件系统与事务，不依赖 Tauri / 前端。
 
+pub mod apk;
 pub mod audio_container;
 pub mod cfb;
 pub mod datadir;
