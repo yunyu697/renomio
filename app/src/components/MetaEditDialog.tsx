@@ -16,6 +16,8 @@ const FIELD_ORDER: MetaFieldId[] = [
   'model', 'city', 'location', 'latitude', 'longitude',
   'artist', 'albumArtist', 'album', 'year', 'track', 'genre', 'comment', 'lyrics',
   'subject', 'lastModifiedBy', 'category',
+  // 文档（OOXML）：公司 / 经理 / 模板写在 docProps/app.xml，PDF 没有这三项
+  'company', 'manager', 'template',
 ];
 
 interface MetaEditorBodyProps {

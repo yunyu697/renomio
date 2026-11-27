@@ -1333,6 +1333,9 @@ export const enUS: Dict = {
   'meta.field.subject': 'Subject',
   'meta.field.lastModifiedBy': 'Last modified by',
   'meta.field.category': 'Category',
+  'meta.field.company': 'Company',
+  'meta.field.manager': 'Manager',
+  'meta.field.template': 'Template',
 
   // List order and suspected duplicates
   'list.manualOrder': 'Manual order',

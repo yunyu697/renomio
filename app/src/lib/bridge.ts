@@ -428,7 +428,11 @@ function demoDefaults(path: string): Record<string, string> {
     return { title: '夜曲', artist: '周杰伦', album: '十一月的萧邦', year: '2005', track: '1', genre: '流行', comment: '', albumArtist: '周杰伦' };
   }
   if (kind === 'document') {
-    return { title: '会议记录', subject: '周会', author: '张三', lastModifiedBy: '张三', keywords: '会议; 纪要', comment: '内部资料', category: '文档' };
+    const base = { title: '会议记录', subject: '周会', author: '张三', lastModifiedBy: '张三', keywords: '会议; 纪要', comment: '内部资料', category: '文档' };
+    // 只有 OOXML 三兄弟带 docProps/app.xml；PDF 没有公司 / 经理 / 模板
+    return demoKindOf(path).format === 'PDF'
+      ? base
+      : { ...base, company: '示例科技', manager: '王五', template: 'Normal.dotm' };
   }
   return {};
 }
@@ -460,7 +464,9 @@ function demoMetaSnapshot(path: string): MetaSnapshotDto {
       : kind === 'audio'
         ? ['title', 'artist', 'album', 'year', 'track', 'genre', 'comment', 'albumArtist', 'cover']
         : kind === 'document'
-          ? ['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category']
+          ? format === 'PDF'
+            ? ['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category']
+            : ['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category', 'company', 'manager', 'template']
           : [];
   return {
     path,
@@ -549,8 +555,8 @@ function demoCapabilities(): MetaCapabilityDto[] {
     { kind: 'audio', format: 'OGG (Vorbis)', read: true, write: true, fields: f(['title', 'artist', 'album', 'year', 'track', 'genre', 'comment', 'albumArtist', 'cover']), notes: 'Vorbis comment；重建头部页并重排页序号，补 framing bit' },
     { kind: 'audio', format: 'Opus (Ogg)', read: true, write: true, fields: f(['title', 'artist', 'album', 'year', 'track', 'genre', 'comment', 'albumArtist', 'cover']), notes: 'OpusTags 注释包；重建头部页并重排页序号（无 framing bit）' },
     { kind: 'audio', format: 'WMA/APE/AIFF/WAV', read: true, write: false, fields: f(['title', 'artist', 'album', 'year', 'track', 'genre', 'comment']), notes: '只读：容器参数（采样率/声道/位深/时长）与标签；不支持写回' },
-    { kind: 'document', format: 'DOCX/XLSX/PPTX', read: true, write: true, fields: f(['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category']), notes: 'docProps/core.xml；不触碰正文' },
-    { kind: 'document', format: 'PDF', read: true, write: true, fields: f(['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category']), notes: 'xref 表/流/对象流均可读（含 PNG 预测器），加密只报算法；写入限经典 xref 增量更新' },
+    { kind: 'document', format: 'DOCX/XLSX/PPTX', read: true, write: true, fields: f(['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category', 'company', 'manager', 'template']), notes: 'docProps/core.xml + docProps/app.xml（公司 / 经理 / 模板）；不触碰正文，app.xml 缺失时明确拒绝' },
+    { kind: 'document', format: 'PDF', read: true, write: true, fields: f(['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category']), notes: 'xref 表/流/对象流均可读（含 PNG 预测器），加密只报算法；写入限经典 xref 增量更新；没有公司 / 经理 / 模板' },
     { kind: 'document', format: 'DOC/XLS/PPT (OLE)', read: true, write: false, fields: f(['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment']), notes: '只读：认类型并读摘要属性；不支持写回' },
     { kind: 'font', format: 'TTF/OTF/TTC', read: true, write: false, fields: f(['fontFamily', 'fontStyle', 'fontVersion', 'fontFullName', 'postscript', 'weight', 'italic', 'glyphs', 'unitsPerEm', 'faces']), notes: '只读：name 表族名/字形/全名/PostScript 名/版本/设计者/授权，OS/2 字重与斜体，maxp 字形数，head 设计网格；TTC 报集合内字体数；不支持写入' },
     { kind: 'exe', format: 'EXE/DLL (PE)', read: true, write: false, fields: f(['fileVersion', 'productVersion', 'companyName', 'productName', 'fileDescription', 'copyright', 'originalFilename', 'internalName', 'bitness', 'machine', 'subsystem', 'built']), notes: '只读：PE 头位宽/架构/子系统/编译时间，版本资源里的文件版本、产品名、公司、版权等；写入需重建资源节与校验和，不支持' },

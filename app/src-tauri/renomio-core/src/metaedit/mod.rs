@@ -53,7 +53,7 @@ pub const AUDIO_FIELDS: &[&str] = &[
     "lyrics",
     "cover",
 ];
-/// 文档可写字段（DOCX/XLSX/PPTX/PDF）
+/// 文档可写字段（PDF：只走 Info / XMP，没有公司 / 经理 / 模板）
 pub const DOC_FIELDS: &[&str] = &[
     "title",
     "subject",
@@ -62,6 +62,19 @@ pub const DOC_FIELDS: &[&str] = &[
     "keywords",
     "comment",
     "category",
+];
+/// OOXML 可写字段（DOCX/XLSX/PPTX）：core.xml 7 项 + app.xml 的公司 / 经理 / 模板
+pub const OOXML_DOC_FIELDS: &[&str] = &[
+    "title",
+    "subject",
+    "author",
+    "lastModifiedBy",
+    "keywords",
+    "comment",
+    "category",
+    "company",
+    "manager",
+    "template",
 ];
 
 /// 写入大小上限（整个文件读入内存）；超过则明确拒绝，避免拖垮进程。
@@ -277,14 +290,19 @@ pub fn capabilities() -> Vec<MetaCapability> {
             notes: notes.into(),
         });
     }
-    for (format, notes) in [
-        ("DOCX", "docProps/core.xml；改完 zip 结构与 CRC 重新校验"),
-        ("XLSX", "docProps/core.xml；不触碰工作表内容"),
-        ("PPTX", "docProps/core.xml；不触碰幻灯片内容"),
+    for (format, notes, fields) in [
+        (
+            "DOCX",
+            "docProps/core.xml + docProps/app.xml（公司 / 经理 / 模板）；改完 zip 结构与 CRC 重新校验",
+            OOXML_DOC_FIELDS,
+        ),
+        ("XLSX", "docProps/core.xml + app.xml 三项；不触碰工作表内容", OOXML_DOC_FIELDS),
+        ("PPTX", "docProps/core.xml + app.xml 三项；不触碰幻灯片内容", OOXML_DOC_FIELDS),
         (
             "PDF",
             "读取支持 xref 表 / xref 流 / 对象流（含 PNG 预测器），加密 PDF 只报算法不解密；\
-             写入仍只走经典 xref 的增量更新，原页面对象逐字节保留",
+             写入仍只走经典 xref 的增量更新，原页面对象逐字节保留（PDF 没有公司 / 经理 / 模板）",
+            DOC_FIELDS,
         ),
     ] {
         out.push(MetaCapability {
@@ -292,7 +310,7 @@ pub fn capabilities() -> Vec<MetaCapability> {
             format: format.into(),
             read: true,
             write: true,
-            fields: f(DOC_FIELDS),
+            fields: fields.iter().map(|s| s.to_string()).collect(),
             notes: notes.into(),
         });
     }
@@ -497,7 +515,11 @@ pub fn snapshot(path: &str) -> Result<MetaSnapshot, String> {
         format: name,
         writable,
         supported_fields: if writable {
-            kind_fields(kind).iter().map(|s| s.to_string()).collect()
+            format
+                .kind_fields()
+                .iter()
+                .map(|s| s.to_string())
+                .collect()
         } else {
             Vec::new()
         },
@@ -513,15 +535,6 @@ pub fn snapshot(path: &str) -> Result<MetaSnapshot, String> {
         Format::Unsupported { .. } => {}
     }
     Ok(snap)
-}
-
-fn kind_fields(kind: &str) -> &'static [&'static str] {
-    match kind {
-        "image" => IMAGE_FIELDS,
-        "audio" => AUDIO_FIELDS,
-        "document" => DOC_FIELDS,
-        _ => &[],
-    }
 }
 
 /// 字段值规范化：保证写入与回读比较使用同一口径。
@@ -957,7 +970,9 @@ impl Format {
         match self {
             Format::Image(_) => IMAGE_FIELDS,
             Format::Audio(_) => AUDIO_FIELDS,
-            Format::Doc(_) => DOC_FIELDS,
+            // PDF 只有 Info / XMP 的 7 个键；OOXML 多出 app.xml 的公司 / 经理 / 模板
+            Format::Doc(doc::DocFormat::Pdf) => DOC_FIELDS,
+            Format::Doc(_) => OOXML_DOC_FIELDS,
             Format::Unsupported { .. } => &[],
         }
     }

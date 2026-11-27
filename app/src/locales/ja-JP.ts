@@ -1333,6 +1333,9 @@ export const jaJP: Dict = {
   'meta.field.subject': '件名',
   'meta.field.lastModifiedBy': '最終更新者',
   'meta.field.category': '分類',
+  'meta.field.company': '会社',
+  'meta.field.manager': 'マネージャー',
+  'meta.field.template': 'テンプレート',
 
   // リスト順序と重複の疑い
   'list.manualOrder': '手動順序',

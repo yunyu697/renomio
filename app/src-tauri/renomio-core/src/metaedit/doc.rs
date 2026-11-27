@@ -1,6 +1,8 @@
-//! 文档属性（DOCX / XLSX / PPTX 的 core.xml，PDF 的 Info + XMP）读取与写回。
+//! 文档属性（DOCX / XLSX / PPTX 的 core.xml + app.xml，PDF 的 Info + XMP）读取与写回。
 //!
-//! OOXML：只替换 `docProps/core.xml`，其余 ZIP 条目按原压缩数据逐字节复制；
+//! OOXML：只替换 `docProps/core.xml` 与 `docProps/app.xml` 两个属性部件，其余 ZIP 条目
+//! 按原压缩数据逐字节复制；`app.xml` 里只改公司 / 经理 / 模板三个元素（应用版本、
+//! 页数、字数等统计项是 Office 自己算的，改了会被覆盖，故不动）。
 //! PDF：增量更新（原始字节前缀保留），追加 Info / XMP / Catalog 三个对象。
 
 use std::io::{Read, Write};
@@ -38,7 +40,18 @@ const CORE_TAGS: &[(&str, &str, &str)] = &[
     ("category", "cp:category", "cp"),
 ];
 
+/// 字段 → OOXML `docProps/app.xml` 的元素名（extended-properties 用默认命名空间，无前缀）。
+///
+/// 只列这三项：其余 app.xml 元素（`Application` / `AppVersion` / `Pages` / `Words` /
+/// `TotalTime` 等）是 Office 打开文件时自行重算的统计值，写进去会被覆盖。
+const APP_TAGS: &[(&str, &str)] = &[
+    ("company", "Company"),
+    ("manager", "Manager"),
+    ("template", "Template"),
+];
+
 const CORE_PATH: &[u8] = b"docProps/core.xml";
+const APP_PATH: &[u8] = b"docProps/app.xml";
 
 pub fn read_into(
     path: &Path,
@@ -214,20 +227,23 @@ fn zip_deflate(bytes: &[u8]) -> Result<Vec<u8>, String> {
     Ok(out)
 }
 
-/// 重建 ZIP：所有条目按原顺序重写；`replaced` 指定的条目用新内容（deflate）。
+/// 重建 ZIP：所有条目按原顺序重写；`replacements` 里列出的条目用新内容（deflate），
+/// 其余条目按原压缩数据逐字节复制。
 fn zip_rebuild(
     data: &[u8],
     entries: &[ZipEntry],
-    target: &[u8],
-    new_content: &[u8],
+    replacements: &[(&[u8], &[u8])],
 ) -> Result<Vec<u8>, String> {
-    let mut out = Vec::with_capacity(data.len() + new_content.len() + 256);
+    let mut out = Vec::with_capacity(data.len() + 256);
     let mut central = Vec::with_capacity(entries.len() * 64);
     for entry in entries {
-        let is_target = entry.name == target;
-        let (method, crc, comp_len, uncomp_len, payload) = if is_target {
-            let comp = zip_deflate(new_content)?;
-            (8u16, util::crc32(new_content), comp.len(), new_content.len(), comp)
+        let replacement = replacements
+            .iter()
+            .find(|(name, _)| *name == entry.name.as_slice());
+        let (method, crc, comp_len, uncomp_len, payload) = if let Some((_, content)) = replacement {
+            let comp = zip_deflate(content)?;
+            out.reserve(content.len());
+            (8u16, util::crc32(content), comp.len(), content.len(), comp)
         } else {
             let start = zip_local_data_start(data, entry)?;
             let end = start
@@ -316,8 +332,31 @@ fn ooxml_read(
             }
         }
     }
+    match entries.iter().position(|e| e.name == APP_PATH) {
+        Some(i) => {
+            let raw = zip_entry_content(data, &entries[i])?;
+            match String::from_utf8(raw) {
+                Ok(app) => {
+                    for (id, qname) in APP_TAGS {
+                        if let Some(v) = util::xml_simple_text(&app, qname) {
+                            let v = v.trim();
+                            if !v.is_empty() {
+                                fields.insert((*id).to_string(), v.to_string());
+                            }
+                        }
+                    }
+                }
+                Err(_) => warnings
+                    .push("docProps/app.xml 不是 UTF-8 编码，公司 / 经理 / 模板未读取".into()),
+            }
+        }
+        None => warnings.push(
+            "未找到 docProps/app.xml（公司 / 经理 / 模板读不到；写这三个字段需要文件自带该部件）"
+                .into(),
+        ),
+    }
     if entries.iter().any(|e| e.name_str() == "docProps/custom.xml") {
-        warnings.push("文件带有自定义属性（docProps/custom.xml），本版本只改核心属性，未触碰自定义属性".into());
+        warnings.push("文件带有自定义属性（docProps/custom.xml），本版本只改核心属性与公司 / 经理 / 模板，未触碰自定义属性".into());
     }
     Ok(())
 }
@@ -330,7 +369,11 @@ fn element_range(xml: &str, qname: &str) -> Option<(usize, usize, usize)> {
     while let Some(rel) = xml[search..].find(&open) {
         let start = search + rel;
         let after = xml.get(start + open.len()..)?;
-        if !(after.starts_with('>') || after.starts_with(' ') || after.starts_with('\t')) {
+        if !(after.starts_with('>')
+            || after.starts_with('/')
+            || after.starts_with(' ')
+            || after.starts_with('\t'))
+        {
             search = start + 1;
             continue;
         }
@@ -427,16 +470,87 @@ fn core_apply(
     Ok((out, written, cleared))
 }
 
+/// `docProps/app.xml` 的三项：公司 / 经理 / 模板。缺失元素插到 `</Properties>` 之前，
+/// 自闭合元素展开成带文本的元素，空值删除元素（等价于「清空」）。
+fn app_apply(
+    xml: &str,
+    fields: &FieldMap,
+) -> Result<(String, Vec<String>, Vec<String>), String> {
+    let mut out = xml.to_string();
+    let mut written = Vec::new();
+    let mut cleared = Vec::new();
+    for (id, qname) in APP_TAGS {
+        let Some(value) = fields.get(*id) else { continue };
+        let value = value.trim();
+        let found = element_range(&out, qname);
+        if value.is_empty() {
+            if found.is_some() {
+                util::remove_element(&mut out, qname);
+            }
+            cleared.push((*id).to_string());
+            continue;
+        }
+        let escaped = util::xml_escape(value);
+        match found {
+            Some((start, inner_start, inner_end)) => {
+                if inner_end == inner_start {
+                    let end = out[start..]
+                        .find('>')
+                        .map(|i| start + i + 1)
+                        .ok_or("app.xml 元素结构无法解析")?;
+                    out.replace_range(start..end, &format!("<{qname}>{escaped}</{qname}>"));
+                } else {
+                    out.replace_range(inner_start..inner_end, &escaped);
+                }
+            }
+            None => {
+                let insert_at = out
+                    .find("</Properties>")
+                    .ok_or("docProps/app.xml 缺少 </Properties> 根元素，无法新增公司 / 经理 / 模板")?;
+                out.insert_str(insert_at, &format!("<{qname}>{escaped}</{qname}>"));
+            }
+        }
+        written.push((*id).to_string());
+    }
+    Ok((out, written, cleared))
+}
+
 fn ooxml_rewrite(data: &[u8], fields: &FieldMap) -> Result<Rewrite, String> {
     let entries = zip_entries(data)?;
     let idx = core_find_entry(&entries).ok_or_else(|| {
         "文件缺少 docProps/core.xml（本版本不新建属性部件，避免破坏包结构）".to_string()
     })?;
     let raw = zip_entry_content(data, &entries[idx])?;
-    let xml = String::from_utf8(raw)
+    let core_xml = String::from_utf8(raw)
         .map_err(|_| "docProps/core.xml 不是 UTF-8 编码，本版本不支持写入".to_string())?;
-    let (new_xml, written, cleared) = core_apply(&xml, fields)?;
-    if new_xml == xml {
+    let (new_core, mut written, mut cleared) = core_apply(&core_xml, fields)?;
+
+    // app.xml 只在请求了公司 / 经理 / 模板时读取与改写：其它字段都落在 core.xml。
+    let app_requested = APP_TAGS
+        .iter()
+        .any(|(id, _)| fields.contains_key(*id));
+    let mut new_app: Option<String> = None;
+    let mut app_changed = false;
+    if app_requested {
+        let i = entries
+            .iter()
+            .position(|e| e.name == APP_PATH)
+            .ok_or_else(|| {
+                "文件缺少 docProps/app.xml（公司 / 经理 / 模板写在那个部件里；\
+                 本版本不新建属性部件，避免破坏包结构与关系表）"
+                    .to_string()
+            })?;
+        let raw = zip_entry_content(data, &entries[i])?;
+        let app_xml = String::from_utf8(raw)
+            .map_err(|_| "docProps/app.xml 不是 UTF-8 编码，本版本不支持写入".to_string())?;
+        let (out, mut w, mut c) = app_apply(&app_xml, fields)?;
+        written.append(&mut w);
+        cleared.append(&mut c);
+        app_changed = out != app_xml;
+        new_app = Some(out);
+    }
+
+    if new_core == core_xml && !app_changed {
         return Ok(Rewrite {
             bytes: data.to_vec(),
             written: Vec::new(),
@@ -444,11 +558,31 @@ fn ooxml_rewrite(data: &[u8], fields: &FieldMap) -> Result<Rewrite, String> {
             warnings: vec!["属性与写入前一致，未做改动".into()],
         });
     }
-    let bytes = zip_rebuild(data, &entries, CORE_PATH, new_xml.as_bytes())?;
+    let mut replacements: Vec<(&[u8], &[u8])> = Vec::new();
+    if new_core != core_xml {
+        replacements.push((CORE_PATH, new_core.as_bytes()));
+    }
+    if app_changed {
+        if let Some(app) = new_app.as_deref() {
+            replacements.push((APP_PATH, app.as_bytes()));
+        }
+    }
+    let bytes = zip_rebuild(data, &entries, &replacements)?;
     let mut warnings = Vec::new();
-    warnings.push("只替换 docProps/core.xml；其余包内条目按原压缩数据逐字节复制".into());
+    let parts = if app_changed {
+        "只替换 docProps/core.xml 与 docProps/app.xml；其余包内条目按原压缩数据逐字节复制"
+    } else {
+        "只替换 docProps/core.xml；其余包内条目按原压缩数据逐字节复制"
+    };
+    warnings.push(parts.to_string());
+    if app_changed {
+        warnings.push(
+            "app.xml 只写公司 / 经理 / 模板；应用版本、页数、字数、编辑时长等统计项保持原样（Office 会自行重算）"
+                .into(),
+        );
+    }
     if cleared.is_empty() && written.len() < fields.len() {
-        warnings.push("部分字段在 core.xml 中没有对应元素，已新增标准元素".into());
+        warnings.push("部分字段在属性部件中没有对应元素，已新增标准元素".into());
     }
     Ok(Rewrite {
         bytes,

@@ -371,7 +371,11 @@ export type MetaFieldId =
   | 'cover'
   | 'subject'
   | 'lastModifiedBy'
-  | 'category';
+  | 'category'
+  /** OOXML docProps/app.xml：公司 / 经理 / 模板（PDF 不适用） */
+  | 'company'
+  | 'manager'
+  | 'template';
 
 export interface CoverInfoDto {
   present: boolean;

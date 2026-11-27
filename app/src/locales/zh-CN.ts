@@ -1362,6 +1362,9 @@ export const zhCN: Dict = {
   'meta.field.subject': '主题',
   'meta.field.lastModifiedBy': '最后修改者',
   'meta.field.category': '类别',
+  'meta.field.company': '公司',
+  'meta.field.manager': '经理',
+  'meta.field.template': '模板',
 
   // 列表顺序与疑似重复
   'list.manualOrder': '手动顺序',

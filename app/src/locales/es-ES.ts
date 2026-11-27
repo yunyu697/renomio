@@ -1333,6 +1333,9 @@ export const esES: Dict = {
   'meta.field.subject': 'Asunto',
   'meta.field.lastModifiedBy': 'Modificado por',
   'meta.field.category': 'Categoría',
+  'meta.field.company': 'Compañía',
+  'meta.field.manager': 'Gerente',
+  'meta.field.template': 'Plantilla',
 
   // Orden de la lista y sospechosos duplicados
   'list.manualOrder': 'Orden manual',

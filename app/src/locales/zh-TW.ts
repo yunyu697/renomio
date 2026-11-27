@@ -1333,6 +1333,9 @@ export const zhTW: Dict = {
   'meta.field.subject': '主題',
   'meta.field.lastModifiedBy': '最後修改者',
   'meta.field.category': '類別',
+  'meta.field.company': '公司',
+  'meta.field.manager': '經理',
+  'meta.field.template': '範本',
 
   // 清單順序與疑似重複
   'list.manualOrder': '手動順序',
