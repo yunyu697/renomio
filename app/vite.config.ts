@@ -29,6 +29,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@foundation': fileURLToPath(new URL('./packages/foundation/src', import.meta.url)),
+      // iconv-lite 走 Node 的 buffer/string_decoder；桌面 webview 没有 Node 内置模块，用浏览器版实现顶上
+      buffer: fileURLToPath(new URL('./node_modules/buffer', import.meta.url)),
+      string_decoder: fileURLToPath(new URL('./node_modules/string_decoder', import.meta.url)),
     },
   },
   clearScreen: false,

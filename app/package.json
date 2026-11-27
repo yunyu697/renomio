@@ -1,7 +1,7 @@
 {
   "name": "rename-studio",
   "private": true,
-  "version": "1.2.0-alpha37",
+  "version": "1.2.0-alpha38",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -44,6 +44,8 @@
     "test:filter": "node scripts/test-filter.mjs",
     "test:map": "node scripts/test-map.mjs",
     "test:encoding": "node scripts/test-encoding.mjs",
+    "test:script": "node scripts/test-script.mjs",
+    "test:codepage": "node scripts/test-codepage.mjs",
     "test:integration": "node scripts/test-integration.mjs",
     "test:attrbackup": "node scripts/test-attrbackup.mjs",
     "test:bundle": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-bundle.ps1",
@@ -52,8 +54,12 @@
   "dependencies": {
     "@tauri-apps/api": "^2.9.0",
     "@tauri-apps/plugin-dialog": "^2.4.0",
+    "buffer": "^6.0.3",
+    "iconv-lite": "^0.7.3",
+    "opencc-js": "^1.4.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "string_decoder": "^1.3.0",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

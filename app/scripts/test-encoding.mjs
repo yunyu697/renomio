@@ -93,7 +93,7 @@ check('isEncodingMode 拒绝未知值', isEncodingMode('upper') === false && isE
 // ---------- B. 引擎接线 ----------
 const def = createRuleDefaults('encoding', 'r1');
 check('默认规则：type=encoding / mode=nfc / enabled', def.type === 'encoding' && def.mode === 'nfc' && def.enabled === true, JSON.stringify(def));
-check('RULE_TYPES 含 encoding（共 10 种）', RULE_TYPES.includes('encoding') && RULE_TYPES.length === 10, String(RULE_TYPES.length));
+check('RULE_TYPES 含 encoding（共 12 种）', RULE_TYPES.includes('encoding') && RULE_TYPES.length === 12, String(RULE_TYPES.length));
 
 check('ruleError 对合法 mode 返回 null', ruleError(normalizeRule({ id: 'e', type: 'encoding', enabled: true, mode: 'half' })) === null);
 check('ruleError 对非法 mode 报错',

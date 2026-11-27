@@ -2482,6 +2482,14 @@ html[data-theme="dark"] .brand-mark {
   width: 64px;
 }
 
+.script-source {
+  height: auto;
+  min-height: 84px;
+  padding: var(--ds-space-2) var(--ds-space-4);
+  line-height: var(--ds-leading-base);
+  resize: vertical;
+}
+
 .seg-ctrl {
   display: inline-flex;
   border: 1px solid var(--ds-color-line);

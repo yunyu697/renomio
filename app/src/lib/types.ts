@@ -1,7 +1,10 @@
+import type { CodepageMode } from './codepage';
 import type { EncodingMode } from './encoding';
 import type { ShortcutId } from './shortcuts';
 
-export type RuleType = 'add' | 'replace' | 'delete' | 'number' | 'move' | 'case' | 'ext' | 'meta' | 'map' | 'encoding';
+export type RuleType =
+  | 'add' | 'replace' | 'delete' | 'number' | 'move' | 'case' | 'ext' | 'meta' | 'map' | 'encoding'
+  | 'script' | 'codepage';
 
 export interface Entry {
   id: string;
@@ -599,9 +602,21 @@ export interface EncodingRule extends RuleBase {
   mode: EncodingMode;
 }
 
+/** 受限表达式脚本：纯函数求值，不执行任意 JS；结果直接作为新主干 */
+export interface ScriptRule extends RuleBase {
+  type: 'script';
+  source: string;
+}
+
+/** 中文内码：GBK 乱码还原 / 简体→Big5 用字 / 繁体→GBK 用字 */
+export interface CodepageRule extends RuleBase {
+  type: 'codepage';
+  mode: CodepageMode;
+}
+
 export type Rule =
   | AddRule | ReplaceRule | DeleteRule | NumberRule | MoveRule | CaseRule | ExtRule | MetaRule | MapRule
-  | EncodingRule;
+  | EncodingRule | ScriptRule | CodepageRule;
 
 export type RowStatus = 'ready' | 'unchanged' | 'conflict' | 'warn' | 'invalid' | 'off';
 

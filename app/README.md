@@ -217,8 +217,21 @@ powershell -ExecutionPolicy Bypass -File scripts/hold-lock.ps1 -Seconds 90
 | 扩展名 | 大小写、替换、添加（扩展名前/后）、用序号作扩展名、删除 |
 | 对照表 | 一行一条「旧=新」，单遍最长匹配、插入的新词不再扫描；只改文件名主干 |
 | 编码转换 | NFC / NFD / NFKC / NFKD 规范化，全角 ↔ 半角（只碰 ASCII 与全角空格），UTF-8 乱码修复（严格解码成功才生效，解不动原样返回）；只改主干 |
+| 脚本 | 受限表达式（不执行任意 JS）：变量 `name/ext/original/dir/modified/size/u0–u9`，函数 `upper/lower/trim/len/contains/startsWith/endsWith/replace/regex/cut/pad/if/date/time`，算术 / 比较 / 逻辑 / 三元；源 ≤600 字符、token ≤400、嵌套 ≤24，空结果保留原名 |
+| 中文内码 | `gbk-fix` 还原「UTF-8 被按 GBK 解码」的乱码（整串可逆才替换）；`to-big5` 简→繁并采用 Big5 用字；`to-gbk` 繁→简；只改主干，Emoji 等原样保留 |
 
 文件夹同样进入规则链；扩展名规则对文件夹无效。
+
+### 脚本表达式（3.13）
+
+脚本规则是一个**受限 DSL**，不会执行任意 JavaScript，也不会访问文件系统或网络。规则按链顺序执行，`name` 是当前主干（前序规则改过之后的值），`original` 是扫描时的原主干；`u0`–`u9` 是前面编号 / 元变量规则捕获的 USER 变量。`if(条件, 真值, 假值)` 惰性求值；`regex(文本, 模式, 替换, flags?)` 的第 4 个参数可传 `i` / `g` 等标志。`+` 两边都是数字才做加法，否则拼串。写错（未知变量、未知函数、参数个数不对、正则非法、数字非法、语法错误）时规则卡就地报错并显示位置或名称，该条规则不参与求值，预览仍用上一步的名字。
+
+### 中文内码（3.13）
+
+- `gbk-fix`：把当前串按 GBK 编回字节，先验证 `iconv.decode(bytes,'gbk') === text`（整串无损），再用严格 UTF-8 解码；任一步失败返回原串。所以正常的 UTF-8 中文、日文、重音名不会被误改。
+- `to-big5` / `to-gbk`：OpenCC 简繁转换，分别采用 Big5 / GBK 用字（`简体中文测试` ↔ `簡體中文測試`）。
+- 三种模式都只作用于文件名主干；Emoji 与字符集外字符原样保留。旧存档缺或非法 `mode` 回落 `gbk-fix`。
+
 
 ### 名称元变量
 

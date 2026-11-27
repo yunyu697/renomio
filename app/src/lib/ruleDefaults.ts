@@ -1,7 +1,7 @@
 /** 新增规则时的默认值：与设计稿“规则配置”保持一致 */
 import type {
-  AddRule, CaseRule, DeleteRule, EncodingRule, ExtRule, MapRule, MetaRule, MoveRule, NumberRule, ReplaceRule,
-  Rule, RuleType,
+  AddRule, CaseRule, CodepageRule, DeleteRule, EncodingRule, ExtRule, MapRule, MetaRule, MoveRule, NumberRule,
+  ReplaceRule, Rule, RuleType, ScriptRule,
 } from './types';
 
 export function createRuleDefaults(type: RuleType, id: string): Rule {
@@ -78,9 +78,23 @@ export function createRuleDefaults(type: RuleType, id: string): Rule {
       };
       return rule;
     }
+    case 'script': {
+      const rule: ScriptRule = {
+        id, type: 'script', enabled: true, source: 'upper(name)',
+      };
+      return rule;
+    }
+    case 'codepage': {
+      const rule: CodepageRule = {
+        id, type: 'codepage', enabled: true, mode: 'gbk-fix',
+      };
+      return rule;
+    }
     default:
       throw new Error(`未知规则类型：${String(type)}`);
   }
 }
 
-export const RULE_TYPES: RuleType[] = ['replace', 'add', 'delete', 'number', 'move', 'case', 'ext', 'meta', 'map', 'encoding'];
+export const RULE_TYPES: RuleType[] = [
+  'replace', 'add', 'delete', 'number', 'move', 'case', 'ext', 'meta', 'map', 'encoding', 'script', 'codepage',
+];

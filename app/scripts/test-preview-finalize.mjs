@@ -26,7 +26,10 @@ writeFileSync(
 function transpile(name) {
   const source = readFileSync(join(root, 'src', 'lib', `${name}.ts`), 'utf8')
     .replace("from '../i18n'", "from './i18n.mjs'")
-    .replace(/from '\.\/(rules|validate|vars|types|metaFields|mapTable|encoding)'/g, "from './$1.mjs'");
+    .replace(/from '\.\/(rules|validate|vars|types|metaFields|mapTable|encoding|script|codepage)'/g, "from './$1.mjs'")
+    .replace("from 'iconv-lite'", `from '${pathToFileURL(join(root, 'node_modules', 'iconv-lite', 'lib', 'index.js')).href}'`)
+    .replace("from 'opencc-js/cn2t'", `from '${pathToFileURL(join(root, 'node_modules', 'opencc-js', 'dist', 'esm', 'cn2t.js')).href}'`)
+    .replace("from 'opencc-js/t2cn'", `from '${pathToFileURL(join(root, 'node_modules', 'opencc-js', 'dist', 'esm', 't2cn.js')).href}'`);
   const out = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
   }).outputText;
@@ -43,6 +46,8 @@ const urls = {
   metaFields: transpile('metaFields'),
   mapTable: transpile('mapTable'),
   encoding: transpile('encoding'),
+  script: transpile('script'),
+  codepage: transpile('codepage'),
 };
 const P = await import(urls.preview);
 const V = await import(urls.validate);

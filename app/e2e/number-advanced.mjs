@@ -32,7 +32,10 @@ function check(name, ok, detail = '') {
 function transpile(name) {
   const source = readFileSync(join(root, 'src', 'lib', `${name}.ts`), 'utf8')
     .replace(/from '\.\.\/i18n'/g, "from './i18n.mjs'")
-    .replace(/from '\.\/([a-zA-Z]+)'/g, "from './$1.mjs'");
+    .replace(/from '\.\/([a-zA-Z]+)'/g, "from './$1.mjs'")
+    .replace("from 'iconv-lite'", `from '${pathToFileURL(join(root, 'node_modules', 'iconv-lite', 'lib', 'index.js')).href}'`)
+    .replace("from 'opencc-js/cn2t'", `from '${pathToFileURL(join(root, 'node_modules', 'opencc-js', 'dist', 'esm', 'cn2t.js')).href}'`)
+    .replace("from 'opencc-js/t2cn'", `from '${pathToFileURL(join(root, 'node_modules', 'opencc-js', 'dist', 'esm', 't2cn.js')).href}'`);
   writeFileSync(
     join(outDir, `${name}.mjs`),
     ts.transpileModule(source, {
@@ -42,7 +45,7 @@ function transpile(name) {
 }
 
 writeFileSync(join(outDir, 'i18n.mjs'), 'export function t(key) { return key; }\n');
-for (const name of ['vars', 'rules', 'metaFields', 'validate', 'preview', 'mapTable', 'encoding']) transpile(name);
+for (const name of ['vars', 'rules', 'metaFields', 'validate', 'preview', 'mapTable', 'encoding', 'script', 'codepage']) transpile(name);
 
 const { computePreview } = await import(pathToFileURL(join(outDir, 'preview.mjs')).href);
 const { ruleError } = await import(pathToFileURL(join(outDir, 'rules.mjs')).href);

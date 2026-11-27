@@ -2564,6 +2564,105 @@ async function main() {
     const encRulesAfter = await evaluate(`document.querySelectorAll('[data-testid="rule-card"]').length`);
     check('UI', '删除编码规则后规则链回到原来的条数', encRulesAfter === encRulesBefore, `${encRulesAfter} vs ${encRulesBefore}`);
 
+    // --- 1.8c) 脚本规则（3.13「高级规则 · 脚本」） ---
+    const scriptRowNames = () => evaluate(`(() => {
+      const row = document.querySelector('.trow');
+      const oldName = row && row.querySelector('.txt') ? row.querySelector('.txt').textContent.trim() : '';
+      const dot = oldName.lastIndexOf('.');
+      const stem = dot > 0 ? oldName.slice(0, dot) : oldName;
+      const ext = dot > 0 ? oldName.slice(dot) : '';
+      const newName = row && row.querySelector('.new-name') ? row.querySelector('.new-name').textContent.trim() : '';
+      return { oldName, stem, ext, newName };
+    })()`);
+    const setScript = (value) => evaluate(`(() => {
+      const el = document.querySelector('[data-testid="script-source"]');
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+      setter.call(el, ${JSON.stringify(value)});
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      return el.value;
+    })()`);
+
+    const scriptRulesBefore = await evaluate(`document.querySelectorAll('[data-testid="rule-card"]').length`);
+    const scriptBaseline = await scriptRowNames();
+    await addRuleType('script');
+    const scriptOpen = await openRule();
+    check('UI', '「+」菜单新增「脚本」，选中后打开对应编辑器', scriptOpen === 'script', scriptOpen);
+    const scriptCard = await evaluate(`(() => ({
+      box: document.querySelector('[data-testid="script-source"]') ? 1 : 0,
+      hint: document.querySelector('[data-testid="script-hint"]') ? 1 : 0,
+      sample: document.querySelector('[data-testid="script-sample"]') ? 1 : 0,
+    }))()`);
+    check('UI', '脚本编辑器有表达式框、变量提示与实时示例',
+      scriptCard.box === 1 && scriptCard.hint === 1 && scriptCard.sample === 1, JSON.stringify(scriptCard));
+    const scriptDefault = await evaluate(`document.querySelector('[data-testid="script-source"]')?.value || ''`);
+    check('UI', '脚本规则默认表达式为 upper(name)', scriptDefault === 'upper(name)', scriptDefault);
+    const scriptSample = await textOf('[data-testid="script-sample"]');
+    check('UI', '脚本示例把样例名转成大写（PHOTO 2024）', scriptSample.includes('PHOTO 2024') && scriptSample.includes('→'), scriptSample);
+    const scriptBefore = await scriptRowNames();
+    await setScript('"SCRIPT_" + original');
+    await sleep(700);
+    const scriptAfter = await scriptRowNames();
+    check('UI', '脚本结果直接成为新主干，扩展名保持',
+      scriptBefore.stem.length > 0 && scriptAfter.newName === `SCRIPT_${scriptBefore.stem}${scriptBefore.ext}`,
+      JSON.stringify({ scriptBefore, scriptAfter }));
+    await setScript('unknownVar');
+    await sleep(600);
+    const scriptErr = await textOf('[data-testid="script-error"]');
+    const scriptBadName = await scriptRowNames();
+    check('UI', '脚本写错变量 → 编辑器报错且预览回到没有这条脚本时的名字',
+      scriptErr.includes('unknownVar') && scriptBadName.newName === scriptBaseline.newName,
+      JSON.stringify({ scriptErr, scriptBadName, scriptBaseline }));
+    await setScript('upper(name)');
+    await sleep(600);
+    const scriptSummary = await textOf('[data-testid="rule-detail"] .sum span');
+    check('UI', '脚本规则摘要显示表达式',
+      scriptSummary.toLowerCase().includes('script') && scriptSummary.includes('upper'), scriptSummary);
+    await evaluate(`(() => {
+      const cards = [...document.querySelectorAll('[data-testid="rule-card"]')];
+      cards[cards.length - 1].querySelector('[data-testid="rule-delete"]').click();
+      return true;
+    })()`);
+    await sleep(300);
+    const scriptRulesAfter = await evaluate(`document.querySelectorAll('[data-testid="rule-card"]').length`);
+    check('UI', '删除脚本规则后规则链回到原来的条数', scriptRulesAfter === scriptRulesBefore, `${scriptRulesAfter} vs ${scriptRulesBefore}`);
+
+    // --- 1.8d) 内码规则（3.13「高级规则 · 中文内码」） ---
+    const codepageRulesBefore = await evaluate(`document.querySelectorAll('[data-testid="rule-card"]').length`);
+    await addRuleType('codepage');
+    const codepageOpen = await openRule();
+    check('UI', '「+」菜单新增「中文内码」，选中后打开对应编辑器', codepageOpen === 'codepage', codepageOpen);
+    const codepageOptions = await evaluate(`[...document.querySelectorAll('[data-testid="codepage-mode"] option')].map((o) => o.value).join(',')`);
+    check('UI', '内码下拉列出三种模式', codepageOptions === 'gbk-fix,to-big5,to-gbk', codepageOptions);
+    const codepageDefault = await evaluate(`document.querySelector('[data-testid="codepage-mode"]')?.value || ''`);
+    check('UI', '内码规则默认 GBK 乱码还原', codepageDefault === 'gbk-fix', codepageDefault);
+    const codepageSampleBefore = await textOf('[data-testid="codepage-sample"]');
+    check('UI', '内码示例把 GBK 乱码还原成「测试」', codepageSampleBefore.includes('→') && codepageSampleBefore.includes('测试'), codepageSampleBefore);
+    await evaluate(`(() => {
+      const s = document.querySelector('[data-testid="codepage-mode"]');
+      const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+      setter.call(s, 'to-big5');
+      s.dispatchEvent(new Event('change', { bubbles: true }));
+      return s.value;
+    })()`);
+    await sleep(300);
+    const codepageSampleBig5 = await textOf('[data-testid="codepage-sample"]');
+    check('UI', '切到「简体 → 繁体（Big5 用字）」后示例出现繁体',
+      codepageSampleBig5.includes('簡體') && codepageSampleBig5.includes('測試'), codepageSampleBig5);
+    const codepageSummary = await textOf('[data-testid="rule-detail"] .sum span');
+    check('UI', '内码规则摘要随模式变化（Codepage · Simplified → Traditional）',
+      codepageSummary.toLowerCase().includes('codepage')
+      && (codepageSummary.includes('繁体') || codepageSummary.toLowerCase().includes('traditional')
+        || codepageSummary.toLowerCase().includes('big5')),
+      codepageSummary);
+    await evaluate(`(() => {
+      const cards = [...document.querySelectorAll('[data-testid="rule-card"]')];
+      cards[cards.length - 1].querySelector('[data-testid="rule-delete"]').click();
+      return true;
+    })()`);
+    await sleep(300);
+    const codepageRulesAfter = await evaluate(`document.querySelectorAll('[data-testid="rule-card"]').length`);
+    check('UI', '删除内码规则后规则链回到原来的条数', codepageRulesAfter === codepageRulesBefore, `${codepageRulesAfter} vs ${codepageRulesBefore}`);
+
     // --- 1.9) 键位窗：列表 / 录制 / 冲突 / 生效 / 持久化 / 恢复默认 ---
     const shortcutValue = (id) => textOf(`[data-testid="shortcut-value-${id}"]`);
     const openShortcuts = async () => {

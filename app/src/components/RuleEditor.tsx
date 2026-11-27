@@ -2,13 +2,15 @@ import { useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from '../i18n';
 import { useApp } from '../store';
 import type {
-  AddRule, CaseRule, DeleteRule, EncodingRule, ExtRule, MapRule, MetaRule, MoveRule, NumberRule, ReplaceRule,
-  Rule,
+  AddRule, CaseRule, CodepageRule, DeleteRule, EncodingRule, ExtRule, MapRule, MetaRule, MoveRule, NumberRule,
+  ReplaceRule, Rule, ScriptRule,
 } from '../lib/types';
 import { ruleError } from '../lib/rules';
+import { applyCodepage, CODEPAGE_MODES, isCodepageMode, type CodepageMode } from '../lib/codepage';
 import { applyEncoding, ENCODING_MODES } from '../lib/encoding';
 import { mapErrorKey, parseMapTable } from '../lib/mapTable';
 import { META_FIELD_GROUPS, metaFieldLabelKey } from '../lib/metaFields';
+import { runScript } from '../lib/script';
 import { SAMPLE_VARS, expandTemplate } from '../lib/vars';
 
 type Patch = (patch: Record<string, unknown>) => void;
@@ -320,6 +322,8 @@ export function RuleEditor({ rule, patch }: { rule: Rule; patch: Patch }) {
       {rule.type === 'meta' && <MetaEditor rule={rule} patch={patch} />}
       {rule.type === 'map' && <MapEditor rule={rule} patch={patch} />}
       {rule.type === 'encoding' && <EncodingEditor rule={rule} patch={patch} />}
+      {rule.type === 'script' && <ScriptEditor rule={rule} patch={patch} />}
+      {rule.type === 'codepage' && <CodepageEditor rule={rule} patch={patch} />}
       {error && <div className="rule-error">{error}</div>}
     </div>
   );
@@ -808,6 +812,83 @@ function EncodingEditor({ rule, patch }: { rule: EncodingRule; patch: Patch }) {
       <div className="hint-line" data-testid="encoding-hint">{t('f.encodingHint')}</div>
       <div className="hint-line mono" data-testid="encoding-sample">
         {t('f.encodingSample', { before, after })}
+      </div>
+    </>
+  );
+}
+
+/** 脚本：受限表达式；编辑器里用固定样例实时求值，错误直接显示在下面。 */
+const SCRIPT_SAMPLE = {
+  name: 'Photo 2024',
+  ext: 'jpg',
+  original: 'Photo 2024',
+  dir: 'Trip',
+  modified: Date.UTC(2024, 0, 2, 3, 4, 5),
+  size: 1024,
+  users: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'],
+};
+
+function ScriptEditor({ rule, patch }: { rule: ScriptRule; patch: Patch }) {
+  const { t } = useTranslation();
+  const result = runScript(rule.source, SCRIPT_SAMPLE);
+  const error = ruleError(rule);
+  return (
+    <>
+      <Field label={t('f.scriptSource')}>
+        <textarea
+          className="input mono map-table script-source"
+          data-testid="script-source"
+          rows={4}
+          spellCheck={false}
+          value={rule.source}
+          placeholder={t('ph.scriptSource')}
+          onChange={(e) => patch({ source: e.target.value })}
+        />
+      </Field>
+      <div className="hint-line" data-testid="script-hint">{t('f.scriptHint')}</div>
+      {error ? (
+        <div className="hint-line map-error" data-testid="script-error">{error}</div>
+      ) : (
+        <div className="hint-line mono" data-testid="script-sample">
+          {t('f.scriptSample', {
+            before: SCRIPT_SAMPLE.name,
+            after: result.ok ? result.value : SCRIPT_SAMPLE.name,
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** 内码：GBK 乱码还原 / 简→Big5 用字 / 繁→GBK 用字。 */
+const CODEPAGE_SAMPLE: Record<CodepageMode, string> = {
+  'gbk-fix': '娴嬭瘯',
+  'to-big5': '简体中文测试',
+  'to-gbk': '簡體中文測試',
+};
+
+function CodepageEditor({ rule, patch }: { rule: CodepageRule; patch: Patch }) {
+  const { t } = useTranslation();
+  const mode = isCodepageMode(rule.mode) ? rule.mode : 'gbk-fix';
+  const before = CODEPAGE_SAMPLE[mode];
+  const after = applyCodepage(before, mode);
+  return (
+    <>
+      <Field label={t('f.codepageMode')}>
+        <select
+          className="input"
+          data-testid="codepage-mode"
+          value={mode}
+          onChange={(e) => patch({ mode: e.target.value })}
+        >
+          {CODEPAGE_MODES.map((item) => (
+            <option key={item} value={item}>{t(`f.codepage.${item}`)}</option>
+          ))}
+        </select>
+      </Field>
+      <div className="hint-line" data-testid="codepage-hint">{t('f.codepageHint')}</div>
+      <div className="hint-line mono" data-testid="codepage-sample">
+        {t('f.codepageSample', { before, after })}
       </div>
     </>
   );

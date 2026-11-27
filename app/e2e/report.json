@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-27T17:30:07.803Z",
+  "generatedAt": "2026-11-27T18:24:46.369Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
-  "passed": 387,
+  "passed": 402,
   "failed": 0,
   "results": [
     {
@@ -160,13 +160,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-28 01:27 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-28 02:22 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-28 01:27 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-28 02:22 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -898,7 +898,7 @@
       "layer": "UI-triggered mock",
       "name": "交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/事件/写文件）",
       "ok": true,
-      "detail": "startup_report,load_rule_history,env_info,plugin:event|listen,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,explorer_menu_state,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,attr_backups,read_attrs,read_times,apply_time,meta_read,meta_capabilities,list_snapshots,apply_attrs,attr_restore_backup,apply_move"
+      "detail": "startup_report,load_rule_history,plugin:event|listen,env_info,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,explorer_menu_state,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,attr_backups,read_attrs,read_times,apply_time,meta_read,meta_capabilities,list_snapshots,apply_attrs,attr_restore_backup,apply_move"
     },
     {
       "layer": "UI-triggered mock",
@@ -1160,6 +1160,96 @@
     },
     {
       "layer": "UI",
+      "name": "「+」菜单新增「脚本」，选中后打开对应编辑器",
+      "ok": true,
+      "detail": "script"
+    },
+    {
+      "layer": "UI",
+      "name": "脚本编辑器有表达式框、变量提示与实时示例",
+      "ok": true,
+      "detail": "{\"box\":1,\"hint\":1,\"sample\":1}"
+    },
+    {
+      "layer": "UI",
+      "name": "脚本规则默认表达式为 upper(name)",
+      "ok": true,
+      "detail": "upper(name)"
+    },
+    {
+      "layer": "UI",
+      "name": "脚本示例把样例名转成大写（PHOTO 2024）",
+      "ok": true,
+      "detail": "Sample: Photo 2024 → PHOTO 2024"
+    },
+    {
+      "layer": "UI",
+      "name": "脚本结果直接成为新主干，扩展名保持",
+      "ok": true,
+      "detail": "{\"scriptBefore\":{\"oldName\":\"旧照片 001.jpg\",\"stem\":\"旧照片 001\",\"ext\":\".jpg\",\"newName\":\"001.jpg\"},\"scriptAfter\":{\"oldName\":\"旧照片 001.jpg\",\"stem\":\"旧照片 001\",\"ext\":\".jpg\",\"newName\":\"SCRIPT_旧照片 001.jpg\"}}"
+    },
+    {
+      "layer": "UI",
+      "name": "脚本写错变量 → 编辑器报错且预览回到没有这条脚本时的名字",
+      "ok": true,
+      "detail": "{\"scriptErr\":\"Unknown variable unknownVar (use name / original / ext / dir / modified / size / u0–u9)\",\"scriptBadName\":{\"oldName\":\"旧照片 001.jpg\",\"stem\":\"旧照片 001\",\"ext\":\".jpg\",\"newName\":\"001.jpg\"},\"scriptBaseline\":{\"oldName\":\"旧照片 001.jpg\",\"stem\":\"旧照片 001\",\"ext\":\".jpg\",\"newName\":\"001.jpg\"}}"
+    },
+    {
+      "layer": "UI",
+      "name": "脚本规则摘要显示表达式",
+      "ok": true,
+      "detail": "Script · upper(name)"
+    },
+    {
+      "layer": "UI",
+      "name": "删除脚本规则后规则链回到原来的条数",
+      "ok": true,
+      "detail": "3 vs 3"
+    },
+    {
+      "layer": "UI",
+      "name": "「+」菜单新增「中文内码」，选中后打开对应编辑器",
+      "ok": true,
+      "detail": "codepage"
+    },
+    {
+      "layer": "UI",
+      "name": "内码下拉列出三种模式",
+      "ok": true,
+      "detail": "gbk-fix,to-big5,to-gbk"
+    },
+    {
+      "layer": "UI",
+      "name": "内码规则默认 GBK 乱码还原",
+      "ok": true,
+      "detail": "gbk-fix"
+    },
+    {
+      "layer": "UI",
+      "name": "内码示例把 GBK 乱码还原成「测试」",
+      "ok": true,
+      "detail": "Sample: 娴嬭瘯 → 测试"
+    },
+    {
+      "layer": "UI",
+      "name": "切到「简体 → 繁体（Big5 用字）」后示例出现繁体",
+      "ok": true,
+      "detail": "Sample: 简体中文测试 → 簡體中文測試"
+    },
+    {
+      "layer": "UI",
+      "name": "内码规则摘要随模式变化（Codepage · Simplified → Traditional）",
+      "ok": true,
+      "detail": "Codepage · Simplified → Traditional (Big5 wording)"
+    },
+    {
+      "layer": "UI",
+      "name": "删除内码规则后规则链回到原来的条数",
+      "ok": true,
+      "detail": "3 vs 3"
+    },
+    {
+      "layer": "UI",
       "name": "键位窗列出 5 条全局快捷键",
       "ok": true,
       "detail": "5"
@@ -1372,7 +1462,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmwz99l061\",\"jumpState\":{\"openId\":\"rmwz99l061\",\"detail\":1,\"focused\":\"rmwz99l061\"}}"
+      "detail": "{\"firstRuleId\":\"rmwzb7w2b1\",\"jumpState\":{\"openId\":\"rmwzb7w2b1\",\"detail\":1,\"focused\":\"rmwzb7w2b1\"}}"
     },
     {
       "layer": "UI",
@@ -1828,7 +1918,7 @@
       "layer": "UI",
       "name": "运行后该命令记一次运行（次数 1、带上次运行时间）",
       "ok": true,
-      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/28, 01:29 AM\"}"
+      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/28, 02:24 AM\"}"
     },
     {
       "layer": "UI",
@@ -1894,7 +1984,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795800573194.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795803852570.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -2098,7 +2188,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/28 01:29:423 条 · 仅映射预览还原删除"
+      "detail": "2026/11/28 02:24:223 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -2158,7 +2248,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-28 01:29 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-28 02:24 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",

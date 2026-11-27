@@ -1,12 +1,14 @@
 /** 规则引擎：纯函数，输入原名 + 规则链，输出新名。所有语义在 README 中固化说明。 */
 import { t } from '../i18n';
 import type {
-  AddRule, CaseRule, DeleteRule, EncodingRule, ExtRule, MapRule, MetaFieldKey, MetaFields, MoveRule, NumberRule,
-  ReplaceRule, Rule,
+  AddRule, CaseRule, CodepageRule, DeleteRule, EncodingRule, ExtRule, MapRule, MetaFieldKey, MetaFields, MoveRule,
+  NumberRule, ReplaceRule, Rule, ScriptRule,
 } from './types';
 import { META_FIELDS, metaFieldLabelKey } from './metaFields';
+import { applyCodepage, isCodepageMode } from './codepage';
 import { applyEncoding, isEncodingMode } from './encoding';
 import { applyMapping, mapErrorKey, parseMapTable } from './mapTable';
+import { compileScript, runScript, type ScriptError } from './script';
 import { expandTemplate, scanTemplate, type VarContext } from './vars';
 
 export function splitName(name: string, isDir: boolean): { stem: string; ext: string } {
@@ -61,6 +63,30 @@ export function ruleTemplateError(rule: Rule): string | null {
       return rule.mode === 'number' ? null : templateError(rule.value, false);
     default:
       return null;
+  }
+}
+
+/** 脚本表达式错误 → 本地化文案（解析期的错误都带位置或名称，不吞掉） */
+function scriptErrorText(error: ScriptError): string {
+  switch (error.code) {
+    case 'empty':
+      return t('ruleErr.scriptEmpty');
+    case 'tooLong':
+      return t('ruleErr.scriptTooLong');
+    case 'syntax':
+      return t('ruleErr.scriptSyntax', { pos: error.pos ?? 1 });
+    case 'unknownVar':
+      return t('ruleErr.scriptUnknownVar', { name: error.name ?? '' });
+    case 'unknownFunc':
+      return t('ruleErr.scriptUnknownFunc', { name: error.name ?? '' });
+    case 'arity':
+      return t('ruleErr.scriptArity', { name: error.name ?? '', need: error.need ?? '', got: error.got ?? 0 });
+    case 'badRegex':
+      return t('ruleErr.scriptBadRegex');
+    case 'badNumber':
+      return t('ruleErr.scriptBadNumber');
+    default:
+      return t('ruleErr.scriptSyntax', { pos: 1 });
   }
 }
 
@@ -130,6 +156,12 @@ export function ruleError(rule: Rule): string | null {
       return null;
     case 'encoding':
       return isEncodingMode(rule.mode) ? null : t('ruleErr.badEncodingMode');
+    case 'script': {
+      const compiled = compileScript(rule.source);
+      return compiled.error ? scriptErrorText(compiled.error) : null;
+    }
+    case 'codepage':
+      return isCodepageMode(rule.mode) ? null : t('ruleErr.badCodepageMode');
     case 'map': {
       const parsed = parseMapTable(rule.table, rule.caseSensitive);
       if (parsed.errors.length) {
@@ -688,6 +720,23 @@ export function applyRules(
         if (parsed.entries.length) stem = applyMapping(stem, parsed.entries, rule.caseSensitive);
         break;
       }
+      case 'script': {
+        // name 用当前主干：前面的规则改过名，脚本理应看到改过之后的结果
+        const result = runScript(rule.source, {
+          name: stem,
+          ext,
+          original: vars.stem,
+          dir: vars.dirName,
+          modified: vars.modified,
+          size: vars.size,
+          users: [vars.user0 ?? '', ...(vars.users ?? [])],
+        });
+        if (result.ok) stem = result.value;
+        break;
+      }
+      case 'codepage':
+        stem = applyCodepage(stem, isCodepageMode(rule.mode) ? rule.mode : 'gbk-fix');
+        break;
       default:
         break;
     }
@@ -764,6 +813,14 @@ export function normalizeRule(rule: Rule): Rule {
       table: typeof legacy.table === 'string' ? legacy.table : '',
       caseSensitive: !!legacy.caseSensitive,
     };
+  }
+  if (rule.type === 'script') {
+    const legacy = rule as ScriptRule & Partial<Pick<ScriptRule, 'source'>>;
+    return { ...legacy, source: typeof legacy.source === 'string' ? legacy.source : '' };
+  }
+  if (rule.type === 'codepage') {
+    const legacy = rule as CodepageRule & { mode?: string };
+    return { ...legacy, mode: isCodepageMode(legacy.mode) ? legacy.mode : 'gbk-fix' };
   }
   if (rule.type !== 'number') return rule;
   const legacy = rule as NumberRule & { perFolder?: boolean };
@@ -870,6 +927,14 @@ export function ruleSummary(rule: Rule): string {
     }
     case 'encoding':
       return t('ruleSum.encoding', { mode: t(`f.encoding.${rule.mode}`) });
+    case 'script': {
+      const src = rule.source.replace(/\s+/g, ' ').trim();
+      return t('ruleSum.script', { expr: src.length > 40 ? `${src.slice(0, 40)}…` : src });
+    }
+    case 'codepage': {
+      const mode = isCodepageMode(rule.mode) ? rule.mode : 'gbk-fix';
+      return t('ruleSum.codepage', { mode: t(`f.codepage.${mode}`) });
+    }
     case 'map': {
       const parsed = parseMapTable(rule.table, rule.caseSensitive);
       return t(rule.caseSensitive ? 'ruleSum.mapCase' : 'ruleSum.map', { n: parsed.entries.length });
