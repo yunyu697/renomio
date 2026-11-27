@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-27T06:44:04.851Z",
+  "generatedAt": "2026-11-27T07:32:17.609Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
-  "passed": 364,
+  "passed": 367,
   "failed": 0,
   "results": [
     {
@@ -160,13 +160,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-27 14:41 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-27 15:29 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-27 14:41 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-27 15:29 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -1306,7 +1306,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmwym6tpz1\",\"jumpState\":{\"openId\":\"rmwym6tpz1\",\"detail\":1,\"focused\":\"rmwym6tpz1\"}}"
+      "detail": "{\"firstRuleId\":\"rmwynwtzo1\",\"jumpState\":{\"openId\":\"rmwynwtzo1\",\"detail\":1,\"focused\":\"rmwynwtzo1\"}}"
     },
     {
       "layer": "UI",
@@ -1442,9 +1442,15 @@
     },
     {
       "layer": "UI",
-      "name": "元数据字段下拉含 25 个字段、按拍摄参数 / 图像尺寸 / 音频标签 / 字体信息 / 可执行文件 / IPTC 六组展示",
+      "name": "元数据字段下拉含 27 个字段、按拍摄参数 / 图像尺寸 / 音频标签 / 字体信息 / 可执行文件 / IPTC / 文档属性 七组展示",
       "ok": true,
-      "detail": "{\"count\":25,\"groups\":[\"Shooting settings\",\"Image size\",\"Audio tags\",\"Font info\",\"Executable\",\"IPTC tags\"],\"values\":[\"taken\",\"camera\",\"iso\",\"aperture\",\"shutter\",\"focal\",\"lens\",\"width\",\"height\",\"resolution\",\"title\",\"artist\",\"album\",\"track\",\"year\",\"genre\",\"composer\",\"fontFamily\",\"fontStyle\",\"fontVersion\",\"fileVersion\",\"keywords\",\"caption\",\"copyright\",\"location\"]}"
+      "detail": "{\"count\":27,\"groups\":[\"Shooting settings\",\"Image size\",\"Audio tags\",\"Font info\",\"Executable\",\"IPTC tags\",\"Document properties\"],\"values\":[\"taken\",\"camera\",\"iso\",\"aperture\",\"shutter\",\"focal\",\"lens\",\"width\",\"height\",\"resolution\",\"title\",\"artist\",\"album\",\"track\",\"year\",\"genre\",\"composer\",\"fontFamily\",\"fontStyle\",\"fontVersion\",\"fileVersion\",\"keywords\",\"caption\",\"copyright\",\"location\",\"company\",\"template\"],\"labels\":[\"Capture time\",\"Camera model\",\"ISO\",\"Aperture\",\"Shutter speed\",\"Focal length\",\"Lens\",\"Pixel width\",\"Pixel height\",\"Resolution (W × H)\",\"Audio title\",\"Artist\",\"Album\",\"Track number\",\"Year\",\"Genre\",\"Composer\",\"Font family\",\"Font style\",\"Font version\",\"File version\",\"Keywords\",\"Caption\",\"Copyright\",\"Location\",\"Company\",\"Template\"],\"docValues\":[\"company\",\"template\"]}"
+    },
+    {
+      "layer": "UI",
+      "name": "文档属性两字段有真实文案（不是漏翻的 o.metaCompany / o.metaTemplate）",
+      "ok": true,
+      "detail": "{\"docLabels\":[\"Company\",\"Template\"],\"values\":[\"company\",\"template\"]}"
     },
     {
       "layer": "UI",
@@ -1487,6 +1493,18 @@
       "name": "规则摘要写明来源（IPTC 关键词），不是裸字段名",
       "ok": true,
       "detail": "Prefix with IPTC keywords (separator “ ”)"
+    },
+    {
+      "layer": "UI",
+      "name": "文档属性字段（照片没有公司）缺失时保持原名且标记 unchanged",
+      "ok": true,
+      "detail": "{\"name\":\"旧照片 001.jpg\",\"unchanged\":true}"
+    },
+    {
+      "layer": "UI",
+      "name": "文档属性规则摘要写明来源（不是漏翻的 o.metaCompany）",
+      "ok": true,
+      "detail": "Prefix with OOXML document property: company (separator “ ”)"
     },
     {
       "layer": "UI",
@@ -1706,9 +1724,9 @@
     },
     {
       "layer": "UI",
-      "name": "编号分组下拉同步新增字段（field:iso / field:resolution / field:composer / field:fontFamily / field:fileVersion / field:keywords）",
+      "name": "编号分组下拉同步新增字段（field:iso / field:resolution / field:composer / field:fontFamily / field:fileVersion / field:keywords / field:company）",
       "ok": true,
-      "detail": "{\"groups\":[\"Shooting settings\",\"Image size\",\"Audio tags\",\"Font info\",\"Executable\",\"IPTC tags\"],\"values\":[\"none\",\"parent\",\"field:taken\",\"field:camera\",\"field:iso\",\"field:aperture\",\"field:shutter\",\"field:focal\",\"field:lens\",\"field:width\",\"field:height\",\"field:resolution\",\"field:title\",\"field:artist\",\"field:album\",\"field:track\",\"field:year\",\"field:genre\",\"field:composer\",\"field:fontFamily\",\"field:fontStyle\",\"field:fontVersion\",\"field:fileVersion\",\"field:keywords\",\"field:caption\",\"field:copyright\",\"field:location\"]}"
+      "detail": "{\"groups\":[\"Shooting settings\",\"Image size\",\"Audio tags\",\"Font info\",\"Executable\",\"IPTC tags\",\"Document properties\"],\"values\":[\"none\",\"parent\",\"field:taken\",\"field:camera\",\"field:iso\",\"field:aperture\",\"field:shutter\",\"field:focal\",\"field:lens\",\"field:width\",\"field:height\",\"field:resolution\",\"field:title\",\"field:artist\",\"field:album\",\"field:track\",\"field:year\",\"field:genre\",\"field:composer\",\"field:fontFamily\",\"field:fontStyle\",\"field:fontVersion\",\"field:fileVersion\",\"field:keywords\",\"field:caption\",\"field:copyright\",\"field:location\",\"field:company\",\"field:template\"]}"
     },
     {
       "layer": "UI",
@@ -1744,7 +1762,7 @@
       "layer": "UI",
       "name": "运行后该命令记一次运行（次数 1、带上次运行时间）",
       "ok": true,
-      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/27, 02:43 PM\"}"
+      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/27, 03:31 PM\"}"
     },
     {
       "layer": "UI",
@@ -1810,7 +1828,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795761811530.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795764705788.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -1960,7 +1978,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/27 14:43:383 条 · 仅映射预览还原删除"
+      "detail": "2026/11/27 15:31:523 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -2020,7 +2038,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-27 14:43 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-27 15:31 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",

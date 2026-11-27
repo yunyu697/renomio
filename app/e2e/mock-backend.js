@@ -308,6 +308,8 @@
         caption: isPhoto ? '旅行随拍' : '',
         copyright: isPhoto ? '© 2025' : '',
         location: isPhoto ? '东京' : '',
+        company: name.endsWith('.docx') ? '示例科技' : '',
+        template: name.endsWith('.docx') ? 'Normal.dotm' : '',
       };
     }),
 

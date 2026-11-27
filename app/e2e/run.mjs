@@ -3328,7 +3328,7 @@ async function main() {
     );
     await clearAllRules();
 
-    // ---- 按元数据取名：25 字段可选 / 真实取值 / 缺失不改名 ----
+    // ---- 按元数据取名：27 字段可选 / 真实取值 / 缺失不改名 ----
     await addRuleType('meta');
     const metaSelect = await evaluate(`(() => {
       const sel = document.querySelector('[data-testid="meta-field"]');
@@ -3337,16 +3337,25 @@ async function main() {
         count: sel.querySelectorAll('option').length,
         groups: [...sel.querySelectorAll('optgroup')].map((g) => g.label),
         values: [...sel.querySelectorAll('option')].map((o) => o.value),
+        labels: [...sel.querySelectorAll('option')].map((o) => o.textContent.trim()),
+        docValues: [...sel.querySelectorAll('option')].filter((o) => ['company', 'template'].includes(o.value)).map((o) => o.value),
       };
     })()`);
     check(
       'UI',
-      '元数据字段下拉含 25 个字段、按拍摄参数 / 图像尺寸 / 音频标签 / 字体信息 / 可执行文件 / IPTC 六组展示',
-      metaSelect?.count === 25
-        && metaSelect.groups.length === 6
-        && ['iso', 'aperture', 'shutter', 'focal', 'lens', 'width', 'height', 'resolution', 'year', 'genre', 'composer', 'fontFamily', 'fontStyle', 'fontVersion', 'fileVersion', 'keywords', 'caption', 'copyright', 'location']
+      '元数据字段下拉含 27 个字段、按拍摄参数 / 图像尺寸 / 音频标签 / 字体信息 / 可执行文件 / IPTC / 文档属性 七组展示',
+      metaSelect?.count === 27
+        && metaSelect.groups.length === 7
+        && ['iso', 'aperture', 'shutter', 'focal', 'lens', 'width', 'height', 'resolution', 'year', 'genre', 'composer', 'fontFamily', 'fontStyle', 'fontVersion', 'fileVersion', 'keywords', 'caption', 'copyright', 'location', 'company', 'template']
           .every((k) => metaSelect.values.includes(k)),
       JSON.stringify(metaSelect),
+    );
+    const docLabels = (metaSelect?.labels ?? []).filter((label) => /Company|Template/i.test(label));
+    check(
+      'UI',
+      '文档属性两字段有真实文案（不是漏翻的 o.metaCompany / o.metaTemplate）',
+      metaSelect?.docValues?.length === 2 && docLabels.length === 2 && !/o\.meta/i.test(docLabels.join('')),
+      JSON.stringify({ docLabels, values: metaSelect?.docValues }),
     );
 
     const setMetaField = (value) => evaluate(`(() => {
@@ -3400,6 +3409,24 @@ async function main() {
       '规则摘要写明来源（IPTC 关键词），不是裸字段名',
       kwSum.includes('IPTC') && kwSum.toLowerCase().includes('keyword'),
       kwSum,
+    );
+
+    // 照片没有文档属性：选「公司」时该规则不改变名称，摘要也不能露出原始键名
+    await setMetaField('company');
+    await sleep(700);
+    const companyRow = await evaluate(rowByName('旧照片 001.jpg'));
+    const companySum = await metaSum();
+    check(
+      'UI',
+      '文档属性字段（照片没有公司）缺失时保持原名且标记 unchanged',
+      companyRow?.name === '旧照片 001.jpg' && companyRow.unchanged === true,
+      JSON.stringify(companyRow),
+    );
+    check(
+      'UI',
+      '文档属性规则摘要写明来源（不是漏翻的 o.metaCompany）',
+      companySum.length > 0 && !companySum.includes('o.meta') && /Company|文档|Office|OOXML/i.test(companySum),
+      companySum,
     );
 
     // 照片没有音频标签：选音频字段时该规则“不改变名称”，而不是拼出空段
@@ -3856,9 +3883,9 @@ async function main() {
     })()`);
     check(
       'UI',
-      '编号分组下拉同步新增字段（field:iso / field:resolution / field:composer / field:fontFamily / field:fileVersion / field:keywords）',
-      groupOpts?.groups.length === 6
-        && ['field:iso', 'field:resolution', 'field:composer', 'field:fontFamily', 'field:fileVersion', 'field:keywords'].every((v) => groupOpts.values.includes(v)),
+      '编号分组下拉同步新增字段（field:iso / field:resolution / field:composer / field:fontFamily / field:fileVersion / field:keywords / field:company）',
+      groupOpts?.groups.length === 7
+        && ['field:iso', 'field:resolution', 'field:composer', 'field:fontFamily', 'field:fileVersion', 'field:keywords', 'field:company'].every((v) => groupOpts.values.includes(v)),
       JSON.stringify(groupOpts),
     );
     await clearAllRules();
