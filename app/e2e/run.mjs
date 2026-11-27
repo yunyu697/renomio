@@ -3341,10 +3341,10 @@ async function main() {
     })()`);
     check(
       'UI',
-      '元数据字段下拉含 17 个字段、按拍摄参数 / 图像尺寸 / 音频标签三组展示',
-      metaSelect?.count === 17
-        && metaSelect.groups.length === 3
-        && ['iso', 'aperture', 'shutter', 'focal', 'lens', 'width', 'height', 'resolution', 'year', 'genre', 'composer']
+      '元数据字段下拉含 20 个字段、按拍摄参数 / 图像尺寸 / 音频标签 / 字体信息四组展示',
+      metaSelect?.count === 20
+        && metaSelect.groups.length === 4
+        && ['iso', 'aperture', 'shutter', 'focal', 'lens', 'width', 'height', 'resolution', 'year', 'genre', 'composer', 'fontFamily', 'fontStyle', 'fontVersion']
           .every((k) => metaSelect.values.includes(k)),
       JSON.stringify(metaSelect),
     );
@@ -3844,9 +3844,9 @@ async function main() {
     })()`);
     check(
       'UI',
-      '编号分组下拉同步新增字段（field:iso / field:resolution / field:composer）',
-      groupOpts?.groups.length === 3
-        && ['field:iso', 'field:resolution', 'field:composer'].every((v) => groupOpts.values.includes(v)),
+      '编号分组下拉同步新增字段（field:iso / field:resolution / field:composer / field:fontFamily）',
+      groupOpts?.groups.length === 4
+        && ['field:iso', 'field:resolution', 'field:composer', 'field:fontFamily'].every((v) => groupOpts.values.includes(v)),
       JSON.stringify(groupOpts),
     );
     await clearAllRules();
