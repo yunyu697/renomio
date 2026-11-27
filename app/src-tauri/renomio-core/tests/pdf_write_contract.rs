@@ -251,10 +251,10 @@ fn startxref_pointing_at_plain_object_is_rejected() {
 }
 
 #[test]
-fn info_inside_object_stream_reports_warning() {
+fn info_inside_object_stream_keeps_old_fields() {
     let dir = TempDir::new("xref-objstm");
     let members = "<< /Producer (Streamed Producer) >>";
-    let header = format!("3 0 ");
+    let header = format!("6 0 ");
     let objstm = format!(
         "<< /Type /ObjStm /N 1 /First {} /Length {} >>\nstream\n{}{}\nendstream",
         header.len(),
@@ -262,21 +262,60 @@ fn info_inside_object_stream_reports_warning() {
         header,
         members
     );
-    // 1 Catalog，2 Pages，3 ObjStm（内含 4 号 Info）；xref 流把 4 号记为 type 2。
-    let bytes = xref_stream_pdf(&[catalog(0), pages(), objstm], &[(4, 3, 0)], " /Info 4 0 R");
+    // 1 Catalog、2 Pages、3 ObjStm、4 占位（让 xref 流落在 5 号），6 号 Info 只存在对象流里。
+    let bytes = xref_stream_pdf(
+        &[catalog(0), pages(), objstm, "<< /Filler true >>".to_string()],
+        &[(6, 3, 0)],
+        " /Info 6 0 R",
+    );
     let path = dir.write("对象流Info.pdf", &bytes);
     let result = edit(&path, &[("title", "新标题")]);
     assert!(result.ok, "{:?}", result.error);
     assert!(
+        !result.warnings.iter().any(|w| w.contains("对象流")),
+        "对象流里的 Info 已经能解，不该再报警告：{:?}",
+        result.warnings
+    );
+    let p = pdf::probe(&fs::read(&path).unwrap()).unwrap();
+    assert_eq!(
+        p.info.get("Producer").map(|s| s.as_str()),
+        Some("Streamed Producer"),
+        "对象流里的旧 Info 字段必须保留：{:?}",
+        p.info
+    );
+    assert_eq!(value(&path, "title"), "新标题");
+}
+
+#[test]
+fn unsupported_object_stream_filter_still_warns() {
+    let dir = TempDir::new("xref-objstm-lzw");
+    let members = "<< /Producer (LZW Producer) >>";
+    let header = "8 0 ".to_string();
+    let objstm = format!(
+        "<< /Type /ObjStm /N 1 /First {} /Length {} /Filter /LZWDecode >>\nstream\n{}{}\nendstream",
+        header.len(),
+        header.len() + members.len(),
+        header,
+        members
+    );
+    let bytes = xref_stream_pdf(
+        &[catalog(0), pages(), objstm, "<< /Filler true >>".to_string()],
+        &[(8, 3, 0)],
+        " /Info 8 0 R",
+    );
+    let path = dir.write("对象流LZW.pdf", &bytes);
+    let result = edit(&path, &[("title", "新标题")]);
+    assert!(result.ok, "{:?}", result.error);
+    assert!(
         result.warnings.iter().any(|w| w.contains("对象流")),
-        "应提示旧 Info 在对象流里：{:?}",
+        "不支持的流编码要明确告警：{:?}",
         result.warnings
     );
     assert_eq!(value(&path, "title"), "新标题");
 }
 
 #[test]
-fn catalog_inside_object_stream_is_rejected_clearly() {
+fn catalog_inside_object_stream_is_written() {
     let dir = TempDir::new("xref-objstm-cat");
     let members = "<< /Type /Catalog /Pages 2 0 R >>";
     let header = "1 0 ".to_string();
@@ -327,11 +366,89 @@ fn catalog_inside_object_stream_is_rejected_clearly() {
 
     let path = dir.write("对象流Catalog.pdf", &buf);
     assert!(pdf::probe(&buf).is_some(), "读侧先要能解析这份夹具");
-    let result = edit(&path, &[("title", "x")]);
-    assert!(!result.ok, "Catalog 在对象流时写回必须拒绝");
+    let result = edit(&path, &[("title", "写进对象流Catalog")]);
     assert!(
-        result.error.as_deref().unwrap_or("").contains("对象流"),
-        "应说明原因：{:?}",
+        result.ok,
+        "Catalog 在对象流时也要能写回：{:?}",
         result.error
     );
+    let p = pdf::probe(&fs::read(&path).unwrap()).unwrap();
+    assert_eq!(
+        p.info.get("Title").map(|s| s.as_str()),
+        Some("写进对象流Catalog")
+    );
+    assert_eq!(
+        p.pages,
+        Some(0),
+        "新 Catalog 必须继承旧字典的 /Pages：{:?}",
+        p.pages
+    );
+}
+
+#[test]
+fn catalog_inside_flate_object_stream_is_written() {
+    let dir = TempDir::new("xref-objstm-cat-flate");
+    let members = "<< /Type /Catalog /Pages 2 0 R >>".to_string();
+    let header = "1 0 ".to_string();
+    let payload = format!("{header}{members}");
+    let raw = {
+        use std::io::Write;
+        let mut enc = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+        enc.write_all(payload.as_bytes()).unwrap();
+        enc.finish().unwrap()
+    };
+    let objstm = format!(
+        "<< /Type /ObjStm /N 1 /First {} /Filter /FlateDecode /Length {} >>\nstream\n",
+        header.len(),
+        raw.len()
+    );
+    let mut body = objstm.into_bytes();
+    body.extend_from_slice(&raw);
+    body.extend_from_slice(b"\nendstream");
+
+    let mut buf = b"%PDF-1.5\n".to_vec();
+    let off2 = buf.len();
+    buf.extend_from_slice(format!("2 0 obj\n{}\nendobj\n", pages()).as_bytes());
+    let off3 = buf.len();
+    buf.extend_from_slice(b"3 0 obj\n");
+    buf.extend_from_slice(&body);
+    buf.extend_from_slice(b"\nendobj\n");
+    let xref_at = buf.len();
+    let mut rows = vec![0u8; 5];
+    rows[3] = 0xff;
+    rows[4] = 0xff;
+    let mut r = [0u8; 5];
+    r[0] = 2;
+    r[1] = 3;
+    rows.extend_from_slice(&r);
+    for off in [off2 as u16, off3 as u16] {
+        let mut r = [0u8; 5];
+        r[0] = 1;
+        r[1] = (off >> 8) as u8;
+        r[2] = off as u8;
+        rows.extend_from_slice(&r);
+    }
+    let mut r = [0u8; 5];
+    r[0] = 1;
+    r[1] = (xref_at >> 8) as u8;
+    r[2] = xref_at as u8;
+    rows.extend_from_slice(&r);
+    buf.extend_from_slice(
+        format!(
+            "4 0 obj\n<< /Type /XRef /Size 5 /Root 1 0 R /W [1 2 2] /Length {} >>\nstream\n",
+            rows.len()
+        )
+        .as_bytes(),
+    );
+    buf.extend_from_slice(&rows);
+    buf.extend_from_slice(b"\nendstream\nendobj\n");
+    buf.extend_from_slice(format!("startxref\n{xref_at}\n%%EOF\n").as_bytes());
+
+    let path = dir.write("对象流Catalog-Flate.pdf", &buf);
+    assert!(pdf::probe(&buf).is_some(), "读侧先要能解析一份 Flate 对象流夹具");
+    let result = edit(&path, &[("title", "压缩对象流")]);
+    assert!(result.ok, "Flate 压缩的对象流也要能读回来：{:?}", result.error);
+    let p = pdf::probe(&fs::read(&path).unwrap()).unwrap();
+    assert_eq!(p.info.get("Title").map(|s| s.as_str()), Some("压缩对象流"));
+    assert_eq!(p.pages, Some(0));
 }
