@@ -53,7 +53,7 @@ check(
 );
 check('文件/文件夹用 %1、背景用 %V', coreSrc.includes('"%1"') && coreSrc.includes('"%V"'));
 check('命令一律给 exe 加引号', /format!\("\\"\{\}" /.test(coreSrc) || coreSrc.includes('\\"{}\\"'));
-check('坏路径校验：绝对路径 + 无引号换行', /is_absolute\(\)/.test(coreSrc) && coreSrc.includes("'\\n'"));
+check('坏路径校验：绝对路径 + 无引号换行', /is_windows_absolute\(/ .test(coreSrc) && coreSrc.includes("'\\n'"));
 check('Windows 侧走 winreg', coreSrc.includes('winreg') && coreToml.includes('winreg'));
 check('非 Windows 明确返回不支持', coreSrc.includes('cfg!(windows)') && coreSrc.includes('仅 Windows'));
 check('写注册表带 MUIVerb 与 Icon', coreSrc.includes('MUIVerb') && coreSrc.includes('Icon'));

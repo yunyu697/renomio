@@ -832,7 +832,46 @@
         createdDirs: [],
       };
       state.batches.unshift(batch);
+      const changed = ops.filter((o) => o.state === 'done');
+      if (changed.length) {
+        state.attrBackups = state.attrBackups || [];
+        state.attrBackups.unshift({
+          batchId: batch.id,
+          createdAt: now,
+          entries: changed.length,
+          firstPath: changed[0].path,
+        });
+      }
       return { batch, applied, skipped, failed };
+    },
+
+    attr_backups: () => state.attrBackups || [],
+
+    attr_restore_backup: (args) => {
+      const backup = (state.attrBackups || []).find((b) => b.batchId === args.batchId);
+      const batch = state.batches.find((b) => b.id === args.batchId);
+      if (!backup || !batch) throw new Error('找不到这条属性备份（可能已被清理）');
+      const restored = [];
+      const unchanged = [];
+      const missing = [];
+      for (const op of batch.ops || []) {
+        if (op.kind !== 'attrs' || op.state === 'failed') continue;
+        const file = state.files.find((f) => key(f.path) === key(op.path));
+        if (!file) {
+          missing.push(op.path);
+          continue;
+        }
+        const before = JSON.parse(op.before || '{}');
+        const same = !!file.readonly === !!before.readonly && !!file.hidden === !!before.hidden;
+        if (same) {
+          unchanged.push(op.path);
+          continue;
+        }
+        file.readonly = !!before.readonly;
+        file.hidden = !!before.hidden;
+        restored.push(op.path);
+      }
+      return { batchId: backup.batchId, restored, unchanged, missing, failed: [] };
     },
 
     apply_move: (args) => {

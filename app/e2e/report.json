@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-27T16:46:41.815Z",
+  "generatedAt": "2026-11-27T17:30:07.803Z",
   "browser": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "viewport": "1440×900（默认） / 1100×640@1.5x（最小尺寸）",
   "mode": "无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）",
-  "passed": 383,
+  "passed": 387,
   "failed": 0,
   "results": [
     {
@@ -160,13 +160,13 @@
       "layer": "UI",
       "name": "历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略",
       "ok": true,
-      "detail": "2026-11-28 00:44 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
+      "detail": "2026-11-28 01:27 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤"
     },
     {
       "layer": "UI",
       "name": "历史面板：已撤销批次显示「已撤销」并说明原因",
       "ok": true,
-      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-28 00:44 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
+      "detail": "{\"undoable\":\"0\",\"state\":\"已撤销\",\"reason\":\"该批次已经撤销\",\"text\":\"2026-11-28 01:27 · 更名D:\\\\e2e\\\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销\"}"
     },
     {
       "layer": "UI",
@@ -620,6 +620,30 @@
     },
     {
       "layer": "UI",
+      "name": "属性面板列出独立备份（撤销后仍在，按时间倒序）",
+      "ok": true,
+      "detail": "rows=2"
+    },
+    {
+      "layer": "UI-triggered mock",
+      "name": "属性写入（备份库路径）→ 勾选文件全部只读",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "layer": "UI",
+      "name": "属性还原 → 提示条给出还原/无需改动计数",
+      "ok": true,
+      "detail": "已还原 3，无需改动 0，文件已不在 0，失败 0"
+    },
+    {
+      "layer": "UI-triggered mock",
+      "name": "属性还原 → 回到该批次写入前的只读状态（1 个）",
+      "ok": true,
+      "detail": "readonly=1"
+    },
+    {
+      "layer": "UI",
       "name": "归类预览 → 正则捕获组生成目标子目录",
       "ok": true,
       "detail": "ready=3"
@@ -874,7 +898,7 @@
       "layer": "UI-triggered mock",
       "name": "交互确实经过 Tauri 命令层（env/scan/apply/undo/时间/属性/移动/元数据/事件/写文件）",
       "ok": true,
-      "detail": "startup_report,load_rule_history,plugin:event|listen,env_info,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,explorer_menu_state,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,read_attrs,read_times,apply_time,meta_read,meta_capabilities,list_snapshots,apply_attrs,apply_move"
+      "detail": "startup_report,load_rule_history,env_info,plugin:event|listen,privilege_info,migration_info,plugin:event|unlisten,append_log,plugin:dialog|open,scan_paths,find_duplicates,paths_exist,apply_plan,list_batches,undo_batch,explorer_menu_state,read_metadata,plugin:dialog|save,write_text_atomic,read_text_file,write_bytes_atomic,attr_backups,read_attrs,read_times,apply_time,meta_read,meta_capabilities,list_snapshots,apply_attrs,attr_restore_backup,apply_move"
     },
     {
       "layer": "UI-triggered mock",
@@ -1348,7 +1372,7 @@
       "layer": "UI",
       "name": "点击冲突汇总可跳转到对应规则（展开并聚焦）",
       "ok": true,
-      "detail": "{\"firstRuleId\":\"rmwz7pqu91\",\"jumpState\":{\"openId\":\"rmwz7pqu91\",\"detail\":1,\"focused\":\"rmwz7pqu91\"}}"
+      "detail": "{\"firstRuleId\":\"rmwz99l061\",\"jumpState\":{\"openId\":\"rmwz99l061\",\"detail\":1,\"focused\":\"rmwz99l061\"}}"
     },
     {
       "layer": "UI",
@@ -1804,7 +1828,7 @@
       "layer": "UI",
       "name": "运行后该命令记一次运行（次数 1、带上次运行时间）",
       "ok": true,
-      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/28, 12:45 AM\"}"
+      "detail": "{\"runs\":\"1\",\"meta\":\"1 rules · Skip conflicting rows · run 1 times · 11/28, 01:29 AM\"}"
     },
     {
       "layer": "UI",
@@ -1870,7 +1894,7 @@
       "layer": "UI",
       "name": "属性编辑：选中字段写入并回读校验通过",
       "ok": true,
-      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795797966868.bak\",\"ok\":true,\"verified\":true}"
+      "detail": "{\"text\":\"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\\\e2e\\\\旅行\\\\旧照片 002.jpg.1795800573194.bak\",\"ok\":true,\"verified\":true}"
     },
     {
       "layer": "UI",
@@ -2074,7 +2098,7 @@
       "layer": "UI",
       "name": "快照列表显示「仅映射」",
       "ok": true,
-      "detail": "2026/11/28 00:46:173 条 · 仅映射预览还原删除"
+      "detail": "2026/11/28 01:29:423 条 · 仅映射预览还原删除"
     },
     {
       "layer": "UI",
@@ -2134,7 +2158,7 @@
       "layer": "UI",
       "name": "操作记录把还原标为「快照还原」且可撤销",
       "ok": true,
-      "detail": "2026-11-28 00:46 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
+      "detail": "2026-11-28 01:29 · 快照还原D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销"
     },
     {
       "layer": "UI",

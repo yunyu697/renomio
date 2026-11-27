@@ -1634,6 +1634,37 @@ async function main() {
     const invertRestored = await evaluate(`window.__E2E__.files.filter((f) => f.readonly).length`);
     check('UI-triggered mock', '取反撤销 → 还原原只读属性', invertRestored === 1, `readonly=${invertRestored}`);
 
+    // ---- 属性备份库（UI 层，mock 后端）：写入即生成独立备份，面板内可跨批次还原 ----
+    await openInspectorMode('attrs');
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="attrs"]')`, '属性检查器（备份库）');
+    const backupRowsBefore = await evaluate(`document.querySelectorAll('[data-testid="attr-backup-row"]').length`);
+    check(
+      'UI',
+      '属性面板列出独立备份（撤销后仍在，按时间倒序）',
+      backupRowsBefore >= 1 && !(await evaluate(`!!document.querySelector('[data-testid="attr-backup-error"]')`)),
+      `rows=${backupRowsBefore}`,
+    );
+    await click('[data-testid="ops-readonly-set"]');
+    await sleep(200);
+    await click('[data-testid="ops-apply"]');
+    await waitFor(`document.querySelector('[data-testid="ops-result"]')`, '属性写入（备份）');
+    const allReadonly = await evaluate(`window.__E2E__.files.every((f) => f.readonly === true)`);
+    check('UI-triggered mock', '属性写入（备份库路径）→ 勾选文件全部只读', allReadonly);
+    await clickText('[data-testid="ops-result"] .btn-primary', '关闭');
+    await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '属性检查器关闭（备份）');
+    await openInspectorMode('attrs');
+    await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="attrs"]')`, '属性检查器（还原）');
+    await waitFor(`document.querySelectorAll('[data-testid="attr-backup-row"]').length >= 1`, '备份行出现');
+    await click('[data-testid="attr-backup-restore"]');
+    await waitFor(`document.querySelector('[data-testid="toast"]')`, '属性还原提示条');
+    const restoreToast = await textOf('[data-testid="toast-text"]');
+    check('UI', '属性还原 → 提示条给出还原/无需改动计数', restoreToast.includes('已还原'), restoreToast);
+    await sleep(400);
+    const restoredReadonly = await evaluate(`window.__E2E__.files.filter((f) => f.readonly).length`);
+    check('UI-triggered mock', '属性还原 → 回到该批次写入前的只读状态（1 个）', restoredReadonly === 1, `readonly=${restoredReadonly}`);
+    await clickText('[data-testid="inspector"] .dialog-foot .btn-outline', '取消');
+    await waitFor(`!document.querySelector('[data-testid="inspector"]')`, '属性检查器关闭（还原后）');
+
     // ---- 文件归类（正则捕获组分支；UI 层，mock 后端） ----
     await openInspectorMode('organize');
     await waitFor(`document.querySelector('[data-testid="inspector"][data-mode="organize"]')`, '归类检查器');
