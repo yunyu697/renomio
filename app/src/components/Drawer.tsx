@@ -6,7 +6,8 @@ import {
   checkUpdate, downloadUpdate, installSavedUpdate, onUpdateProgress, openHomepage,
 } from '../lib/bridge';
 import type {
-  BatchSummary, ConflictPolicy, LocaleSetting, RepairReportDto, SavedUpdate, UpdateInfo, UpdateProgress,
+  BatchSummary, ConflictPolicy, ExplorerMenuStateDto, LocaleSetting, RepairReportDto, SavedUpdate,
+  UpdateInfo, UpdateProgress,
 } from '../lib/types';
 import { isDesktop } from '../lib/bridge';
 import { actionLabelKey, countReport, findingTitleKey, isClean, sortFindings, worstSeverity } from '../lib/repair';
@@ -581,6 +582,9 @@ function SettingsPanel() {
   const canUseSettingsFile = isDesktop;
   const [repairBusy, setRepairBusy] = useState<'check' | 'fix' | null>(null);
   const [repairReport, setRepairReport] = useState<RepairReportDto | null>(null);
+  const [menuState, setMenuState] = useState<ExplorerMenuStateDto | null>(null);
+  const [menuBusy, setMenuBusy] = useState(false);
+  const [shortcutBusy, setShortcutBusy] = useState(false);
   const showToast = useApp((s) => s.showToast);
   useEffect(() => setLimitDraft(String(historyLimit)), [historyLimit]);
   const commitLimit = () => {
@@ -622,6 +626,58 @@ function SettingsPanel() {
       showToast('warn', t('toast.settingsImportPartial', { applied: applied.length, ignored: ignored.join('、') }));
     } else {
       showToast('info', t('toast.settingsImportOk', { applied: applied.length }));
+    }
+  };
+
+  /** 打开设置页时读一次菜单状态（只读注册表，不改任何东西）。 */
+  useEffect(() => {
+    if (!isDesktop) return;
+    void (async () => {
+      try {
+        const { getExplorerMenu } = await import('../lib/bridge');
+        setMenuState(await getExplorerMenu());
+      } catch {
+        setMenuState(null);
+      }
+    })();
+  }, []);
+
+  const refreshMenu = async () => {
+    setMenuBusy(true);
+    try {
+      const { getExplorerMenu } = await import('../lib/bridge');
+      setMenuState(await getExplorerMenu());
+    } catch (err) {
+      showToast('warn', t('toast.menuFail', { error: err instanceof Error ? err.message : String(err) }));
+    } finally {
+      setMenuBusy(false);
+    }
+  };
+
+  const toggleMenu = async (install: boolean) => {
+    setMenuBusy(true);
+    try {
+      const { installExplorerMenu, uninstallExplorerMenu } = await import('../lib/bridge');
+      const next = install ? await installExplorerMenu() : await uninstallExplorerMenu();
+      setMenuState(next);
+      showToast('info', install ? t('toast.menuInstallOk') : t('toast.menuRemoveOk'));
+    } catch (err) {
+      showToast('warn', t('toast.menuFail', { error: err instanceof Error ? err.message : String(err) }));
+    } finally {
+      setMenuBusy(false);
+    }
+  };
+
+  const makeShortcut = async () => {
+    setShortcutBusy(true);
+    try {
+      const { createDesktopShortcut } = await import('../lib/bridge');
+      const path = await createDesktopShortcut();
+      showToast('info', t('toast.shortcutOk', { path }));
+    } catch (err) {
+      showToast('warn', t('toast.shortcutFail', { error: err instanceof Error ? err.message : String(err) }));
+    } finally {
+      setShortcutBusy(false);
     }
   };
 
@@ -909,6 +965,64 @@ function SettingsPanel() {
           </Row>
           <div className="drawer-note" style={{ marginTop: 8 }}>
             {canUseSettingsFile ? t('settings.fileNote') : t('settings.fileDemo')}
+          </div>
+        </section>
+
+        <section className="settings-section" data-testid="integration-section">
+          <h4>{t('settings.integrationGroup')}</h4>
+          <Row label={t('settings.explorerMenu')} hint={t('settings.explorerMenuHint')}>
+            <span
+              className="drawer-note"
+              data-testid="explorer-menu-status"
+              data-supported={menuState ? (menuState.supported ? 'true' : 'false') : 'unknown'}
+              data-installed={menuState ? (menuState.installed ? 'true' : 'false') : 'unknown'}
+              data-partial={menuState ? (menuState.partial ? 'true' : 'false') : 'unknown'}
+            >
+              {!isDesktop
+                ? '—'
+                : !menuState
+                  ? t('settings.explorerUnknown')
+                  : !menuState.supported
+                    ? t('settings.explorerUnsupported')
+                    : menuState.installed
+                      ? t('settings.explorerInstalled')
+                      : menuState.partial
+                        ? t('settings.explorerPartial')
+                        : t('settings.explorerNotInstalled')}
+            </span>
+            <button
+              className="btn btn-outline"
+              type="button"
+              data-testid="explorer-menu-toggle"
+              disabled={!isDesktop || menuBusy || !menuState?.supported}
+              onClick={() => void toggleMenu(!menuState?.installed)}
+            >
+              <Icon name="check" size={13} />
+              {menuState?.installed ? t('settings.explorerRemove') : t('settings.explorerInstall')}
+            </button>
+            <button
+              className="btn btn-ghost"
+              type="button"
+              data-testid="explorer-menu-refresh"
+              disabled={!isDesktop || menuBusy}
+              onClick={() => void refreshMenu()}
+            >
+              {t('settings.explorerRefresh')}
+            </button>
+          </Row>
+          <Row label={t('settings.desktopShortcut')} hint={t('settings.desktopShortcutHint')}>
+            <button
+              className="btn btn-outline"
+              type="button"
+              data-testid="desktop-shortcut"
+              disabled={!isDesktop || shortcutBusy}
+              onClick={() => void makeShortcut()}
+            >
+              <Icon name="save" size={13} />{t('settings.desktopShortcutAction')}
+            </button>
+          </Row>
+          <div className="drawer-note" data-testid="integration-note">
+            {isDesktop ? t('settings.integrationNote') : t('settings.integrationDemo')}
           </div>
         </section>
 

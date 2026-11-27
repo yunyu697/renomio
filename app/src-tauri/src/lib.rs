@@ -22,6 +22,7 @@ use tauri::{Emitter, Manager};
 
 mod icons;
 mod migrate;
+mod shortcut;
 mod update;
 
 /// 与 tauri.conf.json 的 identifier 保持一致：启动日志要在 Tauri 就绪前就能落盘。
@@ -272,6 +273,56 @@ fn privilege_info(core: tauri::State<'_, Core>) -> PrivilegeInfo {
 #[tauri::command]
 fn relaunch_as_admin() -> Result<bool, String> {
     relaunch_elevated()
+}
+
+fn current_exe_string() -> Result<String, String> {
+    std::env::current_exe()
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(|e| format!("取当前程序路径失败：{e}"))
+}
+
+/// 资源管理器右键菜单状态（只读注册表，不写任何东西）。
+#[tauri::command]
+fn explorer_menu_state() -> renomio_core::integration::MenuState {
+    match current_exe_string() {
+        Ok(exe) => renomio_core::integration::menu_state(&exe),
+        Err(e) => renomio_core::integration::MenuState {
+            supported: renomio_core::integration::supported(),
+            installed: false,
+            partial: false,
+            entries: Vec::new(),
+            detail: e,
+        },
+    }
+}
+
+/// 安装每用户右键菜单（HKCU，不需要管理员权限；重复调用幂等）。
+#[tauri::command]
+fn explorer_menu_install() -> Result<renomio_core::integration::MenuState, String> {
+    renomio_core::integration::apply_menu(&current_exe_string()?)
+}
+
+/// 卸载每用户右键菜单（整棵子树删除；不存在也算成功）。
+#[tauri::command]
+fn explorer_menu_uninstall() -> Result<renomio_core::integration::MenuState, String> {
+    renomio_core::integration::remove_menu(&current_exe_string()?)
+}
+
+/// 在桌面创建 `Renomio.lnk`，返回写出的绝对路径。
+#[tauri::command]
+fn create_desktop_shortcut(app: tauri::AppHandle) -> Result<String, String> {
+    let exe = current_exe_string()?;
+    let desktop = app
+        .path()
+        .desktop_dir()
+        .map_err(|e| format!("取桌面目录失败：{e}"))?;
+    let lnk = desktop.join(format!("{PRODUCT_NAME}.lnk"));
+    let workdir = Path::new(&exe)
+        .parent()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
+    shortcut::create_shortcut(&lnk, &exe, "", &workdir, &exe)?;
+    Ok(lnk.to_string_lossy().to_string())
 }
 
 #[tauri::command]
@@ -1355,6 +1406,10 @@ pub fn run() {
             env_info,
             privilege_info,
             relaunch_as_admin,
+            explorer_menu_state,
+            explorer_menu_install,
+            explorer_menu_uninstall,
+            create_desktop_shortcut,
             scan_paths,
             paths_exist,
             apply_plan,

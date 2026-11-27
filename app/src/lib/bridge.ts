@@ -2,7 +2,7 @@
 import type {
   ApplyItemDto, ApplyOptionsDto, ApplyOutcome, ApplyProgress, AttrInfo, AttrSpecDto, BatchMetadata,
   BatchSummary, DuplicateReportDto, EnvInfo, Entry, ExifClearRequestDto, ExifClearResultDto,
-  ExifInventoryDto, FileTypeIconDto, LegacyImportReport, MetaCapabilityDto,
+  ExifInventoryDto, ExplorerMenuStateDto, FileTypeIconDto, LegacyImportReport, MetaCapabilityDto,
   MetaEditRequestDto, MetaEditResultDto, MetadataInfo, MetaFields, MetaSnapshotDto, MigrationInfo,
   MoveItemDto, MoveSpecDto, OpTargetDto, OpsOutcome,
   PrivilegeInfo, RepairReportDto, SavedUpdate, ScanResultDto, SnapshotDto, SnapshotPlanItemDto, SnapshotProgress,
@@ -833,6 +833,33 @@ export async function dataDirCheck(): Promise<RepairReportDto> {
 export async function dataDirRepair(): Promise<RepairReportDto> {
   if (!isDesktop) throw new Error('浏览器演示模式：没有真实数据目录');
   return invoke<RepairReportDto>('data_dir_repair');
+}
+/** 资源管理器右键菜单状态（只读注册表）；演示模式返回 null。 */
+export async function getExplorerMenu(): Promise<ExplorerMenuStateDto | null> {
+  if (!isDesktop) return null;
+  try {
+    return await invoke<ExplorerMenuStateDto>('explorer_menu_state');
+  } catch {
+    return null;
+  }
+}
+
+/** 安装每用户右键菜单（HKCU，不需要管理员权限，幂等）。 */
+export async function installExplorerMenu(): Promise<ExplorerMenuStateDto> {
+  if (!isDesktop) throw new Error('浏览器演示模式：不能修改注册表');
+  return invoke<ExplorerMenuStateDto>('explorer_menu_install');
+}
+
+/** 卸载每用户右键菜单（整棵子树删除，不存在也算成功）。 */
+export async function uninstallExplorerMenu(): Promise<ExplorerMenuStateDto> {
+  if (!isDesktop) throw new Error('浏览器演示模式：不能修改注册表');
+  return invoke<ExplorerMenuStateDto>('explorer_menu_uninstall');
+}
+
+/** 在桌面创建 Renomio 快捷方式，返回写出的绝对路径。 */
+export async function createDesktopShortcut(): Promise<string> {
+  if (!isDesktop) throw new Error('浏览器演示模式：不能创建快捷方式');
+  return invoke<string>('create_desktop_shortcut');
 }
 
 /** 演示模式的只读元数据样本（不读取真实文件）。 */

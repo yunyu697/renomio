@@ -1,6 +1,6 @@
 [package]
 name = "renomio-core"
-version = "1.2.0-alpha35"
+version = "1.2.0-alpha36"
 edition = "2021"
 description = "Renomio 文件系统核心：扫描、校验、两阶段改名、批次撤销"
 license = "MIT"
@@ -15,6 +15,8 @@ encoding_rs = "0.8.44"
 # 目录联接（junction）：跨盘移动时保留目录链接，且不需要「创建符号链接」特权
 [target.'cfg(windows)'.dependencies]
 junction = "1.4"
+# 每用户右键菜单：只写 HKCU，不需要管理员权限
+winreg = "0.56"
 
 [dev-dependencies]
 # 测试里用 GBK 编码器生成真实字节，避免手抄码位抄错

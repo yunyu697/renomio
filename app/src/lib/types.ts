@@ -1014,3 +1014,21 @@ export interface RepairReportDto {
   skipped: RepairFindingDto[];
   quarantine?: string | null;
 }
+
+/** 一条资源管理器右键菜单项（注册表键位 + 命令行 + 图标）。 */
+export interface ExplorerMenuEntryDto {
+  scope: 'file' | 'directory' | 'background' | string;
+  key: string;
+  label: string;
+  icon: string;
+  command: string;
+}
+
+/** 右键菜单状态：`supported=false` 表示当前平台没有这项能力（非 Windows）。 */
+export interface ExplorerMenuStateDto {
+  supported: boolean;
+  installed: boolean;
+  partial: boolean;
+  entries: ExplorerMenuEntryDto[];
+  detail: string;
+}

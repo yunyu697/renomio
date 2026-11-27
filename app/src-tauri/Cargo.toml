@@ -1,6 +1,6 @@
 [package]
 name = "rename-studio"
-version = "1.2.0-alpha35"
+version = "1.2.0-alpha36"
 edition = "2021"
 description = "Renomio · 跨平台批量文件更名工具"
 authors = ["Renomio"]
@@ -34,6 +34,7 @@ windows = { version = "0.62.2", features = [
   "Win32_Graphics_Gdi",
   "Win32_Storage_FileSystem",
   "Win32_UI_Shell",
+  "Win32_System_Com",
   "Win32_UI_WindowsAndMessaging",
 ] }
 

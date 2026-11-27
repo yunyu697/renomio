@@ -11,6 +11,7 @@ pub mod hashing;
 pub mod heif;
 pub mod image_container;
 pub mod ini;
+pub mod integration;
 pub mod journal;
 pub mod metaedit;
 pub mod metadata;
