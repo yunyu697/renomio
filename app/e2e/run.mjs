@@ -4149,6 +4149,67 @@ async function main() {
     await click('[data-testid="meta-close"]');
     await sleep(200);
 
+    // 属性编辑字段门禁：OOXML 文档 10 字段（多出公司 / 经理 / 模板），PDF 仍 7 字段
+    const docxPath = 'D:\\e2e\\文档\\季度报告.docx';
+    await evaluate(`(() => {
+      window.__E2E__.files.push({ path: ${JSON.stringify(docxPath)}, size: 4096, modified: 1740000000000, readonly: false, hidden: false, creation: 1735603200000 });
+      return true;
+    })()`);
+    await evaluate(`window.__E2E__.emitDrag('drop', [${JSON.stringify(docxPath)}])`);
+    await sleep(400);
+    await evaluate(`(() => {
+      [...document.querySelectorAll('.trow')].forEach((row) => {
+        const txt = row.querySelector('.cell.name-cell .txt')?.textContent;
+        if (!txt) return;
+        const on = row.querySelector('.checkbox.on');
+        if (on && txt !== '季度报告.docx') on.click();
+        if (!on && txt === '季度报告.docx') row.querySelector('.checkbox').click();
+      });
+      return true;
+    })()`);
+    await sleep(200);
+    await click('[data-testid="edit-meta"]');
+    await waitFor(`document.querySelector('[data-testid="meta-edit-dialog"]')`, '属性编辑弹窗（DOCX）', 8000);
+    await sleep(400);
+    const docxFields = await evaluate(`(() => {
+      const ids = [...document.querySelectorAll('[data-testid^="meta-field-"][data-testid$="-check"]')].map((el) => el.getAttribute('data-testid'));
+      return { count: ids.length, company: ids.includes('meta-field-company-check'), manager: ids.includes('meta-field-manager-check'), template: ids.includes('meta-field-template-check') };
+    })()`);
+    check('UI', '属性编辑：DOCX 字段扩到 10 个（含公司 / 经理 / 模板）', docxFields.count === 10 && docxFields.company && docxFields.manager && docxFields.template, JSON.stringify(docxFields));
+    const docxCompanyValue = await evaluate(`document.querySelector('[data-testid="meta-field-company-input"]')?.value ?? null`);
+    check('UI', '属性编辑：DOCX 公司字段预填 app.xml 值', docxCompanyValue === '示例科技', JSON.stringify({ docxCompanyValue }));
+    await click('[data-testid="meta-close"]');
+    await sleep(200);
+
+    const pdfPath = 'D:\\e2e\\文档\\说明.pdf';
+    await evaluate(`(() => {
+      window.__E2E__.files.push({ path: ${JSON.stringify(pdfPath)}, size: 2048, modified: 1740000000000, readonly: false, hidden: false, creation: 1735603200000 });
+      return true;
+    })()`);
+    await evaluate(`window.__E2E__.emitDrag('drop', [${JSON.stringify(pdfPath)}])`);
+    await sleep(400);
+    await evaluate(`(() => {
+      [...document.querySelectorAll('.trow')].forEach((row) => {
+        const txt = row.querySelector('.cell.name-cell .txt')?.textContent;
+        if (!txt) return;
+        const on = row.querySelector('.checkbox.on');
+        if (on && txt !== '说明.pdf') on.click();
+        if (!on && txt === '说明.pdf') row.querySelector('.checkbox').click();
+      });
+      return true;
+    })()`);
+    await sleep(200);
+    await click('[data-testid="edit-meta"]');
+    await waitFor(`document.querySelector('[data-testid="meta-edit-dialog"]')`, '属性编辑弹窗（PDF）', 8000);
+    await sleep(400);
+    const pdfFields = await evaluate(`(() => {
+      const ids = [...document.querySelectorAll('[data-testid^="meta-field-"][data-testid$="-check"]')].map((el) => el.getAttribute('data-testid'));
+      return { count: ids.length, company: ids.includes('meta-field-company-check') };
+    })()`);
+    check('UI', '属性编辑：PDF 保持 7 个字段（没有公司 / 经理 / 模板）', pdfFields.count === 7 && !pdfFields.company, JSON.stringify(pdfFields));
+    await click('[data-testid="meta-close"]');
+    await sleep(200);
+
     // 不支持格式：明确拒绝并给出文件与原因
     const heicPath = 'D:\\e2e\\旅行\\sample.heic';
     await evaluate(`(() => {

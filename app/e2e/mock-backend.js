@@ -148,10 +148,13 @@
   const IMAGE_FIELDS = ['title', 'description', 'keywords', 'author', 'copyright', 'software', 'takenAt', 'headline', 'bylineTitle', 'credit', 'source', 'model', 'city', 'location', 'latitude', 'longitude'];
   const AUDIO_FIELDS = ['title', 'artist', 'album', 'year', 'track', 'genre', 'comment', 'albumArtist', 'lyrics', 'cover'];
   const DOC_FIELDS = ['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category'];
+  /** OOXML 写回扩到 docProps/app.xml 的公司 / 经理 / 模板（PDF 没有这三项）。 */
+  const OOXML_DOC_FIELDS = [...DOC_FIELDS, 'company', 'manager', 'template'];
   const META_DEFAULTS = {
     image: { title: '旧照片', description: '旅行随拍', keywords: '旅行;风景', author: '摄影师', copyright: '© 2025', software: 'Renomio', takenAt: '2024-05-01T10:20:30', headline: '春游', bylineTitle: '摄影记者', credit: '某通讯社', source: '素材库' },
     audio: { title: '旧歌名', artist: '歌手', album: '专辑', year: '2024', track: '3', genre: 'Pop', comment: '备注', albumArtist: '乐队', lyrics: '第一行\n第二行' },
     document: { title: '旧文档标题', subject: '主题', author: '作者', lastModifiedBy: '最后修改者', keywords: '关键词', comment: '备注', category: '类别' },
+    ooxml: { title: '旧文档标题', subject: '主题', author: '作者', lastModifiedBy: '最后修改者', keywords: '关键词', comment: '备注', category: '类别', company: '示例科技', manager: '王五', template: 'Normal.dotm' },
     other: {},
   };
   /** 与 Rust metaedit::detect 对齐的 mock 快照（含明确拒绝的格式）。 */
@@ -187,9 +190,10 @@
     } else if (ext === 'pdf') {
       kind = 'document'; format = 'PDF'; supportedFields = DOC_FIELDS; writable = true;
     } else if (['docx', 'xlsx', 'pptx'].includes(ext)) {
-      kind = 'document'; format = ext.toUpperCase(); supportedFields = DOC_FIELDS; writable = true;
+      kind = 'document'; format = ext.toUpperCase(); supportedFields = OOXML_DOC_FIELDS; writable = true;
     }
-    const base = { ...META_DEFAULTS[kind], ...((state.meta || {})[p] || {}) };
+    const defaults = kind === 'document' && format !== 'PDF' ? META_DEFAULTS.ooxml : META_DEFAULTS[kind];
+    const base = { ...defaults, ...((state.meta || {})[p] || {}) };
     return {
       path: p,
       kind,
@@ -1087,8 +1091,8 @@
       { kind: 'audio', format: 'M4A', read: true, write: true, fields: [], notes: 'iTunes atoms' },
       { kind: 'audio', format: 'OGG', read: true, write: true, fields: [], notes: 'Vorbis/Opus' },
       { kind: 'audio', format: 'WMA', read: false, write: false, fields: [], notes: '本版本不支持' },
-      { kind: 'document', format: 'DOCX', read: true, write: true, fields: [], notes: 'core.xml' },
-      { kind: 'document', format: 'PDF', read: true, write: true, fields: [], notes: 'Info + XMP' },
+      { kind: 'document', format: 'DOCX', read: true, write: true, fields: OOXML_DOC_FIELDS, notes: 'core.xml + app.xml（公司 / 经理 / 模板）' },
+      { kind: 'document', format: 'PDF', read: true, write: true, fields: DOC_FIELDS, notes: 'Info + XMP（没有公司 / 经理 / 模板）' },
     ],
     meta_read: (args) => metaSnapshotOf(args.path),
     meta_edit: (args) => (args.items || []).map((item) => {
