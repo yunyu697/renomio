@@ -29,7 +29,7 @@ $confPath = Join-Path $app 'src-tauri\tauri.conf.json'
 $linuxConfPath = Join-Path $app 'src-tauri\tauri.linux.conf.json'
 $macConfPath = Join-Path $app 'src-tauri\tauri.macos.conf.json'
 $hooksPath = Join-Path $app 'src-tauri\installer-hooks.nsh'
-$offlineTotal = 13
+$offlineTotal = 14
 $conf = $null
 
 Assert 'tauri.conf.json 存在' (Test-Path -LiteralPath $confPath) $confPath

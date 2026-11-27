@@ -256,10 +256,10 @@ macOS 无证书时用 `./app/scripts/sign/build-macos.sh`：构建后自动 ad-h
 
 | job | runner | 内容 |
 | --- | --- | --- |
-| `version` | ubuntu | 版本规则反例自测（16 条）+ VERSION/清单/tag 一致性 |
+| `version` | ubuntu | 版本规则反例自测（23 条）+ VERSION/清单/tag 一致性 |
 | `frontend` | ubuntu | `npm ci` → `tsc --noEmit` → `vite build` |
 | `backend` | ubuntu | 安装 Tauri v2 Linux 依赖 → `cargo fmt --check`（阻断）→ `cargo clippy`（只暴露警告，不加 `-D warnings`）→ `cargo test`（renomio-core + Tauri 壳，含 `migrate.rs` 迁移单测） |
-| `bundle-checks` | windows | 离线组 13 条（读配置，每次都跑）+ 产物组 14 条（有构建产物时才跑） |
+| `bundle-checks` | windows | 离线组 14 条（读配置，每次都跑）+ 产物组 14 条（有构建产物时才跑） |
 | `bundle-linux` | ubuntu | 真实 `tauri build` 产出 `.deb` + `.AppImage` 与 updater `.sig`，并在 Xvfb + openbox 下启动 AppImage 做冒烟，产物上传为 artifact |
 | `bundle-macos` | macos-latest | 真实 `tauri build` 产出 `.app` + `.dmg`，ad-hoc 签名后重打 dmg 并对最终 dmg 重新生成 updater `.sig`，`codesign --verify` 校验，产物上传为 artifact |
 | `bundle-windows` | windows | 真实 `tauri build` 产出 `.msi` + `-setup.exe` 与 updater `.sig`，产物上传为 artifact |
@@ -268,10 +268,10 @@ macOS 无证书时用 `./app/scripts/sign/build-macos.sh`：构建后自动 ad-h
 
 `bundle-checks` 分两组断言（`scripts/check-bundle.ps1`）：
 
-- **离线组 13 条**：只读 `tauri.conf.json` / `tauri.linux.conf.json` / `tauri.macos.conf.json` / `installer-hooks.nsh` 判定 productName、identifier、version、Windows `bundle.targets`（nsis+msi）、Linux targets（deb+appimage）、macOS targets（app+dmg）、NSIS `installMode=both`、旧版检测与中止逻辑。CI **每次都真实执行**（`-Offline`），任一不成立即红。
+- **离线组 14 条**：只读 `tauri.conf.json` / `tauri.linux.conf.json` / `tauri.macos.conf.json` / `installer-hooks.nsh` 判定 productName、identifier、version、Windows `bundle.targets`（nsis+msi）、Linux targets（deb+appimage）、macOS targets（app+dmg）、NSIS `installMode=both`、旧版检测与中止逻辑。CI **每次都真实执行**（`-Offline`），任一不成立即红。
 - **产物组 14 条**：读 MSI、NSIS 安装包与 WiX/NSIS 生成的脚本，**必须 `npm run tauri build` 后才有**。CI 不构建 Windows 安装包（托管 runner 上完整打包约 8–12 分钟，还要下载 NSIS/WiX 工具链，且安装包尚未签名），所以无产物时该组会**显式跳过，并在 Job Summary 列出跳过原因与逐条依赖**，不把跳过伪装成通过。发布前的产物合规仍由本地 `npm run test:bundle` 逐条执行。
 
-两组的边界：**每次 push 真实执行的是 13 条离线断言**（结果在 `bundle-checks` 日志里，任一失败即红）；**14 条产物断言只读构建产物**，CI 未构建时不执行，二者互不重叠、也不互相代替。因此「CI 绿」只能证明配置层面的 13 条成立，**不能**证明安装包的 14 条成立。
+两组的边界：**每次 push 真实执行的是 14 条离线断言**（结果在 `bundle-checks` 日志里，任一失败即红）；**14 条产物断言只读构建产物**，CI 未构建时不执行，二者互不重叠、也不互相代替。因此「CI 绿」只能证明配置层面的 14 条成立，**不能**证明安装包的 14 条成立。
 
 ## 许可
 

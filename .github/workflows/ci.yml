@@ -16,7 +16,7 @@ env:
 
 jobs:
   version:
-    name: version (规则自测 / tag 与 VERSION 一致 / 段位 ≤10 / alpha 递增)
+    name: version (规则自测 / tag 与 VERSION 一致 / 段位 ≤99 / alpha·RC 递增)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -274,13 +274,13 @@ jobs:
         run: node scripts/test-regex-real.mjs
 
   bundle-checks:
-    name: bundle-checks (windows / 14 条产物断言 + 13 条离线断言)
+    name: bundle-checks (windows / 14 条产物断言 + 14 条离线断言)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
       # 断言分两组：
-      #   离线组（13 条）：只读 tauri.conf.json / tauri.linux.conf.json / tauri.macos.conf.json /
+      #   离线组（14 条）：只读 tauri.conf.json / tauri.linux.conf.json / tauri.macos.conf.json /
       #     installer-hooks.nsh，CI 每次真实执行；
       #   产物组（14 条）：读已构建的 MSI、NSIS、WiX/NSIS 生成脚本，需 `npm run tauri build` 之后才有。
       #   MSI（bundle/msi/*.msi）、NSIS 安装包（bundle/nsis/*-setup.exe）、
@@ -288,7 +288,7 @@ jobs:
       #   NSIS 生成脚本（target/release/nsis/x64/installer.nsi）。
       # 这些文件只有 `npm run tauri build` 之后才存在，CI 不构建 Windows 安装包（原因见 README / 下方 summary），
       # 所以本步只做「产物是否就位」判定：就位才跑断言，否则显式跳过并写明原因，不伪造通过。
-      - name: 离线断言（13 条，不依赖构建产物）
+      - name: 离线断言（14 条，不依赖构建产物）
         shell: pwsh
         run: ./app/scripts/check-bundle.ps1 -Offline
 
@@ -319,9 +319,9 @@ jobs:
         shell: pwsh
         run: |
           @'
-          ## 产物组：已跳过（0/14 条产物断言执行；离线组 13 条已在上一步真实执行）
+          ## 产物组：已跳过（0/14 条产物断言执行；离线组 14 条已在上一步真实执行）
 
-          原因：产物组的 **14 条断言全部依赖已构建产物**（离线组 13 条已在「离线断言」步骤真实执行并通过）。
+          原因：产物组的 **14 条断言全部依赖已构建产物**（离线组 14 条已在「离线断言」步骤真实执行并通过）。
 
           | # | 断言 | 依赖 |
           | --- | --- | --- |

@@ -183,7 +183,7 @@ npm run test:iptc    # IPTC-IIM 守卫：静态断言 + 真实 JPEG 用 Pillow �
 npm run test:platform # 平台能力契约守卫：跑 platform_probe 与宿主 OS 逐字段比对（28 条）
 npm run test:datadir # 数据目录契约守卫：跑 datadir_probe 覆盖便携/命令行/环境变量/回落五场景（44 条）
 npm run test:e2e     # 无头浏览器 E2E（mock 后端，不启动 GUI 窗口）
-npm run test:bundle  # 打包合规检查：读实际 MSI 数据库 + 生成脚本，14 条断言（不弹 UAC）
+npm run test:bundle  # 打包合规检查：读实际 MSI 数据库 + 生成脚本，28 条断言（离线 14 + 产物 14，不弹 UAC）
 ```
 
 发布构建与签名见 [../docs/签名与打包流程.md](../docs/签名与打包流程.md)。
@@ -376,7 +376,7 @@ app/
 | UI 触发的 mock 命令层 | 20 项 | 断言上述交互确实经过 `env_info / scan_paths / apply_plan / undo_batch / list_batches / create_snapshot / cancel_snapshot / list_snapshots / preview_snapshot / restore_snapshot / delete_snapshot / read_metadata / read_metadata_batch / read_times / read_attrs / apply_time / apply_attrs / apply_move / write_text_atomic / write_bytes_atomic / plugin:dialog:* / plugin:window:* / plugin:event|listen / import_legacy_data`；包含提交顺序、隐藏扫描参数、拖放事件→扫描命令、窗口按钮命令，且 mock 状态确实被写入、撤销与「外部改动后不可撤销」 |
 | 性能层（无头） | 4 项 | 10,000 条目首屏耗时、虚拟滚动生效（DOM 行数受控）、滚动到底部窗口移动、切换规则重算耗时 |
 | 真实文件系统（unit 层） | 202 项 Rust 测试（含 15 条数据目录自检契约 + 11 条平台契约 + 11 条数据目录契约 + 11 条版本比较契约 + 15 条设置文件契约，三平台 CI 各跑一遍） | `renomio-core` 在临时目录真实改名与写盘：两阶段、撤销、覆盖备份、同名目标防链式覆盖、取消回滚无临时残留；**撤销前磁盘现状校验（目标被外部移动 → 不可撤销）**；时间平移/固定值/逐条失败/撤销、创建时间（Windows `SetFileTime`）、只读与隐藏属性、目标目录自动创建与撤销清理、正则捕获结果落盘、跨盘复制校验失败回滚（`force_copy`）；**快照 5 条**；**音频歌词三载体 `USLT` / `LYRICS` / `©lyr` 往返与清空**；**IPTC Core 四字段 XMP + IPTC-IIM 双写 6 条（未知 dataset 保留 / 清空后 APP13 整段移除 / 别家 APP13 与缩略图资源不动 / 未勾 IPTC 时字节不变 / XMP 缺失才回退 IIM / 扩展长度往返）**；隐藏文件开关（前导点 + Windows 隐藏属性）；文本编码（UTF-8 / BOM / 非 UTF-8 降级）与批量元数据单条失败隔离 |
-| 打包产物层 | 2 个安装包 + 14 条断言 | NSIS：`installMode: "both"`，静态核验范围页/默认 `Program Files`/用户分支 `%LocalAppData%\Programs`/快捷方式与 `SHCTX` ARP（**未执行静默安装，both 必然触发 UAC**）；MSI：定位为机器级单一包，COM 读**实际包内** `ALLUSERS=1` + `ProductName=Renomio` + 生成脚本 `InstallScope="perMachine"`/`ProgramFiles64Folder`(x64)/`INSTALLDIR = Renomio`/新 `UpgradeCode`。以上由 `npm run test:bundle` 自动断言（14/14 PASS）。**安装后启动未验证**（会创建可见窗口） |
+| 打包产物层 | 2 个安装包 + 28 条断言（离线 14 + 产物 14） | NSIS：`installMode: "both"`，静态核验范围页/默认 `Program Files`/用户分支 `%LocalAppData%\Programs`/快捷方式与 `SHCTX` ARP（**未执行静默安装，both 必然触发 UAC**）；MSI：定位为机器级单一包，COM 读**实际包内** `ALLUSERS=1` + `ProductName=Renomio` + 生成脚本 `InstallScope="perMachine"`/`ProgramFiles64Folder`(x64)/`INSTALLDIR = Renomio`/新 `UpgradeCode`。以上由 `npm run test:bundle` 自动断言（28/28 PASS）。**安装后启动未验证**（会创建可见窗口） |
 | 真机已验证（用户手工确认） | 真实窗口关闭 / 最小化 / 最大化 | 用户在 Windows 真机上于 2026-11-04 手工确认 ✕ 能退出、最小化与最大化正常；**不是自动化断言**，脚本只验证命令调用 |
 | 未验证 | 安装后启动与真实窗口交互、**需要 UAC 的安装范围验收**（机器范围装到 `Program Files\Renomio`、用户范围装到 `%LocalAppData%\Programs\Renomio`、两范围交叉安装的 hook 拦截、卸载、ARP 条目 `Renomio`、快捷方式实际落点）、**旧版 Rename Studio 并存拦截弹窗**、**真实用户目录上的首次启动迁移表现与迁移后撤销历史可用性**、**提权后真实 Explorer 拖放行为**、真实 Explorer 拖放、真实物理跨盘移动（用 `force_copy` 模拟复制路径却仍在同盘）、EXIF 写入在真实相机样张上的表现（仅用自造 JPEG 结构测试）、**快照窗在桌面端真实 UI 上的操作**（Rust 真实文件测试与浏览器 mock 均已覆盖）、macOS/Linux 的创建时间与隐藏属性（平台明确报「不支持」）、Tauri IPC 新命令参数序列化（`migration_info` / `import_legacy_data`）、系统文件对话框、NSIS/MSI 安装向导界面、安装包代码签名、macOS/Linux 平台差异 | 需要 GUI/有头环境、UAC 提权、多磁盘机器、签名证书或其它操作系统，按项目约定不在会话中自动执行 |
 
