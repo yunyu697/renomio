@@ -68,7 +68,9 @@ pub fn sniff_magic(head: &[u8]) -> Option<&'static str> {
             Some(b"M4A ") => Some("m4a"),
             Some(b"qt  ") => Some("mov"),
             Some(b"avif") | Some(b"avis") => Some("avif"),
-            Some(b"heic") | Some(b"heix") | Some(b"mif1") | Some(b"msf1") => Some("heic"),
+            Some(b"heic") | Some(b"heix") | Some(b"hevc") | Some(b"hevx") | Some(b"heim")
+            | Some(b"heis") | Some(b"hevm") | Some(b"hevs") | Some(b"mif1") | Some(b"mif2")
+            | Some(b"msf1") => Some("heic"),
             _ => Some("mp4"),
         };
     }
@@ -178,6 +180,12 @@ mod tests {
         assert_eq!(sniff_magic(b"\x00\x00\x00\x14ftypqt  "), Some("mov"));
         assert_eq!(sniff_magic(b"\x00\x00\x00\x18ftypheic"), Some("heic"));
         assert_eq!(sniff_magic(b"\x00\x00\x00\x18ftypmif1"), Some("heic"));
+        assert_eq!(sniff_magic(b"\x00\x00\x00\x18ftypmif2"), Some("heic"));
+        assert_eq!(sniff_magic(b"\x00\x00\x00\x18ftypmsf1"), Some("heic"));
+        assert_eq!(sniff_magic(b"\x00\x00\x00\x18ftyphevc"), Some("heic"));
+        assert_eq!(sniff_magic(b"\x00\x00\x00\x18ftyphevx"), Some("heic"));
+        assert_eq!(sniff_magic(b"\x00\x00\x00\x18ftypheis"), Some("heic"));
+        assert_eq!(sniff_magic(b"\x00\x00\x00\x18ftypheim"), Some("heic"));
         assert_eq!(sniff_magic(b"\x00\x00\x00\x1cftypavif"), Some("avif"));
         assert_eq!(sniff_magic(b"\x00\x00\x00\x1cftypavis"), Some("avif"));
         assert_eq!(sniff_magic(b"\x00\x00\x00\x18ftypavifav01"), Some("avif"));

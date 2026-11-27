@@ -256,6 +256,9 @@ pub fn read_metadata(path: &str) -> Result<MetadataInfo, String> {
     } else if let Some(probe) = crate::image_container::probe(&data) {
         // GIF / BMP / AVIF：容器参数（尺寸、帧数、位深、调色板、AVIF 结构）
         image_container_meta(probe)
+    } else if let Some(probe) = crate::heif::probe(&data) {
+        // HEIC / HEIF：ISOBMFF 里的主图参数 + Exif 项
+        heif_meta(probe)
     } else if let Some(probe) = crate::audio_container::probe(&data, &tail) {
         audio_container_meta(probe)
     } else if data.starts_with(b"ID3") || looks_like_mpeg(&data, 0) {
@@ -552,8 +555,29 @@ fn image_container_meta(probe: crate::image_container::ImageProbe) -> MetadataIn
     info
 }
 
-fn image_webp(data: &[u8]) -> MetadataInfo {
-    let mut info = MetadataInfo::new("image", "WebP 图像");
+/// HEIC / HEIF：容器参数 + Exif 项里的 EXIF 摘要（复用 JPEG 那套 TIFF 解析）。
+fn heif_meta(probe: crate::heif::HeifProbe) -> MetadataInfo {
+    let mut info = MetadataInfo::new("image", probe.format);
+    for (label, value) in probe.fields {
+        info.push(label, value);
+    }
+    if let Some(tiff) = probe.exif_tiff {
+        let exif = exif_fields(&tiff);
+        if exif.is_empty() {
+            info.warn("Exif 项存在，但 TIFF 结构解析不出任何字段（可能是压缩或私有格式）");
+        } else {
+            for field in exif {
+                info.push(&field.label, field.value);
+            }
+        }
+    }
+    for warning in probe.warnings {
+        info.warn(warning);
+    }
+    info
+}
+
+fn image_webp(data: &[u8]) -> MetadataInfo {    let mut info = MetadataInfo::new("image", "WebP 图像");
     let mut dims: Option<(u32, u32)> = None;
     let mut offset = 12usize;
     while offset + 8 <= data.len() {

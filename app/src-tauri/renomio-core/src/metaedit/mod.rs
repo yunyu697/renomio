@@ -227,7 +227,10 @@ pub fn capabilities() -> Vec<MetaCapability> {
         });
     }
     for (format, notes) in [
-        ("HEIC/HEIF", "本版本不支持写入（也不解析内部元数据），不做假支持"),
+        (
+            "HEIC/HEIF",
+            "只读：ispe 尺寸 / 位深 / 通道 / 色度采样 / alpha 平面 / 旋转 / 帧数（序列）/ EXIF 拍摄时间与相机；不支持写入",
+        ),
         ("GIF", "只读：尺寸 / 帧数 / 循环次数 / 调色板 / 注释 / 逐帧延时总时长；不支持写入"),
         ("BMP", "只读：尺寸 / 位深 / 压缩方式 / DPI / 调色板；不支持写入"),
         ("AVIF", "只读：ispe 尺寸 / 位深 / 通道 / alpha 平面 / 帧数（avis）；不支持写入"),
@@ -235,7 +238,7 @@ pub fn capabilities() -> Vec<MetaCapability> {
         out.push(MetaCapability {
             kind: "image".into(),
             format: format.into(),
-            read: false,
+            read: true,
             write: false,
             fields: vec![],
             notes: notes.into(),
@@ -354,11 +357,15 @@ pub fn detect(path: &Path, head: &[u8]) -> Format {
     if head.len() >= 12 && head.get(4..8) == Some(b"ftyp".as_ref()) {
         let brand = String::from_utf8_lossy(head.get(8..12).unwrap_or(b"????"));
         let brand = brand.trim().to_ascii_lowercase();
-        if ["heic", "heix", "hevc", "heim", "heis", "mif1", "msf1"].contains(&brand.as_str()) {
+        if [
+            "heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs", "mif1", "mif2", "msf1",
+        ]
+        .contains(&brand.as_str())
+        {
             return unsupported(
                 "image",
                 "HEIC/HEIF",
-                "HEIC 需要 HEVC 解码与专用容器写入库，本版本明确不支持（不假装能读写）",
+                "HEIC/HEIF 只读（可读 ispe 尺寸 / 位深 / 通道 / 色度采样 / alpha / 旋转 / EXIF 拍摄时间与相机），本版本不支持写回",
             );
         }
         if brand == "avif" || brand == "avis" {

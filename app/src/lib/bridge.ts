@@ -530,7 +530,7 @@ function demoCapabilities(): MetaCapabilityDto[] {
     { kind: 'image', format: 'PNG', read: true, write: true, fields: f(['title', 'description', 'keywords', 'author', 'copyright', 'software', 'takenAt']), notes: 'XMP（iTXt）；其余块原样保留' },
     { kind: 'image', format: 'WebP', read: true, write: true, fields: f(['title', 'description', 'keywords', 'author', 'copyright', 'software', 'takenAt']), notes: 'XMP 块；无 VP8X 时自动补建（不重编码像素）' },
     { kind: 'image', format: 'TIFF', read: true, write: true, fields: f(['title', 'description', 'keywords', 'author', 'copyright', 'software', 'takenAt']), notes: 'IFD0 文本字段 + XMP 标签 700' },
-    { kind: 'image', format: 'HEIC/HEIF', read: false, write: false, fields: [], notes: '本版本不支持写入，也不假装能读' },
+    { kind: 'image', format: 'HEIC/HEIF', read: true, write: false, fields: f(['width', 'height', 'bitDepth', 'channels', 'alpha', 'rotation', 'frames', 'takenAt']), notes: '只读：ispe 尺寸 / 位深 / 通道 / 色度采样 / alpha 平面 / 旋转 / 帧数（序列）/ EXIF 拍摄时间与相机' },
     { kind: 'image', format: 'GIF', read: true, write: false, fields: f(['width', 'height', 'frames', 'loop', 'palette', 'duration']), notes: '只读：尺寸 / 帧数 / 循环次数 / 调色板 / 注释 / 逐帧延时总时长' },
     { kind: 'image', format: 'BMP', read: true, write: false, fields: f(['width', 'height', 'bitDepth', 'compression', 'dpi', 'palette']), notes: '只读：尺寸 / 位深 / 压缩方式 / DPI / 调色板' },
     { kind: 'image', format: 'AVIF', read: true, write: false, fields: f(['width', 'height', 'bitDepth', 'channels', 'alpha', 'frames']), notes: '只读：ispe 尺寸 / 位深 / 通道 / alpha 平面 / 帧数（avis）' },
