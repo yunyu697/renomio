@@ -59,7 +59,7 @@
 ## 3. 文档属性（已验）
 
 - 支持：DOCX / XLSX / PPTX（替换 `docProps/core.xml` 与 `docProps/app.xml`，其余 ZIP 条目按原压缩数据逐字节复制）；
-  PDF（经典 xref 增量更新：追加 Info 字典 + XMP + 新 Catalog，`/Prev` 指回旧 xref，原始字节前缀保留）。
+  PDF（增量更新：追加 Info 字典 + XMP + 新 Catalog，`/Prev` 指回旧 xref；旧节是经典表或 xref 流都可以，alpha33 起 xref 流 PDF 也可写，混用合法）。
 - 读写边界（alpha31 读侧 / alpha32 写侧）：**写**改 `docProps/core.xml` 的 7 字段 + `docProps/app.xml` 的公司 / 经理 / 模板 3 字段（上一条；app.xml 只动这三项，应用版本·页数·字数·编辑时长等统计项保持原样，Office 会自行重算；文件缺 `app.xml` 时明确拒绝而**不新建部件**）；**读**全部收在 `renomio-core/src/ooxml.rs`——类型按内部结构判定（主部件 `word/document.xml` / `xl/workbook.xml` / `ppt/presentation.xml` 优先，其次 `[Content_Types].xml` 的 Override 前缀 `/word/` `/xl/` `/ppt/`，不按 ContentType 字符串猜），所以 `.xlsx`/`.pptx`/改名的普通 ZIP **不再被一律叫「Word 文档」**；扩展名与结构不一致时明确说「扩展名为 .docx，内部结构是 Excel 工作簿（按内部结构读取）」。读到的字段：core.xml 14 项（标题·主题·作者·关键词·说明·最后修改者·修订号·创建时间·修改时间·类别·内容状态·标识·语言·版本）、app.xml 10 项通用（生成应用·应用版本·公司·经理·模板·编辑总时长（`45` → `45 分钟`）·超链接基址·共享文档·链接已更新·缩放裁剪（`true`/`false` → 是/否））与按类型统计（Word 页数·字数·字符数·行数·段落数 / Excel 工作表数 / PowerPoint 幻灯片数·备注页数·隐藏幻灯片·放映格式·字数）。缺 `core.xml`/`app.xml`、非 UTF-8、包损坏都只给中文警告，不 panic 也不填默认值；公司 / 模板进「按元数据取名」的两项取值。
 - 字段：title / subject / author / lastModifiedBy / keywords / comment / category / company / manager / template（后三项仅 DOCX·XLSX·PPTX；PDF 保持前 7 项，传 company 会被拒）。
   PDF 的 title/author/subject/keywords 同步写 Info + XMP；comment/lastModifiedBy/category 仅写入 Info 扩展键（界面与结果里给出警告）。
