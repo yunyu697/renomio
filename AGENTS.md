@@ -103,7 +103,7 @@ PDF 写回吃下对象流里的 Catalog / Info（alpha34，域五 5.14 写侧最
 - Windows 安装包未做 Authenticode 代码签名（本机无 OV/EV 证书），SmartScreen 会警告；更新用 `.sig` 已验过。
 - PDF 写回对对象流里 LZW / ASCII85 等非 Flate / Hex 编码仍只能新建 Info 并告警，加密 PDF 一律拒写。
 - 域三 3.13 高级规则仍缺三项：脚本执行、中文内码（GBK↔Big5）、加密；对照表与编码转换已做。
-已发布：`v1.2.0-alpha36`（2026-11-28，Pre-release，15 资产）为当前最新；滚动清单 release `updates` 的 `latest.json` 已指向 alpha36（三平台键齐全：windows 2,779,380 / linux 87,210,488 / mac 3,501,677，pub_date `2026-11-27T17:07:05Z`，线上回读与本地逐字节一致（SHA-256 `46a778343831828345df74290bdb442364cdf3bfffb2a91b51401a618333c7d8`，2138 B，`gh release download` 回读通道）；13 包按 asset `digest` 与本地 `SHA256SUMS` 逐条相符，六签名包离线验签全 PASS）；上一版 `v1.2.0-alpha35` 资产保留；tag CI [46038093876](https://github.com/yunyu697/renomio/actions/runs/46038093876) 十 job 全绿，main CI [46038082374](https://github.com/yunyu697/renomio/actions/runs/46038082374) 全绿。首轮 tag `46036779772` 因跨平台路径误判失败，修 `is_windows_absolute` 后强推 tag 重跑通过。
+已发布：`v1.2.0-alpha37`（2026-11-28，Pre-release，15 资产）为当前最新；滚动清单 release `updates` 的 `latest.json` 已指向 alpha37（三平台键齐全：windows 2,789,116 / linux 87,226,872 / darwin 3,515,474；2124 B，SHA-256 `a150e6df19a426350665b1fbf2a531cd081867ed1a2365d18d0991dbe5410381`，pub_date `2026-11-27T17:47:49Z`）；13 个包与本地 `SHA256SUMS` 逐条 digest 相符，六个更新包 `file sig` / `global sig` 双 PASS；tag CI 46043714059（十 job 全绿）、main CI 46043692636（success）。
 
 - `renomio-core` 的 `rename::tests::directory_junction_is_renamed_as_a_link` 在部分环境因联接点权限失败，属环境问题。
 - 界面层遗留（2026-11-25 清零）：`.list-tabs/.tab` 旧样式块连同 105 个死选择器一并删除（app.css −17%、shell.css −8.5%），`npm run test:css` 孤儿守卫进 CI，`scripts/test-css-orphans.mjs` 当前 0 孤儿；toast 改为让位式（右侧抽屉展开左移到抽屉左侧、底部检查器展开抬到检查器上方）；表头与行逐列几何断言实测 7 列 Δ=0、状态列表头文字与徽标 Δ=0.00（`e2e/run.mjs` 第 4 条断言起）。
