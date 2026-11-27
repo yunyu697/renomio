@@ -40,18 +40,18 @@ MIT License — 见 [LICENSE](LICENSE) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-
 
 ## 下载与安装
 
-源码仓库已公开；**安装包与更新清单直接发布在 [yunyu697/renomio](https://github.com/yunyu697/renomio/releases)**（旧的发行仓库 `yunyu697/renomio-releases` 已于 2026-11-08 归档，仅保留历史下载）。稳定版仍为 `v1.0.0`。**当前最新发布是预发布 `v1.2.0-alpha17`（2026-11-25，表格自动列宽）**：Windows / macOS / Linux 三平台产物由 CI 在 tag 上构建并带 updater `.sig`，统一上传到同一 Release；滚动更新清单 `latest.json` 已指向本版（三平台键齐全，version / size / 文件名 / 签名四项与实际包对齐）。下表为 Release 中的两个 Windows 包：
+源码仓库已公开；**安装包与更新清单直接发布在 [yunyu697/renomio](https://github.com/yunyu697/renomio/releases)**（旧的发行仓库 `yunyu697/renomio-releases` 已于 2026-11-08 归档，仅保留历史下载）。稳定版仍为 `v1.0.0`。**当前最新发布是预发布 `v1.3.0-RC1`（2026-11-28，文件名加解密）**：Windows / macOS / Linux 三平台产物由 CI 在 tag 上构建并带 updater `.sig`，统一上传到同一 Release；滚动更新清单 `latest.json` 已指向本版（三平台键齐全，version / size / 文件名 / 签名四项与实际包对齐）。下表为 Release 中的两个 Windows 包：
 
-| 包 | 文件 | 大小 | SHA-256（1.2.0-alpha17） |
+| 包 | 文件 | 大小 | SHA-256（1.3.0-RC1） |
 | --- | --- | --- | --- |
-| NSIS（推荐，可选安装范围） | `Renomio_1.2.0-alpha17_x64-setup.exe` | 2,561,314 字节（2.44 MiB） | `21720C3B9358DA57BB5D07735217F5A949F623AAD74AF0D05399C4A53E5300BD` |
-| MSI（机器级单一包） | `Renomio_1.2.0-alpha17_x64_en-US.msi` | 3,395,584 字节（3.24 MiB） | `DB6C277941D58D59FB2002E7063B14B1B3035833224B6206AC9981CCE15CA9E0` |
+| NSIS（推荐，可选安装范围） | `Renomio_1.3.0-RC1_x64-setup.exe` | 3,376,842 字节（3.22 MiB） | `04F82125F3565AEEBBB53C3E4699072DD409D038ED636D7815D12951558F79EE` |
+| MSI（机器级单一包） | `Renomio_1.3.0-RC1_x64_en-US.msi` | 4,255,744 字节（4.06 MiB） | `7840A6275474DCB690A8F693A072C494B13832D4D32812865411E4B183837920` |
 
 应用内「设置 → 检查更新」读取源码仓库滚动 release `updates` 下的 `latest.json`，安装包也由该仓库下载；清单与资源地址均指向源码仓库，内置默认地址已随本版切换生效。
 
-更新判定按 **`alpha` 序号数值比较**（`alpha9 < alpha10 < alpha13`），不是字符串序——2026-11-25 的 alpha13 曾让装在 `1.2.0-alpha9` 的客户端检查不到更新（旧实现把整段 `alphaN` 当 semver 的字母数字标识符，`alpha10 < alpha9`），alpha14 起改由 `renomio_core::version` 统一比较，并有 `npm run test:update` 与三平台 CI 断言钉住。**装在 `1.2.0-alpha9` 及更早版本的机器**因为跑的是旧逻辑，自己看不到后续版本，需要手工装一次 alpha14（或更新版本），之后通道自动恢复。
+更新判定按 **预发布序号数值比较**（`alpha9 < alpha10 < alpha13`，`alphaN < beta 文本 < RC<N> < 同 base 正式版`，`1.3.0-RC1 > 1.2.0-alpha38`），不是字符串序——2026-11-25 的 alpha13 曾让装在 `1.2.0-alpha9` 的客户端检查不到更新（旧实现把整段 `alphaN` 当 semver 的字母数字标识符，`alpha10 < alpha9`），alpha14 起改由 `renomio_core::version` 统一比较，1.3.0-RC1 起同一实现支持 `RC`，并有 `npm run test:update` 与三平台 CI 断言钉住。**装在 `1.2.0-alpha9` 及更早版本的机器**因为跑的是旧逻辑，自己看不到后续版本，需要手工装一次 alpha14（或更新版本），之后通道自动恢复。
 
-版本规则：唯一可改的版本号是仓库根 `VERSION`，其余（`app/package.json`、`app/packages/foundation/package.json`、`app/src-tauri/tauri.conf.json`、两个 `Cargo.toml`）由 `npm run version:sync` 注入；tag（如 `v1.1.0-alpha8`）必须与 `VERSION` 一致，段位（第二/三段与 alpha 序号）≤ 10。版本闸门按推送类型分档：**分支推送**（含 `main`）只要求 `VERSION` 不低于最新已发布 alpha，等于可通过、低于即拦截；**tag 推送**仍要求严格递增，alpha 复用与倒退一律拦截（`version` job 的 16 条反例自测覆盖这三种情形）。MSI 的 `ProductVersion` 只能是纯数字，故 `wix.version` 由同一 VERSION 的数字核注入（alpha 阶段取 `1.1.0`），包文件名仍带 alpha 号。
+版本规则：唯一可改的版本号是仓库根 `VERSION`，其余（`app/package.json`、`app/packages/foundation/package.json`、`app/src-tauri/tauri.conf.json`、两个 `Cargo.toml`）由 `npm run version:sync` 注入；tag（如 `v1.1.0-alpha8`、`v1.3.0-RC1`）必须与 `VERSION` 一致，段位（第二/三段与预发布序号）≤ 99。版本闸门按推送类型分档：**分支推送**（含 `main`）只要求 `VERSION` 不低于最新已发布预发布版，等于可通过、低于即拦截；**tag 推送**仍要求严格递增，同一 base 下 alpha / RC 复用与倒退一律拦截，允许 `alpha38 → RC1`（`version` job 的 23 条反例自测覆盖这些情形）。JS 侧只接受大写 `RC`，Rust 解析大小写都接受。MSI 的 `ProductVersion` 只能是纯数字，故 `wix.version` 由同一 VERSION 的数字核注入（alpha / RC 阶段取 `1.3.0`），包文件名仍带预发布号。
 
 校验方式（PowerShell）：
 
@@ -144,7 +144,7 @@ Get-FileHash .\Renomio_<版本>_x64-setup.exe -Algorithm SHA256
 
 ## Linux 与 macOS 产物（ad-hoc / updater 签名）
 
-**来源**：CI 的 `bundle-linux` / `bundle-macos` / `bundle-windows` job 会真实执行 `tauri build`，产物以 Actions artifact 形式提供（`renomio-linux-x64`、`renomio-macos-arm64`、`renomio-windows-x64`）。构建时用仓库 secret `TAURI_SIGNING_PRIVATE_KEY` 为安装包生成 updater 签名（`.sig`，与 `tauri.conf.json` 的 `plugins.updater.pubkey` 配对，应用内下载后会验签）。**三者都没有进入 GitHub Release，`latest.json` 目前只含 `windows-x86_64`**，所以 macOS / Linux 的应用内「检查更新」要等下一次发布把对应键写进清单后才可用。
+**来源**：CI 的 `bundle-linux` / `bundle-macos` / `bundle-windows` job 会真实执行 `tauri build`，产物以 Actions artifact 形式提供（`renomio-linux-x64`、`renomio-macos-arm64`、`renomio-windows-x64`）。构建时用仓库 secret `TAURI_SIGNING_PRIVATE_KEY` 为安装包生成 updater 签名（`.sig`，与 `tauri.conf.json` 的 `plugins.updater.pubkey` 配对，应用内下载后会验签）。**三者都已进入 `v1.3.0-RC1` 这个 GitHub Pre-release，`latest.json` 三键齐全（windows-x86_64 / linux-x86_64 / darwin-aarch64）**，macOS / Linux 的应用内「检查更新」已可用。
 
 | 平台 | 产物 | 架构 | 签名状态 |
 | --- | --- | --- | --- |

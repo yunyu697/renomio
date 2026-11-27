@@ -107,7 +107,7 @@ PDF 写回吃下对象流里的 Catalog / Info（alpha34，域五 5.14 写侧最
 - Windows 安装包未做 Authenticode 代码签名（本机无 OV/EV 证书），SmartScreen 会警告；更新用 `.sig` 已验过。
 - PDF 写回对对象流里 LZW / ASCII85 等非 Flate / Hex 编码仍只能新建 Info 并告警，加密 PDF 一律拒写。
 - 域三 3.13 高级规则已全部落地：对照表、编码转换、脚本执行、中文内码（GBK↔Big5）、文件名加解密；加解密只改文件名主干，不碰文件内容、不做 EFS。
-已发布：`v1.2.0-alpha38`（2026-11-28，Pre-release，15 资产）为当前最新；滚动清单 release `updates` 的 `latest.json` 已指向 alpha38（三平台键齐全：windows 3,350,379 / linux 87,771,640 / darwin 4,072,449；2195 B，SHA-256 `edbeca6bde9bab6ce35a0d1457466c0bf6ad37925ec1b9ec6d02de6895e16936`，pub_date `2026-11-27T18:42:39Z`）；13 个包与 `SHA256SUMS` 逐条 digest 相符，六个更新包 `file sig` / `global sig` 双 PASS；tag CI 46050628780（十 job 全绿）、main CI 46050607426（success）。
+已发布：`v1.3.0-RC1`（2026-11-28，Pre-release，15 资产）为当前最新；滚动清单 release `updates` 的 `latest.json` 已指向 RC1（三平台键齐全：windows 3,376,842 / linux 87,820,792 / darwin 4,098,527；2175 B，SHA-256 `5309a247dbacf9414b329c104a729cb29c4d4564fbb7b894f96d36b9848d2139`，pub_date `2026-11-27T19:32:46Z`）；13 个包与 `SHA256SUMS` 逐条 digest 相符，六个更新包 `file sig` / `global sig` 双 PASS；tag CI 46056505763（十 job 全绿）、main CI 46056505642（success）。
 
 - `renomio-core` 的 `rename::tests::directory_junction_is_renamed_as_a_link` 在部分环境因联接点权限失败，属环境问题。
 - 界面层遗留（2026-11-25 清零）：`.list-tabs/.tab` 旧样式块连同 105 个死选择器一并删除（app.css −17%、shell.css −8.5%），`npm run test:css` 孤儿守卫进 CI，`scripts/test-css-orphans.mjs` 当前 0 孤儿；toast 改为让位式（右侧抽屉展开左移到抽屉左侧、底部检查器展开抬到检查器上方）；表头与行逐列几何断言实测 7 列 Δ=0、状态列表头文字与徽标 Δ=0.00（`e2e/run.mjs` 第 4 条断言起）。
