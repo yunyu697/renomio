@@ -1,6 +1,7 @@
 /** 桌面端桥接：Tauri 命令、文件对话框、拖放与日志落盘。浏览器中自动降级为演示模式。 */
 import type {
-  ApplyItemDto, ApplyOptionsDto, ApplyOutcome, ApplyProgress, AttrInfo, AttrSpecDto, BatchMetadata,
+  ApplyItemDto, ApplyOptionsDto, ApplyOutcome, ApplyProgress, AttrBackupSummaryDto, AttrInfo,
+  AttrRestoreReportDto, AttrSpecDto, BatchMetadata,
   BatchSummary, DuplicateReportDto, EnvInfo, Entry, ExifClearRequestDto, ExifClearResultDto,
   ExifInventoryDto, ExplorerMenuStateDto, FileTypeIconDto, LegacyImportReport, MetaCapabilityDto,
   MetaEditRequestDto, MetaEditResultDto, MetadataInfo, MetaFields, MetaSnapshotDto, MigrationInfo,
@@ -262,6 +263,17 @@ export async function applyTime(items: OpTargetDto[], spec: TimeSpecDto): Promis
 /** 批量修改基础属性。 */
 export async function applyAttrs(items: OpTargetDto[], spec: AttrSpecDto): Promise<OpsOutcome> {
   return invoke<OpsOutcome>('apply_attrs', { items, spec });
+}
+
+/** 属性备份库列表；批次日志被清理后这里仍在。 */
+export async function listAttrBackups(): Promise<AttrBackupSummaryDto[]> {
+  if (!isDesktop) return [];
+  return invoke<AttrBackupSummaryDto[]>('attr_backups');
+}
+
+/** 按某份属性备份把「改之前的四属性」整体写回。 */
+export async function restoreAttrBackup(batchId: string): Promise<AttrRestoreReportDto> {
+  return invoke<AttrRestoreReportDto>('attr_restore_backup', { batchId });
 }
 
 /** 归类移动；目标目录自动创建，跨盘复制校验后删源。 */

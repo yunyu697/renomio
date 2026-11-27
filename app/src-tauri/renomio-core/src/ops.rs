@@ -19,6 +19,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Value};
 
+use crate::attrbackup::{AttrBackup, AttrBackupStore, AttrSnapshot, DEFAULT_KEEP};
 use crate::journal::{new_batch_id, now_ms, Batch, BatchCounts, BatchOp, BatchStore};
 use crate::platform::{is_readonly, native_path, Platform};
 use crate::rename::{AppliedChange, SkippedChange, SkippedField, UndoOutcome};
@@ -859,12 +860,77 @@ pub fn apply_attrs(
         skipped.len(),
         failed.len(),
     );
+    record_attr_backup(store, &batch);
     Ok(OpsOutcome {
         batch,
         applied,
         skipped,
         failed,
     })
+}
+
+/// 把本批次真正改过的条目「改之前」写进独立属性备份库。
+///
+/// 备份写不进去不能让已经落盘的属性写入变成失败：这里静默跳过，备份库本身是额外的一层。
+fn record_attr_backup(store: &BatchStore, batch: &Batch) {
+    let entries: Vec<AttrSnapshot> = batch
+        .ops
+        .iter()
+        .filter(|op| op.state == "done")
+        .map(|op| {
+            let before = AttrValues::from_json(&op.before);
+            AttrSnapshot {
+                path: op.path.clone(),
+                readonly: before.readonly,
+                hidden: before.hidden,
+                system: before.system,
+                archive: before.archive,
+            }
+        })
+        .collect();
+    if entries.is_empty() {
+        return;
+    }
+    let backup = AttrBackup {
+        batch_id: batch.id.clone(),
+        created_at: batch.created_at,
+        entries,
+    };
+    let backup_store = AttrBackupStore::new(store.data_dir());
+    if backup_store.save(&backup).is_ok() {
+        let _ = backup_store.prune(DEFAULT_KEEP);
+    }
+}
+
+/// 读某路径的四个属性；文件不存在或读不到返回 None。
+pub fn attr_flags(path: &str) -> Option<(bool, bool, bool, bool)> {
+    let p = Path::new(path);
+    let meta = fs::metadata(native_path(p)).ok()?;
+    Some((
+        is_readonly(&meta),
+        is_hidden(p).unwrap_or(false),
+        has_system(p),
+        has_archive(p),
+    ))
+}
+
+/// 直接写四个属性（不记批次日志）；用于属性备份还原，已是目标值的字段不动。
+pub fn write_attr_flags(path: &str, want: (bool, bool, bool, bool)) -> Result<(), String> {
+    let p = Path::new(path);
+    let current = attr_flags(path).ok_or_else(|| "无法读取当前属性".to_string())?;
+    let old = AttrValues {
+        readonly: current.0,
+        hidden: current.1,
+        system: current.2,
+        archive: current.3,
+    };
+    let target = AttrValues {
+        readonly: want.0,
+        hidden: want.1,
+        system: want.2,
+        archive: want.3,
+    };
+    apply_attr_values(p, target, old)
 }
 
 /// 四个属性一起写入；任何一步失败都回滚已改的属性，保证条目要么全成功要么保持原状。

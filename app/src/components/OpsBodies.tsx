@@ -4,12 +4,12 @@
  * 结果里逐条列出失败原因，并可在「操作记录」中撤销。
  */
 import { useEffect, useMemo, useState } from 'react';
-import { applyAttrs, applyMove, applyTime, pathsExist, readAttrs, readTimes } from '../lib/bridge';
+import { applyAttrs, applyMove, applyTime, isDesktop, listAttrBackups, pathsExist, readAttrs, readTimes, restoreAttrBackup } from '../lib/bridge';
 import { formatTime } from '../lib/format';
 import { buildMoveRows, defaultMoveRoot, type DateGranularity, type MoveRuleKind } from '../lib/moveRules';
 import { randomMsOf } from '../lib/time';
 import { useTranslation } from '../i18n';
-import type { AttrInfo, AttrSpecDto, Entry, OpsOutcome, TimeField, TimeInfo, TimeSpecDto } from '../lib/types';
+import type { AttrBackupSummaryDto, AttrInfo, AttrSpecDto, Entry, OpsOutcome, TimeField, TimeInfo, TimeSpecDto } from '../lib/types';
 import { normalizePath } from '../lib/validate';
 import { useApp } from '../store';
 import { Icon } from './Icon';
@@ -411,6 +411,46 @@ export function AttrBody({ onClose, targets }: { onClose: () => void; targets: E
   const [archive, setArchive] = useState<AttrChoice>('keep');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<OpsOutcome | null>(null);
+  const [backups, setBackups] = useState<AttrBackupSummaryDto[]>([]);
+  const [backupError, setBackupError] = useState(false);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+
+  const loadBackups = async () => {
+    if (!isDesktop) return;
+    try {
+      setBackups(await listAttrBackups());
+      setBackupError(false);
+    } catch {
+      setBackups([]);
+      setBackupError(true);
+    }
+  };
+
+  useEffect(() => {
+    void loadBackups();
+  }, []);
+
+  const restore = async (backup: AttrBackupSummaryDto) => {
+    setRestoringId(backup.batchId);
+    try {
+      const report = await restoreAttrBackup(backup.batchId);
+      showToast(
+        report.failed.length ? 'warn' : 'success',
+        t('ops.attrBackupDone', {
+          restored: report.restored.length,
+          unchanged: report.unchanged.length,
+          missing: report.missing.length,
+          failed: report.failed.length,
+        }),
+      );
+      await load();
+      await loadBackups();
+    } catch (err) {
+      showToast('error', t('ops.attrBackupFail', { message: err instanceof Error ? err.message : String(err) }));
+    } finally {
+      setRestoringId(null);
+    }
+  };
 
   const load = async () => {
     if (!targets.length) {
@@ -604,6 +644,39 @@ export function AttrBody({ onClose, targets }: { onClose: () => void; targets: E
                   </div>
                 ))}
             </div>
+            {isDesktop && (
+              <div className="attr-backup" data-testid="attr-backup-section">
+                <div className="attr-backup-head">
+                  <span className="attr-backup-title">
+                    <Icon name="history" size={13} />{t('ops.attrBackupTitle')}
+                  </span>
+                  <span className="foot-note">{t('ops.attrBackupHint')}</span>
+                </div>
+                {backupError && (
+                  <div className="mini-empty" data-testid="attr-backup-error">{t('ops.attrBackupUnavailable')}</div>
+                )}
+                {!backupError && !backups.length && (
+                  <div className="mini-empty" data-testid="attr-backup-empty">{t('ops.attrBackupEmpty')}</div>
+                )}
+                {!backupError &&
+                  backups.slice(0, 3).map((backup) => (
+                    <div className="attr-backup-row" key={backup.batchId} data-testid="attr-backup-row">
+                      <span className="n" title={backup.firstPath}>
+                        {formatTime(backup.createdAt)} · {t('ops.attrBackupEntries', { count: backup.entries })}
+                      </span>
+                      <button
+                        className="mini"
+                        type="button"
+                        data-testid="attr-backup-restore"
+                        disabled={restoringId !== null}
+                        onClick={() => void restore(backup)}
+                      >
+                        {restoringId === backup.batchId ? t('ops.writing') : t('ops.attrBackupRestore')}
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            )}
           </>
         )}
       </div>

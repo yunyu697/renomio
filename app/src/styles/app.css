@@ -3516,6 +3516,31 @@ html[data-theme="dark"] .brand-mark {
   color: var(--ds-color-text-muted); flex: 0 0 auto;
 }
 
+.attr-backup {
+  margin-top: var(--ds-space-4);
+  padding-top: var(--ds-space-3);
+  border-top: 1px solid var(--ds-color-line);
+  display: flex; flex-direction: column; gap: var(--ds-space-2);
+}
+
+.attr-backup-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-3);
+}
+
+.attr-backup-title {
+  display: flex; align-items: center; gap: var(--ds-space-2);
+  font-size: var(--ds-font-size-12); font-weight: var(--ds-font-weight-600); color: var(--ds-color-text-2);
+}
+
+.attr-backup-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-3);
+  font-size: var(--ds-font-size-12);
+}
+
+.attr-backup-row .n {
+  color: var(--ds-color-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 .ops-note {
   display: flex; gap: var(--ds-space-3); align-items: flex-start;
   margin-top: var(--ds-space-4);

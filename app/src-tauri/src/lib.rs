@@ -325,6 +325,32 @@ fn create_desktop_shortcut(app: tauri::AppHandle) -> Result<String, String> {
     Ok(lnk.to_string_lossy().to_string())
 }
 
+/// 属性备份库列表（独立于批次历史；批次被清理后仍可还原）。
+#[tauri::command]
+fn attr_backups(core: tauri::State<'_, Core>) -> Vec<renomio_core::attrbackup::AttrBackupSummary> {
+    renomio_core::attrbackup::AttrBackupStore::new(core.data_dir()).list()
+}
+
+/// 按备份批次把「改之前的属性」整体写回；文件已不在的单独回报，不阻断其他条目。
+#[tauri::command]
+fn attr_restore_backup(
+    core: tauri::State<'_, Core>,
+    batch_id: String,
+) -> Result<renomio_core::attrbackup::RestoreReport, String> {
+    let store = renomio_core::attrbackup::AttrBackupStore::new(core.data_dir());
+    let backup = store
+        .load(&batch_id)
+        .ok_or_else(|| "找不到这条属性备份（可能已被清理）".to_string())?;
+    if backup.entries.is_empty() {
+        return Err("这条属性备份里没有可还原的条目".to_string());
+    }
+    let report = renomio_core::attrbackup::restore(&backup);
+    if report.failed.len() == backup.entries.len() {
+        return Err(format!("还原失败：{}", report.failed[0].reason));
+    }
+    Ok(report)
+}
+
 #[tauri::command]
 fn scan_paths(
     core: tauri::State<'_, Core>,
@@ -1410,6 +1436,8 @@ pub fn run() {
             explorer_menu_install,
             explorer_menu_uninstall,
             create_desktop_shortcut,
+            attr_backups,
+            attr_restore_backup,
             scan_paths,
             paths_exist,
             apply_plan,

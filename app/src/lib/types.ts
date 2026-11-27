@@ -801,6 +801,27 @@ export interface AttrSpecDto {
   archive?: AttrAction | null;
 }
 
+/** 属性备份库的一条（每次写属性生成一份，独立于批次历史）。 */
+export interface AttrBackupSummaryDto {
+  batchId: string;
+  createdAt: number;
+  entries: number;
+  firstPath: string;
+}
+
+export interface AttrRestoreFailureDto {
+  path: string;
+  reason: string;
+}
+
+export interface AttrRestoreReportDto {
+  batchId: string;
+  restored: string[];
+  unchanged: string[];
+  missing: string[];
+  failed: AttrRestoreFailureDto[];
+}
+
 export interface MoveItemDto {
   id: string;
   source: string;
