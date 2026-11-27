@@ -301,7 +301,7 @@ pub fn capabilities() -> Vec<MetaCapability> {
         (
             "PDF",
             "读取支持 xref 表 / xref 流 / 对象流（含 PNG 预测器），加密 PDF 只报算法不解密；\
-             写入仍只走经典 xref 的增量更新，原页面对象逐字节保留（PDF 没有公司 / 经理 / 模板）",
+             写入走增量更新（经典表 / xref 流都能写，混用合法），Catalog 与 Info 落在对象流时也能解出来写回；原页面对象逐字节保留（PDF 没有公司 / 经理 / 模板）",
             DOC_FIELDS,
         ),
     ] {

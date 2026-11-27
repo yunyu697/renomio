@@ -987,12 +987,136 @@ fn pdf_find_object(data: &[u8], num: usize) -> Option<(usize, usize)> {
 }
 
 fn pdf_info_entries(data: &[u8], num: usize) -> Option<Vec<(String, String)>> {
-    let (s, e) = pdf_find_object(data, num)?;
-    let text = std::str::from_utf8(&data[s..e]).ok()?;
-    let text = text.split("stream").next().unwrap_or(text);
+    if let Some((s, e)) = pdf_find_object(data, num) {
+        let text = std::str::from_utf8(&data[s..e]).ok()?;
+        let text = text.split("stream").next().unwrap_or(text);
+        let at = text.find("<<")?;
+        let (ds, de) = pdf_dict_span(text, at)?;
+        return Some(pdf_dict_entries(&text[ds..de]));
+    }
+    // Info 也可能是对象流（/ObjStm）里的成员：解出来再按字典解析
+    let member = pdf_objstm_member(data, num)?;
+    pdf_dict_in_text(&member)
+}
+
+fn pdf_dict_in_text(text: &str) -> Option<Vec<(String, String)>> {
     let at = text.find("<<")?;
     let (ds, de) = pdf_dict_span(text, at)?;
     Some(pdf_dict_entries(&text[ds..de]))
+}
+
+/// 从对象流（`/Type /ObjStm`）里取某个对象号的正文。
+///
+/// 写回要知道旧 Catalog / 旧 Info 的字典内容，而它们可能被压进对象流：
+/// 这里按「找 `/ObjStm` 关键字 → 回溯到所属对象 → 解流 → 按 `/First` 切成员」取回文本。
+/// 只支持未压缩、`FlateDecode`、`ASCIIHexDecode`；其它编码返回 None，由调用方给明确原因。
+fn pdf_objstm_member(data: &[u8], num: usize) -> Option<String> {
+    let mut from = 0usize;
+    while let Some(rel) = data[from..].windows(7).position(|w| w == b"/ObjStm") {
+        let hit = from + rel;
+        if let Some(member) = pdf_objstm_member_at(data, hit, num) {
+            return Some(member);
+        }
+        from = hit + 1;
+    }
+    None
+}
+
+fn pdf_objstm_member_at(data: &[u8], hit: usize, num: usize) -> Option<String> {
+    // 回溯到所属对象的字典起点：命中处之前最近的 "obj" 关键字
+    let before = &data[..hit];
+    let obj_kw = before.windows(3).rposition(|w| w == b"obj")? + 3;
+    let tail = String::from_utf8_lossy(&data[obj_kw..]);
+    let dict_at = tail.find("<<")?;
+    let (ds, de) = pdf_dict_span(&tail, dict_at)?;
+    let dict = &tail[ds..de];
+
+    let first = pdf_dict_get(dict, "First")?.trim().parse::<usize>().ok()?;
+    let count = pdf_dict_get(dict, "N")?.trim().parse::<usize>().ok()?;
+
+    // 流正文：dict 之后找 stream 关键字，跳过紧随的换行
+    let after_dict = obj_kw + de;
+    let stream_kw = data[after_dict..].windows(6).position(|w| w == b"stream")? + after_dict;
+    let mut ps = stream_kw + 6;
+    if data.get(ps) == Some(&b'\r') {
+        ps += 1;
+    }
+    if data.get(ps) == Some(&b'\n') {
+        ps += 1;
+    }
+    let end = data[ps..]
+        .windows(9)
+        .position(|w| w == b"endstream")
+        .map(|i| ps + i)
+        .unwrap_or(data.len());
+    let raw = &data[ps..end.min(data.len())];
+
+    let decoded = pdf_decode_stream(raw, dict)?;
+    if first > decoded.len() {
+        return None;
+    }
+    let header = String::from_utf8_lossy(&decoded[..first]).to_string();
+    let nums: Vec<usize> = header
+        .split_whitespace()
+        .filter_map(|t| t.parse::<usize>().ok())
+        .collect();
+    if nums.len() < count * 2 {
+        return None;
+    }
+    let mut offsets: Vec<usize> = nums[1..count * 2].iter().step_by(2).copied().collect();
+    offsets.truncate(count);
+    let target = nums[..count * 2].iter().step_by(2).position(|n| *n == num)?;
+    let start = first + offsets[target];
+    let stop = if target + 1 < offsets.len() {
+        first + offsets[target + 1]
+    } else {
+        decoded.len()
+    };
+    if start >= stop || stop > decoded.len() {
+        return Some(String::new());
+    }
+    Some(String::from_utf8_lossy(&decoded[start..stop]).trim().to_string())
+}
+
+fn pdf_decode_stream(raw: &[u8], dict: &str) -> Option<Vec<u8>> {
+    let filter = pdf_dict_get(dict, "Filter").unwrap_or_default();
+    if filter.is_empty() {
+        return Some(raw.to_vec());
+    }
+    if filter.contains("FlateDecode") || filter.contains("/Fl") {
+        let mut out = Vec::new();
+        if flate2::read::ZlibDecoder::new(raw).read_to_end(&mut out).is_ok() && !out.is_empty() {
+            return Some(out);
+        }
+        let mut out = Vec::new();
+        flate2::read::DeflateDecoder::new(raw).read_to_end(&mut out).ok()?;
+        return Some(out);
+    }
+    if filter.contains("ASCIIHexDecode") {
+        let mut out = Vec::new();
+        let mut nibble: Option<u8> = None;
+        for b in raw {
+            match b {
+                b'0'..=b'9' => push_hex(&mut out, &mut nibble, b - b'0'),
+                b'a'..=b'f' => push_hex(&mut out, &mut nibble, b - b'a' + 10),
+                b'A'..=b'F' => push_hex(&mut out, &mut nibble, b - b'A' + 10),
+                b'>' => break,
+                _ => continue,
+            }
+        }
+        if let Some(n) = nibble {
+            out.push(n << 4);
+        }
+        return Some(out);
+    }
+    None
+}
+
+fn push_hex(out: &mut Vec<u8>, nibble: &mut Option<u8>, v: u8) {
+    match nibble.take() {
+        Some(hi) => out.push((hi << 4) | v),
+        None => *nibble = Some(v),
+    }
 }
 
 fn pdf_xmp_text(data: &[u8]) -> Option<String> {
@@ -1051,8 +1175,11 @@ fn pdf_rewrite(data: &[u8], fields: &FieldMap) -> Result<Rewrite, String> {
         .next()
         .and_then(|n| n.parse::<usize>().ok())
         .ok_or("PDF /Root 引用无法解析")?;
-    let (cs, ce) = pdf_find_object(data, root_num).ok_or("找不到 PDF Catalog 对象（可能位于对象流）")?;
-    let catalog_text = std::str::from_utf8(&data[cs..ce]).map_err(|_| "Catalog 对象不是 ASCII")?;
+    let catalog_text = pdf_find_object(data, root_num)
+        .and_then(|(cs, ce)| std::str::from_utf8(&data[cs..ce]).ok().map(|s| s.to_string()))
+        .or_else(|| pdf_objstm_member(data, root_num))
+        .ok_or("找不到 PDF Catalog 对象（直写对象与对象流内均未找到）")?;
+    let catalog_text = catalog_text.as_str();
     let cat_dict_at = catalog_text.find("<<").ok_or("Catalog 不是字典")?;
     let (ds, de) = pdf_dict_span(catalog_text, cat_dict_at).ok_or("Catalog 字典未闭合")?;
     let mut cat_entries = pdf_dict_entries(&catalog_text[ds..de]);
@@ -1076,7 +1203,7 @@ fn pdf_rewrite(data: &[u8], fields: &FieldMap) -> Result<Rewrite, String> {
     let mut warnings = Vec::new();
     if old_info_in_stream {
         warnings.push(
-            "原 Info 字典位于对象流（压缩存储），已新建 Info：Producer/CreationDate 等旧字段可能未保留".into(),
+            "原 Info 位于对象流且流编码不受支持，已新建 Info：Producer/CreationDate 等旧字段可能未保留".into(),
         );
     }
     for (id, key) in PDF_KEYS {
