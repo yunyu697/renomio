@@ -83,6 +83,16 @@ Get-FileHash .\Renomio_<版本>_x64-setup.exe -Algorithm SHA256
 - 宽度夹在每列的最小可读宽度与一个上界之间：一行超长文件名不会把整张表挤爆；算出来的宽度照常写进设置，重启后保持，「重置列宽」可一键回默认。
 - 算法收在 `src/lib/columnFit.ts` 的纯函数里（文本测量由调用方注入），所以它能被单独跑：`npm run test:columns`（56 条，含 Node 类型剥离直接实跑 + 接线 + 五语种 + 文档同源），另有 e2e 几何断言验证表头与行仍逐列对齐。
 
+### 系统集成（右键菜单与桌面快捷方式）
+
+- 设置 › **系统集成**：一行显示右键菜单当前状态（未安装 / 已安装 3 个入口 / 部分安装 / 当前平台不支持），旁边一个按钮在「安装」与「移除」之间切换，另有「刷新」重新读注册表；下面一行「创建桌面快捷方式」写出 `Renomio.lnk`。
+- 右键菜单覆盖三处：文件、文件夹、目录空白处；菜单项是「用 Renomio 重命名」并带程序图标。命令形如 `"<Renomio 可执行文件>" "%1"`（目录背景用 `"%V"`）。
+- **只写当前用户**：`HKCU\Software\Classes\*\shell\Renomio`、`Directory\shell\Renomio`、`Directory\Background\shell\Renomio`；不需要管理员权限，卸载时整棵子树删除、本来就不存在也算成功（幂等）。
+- 快捷方式由 Windows 自己的 COM（`IShellLinkW` + `IPersistFile.Save`）写出，不是手搓 `.lnk` 字节——缺 IDList/PIDL 的手写文件在系统里目标会读成空；目标必须是绝对路径，相对路径直接报错且不落文件。
+- 非 Windows 平台状态显示「当前平台不支持（仅 Windows）」，安装按钮禁用，不会假装改注册表。
+- Windows 会缓存右键菜单，装完若没立刻出现，重启资源管理器（或重新登录）即可。
+- 有机器验证：`cargo test --test integration_contract`（7 条，含 Windows 真写注册表往返与重复安装/删除幂等）、`src-tauri` 的 `cargo test --lib shortcut`（3 条，COM 回读目标/参数/图标 + 相对路径拒绝 + 平台不支持）、`npm run test:integration`（45 条，静态同源；加 `--require-probe` 再真跑上面两组 cargo 测试）。
+
 ### 数据目录自检与修复
 
 - 设置 › **数据自检与修复**：先点「开始检查」做**只读**扫描——缺失的子目录、损坏的批次日志/快照、损坏的规则输入历史、残留临时文件、孤儿备份，每条都写明路径与原因；再点「执行修复」按需处理。
