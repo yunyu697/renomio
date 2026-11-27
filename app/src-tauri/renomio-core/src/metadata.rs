@@ -251,12 +251,11 @@ pub fn read_metadata(path: &str) -> Result<MetadataInfo, String> {
         image_jpeg(&data)
     } else if data.starts_with(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]) {
         image_png(&data)
-    } else if data.starts_with(b"GIF8") {
-        image_gif(&data)
-    } else if data.starts_with(b"BM") {
-        image_bmp(&data)
     } else if data.starts_with(b"RIFF") && data.get(8..12) == Some(b"WEBP".as_ref()) {
         image_webp(&data)
+    } else if let Some(probe) = crate::image_container::probe(&data) {
+        // GIF / BMP / AVIF：容器参数（尺寸、帧数、位深、调色板、AVIF 结构）
+        image_container_meta(probe)
     } else if let Some(probe) = crate::audio_container::probe(&data, &tail) {
         audio_container_meta(probe)
     } else if data.starts_with(b"ID3") || looks_like_mpeg(&data, 0) {
@@ -530,24 +529,25 @@ fn image_png(data: &[u8]) -> MetadataInfo {
     info
 }
 
-fn image_gif(data: &[u8]) -> MetadataInfo {
-    let mut info = MetadataInfo::new("image", "GIF 图像");
-    if let (Some(w), Some(h)) = (le_u16(data, 6), le_u16(data, 8)) {
-        info.push("尺寸", format!("{w} × {h} px"));
-    } else {
-        info.warn("GIF 头部解析失败");
+/// GIF / BMP / AVIF 的容器解析结果转成属性面板字段。
+fn image_container_meta(probe: crate::image_container::ImageProbe) -> MetadataInfo {
+    let mut info = MetadataInfo::new("image", probe.format);
+    for (label, value) in probe.fields {
+        info.push(label, value);
     }
-    info
-}
-
-fn image_bmp(data: &[u8]) -> MetadataInfo {
-    let mut info = MetadataInfo::new("image", "BMP 图像");
-    if let (Some(w), Some(h)) = (le_u32(data, 18), le_u32(data, 22)) {
-        let width = w as i32;
-        let height = (h as i32).abs();
-        info.push("尺寸", format!("{width} × {height} px"));
-    } else {
-        info.warn("BMP 头部解析失败");
+    if let Some(ms) = probe.duration_ms {
+        // 不足 1 秒按秒带小数展示（GIF 的单帧延时常常只有几十毫秒，整秒会读成 0:00）
+        let text = if ms < 1000 {
+            let secs = format!("{:.2}", ms as f64 / 1000.0);
+            let secs = secs.trim_end_matches('0').trim_end_matches('.').to_string();
+            format!("{secs} 秒")
+        } else {
+            format_duration_ms(ms)
+        };
+        info.push("总时长", text);
+    }
+    for warning in probe.warnings {
+        info.warn(warning);
     }
     info
 }

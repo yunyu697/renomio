@@ -62,11 +62,12 @@ pub fn sniff_magic(head: &[u8]) -> Option<&'static str> {
     if head.starts_with(&[0x30, 0x26, 0xB2, 0x75, 0x8E, 0x66, 0xCF, 0x11]) {
         return Some("wma");
     }
-    // ftyp 家族：MP4 / M4A / MOV / HEIC
+    // ftyp 家族：MP4 / M4A / MOV / HEIC / AVIF
     if at(head, 4, 4) == Some(b"ftyp") {
         return match at(head, 8, 4) {
             Some(b"M4A ") => Some("m4a"),
             Some(b"qt  ") => Some("mov"),
+            Some(b"avif") | Some(b"avis") => Some("avif"),
             Some(b"heic") | Some(b"heix") | Some(b"mif1") | Some(b"msf1") => Some("heic"),
             _ => Some("mp4"),
         };
@@ -177,6 +178,9 @@ mod tests {
         assert_eq!(sniff_magic(b"\x00\x00\x00\x14ftypqt  "), Some("mov"));
         assert_eq!(sniff_magic(b"\x00\x00\x00\x18ftypheic"), Some("heic"));
         assert_eq!(sniff_magic(b"\x00\x00\x00\x18ftypmif1"), Some("heic"));
+        assert_eq!(sniff_magic(b"\x00\x00\x00\x1cftypavif"), Some("avif"));
+        assert_eq!(sniff_magic(b"\x00\x00\x00\x1cftypavis"), Some("avif"));
+        assert_eq!(sniff_magic(b"\x00\x00\x00\x18ftypavifav01"), Some("avif"));
     }
 
     #[test]

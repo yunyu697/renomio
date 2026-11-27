@@ -228,9 +228,9 @@ pub fn capabilities() -> Vec<MetaCapability> {
     }
     for (format, notes) in [
         ("HEIC/HEIF", "本版本不支持写入（也不解析内部元数据），不做假支持"),
-        ("GIF", "仅支持读取基础信息，不支持写入"),
-        ("BMP", "仅支持读取基础信息，不支持写入"),
-        ("AVIF", "不支持写入"),
+        ("GIF", "只读：尺寸 / 帧数 / 循环次数 / 调色板 / 注释 / 逐帧延时总时长；不支持写入"),
+        ("BMP", "只读：尺寸 / 位深 / 压缩方式 / DPI / 调色板；不支持写入"),
+        ("AVIF", "只读：ispe 尺寸 / 位深 / 通道 / alpha 平面 / 帧数（avis）；不支持写入"),
     ] {
         out.push(MetaCapability {
             kind: "image".into(),
@@ -338,10 +338,18 @@ pub fn detect(path: &Path, head: &[u8]) -> Format {
         return unsupported("image", "BigTIFF", "BigTIFF 变体本版本不支持写入（会破坏偏移表）");
     }
     if head.starts_with(b"GIF8") {
-        return unsupported("image", "GIF", "GIF 无标准 XMP 容器，本版本只读基础信息，不支持写入");
+        return unsupported(
+            "image",
+            "GIF",
+            "只读（属性面板可读帧数、循环、调色板与注释），本版本不支持写回",
+        );
     }
     if head.starts_with(b"BM") {
-        return unsupported("image", "BMP", "BMP 无标准元数据容器，本版本不支持写入");
+        return unsupported(
+            "image",
+            "BMP",
+            "只读（属性面板可读位深、压缩方式、DPI 与调色板），本版本不支持写回",
+        );
     }
     if head.len() >= 12 && head.get(4..8) == Some(b"ftyp".as_ref()) {
         let brand = String::from_utf8_lossy(head.get(8..12).unwrap_or(b"????"));
@@ -354,7 +362,11 @@ pub fn detect(path: &Path, head: &[u8]) -> Format {
             );
         }
         if brand == "avif" || brand == "avis" {
-            return unsupported("image", "AVIF", "AVIF 本版本不支持写入");
+            return unsupported(
+                "image",
+                "AVIF",
+                "只读（属性面板可读 ispe 尺寸、位深、通道数与 alpha 平面），本版本不支持写回",
+            );
         }
         if ["m4a", "mp42", "mp41", "isom", "iso2", "dash", "M4A "].contains(&brand.as_str()) {
             return Format::Audio(audio::AudioFormat::Mp4);

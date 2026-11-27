@@ -4,6 +4,7 @@ pub mod audio_container;
 pub mod cfb;
 pub mod datadir;
 pub mod hashing;
+pub mod image_container;
 pub mod ini;
 pub mod journal;
 pub mod metaedit;
