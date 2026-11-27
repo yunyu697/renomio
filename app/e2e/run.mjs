@@ -2488,6 +2488,51 @@ async function main() {
     const collapsedReload = await evaluate(`document.querySelectorAll('.rule-detail').length`);
     check('UI', '重启后折叠状态保留（仍为 0 个展开编辑器）', collapsedReload === 0, String(collapsedReload));
 
+    // --- 1.8b) 编码转换规则（3.13「高级规则 · 编码转换」） ---
+    // 不清空原规则链：加一条 encoding 测完再删掉，避免后续布局用例读到「空规则链自动折叠」
+    const encRulesBefore = await evaluate(`document.querySelectorAll('[data-testid="rule-card"]').length`);
+    await addRuleType('encoding');
+    const encOpen = await openRule();
+    check('UI', '「+」菜单新增「编码转换」，选中后打开对应编辑器', encOpen === 'encoding', encOpen);
+    const encDefault = await evaluate(`document.querySelector('[data-testid="encoding-mode"]')?.value || ''`);
+    check('UI', '编码规则默认 NFC', encDefault === 'nfc', encDefault);
+    const encOptions = await evaluate(`[...document.querySelectorAll('[data-testid="encoding-mode"] option')].map((o) => o.value).join(',')`);
+    check('UI', '转换方式下拉列出七种模式', encOptions === 'nfc,nfd,nfkc,nfkd,half,full,mojibake', encOptions);
+    const encSampleNfc = await evaluate(`document.querySelector('[data-testid="encoding-sample"]')?.textContent || ''`);
+    check('UI', '编码示例行给出转换结果（含箭头）', encSampleNfc.includes('→'), encSampleNfc);
+    await evaluate(`(() => {
+      const s = document.querySelector('[data-testid="encoding-mode"]');
+      const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+      setter.call(s, 'half');
+      s.dispatchEvent(new Event('change', { bubbles: true }));
+      return s.value;
+    })()`);
+    await sleep(250);
+    const encSampleHalf = await evaluate(`document.querySelector('[data-testid="encoding-sample"]')?.textContent || ''`);
+    const encHalfAfter = encSampleHalf.split('→').slice(1).join('→');
+    check(
+      'UI',
+      '切到「全角 → 半角」后示例的转换结果里全角字母变半角，重音与乱码样本原样',
+      encHalfAfter.includes('ABC123') && !encHalfAfter.includes('ＡＢＣ')
+        && encHalfAfter.includes('Résumé') && encHalfAfter.includes('cafÃ©'),
+      encSampleHalf,
+    );
+    const encSummary = await evaluate(`document.querySelector('[data-testid="rule-detail"] .sum span')?.textContent || ''`);
+    check(
+      'UI',
+      '规则摘要随模式变化（编码转换 · 全角 → 半角）',
+      encSummary !== '' && (encSummary.includes('半角') || encSummary.toLowerCase().includes('half')),
+      encSummary,
+    );
+    await evaluate(`(() => {
+      const cards = [...document.querySelectorAll('[data-testid="rule-card"]')];
+      cards[cards.length - 1].querySelector('[data-testid="rule-delete"]').click();
+      return true;
+    })()`);
+    await sleep(300);
+    const encRulesAfter = await evaluate(`document.querySelectorAll('[data-testid="rule-card"]').length`);
+    check('UI', '删除编码规则后规则链回到原来的条数', encRulesAfter === encRulesBefore, `${encRulesAfter} vs ${encRulesBefore}`);
+
     // --- 1.9) 键位窗：列表 / 录制 / 冲突 / 生效 / 持久化 / 恢复默认 ---
     const shortcutValue = (id) => textOf(`[data-testid="shortcut-value-${id}"]`);
     const openShortcuts = async () => {
