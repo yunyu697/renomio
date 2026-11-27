@@ -6,7 +6,7 @@
  *     标记但 data 被同名文件占住 / --cli / --env），把 JSON 读回来逐字段比对。
  *  B. 接线：core 的 DataRoot 字段、tauri 启动处真的用了 resolve() 与 parse_cli_args()、
  *     便携时跳过自动迁移、界面读到来源字段、五语种文案齐全、e2e 有断言。
- *  C. 文档：FEATURE-GAP 6.12 标 A 且 6.13 拆出剩余项，README 有便携模式章节，脚本进了 package.json。
+ *  C. 文档：FEATURE-GAP 6.12 标 A、6.13 已由 alpha36 补齐标 A，README 有便携模式章节，脚本进了 package.json。
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -153,7 +153,7 @@ const row612 = gapDoc.split('\n').find((line) => line.startsWith('| 6.12 ')) ?? 
 const row613 = gapDoc.split('\n').find((line) => line.startsWith('| 6.13 ')) ?? '';
 check('FEATURE-GAP 6.12（便携模式）已标 A', /\| A \|/.test(row612), row612.slice(0, 120));
 check('6.12 的证据写清四级优先级与回落原因', row612.includes('renomio.portable') && row612.includes('回落到每用户目录'), row612.slice(0, 160));
-check('6.13 已拆出剩余系统集成项并保持 E', row613.includes('| E |') && row613.includes('右键菜单'), row613.slice(0, 120));
+check('6.13（右键菜单 / 快捷方式）已标 A 且证据写清三条键位', row613.includes('| A |') && row613.includes('右键菜单') && row613.includes('shell\\Renomio'), row613.slice(0, 120));
 check('README 有便携模式章节（标记文件 + 优先级 + 回落说明）',
   readme.includes('renomio.portable') && readme.includes('RENOMIO_DATA_DIR') && readme.includes('--data-dir'), '');
 check('探针 examples/datadir_probe.rs 在仓库里', existsSync(path.join(coreRoot, 'examples', 'datadir_probe.rs')));

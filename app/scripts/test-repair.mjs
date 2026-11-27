@@ -345,10 +345,10 @@ console.log('C. 文档：与本轮实现同源');
 
 const gap = read(path.join(repoRoot, 'docs', 'FEATURE-GAP.md'));
 check('FEATURE-GAP 有 6.15 行', /6\.15/.test(gap), '缺 6.15');
-const line615 = (gap.split('\n').find((l) => l.includes('6.15')) || '');
+const line615 = (gap.split('\n').find((l) => l.startsWith('| 6.15 ')) || '');
 check('6.15 标为 A（已实现）', /A/.test(line615), line615.slice(0, 160));
 check('6.15 描述数据目录自检', /自检/.test(line615) && /修复/.test(line615), line615.slice(0, 160));
-check('6.13 注明自检已拆出', /6\.15/.test(gap.split('\n').find((l) => l.includes('6.13')) || ''));
+check('6.13 注明自检已拆出', /6\.15/.test(gap.split('\n').find((l) => l.startsWith('| 6.13 ')) || ''));
 
 const appReadme = read(path.join(appRoot, 'README.md'));
 check('app/README 提到数据自检', /数据目录自检|自检与修复/.test(appReadme));

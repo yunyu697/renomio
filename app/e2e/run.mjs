@@ -4393,6 +4393,73 @@ async function main() {
     const importReady = await evaluate(`document.querySelector('[data-testid="settings-import"]')?.disabled === false`);
     check('UI', '导入按钮可点击（文件选择由系统对话框承担）', importReady === true, String(importReady));
 
+    // --- 5.5) 设置页「系统集成」（6.13）：右键菜单状态 + 快捷方式，演示模式一律禁用 ---
+    const integrationSection = await evaluate(`(() => {
+      const sec = document.querySelector('[data-testid="integration-section"]');
+      if (!sec) return null;
+      const status = sec.querySelector('[data-testid="explorer-menu-status"]');
+      const toggle = sec.querySelector('[data-testid="explorer-menu-toggle"]');
+      const refresh = sec.querySelector('[data-testid="explorer-menu-refresh"]');
+      const shortcut = sec.querySelector('[data-testid="desktop-shortcut"]');
+      const note = sec.querySelector('[data-testid="integration-note"]');
+      const statusRect = status?.getBoundingClientRect();
+      const toggleRect = toggle?.getBoundingClientRect();
+      const rows = Array.from(sec.querySelectorAll('.settings-row, [data-testid]')).length;
+      return {
+        status: !!status,
+        toggle: !!toggle,
+        refresh: !!refresh,
+        shortcut: !!shortcut,
+        toggleLabel: toggle?.textContent?.trim() ?? '',
+        shortcutLabel: shortcut?.textContent?.trim() ?? '',
+        statusText: status?.textContent?.trim() ?? '',
+        supported: status?.dataset.supported ?? '',
+        installed: status?.dataset.installed ?? '',
+        toggleDisabled: toggle?.disabled === true,
+        shortcutDisabled: shortcut?.disabled === true,
+        sameLine: !!statusRect && !!toggleRect && Math.abs(toggleRect.top - statusRect.top) < 8,
+        note: note?.textContent?.trim() ?? '',
+        rawKeys: sec.innerText.includes('settings.explorer') || sec.innerText.includes('settings.integration')
+          || sec.innerText.includes('settings.desktopShortcut') || sec.innerText.includes('toast.menu')
+          || sec.innerText.includes('toast.shortcut'),
+        count: rows,
+      };
+    })()`);
+    check('UI', '设置页有「系统集成」分区：状态行 + 安装/移除 + 刷新 + 桌面快捷方式都在',
+      integrationSection?.status === true && integrationSection?.toggle === true && integrationSection?.refresh === true
+      && integrationSection?.shortcut === true, JSON.stringify(integrationSection));
+    check('UI', '系统集成：状态行与按钮同行，两个按钮标签非空',
+      integrationSection?.sameLine === true && integrationSection.toggleLabel.length > 0
+      && integrationSection.shortcutLabel.length > 0, JSON.stringify(integrationSection));
+    check('UI', '系统集成：状态行有 supported/installed 标记且文案非空',
+      integrationSection?.supported === 'unknown' && integrationSection.statusText.length > 0, JSON.stringify(integrationSection));
+    check('UI', '系统集成：状态未知（读不到 supported）时安装按钮禁用，不盲目写注册表',
+      integrationSection?.toggleDisabled === true, JSON.stringify(integrationSection));
+    check('UI', '系统集成：文案已本地化（无原始 i18n key）且附说明',
+      integrationSection && !integrationSection.rawKeys && integrationSection.note.length > 0, JSON.stringify(integrationSection));
+
+    // 创建快捷方式：mock 下这条命令没有实现，必须给失败提示而非假装成功
+    if (await evaluate(`Boolean(document.querySelector('[data-testid="toast"]'))`)) {
+      await click('[data-testid="toast"]');
+      await sleep(200);
+    }
+    await click('[data-testid="desktop-shortcut"]');
+    await waitFor(`document.querySelector('[data-testid="toast"]')`, '创建快捷方式提示', 6000);
+    const shortcutToast = await evaluate(`(() => {
+      const el = document.querySelector('[data-testid="toast"]');
+      const btn = document.querySelector('[data-testid="desktop-shortcut"]');
+      return {
+        kind: el?.className ?? '',
+        text: el?.querySelector('[data-testid="toast-text"]')?.textContent ?? '',
+        enabled: btn?.disabled === false,
+      };
+    })()`);
+    check('UI', '创建快捷方式失败时给出提示而非假成功，且按钮恢复可用',
+      (shortcutToast.kind.includes('warn') || shortcutToast.kind.includes('error')) && shortcutToast.enabled === true,
+      JSON.stringify(shortcutToast));
+    await click('[data-testid="toast"]');
+    await sleep(200);
+
     // --- 6) 设置页「数据自检与修复」（6.15）：只读检查 + 不删数据的修复 ---
     const repairSection = await evaluate(`(() => {
       const sec = document.querySelector('[data-testid="repair-section"]');
