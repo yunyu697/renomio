@@ -1,10 +1,10 @@
 # 无头浏览器 E2E 报告
 
-- 生成时间：2026-11-27T05:55:51.834Z
+- 生成时间：2026-11-27T06:44:04.851Z
 - 运行方式：无头浏览器 + mock Tauri 后端（未启动 GUI 窗口）
 - 浏览器：`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`
 - 视口：1440×900（默认） / 1100×640@1.5x（最小尺寸）
-- 结果：**362 通过 / 0 失败**
+- 结果：**364 通过 / 0 失败**
 - 截图目录：`app/e2e/screenshots/`（已加入 `.gitignore`，仅本机保留，不随仓库分发）
 
 ## UI 层断言（DOM / 可见性 / 截图）
@@ -30,8 +30,8 @@
 | ✅ 通过 | 应用 → 2 个完成 + 1 个冲突跳过（未改名文件不参与）（{"total":3,"done":2,"skipped":1,"failed":0}） |
 | ✅ 通过 | 冲突文件保持原名 |
 | ✅ 通过 | 撤销 → 4 个原名全部恢复（["旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg","logo.png"]） |
-| ✅ 通过 | 历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略（2026-11-27 13:53 · 更名D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤） |
-| ✅ 通过 | 历史面板：已撤销批次显示「已撤销」并说明原因（{"undoable":"0","state":"已撤销","reason":"该批次已经撤销","text":"2026-11-27 13:53 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销"}） |
+| ✅ 通过 | 历史面板：批次展示时间 / 条目数 / 成功失败数 / 策略（2026-11-27 14:41 · 更名D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤） |
+| ✅ 通过 | 历史面板：已撤销批次显示「已撤销」并说明原因（{"undoable":"0","state":"已撤销","reason":"该批次已经撤销","text":"2026-11-27 14:41 · 更名D:\\e2e\\旅行 · 2/3 成功 · 1 跳过 · 0 失败已撤销 · 策略 skip · 不可撤销该批次已经撤销-batch-1已撤销"}） |
 | ✅ 通过 | 历史面板：新批次显示「可撤销」（{"undoable":"1","id":"mock-batch-2"}） |
 | ✅ 通过 | 历史面板：撤销后条目变为「已撤销」（{"undoable":"0","state":"已撤销","chip":"已撤销","reason":"该批次已经撤销"}） |
 | ✅ 通过 | 历史面板：较新批次可撤销时，「撤销到此」可用（多级撤销）（{"index":1,"undoable":"1","disabled":false}） |
@@ -206,7 +206,7 @@
 | ✅ 通过 | 冲突命中：同路径包含+排除、前缀/子目录重叠（2 条独立冲突）（{"count":2,"items":["include-exclude","path-overlap"]}） |
 | ✅ 通过 | 冲突命中：动作矛盾与正则等价合并为一条（同一对规则只出现一次）（{"count":1,"items":["regex-overlap,action-contradiction"],"badges":2,"rules":2,"modal":false}） |
 | ✅ 通过 | 冲突不阻断保存：两条规则仍在、无阻断弹窗、两条规则就地标出（{"count":1,"items":["regex-overlap,action-contradiction"],"badges":2,"rules":2,"modal":false}） |
-| ✅ 通过 | 点击冲突汇总可跳转到对应规则（展开并聚焦）（{"firstRuleId":"rmwykgxpd1","jumpState":{"openId":"rmwykgxpd1","detail":1,"focused":"rmwykgxpd1"}}） |
+| ✅ 通过 | 点击冲突汇总可跳转到对应规则（展开并聚焦）（{"firstRuleId":"rmwym6tpz1","jumpState":{"openId":"rmwym6tpz1","detail":1,"focused":"rmwym6tpz1"}}） |
 | ✅ 通过 | 冲突命中：后一条被遮蔽不可达（{"items":2,"hasShadow":true}） |
 | ✅ 通过 | 冲突不命中：模式不重叠且替换互不相干时不提示（{"panel":false,"items":0,"badges":0,"rules":2}） |
 | ✅ 通过 | 筛选组：没填条件时不显示执行按钮（{"btn":0,"rows":4}） |
@@ -229,12 +229,14 @@
 | ✅ 通过 | 大小写规则提供例外词输入框，并提示 * / ? 通配与保留原大小写（{"box":true,"hint":"Comma or newline separated; * and ? wildcards allowed. Match"}） |
 | ✅ 通过 | 例外词命中：upper 后 logo.png 保留原写法（其余行照旧大写）（{"protectedLogo":{"name":"logo.png","unchanged":true},"sample":["旧照片 001.jpg","logo.png","旧照片 002.jpg"]}） |
 | ✅ 通过 | 清空例外词后同一行按 upper 变成 LOGO.png（说明保护只作用于命中的片段）（{"name":"LOGO.png","unchanged":false}） |
-| ✅ 通过 | 元数据字段下拉含 21 个字段、按拍摄参数 / 图像尺寸 / 音频标签 / 字体信息 / 可执行文件五组展示（{"count":21,"groups":["Shooting settings","Image size","Audio tags","Font info","Executable"],"values":["taken","camera","iso","aperture","shutter","focal","lens","width","height","resolution","title","artist","album","track","year","genre","composer","fontFamily","fontStyle","fontVersion","fileVersion"]}） |
+| ✅ 通过 | 元数据字段下拉含 25 个字段、按拍摄参数 / 图像尺寸 / 音频标签 / 字体信息 / 可执行文件 / IPTC 六组展示（{"count":25,"groups":["Shooting settings","Image size","Audio tags","Font info","Executable","IPTC tags"],"values":["taken","camera","iso","aperture","shutter","focal","lens","width","height","resolution","title","artist","album","track","year","genre","composer","fontFamily","fontStyle","fontVersion","fileVersion","keywords","caption","copyright","location"]}） |
 | ✅ 通过 | 按 ISO 取值前缀取名：400「空格」旧照片 001.jpg（{"name":"400 旧照片 001.jpg","unchanged":false}） |
 | ✅ 通过 | 规则摘要写明来源（EXIF + ISO），不是裸字段名（Prefix with EXIF ISO (separator “ ”)） |
 | ✅ 通过 | 按镜头取值取名：RF35mm F1.8 旧照片 001.jpg（{"name":"RF35mm F1.8 旧照片 001.jpg","unchanged":false}） |
 | ✅ 通过 | 按像素尺寸取值取名：5472x3648 旧照片 001.jpg（{"name":"5472x3648 旧照片 001.jpg","unchanged":false}） |
 | ✅ 通过 | 切换字段前所有照片行都真的改了名（不是只改首行）（[{"name":"旧照片 001.jpg","next":"5472x3648 旧照片 001.jpg"},{"name":"logo.png","next":"5472x3648 logo.png"},{"name":"旧照片 002.jpg","next":"5472x3648 旧照片 002.jpg"}]） |
+| ✅ 通过 | 按 IPTC 关键词取名：旅行-风景 旧照片 001.jpg（{"name":"旅行-风景 旧照片 001.jpg","unchanged":false}） |
+| ✅ 通过 | 规则摘要写明来源（IPTC 关键词），不是裸字段名（Prefix with IPTC keywords (separator “ ”)） |
 | ✅ 通过 | 缺失字段（照片选音频作曲）时该行保持原名且标记 unchanged（{"name":"旧照片 001.jpg","unchanged":true}） |
 | ✅ 通过 | 扩展名模式分段新增「Analyze」，共 6 项（{"count":6,"labels":["Case","Replace","Add","Number","Remove","Analyze"]}） |
 | ✅ 通过 | 点「Analyze」后分段选中该项并给出文件头说明（{"on":5,"hint":"Reads the file header to find the real type and only fixes a wrong extension; when detection fails the name stays as is."}） |
@@ -270,13 +272,13 @@
 | ✅ 通过 | 自定义修剪字符 1：末位的 1 被剪掉 → 旧照片 00.jpg，摘要写明剪掉的字符（{"trimCharsRow":{"name":"旧照片 00.jpg","unchanged":false},"trimCharsSum":"Trim leading/trailing “1”"}） |
 | ✅ 通过 | 修剪说明改写为可自定义字符（不再是「只有空白」）（Trims the ends only and leaves the middle alone: with no characters listed it trims whitespace (full-width spaces and tabs included), otherwise it strips the listed characters.） |
 | ✅ 通过 | 清空修剪字符后回到只剪空白 → 名字不变（{"name":"旧照片 001.jpg","unchanged":true}） |
-| ✅ 通过 | 编号分组下拉同步新增字段（field:iso / field:resolution / field:composer / field:fontFamily / field:fileVersion）（{"groups":["Shooting settings","Image size","Audio tags","Font info","Executable"],"values":["none","parent","field:taken","field:camera","field:iso","field:aperture","field:shutter","field:focal","field:lens","field:width","field:height","field:resolution","field:title","field:artist","field:album","field:track","field:year","field:genre","field:composer","field:fontFamily","field:fontStyle","field:fontVersion","field:fileVersion"]}） |
+| ✅ 通过 | 编号分组下拉同步新增字段（field:iso / field:resolution / field:composer / field:fontFamily / field:fileVersion / field:keywords）（{"groups":["Shooting settings","Image size","Audio tags","Font info","Executable","IPTC tags"],"values":["none","parent","field:taken","field:camera","field:iso","field:aperture","field:shutter","field:focal","field:lens","field:width","field:height","field:resolution","field:title","field:artist","field:album","field:track","field:year","field:genre","field:composer","field:fontFamily","field:fontStyle","field:fontVersion","field:fileVersion","field:keywords","field:caption","field:copyright","field:location"]}） |
 | ✅ 通过 | 命令列表首次打开为空态（提示先排规则链再保存）（empty=1） |
 | ✅ 通过 | 保存命令：列表出现该命令，带规则数、冲突策略与运行次数（{"name":"logo 大写归档","runs":"0","policy":"skip","meta":"1 rules · Skip conflicting rows · run 0 times · Never run"}） |
 | ✅ 通过 | 命令重载后仍在（写入本地存储，不是会话内存）（items=1） |
 | ✅ 通过 | 运行命令 → 关闭命令列表并进入预览确认（不动文件）（{"dialog":false,"preview":true,"rows":1,"summary":"4 items · 0 conflicts · 0 invalid · every rename uses a temp file + atomic replace; the batch journal is persisted and undoable.","sub":"","selectedForRun":4}） |
 | ✅ 通过 | 运行命令后预览列出该命令产生变化的行（{"rows":1,"selectedForRun":4,"summary":"4 items · 0 conflicts · 0 invalid · every rename uses a temp"}） |
-| ✅ 通过 | 运行后该命令记一次运行（次数 1、带上次运行时间）（{"runs":"1","meta":"1 rules · Skip conflicting rows · run 1 times · 11/27, 01:55 PM"}） |
+| ✅ 通过 | 运行后该命令记一次运行（次数 1、带上次运行时间）（{"runs":"1","meta":"1 rules · Skip conflicting rows · run 1 times · 11/27, 02:43 PM"}） |
 | ✅ 通过 | 删除命令 → 列表回到空态且本地存储同步清空（{"items":0,"empty":1,"stored":"[]"}） |
 | ✅ 通过 | 列表「下移」立即改变顺序并出现手动顺序标记（{"namesBefore":["旧照片 001.jpg","logo.png","旧照片 002.jpg","旧照片 003.jpg"],"namesAfterDown":["logo.png","旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg"],"manualChip":1}） |
 | ✅ 通过 | 手动顺序在重载后仍然保留（localStorage 会话）（{"namesAfterDown":["logo.png","旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg"],"namesReloaded":["logo.png","旧照片 001.jpg","旧照片 002.jpg","旧照片 003.jpg"]}） |
@@ -287,7 +289,7 @@
 | ✅ 通过 | 内容相同的不同路径进入「疑似重复」分组，未静默删除（{"dupPanelBefore":1,"dupGroups":1}） |
 | ✅ 通过 | 一键去重只移除列表中的一条，磁盘文件数不变（{"countBeforeDedupe":7,"countAfterDedupe":6,"filesOnDisk":7,"filesAfterDedupe":7}） |
 | ✅ 通过 | JPEG 属性编辑：显示 IPTC-IIM 双写说明（{"shown":true,"text":"On JPEG these four IPTC Core fields go into both XMP and IPTC-IIM (APP13 8BIM): modern apps read XMP, older ones read IIM, and both stay in sync."}） |
-| ✅ 通过 | 属性编辑：选中字段写入并回读校验通过（{"text":"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\e2e\\旅行\\旧照片 002.jpg.1795758923363.bak","ok":true,"verified":true}） |
+| ✅ 通过 | 属性编辑：选中字段写入并回读校验通过（{"text":"旧照片 002.jpgJPEGOKRead-back verifiedmeta.restore写入：titleBackup：D:\\e2e\\旅行\\旧照片 002.jpg.1795761811530.bak","ok":true,"verified":true}） |
 | ✅ 通过 | 属性编辑：重新打开可见写入后的值（{"rereadTitle":"E2E 新标题"}） |
 | ✅ 通过 | 不支持的格式不显示 IPTC-IIM 说明（避免误导）（{"heicIptcNote":0}） |
 | ✅ 通过 | 不支持格式（HEIC）明确拒绝并附文件与原因（{"unsupportedShown":1,"heicResult":{"bad":true,"text":"sample.heicHEICFailedHEIC 不支持写入：HEIC/HEIF 解码能力缺失，本版本不支持Backup：No backup"}}） |
@@ -312,7 +314,7 @@
 | ✅ 通过 | 自检结束后两个按钮都恢复可用（不卡在忙状态）（true） |
 | ✅ 通过 | 快照：入口真实可用且哈希复选框默认关闭（false） |
 | ✅ 通过 | 快照（仅映射）→ 记录 3 条原名/新名与大小/时间，不含哈希（{"entryCount":3,"hashed":0}） |
-| ✅ 通过 | 快照列表显示「仅映射」（2026/11/27 13:55:303 条 · 仅映射预览还原删除） |
+| ✅ 通过 | 快照列表显示「仅映射」（2026/11/27 14:43:383 条 · 仅映射预览还原删除） |
 | ✅ 通过 | 快照：勾选后开启 SHA-256（true） |
 | ✅ 通过 | 快照（含哈希）→ 3 条 SHA-256 且逐条上报进度（{"id":"mock-snap-2","hashed":3}） |
 | ✅ 通过 | 快照生成 → 进度事件可取消/可观测（hash/done）（hash,done） |
@@ -322,7 +324,7 @@
 | ✅ 通过 | 还原执行 → 2 条还原、1 条跳过，批次 kind=restore 且 policy=skip（{"total":3,"done":2,"skipped":1,"failed":0}） |
 | ✅ 通过 | 还原绝不覆盖：诱饵文件保持原样，冲突条目的新名文件仍在（{"decoyIntact":12345,"afterRestoreFiles":["照片_001.jpg","旧照片 002.jpg","旧照片 003.jpg","logo.png","旧照片 001.jpg"]}） |
 | ✅ 通过 | 还原结果逐条说明跳过原因（还原结果：成功 2 条，跳过/失败 1 条批次 mock-batch-2还原已写入操作记录，可在「操作记录」里整批撤销D:\e2e\旅行\照片_002.jpg→D:\e2e\旅行\旧照片 002.jpg已还原D:\e2e\旅行\照片_003.jpg→D:\e2e\旅行\旧照片 003.jpg已还原D:\e2e\旅行\照） |
-| ✅ 通过 | 操作记录把还原标为「快照还原」且可撤销（2026-11-27 13:55 · 快照还原D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销） |
+| ✅ 通过 | 操作记录把还原标为「快照还原」且可撤销（2026-11-27 14:43 · 快照还原D:\e2e\旅行 · 2/3 成功 · 1 跳过 · 0 失败部分完成 · 策略 skip · 撤销-batch-2撤销） |
 | ✅ 通过 | 撤销还原 → 2 条回到新名（冲突条目不受影响）（["照片_001.jpg","照片_002.jpg","照片_003.jpg","logo.png","旧照片 001.jpg"]） |
 | ✅ 通过 | 删除快照 → 列表与后端同步只剩 1 条（1） |
 | ✅ 通过 | 勾选一张图片后 EXIF 入口在检查器里可用（作用于勾选文件）（1 / 作用于 1 个文件） |
