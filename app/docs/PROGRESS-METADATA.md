@@ -68,7 +68,8 @@
   - PDF 严格模式解析成功、页数 2→2、逐页文本完全一致、Info+XMP 同步、原始字节前缀保留、以 `%%EOF` 结尾；
   - 清空后 core.xml 不再含对应元素（XLSX 的 `creator` 会被 openpyxl 回退显示为默认值 `openpyxl`，文件本身已无该元素）；
   - 备份字节一致，`restore` 后文件字节与原始完全一致。
-- 旧版 OLE（.doc/.xls/.ppt/.msg/.msi）：**alpha22 起已支持**——认出子类型并读 `SummaryInformation` / `DocumentSummaryInformation`（见 `docs/FEATURE-GAP.md` 5.14）；加密 PDF、xref 流 PDF、缺少 `docProps/core.xml` 的 OOXML 仍明确拒绝并给原因。
+- 读取：`renomio-core/src/pdf.rs`（alpha26）是唯一只读解析点——经典 xref 表、PDF 1.5+ xref 流（`/W` 三列 + Flate + PNG 预测器 10–15）、`/ObjStm` 对象流、`/Prev` 增量链都支持；Info 字段支持字面串 / 十六进制串 / 一层间接引用，文本按 UTF-16BE / UTF-8 / latin-1 解码，日期规整成 `2026-11-27 02:49:00 (+08:00)`，页数取 `Catalog /Pages /Count`。加密 PDF 读 `/Encrypt` 的 `V`/`R`/`CFM` **只报算法**（RC4 40 / RC4 128 / AES-128 / AES-256），不解密、不把密文当标题。
+- 旧版 OLE（.doc/.xls/.ppt/.msg/.msi）：**alpha22 起已支持**——认出子类型并读 `SummaryInformation` / `DocumentSummaryInformation`（见 `docs/FEATURE-GAP.md` 5.14）；缺少 `docProps/core.xml` 的 OOXML、xref 流 PDF 的写回仍明确拒绝并给原因。
 - 单元测试：`cargo test -p renomio-core --lib` 52/53 通过；唯一失败是既有的 `rename::tests::directory_junction_is_renamed_as_a_link`
   （`mklink` 目录联接在整套测试环境下偶发「找不到路径」，单独运行通过，与本次改动无关）。
 
