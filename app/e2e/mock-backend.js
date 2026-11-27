@@ -304,6 +304,10 @@
         year: isMusic ? '2005' : '',
         genre: isMusic ? 'Pop' : '',
         composer: isMusic ? 'E2E Composer' : '',
+        keywords: isPhoto ? '旅行-风景' : '',
+        caption: isPhoto ? '旅行随拍' : '',
+        copyright: isPhoto ? '© 2025' : '',
+        location: isPhoto ? '东京' : '',
       };
     }),
 

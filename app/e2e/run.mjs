@@ -3328,7 +3328,7 @@ async function main() {
     );
     await clearAllRules();
 
-    // ---- 按元数据取名：17 字段可选 / 真实取值 / 缺失不改名 ----
+    // ---- 按元数据取名：25 字段可选 / 真实取值 / 缺失不改名 ----
     await addRuleType('meta');
     const metaSelect = await evaluate(`(() => {
       const sel = document.querySelector('[data-testid="meta-field"]');
@@ -3341,10 +3341,10 @@ async function main() {
     })()`);
     check(
       'UI',
-      '元数据字段下拉含 21 个字段、按拍摄参数 / 图像尺寸 / 音频标签 / 字体信息 / 可执行文件五组展示',
-      metaSelect?.count === 21
-        && metaSelect.groups.length === 5
-        && ['iso', 'aperture', 'shutter', 'focal', 'lens', 'width', 'height', 'resolution', 'year', 'genre', 'composer', 'fontFamily', 'fontStyle', 'fontVersion', 'fileVersion']
+      '元数据字段下拉含 25 个字段、按拍摄参数 / 图像尺寸 / 音频标签 / 字体信息 / 可执行文件 / IPTC 六组展示',
+      metaSelect?.count === 25
+        && metaSelect.groups.length === 6
+        && ['iso', 'aperture', 'shutter', 'focal', 'lens', 'width', 'height', 'resolution', 'year', 'genre', 'composer', 'fontFamily', 'fontStyle', 'fontVersion', 'fileVersion', 'keywords', 'caption', 'copyright', 'location']
           .every((k) => metaSelect.values.includes(k)),
       JSON.stringify(metaSelect),
     );
@@ -3388,6 +3388,18 @@ async function main() {
       '切换字段前所有照片行都真的改了名（不是只改首行）',
       audioOnPhoto.filter((r) => r.name.endsWith('.jpg')).every((r) => String(r.next).startsWith('5472x3648 ')),
       JSON.stringify(audioOnPhoto.slice(0, 3)),
+    );
+
+    await setMetaField('keywords');
+    await sleep(700);
+    const kwRow = await evaluate(rowByName('旧照片 001.jpg'));
+    check('UI', '按 IPTC 关键词取名：旅行-风景 旧照片 001.jpg', kwRow?.name === '旅行-风景 旧照片 001.jpg', JSON.stringify(kwRow));
+    const kwSum = await metaSum();
+    check(
+      'UI',
+      '规则摘要写明来源（IPTC 关键词），不是裸字段名',
+      kwSum.includes('IPTC') && kwSum.toLowerCase().includes('keyword'),
+      kwSum,
     );
 
     // 照片没有音频标签：选音频字段时该规则“不改变名称”，而不是拼出空段
@@ -3844,9 +3856,9 @@ async function main() {
     })()`);
     check(
       'UI',
-      '编号分组下拉同步新增字段（field:iso / field:resolution / field:composer / field:fontFamily / field:fileVersion）',
-      groupOpts?.groups.length === 5
-        && ['field:iso', 'field:resolution', 'field:composer', 'field:fontFamily', 'field:fileVersion'].every((v) => groupOpts.values.includes(v)),
+      '编号分组下拉同步新增字段（field:iso / field:resolution / field:composer / field:fontFamily / field:fileVersion / field:keywords）',
+      groupOpts?.groups.length === 6
+        && ['field:iso', 'field:resolution', 'field:composer', 'field:fontFamily', 'field:fileVersion', 'field:keywords'].every((v) => groupOpts.values.includes(v)),
       JSON.stringify(groupOpts),
     );
     await clearAllRules();
