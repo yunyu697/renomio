@@ -19,3 +19,5 @@ junction = "1.4"
 [dev-dependencies]
 # 测试里用 GBK 编码器生成真实字节，避免手抄码位抄错
 encoding_rs = "0.8"
+# 契约测试要现场构造 deflate 压缩的 ZIP 条目
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
