@@ -1,9 +1,11 @@
 /** 规则引擎：纯函数，输入原名 + 规则链，输出新名。所有语义在 README 中固化说明。 */
 import { t } from '../i18n';
 import type {
-  AddRule, CaseRule, DeleteRule, ExtRule, MapRule, MetaFieldKey, MetaFields, MoveRule, NumberRule, ReplaceRule, Rule,
+  AddRule, CaseRule, DeleteRule, EncodingRule, ExtRule, MapRule, MetaFieldKey, MetaFields, MoveRule, NumberRule,
+  ReplaceRule, Rule,
 } from './types';
 import { META_FIELDS, metaFieldLabelKey } from './metaFields';
+import { applyEncoding, isEncodingMode } from './encoding';
 import { applyMapping, mapErrorKey, parseMapTable } from './mapTable';
 import { expandTemplate, scanTemplate, type VarContext } from './vars';
 
@@ -126,6 +128,8 @@ export function ruleError(rule: Rule): string | null {
       return null;
     case 'meta':
       return null;
+    case 'encoding':
+      return isEncodingMode(rule.mode) ? null : t('ruleErr.badEncodingMode');
     case 'map': {
       const parsed = parseMapTable(rule.table, rule.caseSensitive);
       if (parsed.errors.length) {
@@ -674,6 +678,10 @@ export function applyRules(
         }
         break;
       }
+      case 'encoding':
+        // 只作用于文件名主干：扩展名有专门的 ext 规则，这里不越界
+        stem = applyEncoding(stem, isEncodingMode(rule.mode) ? rule.mode : 'nfc');
+        break;
       case 'map': {
         // 表已在 ruleError 里校验过；这里再解析一次是纯函数、无副作用，避免结论依赖调用顺序
         const parsed = parseMapTable(rule.table, rule.caseSensitive);
@@ -742,6 +750,11 @@ export function normalizeRule(rule: Rule): Rule {
     // trimChars 是本轮新增字段：旧存档缺省为空串，等价于「只剪空白」，行为不变
     const legacy = rule as DeleteRule & { trimChars?: string };
     return { ...legacy, trimChars: typeof legacy.trimChars === 'string' ? legacy.trimChars : '' };
+  }
+  if (rule.type === 'encoding') {
+    // 手改存档 / 旧计划文件可能缺 mode：非法值一律回落 NFC，避免求值期崩掉整条链
+    const legacy = rule as EncodingRule & { mode?: string };
+    return { ...legacy, mode: isEncodingMode(legacy.mode) ? legacy.mode : 'nfc' };
   }
   if (rule.type === 'map') {
     // 手改存档 / 旧计划文件可能缺字段：补齐后再进解析，避免 undefined 崩掉整条链
@@ -855,6 +868,8 @@ export function ruleSummary(rule: Rule): string {
       });
       return `${base}${rule.separator ? t('ruleSum.metaSep', { sep: rule.separator }) : ''}`;
     }
+    case 'encoding':
+      return t('ruleSum.encoding', { mode: t(`f.encoding.${rule.mode}`) });
     case 'map': {
       const parsed = parseMapTable(rule.table, rule.caseSensitive);
       return t(rule.caseSensitive ? 'ruleSum.mapCase' : 'ruleSum.map', { n: parsed.entries.length });

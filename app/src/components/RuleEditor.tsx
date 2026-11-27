@@ -2,9 +2,11 @@ import { useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from '../i18n';
 import { useApp } from '../store';
 import type {
-  AddRule, CaseRule, DeleteRule, ExtRule, MapRule, MetaRule, MoveRule, NumberRule, ReplaceRule, Rule,
+  AddRule, CaseRule, DeleteRule, EncodingRule, ExtRule, MapRule, MetaRule, MoveRule, NumberRule, ReplaceRule,
+  Rule,
 } from '../lib/types';
 import { ruleError } from '../lib/rules';
+import { applyEncoding, ENCODING_MODES } from '../lib/encoding';
 import { mapErrorKey, parseMapTable } from '../lib/mapTable';
 import { META_FIELD_GROUPS, metaFieldLabelKey } from '../lib/metaFields';
 import { SAMPLE_VARS, expandTemplate } from '../lib/vars';
@@ -317,6 +319,7 @@ export function RuleEditor({ rule, patch }: { rule: Rule; patch: Patch }) {
       {rule.type === 'ext' && <ExtEditor rule={rule} patch={patch} />}
       {rule.type === 'meta' && <MetaEditor rule={rule} patch={patch} />}
       {rule.type === 'map' && <MapEditor rule={rule} patch={patch} />}
+      {rule.type === 'encoding' && <EncodingEditor rule={rule} patch={patch} />}
       {error && <div className="rule-error">{error}</div>}
     </div>
   );
@@ -776,6 +779,36 @@ function MapEditor({ rule, patch }: { rule: MapRule; patch: Patch }) {
       {shown.length === 0 && parsed.entries.length > 0 && (
         <div className="hint-line" data-testid="map-entries-count">{t('f.mapCount', { n: parsed.entries.length })}</div>
       )}
+    </>
+  );
+}
+
+/** 编码转换：一个下拉选七种模式，下面给一段「同一句话进、转换后出」的实时示例。 */
+const ENCODING_SAMPLE = 'Résumé ＡＢＣ１２３ cafÃ©';
+
+function EncodingEditor({ rule, patch }: { rule: EncodingRule; patch: Patch }) {
+  const { t } = useTranslation();
+  const mode = ENCODING_MODES.includes(rule.mode) ? rule.mode : 'nfc';
+  const before = ENCODING_SAMPLE;
+  const after = applyEncoding(before, mode);
+  return (
+    <>
+      <Field label={t('f.encodingMode')}>
+        <select
+          className="input"
+          data-testid="encoding-mode"
+          value={mode}
+          onChange={(e) => patch({ mode: e.target.value })}
+        >
+          {ENCODING_MODES.map((item) => (
+            <option key={item} value={item}>{t(`f.encoding.${item}`)}</option>
+          ))}
+        </select>
+      </Field>
+      <div className="hint-line" data-testid="encoding-hint">{t('f.encodingHint')}</div>
+      <div className="hint-line mono" data-testid="encoding-sample">
+        {t('f.encodingSample', { before, after })}
+      </div>
     </>
   );
 }

@@ -1,6 +1,7 @@
+import type { EncodingMode } from './encoding';
 import type { ShortcutId } from './shortcuts';
 
-export type RuleType = 'add' | 'replace' | 'delete' | 'number' | 'move' | 'case' | 'ext' | 'meta' | 'map';
+export type RuleType = 'add' | 'replace' | 'delete' | 'number' | 'move' | 'case' | 'ext' | 'meta' | 'map' | 'encoding';
 
 export interface Entry {
   id: string;
@@ -592,8 +593,15 @@ export interface MapRule extends RuleBase {
   caseSensitive: boolean;
 }
 
+/** 编码转换：把文件名主干的编码形态整形（Unicode 规范化 / 全半角 / UTF-8 乱码修复） */
+export interface EncodingRule extends RuleBase {
+  type: 'encoding';
+  mode: EncodingMode;
+}
+
 export type Rule =
-  | AddRule | ReplaceRule | DeleteRule | NumberRule | MoveRule | CaseRule | ExtRule | MetaRule | MapRule;
+  | AddRule | ReplaceRule | DeleteRule | NumberRule | MoveRule | CaseRule | ExtRule | MetaRule | MapRule
+  | EncodingRule;
 
 export type RowStatus = 'ready' | 'unchanged' | 'conflict' | 'warn' | 'invalid' | 'off';
 

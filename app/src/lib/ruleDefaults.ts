@@ -1,6 +1,7 @@
 /** 新增规则时的默认值：与设计稿“规则配置”保持一致 */
 import type {
-  AddRule, CaseRule, DeleteRule, ExtRule, MapRule, MetaRule, MoveRule, NumberRule, ReplaceRule, Rule, RuleType,
+  AddRule, CaseRule, DeleteRule, EncodingRule, ExtRule, MapRule, MetaRule, MoveRule, NumberRule, ReplaceRule,
+  Rule, RuleType,
 } from './types';
 
 export function createRuleDefaults(type: RuleType, id: string): Rule {
@@ -71,9 +72,15 @@ export function createRuleDefaults(type: RuleType, id: string): Rule {
       };
       return rule;
     }
+    case 'encoding': {
+      const rule: EncodingRule = {
+        id, type: 'encoding', enabled: true, mode: 'nfc',
+      };
+      return rule;
+    }
     default:
       throw new Error(`未知规则类型：${String(type)}`);
   }
 }
 
-export const RULE_TYPES: RuleType[] = ['replace', 'add', 'delete', 'number', 'move', 'case', 'ext', 'meta', 'map'];
+export const RULE_TYPES: RuleType[] = ['replace', 'add', 'delete', 'number', 'move', 'case', 'ext', 'meta', 'map', 'encoding'];
