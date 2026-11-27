@@ -98,7 +98,7 @@ PDF 写回吃下对象流里的 Catalog / Info（alpha34，域五 5.14 写侧最
 已知缺口：
 - Windows 安装包未做 Authenticode 代码签名（本机无 OV/EV 证书），SmartScreen 会警告；更新用 `.sig` 已验过。
 - PDF 写回对对象流里 LZW / ASCII85 等非 Flate / Hex 编码仍只能新建 Info 并告警，加密 PDF 一律拒写。
-已发布：`v1.2.0-alpha33`（2026-11-27，Pre-release，15 资产）为当前最新；滚动清单 release `updates` 的 `latest.json` 已指向 alpha33（三平台键齐全：windows 2,767,142 / linux 87,198,200 / mac 3,491,854，pub_date `2026-11-27T09:17:41Z`，线上回读与本地逐字节一致（SHA-256 `e276a199…3db84d`，2177 B，`gh release download` 回读通道；`gh api … | Set-Content` 会把二进制转文本，别用），13 包按 asset `digest` 与本地 `SHA256SUMS` 逐条相符，六签名包离线验签全 PASS）；上一版 `v1.2.0-alpha32` 资产保留。
+已发布：`v1.2.0-alpha34`（2026-11-27，Pre-release，15 资产）为当前最新；滚动清单 release `updates` 的 `latest.json` 已指向 alpha34（三平台键齐全：windows 2,768,206 / linux 87,202,296 / mac 3,495,082，pub_date `2026-11-27T15:18:01Z`，线上回读与本地逐字节一致（SHA-256 `025bd3b966547540a925983a00df75e4f77598421fd5758c771b124fc3556a07`，2349 B，`gh release download` 回读通道；`gh api … | Set-Content` 会把二进制转文本，别用），13 包按 asset `digest` 与本地 `SHA256SUMS` 逐条相符，六签名包离线验签全 PASS）；上一版 `v1.2.0-alpha33` 资产保留。
 
 - `renomio-core` 的 `rename::tests::directory_junction_is_renamed_as_a_link` 在部分环境因联接点权限失败，属环境问题。
 - 界面层遗留（2026-11-25 清零）：`.list-tabs/.tab` 旧样式块连同 105 个死选择器一并删除（app.css −17%、shell.css −8.5%），`npm run test:css` 孤儿守卫进 CI，`scripts/test-css-orphans.mjs` 当前 0 孤儿；toast 改为让位式（右侧抽屉展开左移到抽屉左侧、底部检查器展开抬到检查器上方）；表头与行逐列几何断言实测 7 列 Δ=0、状态列表头文字与徽标 Δ=0.00（`e2e/run.mjs` 第 4 条断言起）。
