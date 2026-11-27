@@ -44,8 +44,8 @@
 - 支持：JPEG（APP1 EXIF IFD0 + XMP 合并）、PNG（iTXt）、WebP（RIFF/VPX EXIF+XMP）、TIFF（IFD0）。
 - 字段：title / description / keywords / author / copyright / software / takenAt / headline / bylineTitle / credit / source（后四项 IPTC Core；XMP 为主，JPEG 另写 IPTC-IIM / APP13 8BIM，读 IIM 的老软件也能看到）。
 - 保留：相机 Make/Model/GPS/ICC；只改勾选字段；先备份后原子替换；逐字段回读校验。
-- 只读（可看不可写）：字体 TTF/OTF/TTC（`name` 表的族名/字形/全名/PostScript 名/版本/设计者/授权、`maxp` 字形数、`head` 设计网格、`OS/2` 字重与斜体，TTC 报集合内字体数与首字体；Mac 记录缺 MacRoman 码表时按 Windows-1252 近似并说明）、HEIC/HEIF（`ispe` 尺寸、`pixi` 位深与通道、`hvcC` 色度采样、`auxC` alpha 平面、`irot` 旋转、`stsz` 帧数（序列）、`iloc` 取 Exif 项的拍摄时间与相机型号——iPhone 照片/截图/实况照片的主要容器）、GIF（版本、尺寸、调色板色数、帧数、是否动画、`NETSCAPE2.0` 循环次数、注释、逐帧延时总时长）、BMP（头部类型、尺寸与扫描方向、位深、压缩方式、DPI、调色板色数）、AVIF（`ispe` 尺寸、`pixi`/`av1C` 位深、通道数、`auxC` alpha 平面、`stsz` 帧数）——字体由 `renomio-core/src/font.rs` 解析，GIF/BMP/AVIF 由 `renomio-core/src/image_container.rs` 解析、HEIC/HEIF 由 `renomio-core/src/heif.rs` 解析，属性面板给「只读」，写入明确拒绝并说明原因。字体名/字形/字体版本可进「按元数据取名」（共 20 个字段）。
-- 不支持：字体、HEIC/HEIF、GIF/BMP/AVIF 的**写入**（只读解析已就绪，写回与转码都不做，宁可明确拒绝也不假支持）。
+- 只读（可看不可写）：EXE/DLL（PE 头的位数/目标架构/子系统/编译时间 + `.rsrc` 中 `VS_VERSIONINFO` 的文件版本、产品版本、公司名、产品名、文件说明、版权、原始文件名、内部名、商标、注释、私有构建、特殊构建、语言表；语言表优先 en-US，多表只解一张并警告；`VS_FIXEDFILEINFO` 签名不对只警告不套默认值）、字体 TTF/OTF/TTC（`name` 表的族名/字形/全名/PostScript 名/版本/设计者/授权、`maxp` 字形数、`head` 设计网格、`OS/2` 字重与斜体，TTC 报集合内字体数与首字体；Mac 记录缺 MacRoman 码表时按 Windows-1252 近似并说明）、HEIC/HEIF（`ispe` 尺寸、`pixi` 位深与通道、`hvcC` 色度采样、`auxC` alpha 平面、`irot` 旋转、`stsz` 帧数（序列）、`iloc` 取 Exif 项的拍摄时间与相机型号——iPhone 照片/截图/实况照片的主要容器）、GIF（版本、尺寸、调色板色数、帧数、是否动画、`NETSCAPE2.0` 循环次数、注释、逐帧延时总时长）、BMP（头部类型、尺寸与扫描方向、位深、压缩方式、DPI、调色板色数）、AVIF（`ispe` 尺寸、`pixi`/`av1C` 位深、通道数、`auxC` alpha 平面、`stsz` 帧数）——EXE/DLL 由 `renomio-core/src/pe.rs` 解析，字体由 `renomio-core/src/font.rs` 解析，GIF/BMP/AVIF 由 `renomio-core/src/image_container.rs` 解析、HEIC/HEIF 由 `renomio-core/src/heif.rs` 解析，属性面板给「只读」，写入明确拒绝并说明原因。文件版本（PE）/字体名/字形/字体版本可进「按元数据取名」（共 21 个字段）。
+- 不支持：EXE/DLL、字体、HEIC/HEIF、GIF/BMP/AVIF 的**写入**（只读解析已就绪，写回与转码都不做，宁可明确拒绝也不假支持）。
 - 实测：`verify_meta.py` 图片段全部通过（Pillow 13 校验尺寸/像素哈希/ICC/EXIF/GPS，备份字节一致，restore 后字节完全还原）。
 
 ## 2. 音乐标签（已验）
