@@ -307,7 +307,8 @@ export type MetaFieldKey =
   | 'title' | 'artist' | 'album' | 'track' | 'year' | 'genre' | 'composer'
   | 'fontFamily' | 'fontStyle' | 'fontVersion'
   | 'fileVersion'
-  | 'keywords' | 'caption' | 'copyright' | 'location';
+  | 'keywords' | 'caption' | 'copyright' | 'location'
+  | 'company' | 'template';
 
 /** 供「按元数据取名」使用的只读字段（Rust `rename_fields` 返回，缺失为空串，已做文件名安全化）。 */
 export interface MetaFields {
@@ -337,6 +338,8 @@ export interface MetaFields {
   caption: string;
   copyright: string;
   location: string;
+  company: string;
+  template: string;
 }
 
 /** 可编辑元数据的字段 id（图片 / 音频 / 文档共用一套字符串键，按格式白名单过滤）。 */

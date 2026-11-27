@@ -6,7 +6,7 @@
  */
 import type { MetaFieldKey } from './types';
 
-/** 按类别分组，界面下拉里用分组标题区分拍摄参数 / 音频标签 / 字体信息 / 可执行文件 / IPTC。 */
+/** 按类别分组，界面下拉里用分组标题区分拍摄参数 / 音频标签 / 字体信息 / 可执行文件 / IPTC / 文档属性。 */
 export const META_FIELD_GROUPS: Array<{ titleKey: string; fields: MetaFieldKey[] }> = [
   { titleKey: 'metaGroup.shooting', fields: ['taken', 'camera', 'iso', 'aperture', 'shutter', 'focal', 'lens'] },
   { titleKey: 'metaGroup.pixels', fields: ['width', 'height', 'resolution'] },
@@ -14,6 +14,7 @@ export const META_FIELD_GROUPS: Array<{ titleKey: string; fields: MetaFieldKey[]
   { titleKey: 'metaGroup.font', fields: ['fontFamily', 'fontStyle', 'fontVersion'] },
   { titleKey: 'metaGroup.pe', fields: ['fileVersion'] },
   { titleKey: 'metaGroup.iptc', fields: ['keywords', 'caption', 'copyright', 'location'] },
+  { titleKey: 'metaGroup.document', fields: ['company', 'template'] },
 ];
 
 /** 扁平顺序（校验白名单用）：与分组顺序一致，保证 `field:` 枚举顺序稳定。 */

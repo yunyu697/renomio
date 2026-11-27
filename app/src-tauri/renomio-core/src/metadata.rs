@@ -94,6 +94,9 @@ pub struct RenameFieldValues {
     pub caption: String,
     pub copyright: String,
     pub location: String,
+    /// OOXML 文档属性：公司 / 模板（原版 Office 摘要字段，取值来自 app.xml）
+    pub company: String,
+    pub template: String,
 }
 
 /// Windows / macOS / Linux 都拒绝的字符一律换成 `-`（`/` 在文件名里等同于路径分隔符）。
@@ -227,6 +230,8 @@ pub fn rename_field_values(info: &MetadataInfo) -> RenameFieldValues {
         caption: clip_token(&field_of(info, &["说明"])),
         copyright: clip_token(&field_of(info, &["版权"])),
         location: clip_token(&field_of(info, &["拍摄地点"])),
+        company: clip_token(&field_of(info, &["公司"])),
+        template: clip_token(&field_of(info, &["模板"])),
     }
 }
 
@@ -322,7 +327,18 @@ pub fn read_metadata(path: &str) -> Result<MetadataInfo, String> {
     } else if data.starts_with(b"%PDF") {
         document_pdf(&data)
     } else if data.starts_with(b"PK\x03\x04") {
-        document_docx(&data, &ext)
+        // OOXML 走内部结构判定（docx / xlsx / pptx 不再一律叫 Word 文档）；
+        // 普通 ZIP 明确说明不是 OOXML，不冒充文档。
+        match crate::ooxml::probe(&data) {
+            Some(probe) => document_ooxml(probe, &ext),
+            None => {
+                let mut info = MetadataInfo::new("document", "ZIP 压缩包（非 OOXML）");
+                info.warn(
+                    "这是 ZIP 容器，但没有 OOXML 的 [Content_Types].xml 与主文档部件；不做文档属性解析。",
+                );
+                info
+            }
+        }
     } else if is_text_ext(&ext) {
         text_file(&data, &ext)
     } else if data.starts_with(b"\xD0\xCF\x11\xE0") {
@@ -1711,92 +1727,120 @@ pub fn read_metadata_batch(paths: &[String]) -> Vec<BatchMetadata> {
         .collect()
 }
 
-fn document_docx(data: &[u8], ext: &str) -> MetadataInfo {
-    let mut info = MetadataInfo::new("document", "Word 文档 (DOCX)");
-    let core = zip_entry(data, "docProps/core.xml").and_then(|bytes| String::from_utf8(bytes).ok());
-    match core {
-        Some(xml) => {
-            for (tag, label) in [
-                ("dc:title", "标题"),
-                ("dc:creator", "作者"),
-                ("dc:subject", "主题"),
-                ("cp:lastModifiedBy", "最后修改者"),
-                ("cp:revision", "修订号"),
-                ("dcterms:created", "创建时间"),
-                ("dcterms:modified", "修改时间"),
-            ] {
-                if let Some(value) = extract_xml_tag(&xml, tag) {
-                    info.push(label, value);
-                }
+fn document_ooxml(probe: crate::ooxml::OoxmlProbe, ext: &str) -> MetadataInfo {
+    let expected = crate::ooxml::kind_from_ext(ext);
+    let mut info = match probe.kind {
+        Some(kind) => MetadataInfo::new("document", kind.format_name()),
+        None => MetadataInfo::new("document", "OOXML 文档（类型未判定）"),
+    };
+
+    // 类型与扩展名不一致时明确说明按内部结构读取，而不是照着扩展名叫
+    match (expected, probe.kind) {
+        (Some(want), Some(got)) if want != got => info.warn(format!(
+            "扩展名为 .{ext}，内部结构是{}（按内部结构读取）",
+            got.short_name()
+        )),
+        (None, Some(got)) if !ext.is_empty() => info.warn(format!(
+            "扩展名为 .{ext}，内部结构是{}（按内部结构读取）",
+            got.short_name()
+        )),
+        _ => {}
+    }
+    for warning in &probe.warnings {
+        info.warn(warning.clone());
+    }
+
+    for (tag, label) in [
+        ("dc:title", "标题"),
+        ("dc:subject", "主题"),
+        ("dc:creator", "作者"),
+        ("cp:keywords", "关键词"),
+        ("dc:description", "说明"),
+        ("cp:lastModifiedBy", "最后修改者"),
+        ("cp:revision", "修订号"),
+        ("dcterms:created", "创建时间"),
+        ("dcterms:modified", "修改时间"),
+        ("cp:category", "类别"),
+        ("cp:contentStatus", "内容状态"),
+        ("cp:identifier", "标识"),
+        ("dc:language", "语言"),
+        ("cp:version", "版本"),
+    ] {
+        if let Some(value) = probe.core_value(tag) {
+            info.push(label, value.to_string());
+        }
+    }
+
+    for (tag, label, kind) in [
+        ("Application", "生成应用", "text"),
+        ("AppVersion", "应用版本", "text"),
+        ("Company", "公司", "text"),
+        ("Manager", "经理", "text"),
+        ("Template", "模板", "text"),
+        ("TotalTime", "编辑总时长", "minutes"),
+        ("HyperlinkBase", "超链接基址", "text"),
+        ("SharedDoc", "共享文档", "flag"),
+        ("LinksUpToDate", "链接已更新", "flag"),
+        ("ScaleCrop", "缩放裁剪", "flag"),
+    ] {
+        if let Some(value) = probe.app_value(tag) {
+            let value = match kind {
+                "minutes" => minutes_label(value),
+                "flag" => yes_no(value),
+                _ => value.to_string(),
+            };
+            info.push(label, value);
+        }
+    }
+
+    if let Some(doc_kind) = probe.kind {
+        for (tag, label) in kind_field_labels(doc_kind) {
+            if let Some(value) = probe.app_value(tag) {
+                info.push(label, value.to_string());
             }
         }
-        None => info.warn("未能读取 docProps/core.xml（文档可能损坏或不是标准 DOCX）"),
     }
-    if let Some(app) = zip_entry(data, "docProps/app.xml").and_then(|b| String::from_utf8(b).ok()) {
-        for (tag, label) in [
-            ("Pages", "页数"),
-            ("Words", "字数"),
-            ("Application", "生成应用"),
-        ] {
-            if let Some(value) = extract_xml_tag(&app, tag) {
-                info.push(label, value);
-            }
-        }
-    }
-    if !ext.is_empty() && ext != "docx" {
-        info.warn(format!("扩展名为 .{ext}，内部结构按 DOCX 读取"));
-    }
+
     info
 }
 
-/// 最小 ZIP 读取器（仅支持 stored / deflate），避免引入完整 zip 依赖。
-fn zip_entry(data: &[u8], target: &str) -> Option<Vec<u8>> {
-    let eocd = find_eocd(data)?;
-    let count = le_u16(data, eocd + 10)? as usize;
-    let mut offset = le_u32(data, eocd + 16)? as usize;
-    for _ in 0..count {
-        if data.get(offset..offset + 4) != Some(b"PK\x01\x02".as_ref()) {
-            return None;
-        }
-        let method = le_u16(data, offset + 10)?;
-        let comp_size = le_u32(data, offset + 20)? as usize;
-        let name_len = le_u16(data, offset + 28)? as usize;
-        let extra_len = le_u16(data, offset + 30)? as usize;
-        let comment_len = le_u16(data, offset + 32)? as usize;
-        let local_off = le_u32(data, offset + 42)? as usize;
-        let name_bytes = data.get(offset + 46..offset + 46 + name_len)?;
-        let name = String::from_utf8_lossy(name_bytes).to_string();
-        if name == target {
-            let local_name_len = le_u16(data, local_off + 26)? as usize;
-            let local_extra_len = le_u16(data, local_off + 28)? as usize;
-            let start = local_off + 30 + local_name_len + local_extra_len;
-            let end = start.checked_add(comp_size)?;
-            let raw = data.get(start..end)?;
-            return match method {
-                0 => Some(raw.to_vec()),
-                8 => {
-                    use flate2::read::DeflateDecoder;
-                    let mut out = Vec::new();
-                    let mut decoder = DeflateDecoder::new(raw);
-                    decoder.read_to_end(&mut out).ok()?;
-                    Some(out)
-                }
-                _ => None,
-            };
-        }
-        offset += 46 + name_len + extra_len + comment_len;
+/// 每种文档特有的 `app.xml` 统计字段 → 中文标签。
+fn kind_field_labels(kind: crate::ooxml::DocKind) -> &'static [(&'static str, &'static str)] {
+    use crate::ooxml::DocKind;
+    match kind {
+        DocKind::Word => &[
+            ("Pages", "页数"),
+            ("Words", "字数"),
+            ("Characters", "字符数"),
+            ("Lines", "行数"),
+            ("Paragraphs", "段落数"),
+        ],
+        DocKind::Excel => &[("Worksheets", "工作表数")],
+        DocKind::PowerPoint => &[
+            ("Slides", "幻灯片数"),
+            ("Notes", "备注页数"),
+            ("HiddenSlides", "隐藏幻灯片"),
+            ("PresentationFormat", "放映格式"),
+            ("Words", "字数"),
+        ],
     }
-    None
 }
 
-fn find_eocd(data: &[u8]) -> Option<usize> {
-    if data.len() < 22 {
-        return None;
+/// `app.xml` 的 `TotalTime` 是「分钟」（Office 自 2003 起写的就是分钟），带上单位再展示。
+fn minutes_label(raw: &str) -> String {
+    match raw.trim().parse::<u64>() {
+        Ok(minutes) => format!("{minutes} 分钟"),
+        Err(_) => raw.trim().to_string(),
     }
-    let start = data.len().saturating_sub(65557);
-    (start..=data.len() - 22)
-        .rev()
-        .find(|&i| data[i..i + 4] == [0x50, 0x4B, 0x05, 0x06])
+}
+
+/// `true` / `false` → 是 / 否；其它值原样（不猜语义）。
+fn yes_no(raw: &str) -> String {
+    match raw.trim() {
+        "true" | "1" => "是".to_string(),
+        "false" | "0" => "否".to_string(),
+        other => other.to_string(),
+    }
 }
 
 #[cfg(test)]
@@ -2088,26 +2132,47 @@ mod tests {
     #[test]
     fn docx_core_properties() {
         let core = r#"<?xml version="1.0"?><cp:coreProperties xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"><dc:title>季度报告</dc:title><dc:creator>张三</dc:creator></cp:coreProperties>"#;
-        let zip = build_stored_zip(&[("docProps/core.xml", core.as_bytes())]);
+        let app = r#"<?xml version="1.0"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>Microsoft Office Word</Application><Company>示例科技</Company><Manager>李四</Manager><Template>Normal.dotm</Template><TotalTime>12</TotalTime><Pages>3</Pages><Words>1024</Words><SharedDoc>false</SharedDoc></Properties>"#;
+        let types = r#"<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>"#;
+        let zip = build_stored_zip(&[
+            ("[Content_Types].xml", types.as_bytes()),
+            ("word/document.xml", b"<w:document/>"),
+            ("docProps/core.xml", core.as_bytes()),
+            ("docProps/app.xml", app.as_bytes()),
+        ]);
         let file = TempFile::new("sample.docx", &zip);
         let info = read_metadata(file.0.to_str().unwrap()).unwrap();
         assert_eq!(info.kind, "document");
-        assert_eq!(
+        assert_eq!(info.format, "Word 文档 (DOCX)");
+        let value = |label: &str| {
             info.fields
                 .iter()
-                .find(|f| f.label == "标题")
-                .unwrap()
-                .value,
-            "季度报告"
-        );
-        assert_eq!(
-            info.fields
-                .iter()
-                .find(|f| f.label == "作者")
-                .unwrap()
-                .value,
-            "张三"
-        );
+                .find(|f| f.label == label)
+                .map(|f| f.value.as_str())
+                .unwrap_or("")
+        };
+        assert_eq!(value("标题"), "季度报告");
+        assert_eq!(value("作者"), "张三");
+        assert_eq!(value("生成应用"), "Microsoft Office Word");
+        assert_eq!(value("公司"), "示例科技");
+        assert_eq!(value("经理"), "李四");
+        assert_eq!(value("模板"), "Normal.dotm");
+        assert_eq!(value("编辑总时长"), "12 分钟");
+        assert_eq!(value("页数"), "3");
+        assert_eq!(value("共享文档"), "否");
+        // 公司 / 模板同时进改名取值
+        let values = rename_field_values(&info);
+        assert_eq!(values.company, "示例科技");
+        assert_eq!(values.template, "Normal.dotm");
+    }
+
+    #[test]
+    fn plain_zip_is_not_called_docx() {
+        let zip = build_stored_zip(&[("readme.txt", b"hello")]);
+        let file = TempFile::new("sample.zip", &zip);
+        let info = read_metadata(file.0.to_str().unwrap()).unwrap();
+        assert_eq!(info.format, "ZIP 压缩包（非 OOXML）");
+        assert!(info.warnings.iter().any(|w| w.contains("OOXML")));
     }
 
     #[test]

@@ -719,6 +719,8 @@ const META_SUMMARY_KEYS: Record<MetaFieldKey, string> = {
   caption: 'ruleSum.metaCaption',
   copyright: 'ruleSum.metaCopyright',
   location: 'ruleSum.metaLocation',
+  company: 'ruleSum.metaCompany',
+  template: 'ruleSum.metaTemplate',
 };
 
 /** 兼容旧规则字段：perFolder → groupBy；移动规则补齐 by/标记/insert；其余补齐默认值。 */

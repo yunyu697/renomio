@@ -3,6 +3,7 @@
 pub mod apk;
 pub mod audio_container;
 pub mod iptc;
+pub mod ooxml;
 pub mod cfb;
 pub mod datadir;
 pub mod font;
