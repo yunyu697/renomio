@@ -1,7 +1,7 @@
 {
   "name": "rename-studio",
   "private": true,
-  "version": "1.2.0-alpha36",
+  "version": "1.2.0-alpha37",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -45,6 +45,7 @@
     "test:map": "node scripts/test-map.mjs",
     "test:encoding": "node scripts/test-encoding.mjs",
     "test:integration": "node scripts/test-integration.mjs",
+    "test:attrbackup": "node scripts/test-attrbackup.mjs",
     "test:bundle": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-bundle.ps1",
     "foundation:build": "tsc -p packages/foundation/tsconfig.json"
   },
