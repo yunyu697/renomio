@@ -1279,135 +1279,17 @@ fn document_ole(data: &[u8]) -> MetadataInfo {
 
 fn document_pdf(data: &[u8]) -> MetadataInfo {
     let mut info = MetadataInfo::new("document", "PDF 文档");
-    for (key, label) in [
-        ("/Title", "标题"),
-        ("/Author", "作者"),
-        ("/Subject", "主题"),
-        ("/Creator", "创建工具"),
-        ("/Producer", "生成器"),
-        ("/CreationDate", "创建时间"),
-    ] {
-        if let Some(value) = pdf_string_after(data, key) {
-            info.push(label, value);
-        }
+    let Some(probe) = crate::pdf::probe(data) else {
+        info.warn("不是可识别的 PDF 文件头");
+        return info;
+    };
+    for (label, value) in &probe.fields {
+        info.push(*label, value.clone());
     }
-    if data.windows(8).any(|w| w == b"/Encrypt") {
-        info.warn("PDF 已加密，部分属性可能不可读");
-    }
-    let pages = count_pdf_pages(data);
-    if pages > 0 {
-        info.push("页数（粗略）", pages.to_string());
-    }
-    if info.fields.iter().all(|f| f.label == "文件大小") {
-        info.warn("未在 PDF 中找到标题/作者；Info 字典可能被压缩，需专用解析器");
+    for warning in &probe.warnings {
+        info.warn(warning.clone());
     }
     info
-}
-
-fn count_pdf_pages(data: &[u8]) -> usize {
-    let mut count = 0usize;
-    let mut i = 0usize;
-    while let Some(pos) = data[i..].windows(5).position(|w| w == b"/Type") {
-        let at = i + pos + 5;
-        let rest = &data[at..];
-        let rest = rest.strip_prefix(b" ").unwrap_or(rest);
-        if rest.starts_with(b"/Page")
-            && !rest
-                .get(5)
-                .map(|b| b.is_ascii_alphanumeric())
-                .unwrap_or(false)
-        {
-            count += 1;
-        }
-        i = at;
-        if i >= data.len() {
-            break;
-        }
-    }
-    count
-}
-
-fn pdf_string_after(data: &[u8], key: &str) -> Option<String> {
-    let bytes = key.as_bytes();
-    let mut search_from = 0usize;
-    while let Some(pos) = data[search_from..]
-        .windows(bytes.len())
-        .position(|w| w == bytes)
-    {
-        let mut i = search_from + pos + bytes.len();
-        search_from = i;
-        while i < data.len() && data[i].is_ascii_whitespace() {
-            i += 1;
-        }
-        if i >= data.len() {
-            return None;
-        }
-        if data[i] == b'(' {
-            let mut out = String::new();
-            let mut depth = 1usize;
-            i += 1;
-            while i < data.len() {
-                match data[i] {
-                    b'\\' => {
-                        i += 1;
-                        if i < data.len() {
-                            match data[i] {
-                                b'n' => out.push('\n'),
-                                b'r' => out.push('\r'),
-                                b't' => out.push('\t'),
-                                b'(' | b')' | b'\\' => out.push(data[i] as char),
-                                other => out.push(other as char),
-                            }
-                        }
-                    }
-                    b'(' => {
-                        depth += 1;
-                        out.push('(');
-                    }
-                    b')' => {
-                        depth -= 1;
-                        if depth == 0 {
-                            break;
-                        }
-                        out.push(')');
-                    }
-                    other => out.push(other as char),
-                }
-                i += 1;
-            }
-            let text = out.trim().to_string();
-            if !text.is_empty() {
-                return Some(text);
-            }
-        } else if data[i] == b'<' {
-            let mut hex = String::new();
-            i += 1;
-            while i < data.len() && data[i] != b'>' {
-                if data[i].is_ascii_hexdigit() {
-                    hex.push(data[i] as char);
-                }
-                i += 1;
-            }
-            if hex.len() >= 4 {
-                let mut out = String::new();
-                for chunk in hex.as_bytes().chunks(2) {
-                    if chunk.len() == 2 {
-                        if let Ok(v) = u8::from_str_radix(
-                            &format!("{}{}", chunk[0] as char, chunk[1] as char),
-                            16,
-                        ) {
-                            out.push(v as char);
-                        }
-                    }
-                }
-                let text = out.trim().to_string();
-                if !text.is_empty() {
-                    return Some(text);
-                }
-            }
-        }
-    }
-    None
 }
 
 fn is_text_ext(ext: &str) -> bool {

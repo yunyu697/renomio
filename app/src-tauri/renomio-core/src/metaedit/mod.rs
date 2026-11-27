@@ -281,7 +281,11 @@ pub fn capabilities() -> Vec<MetaCapability> {
         ("DOCX", "docProps/core.xml；改完 zip 结构与 CRC 重新校验"),
         ("XLSX", "docProps/core.xml；不触碰工作表内容"),
         ("PPTX", "docProps/core.xml；不触碰幻灯片内容"),
-        ("PDF", "增量更新 Info 字典 + XMP；原页面对象逐字节保留"),
+        (
+            "PDF",
+            "读取支持 xref 表 / xref 流 / 对象流（含 PNG 预测器），加密 PDF 只报算法不解密；\
+             写入仍只走经典 xref 的增量更新，原页面对象逐字节保留",
+        ),
     ] {
         out.push(MetaCapability {
             kind: "document".into(),

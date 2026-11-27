@@ -541,7 +541,7 @@ function demoCapabilities(): MetaCapabilityDto[] {
     { kind: 'audio', format: 'Opus (Ogg)', read: true, write: true, fields: f(['title', 'artist', 'album', 'year', 'track', 'genre', 'comment', 'albumArtist', 'cover']), notes: 'OpusTags 注释包；重建头部页并重排页序号（无 framing bit）' },
     { kind: 'audio', format: 'WMA/APE/AIFF/WAV', read: true, write: false, fields: f(['title', 'artist', 'album', 'year', 'track', 'genre', 'comment']), notes: '只读：容器参数（采样率/声道/位深/时长）与标签；不支持写回' },
     { kind: 'document', format: 'DOCX/XLSX/PPTX', read: true, write: true, fields: f(['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category']), notes: 'docProps/core.xml；不触碰正文' },
-    { kind: 'document', format: 'PDF', read: true, write: true, fields: f(['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category']), notes: 'Info + XMP 增量更新；原页面逐字节保留' },
+    { kind: 'document', format: 'PDF', read: true, write: true, fields: f(['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment', 'category']), notes: 'xref 表/流/对象流均可读（含 PNG 预测器），加密只报算法；写入限经典 xref 增量更新' },
     { kind: 'document', format: 'DOC/XLS/PPT (OLE)', read: true, write: false, fields: f(['title', 'subject', 'author', 'lastModifiedBy', 'keywords', 'comment']), notes: '只读：认类型并读摘要属性；不支持写回' },
   ];
 }

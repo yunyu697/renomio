@@ -547,7 +547,7 @@ fn pdf_trailer(data: &[u8]) -> Result<PdfTrailer, String> {
     }
     let at = &data[startxref..];
     if !at.starts_with(b"xref") {
-        return Err("PDF 使用交叉引用流（xref stream），本版本仅支持经典 xref 的增量更新".into());
+        return Err("PDF 使用 xref 流（PDF 1.5+）：只读可解析，写入需要经典 xref 表".into());
     }
     let from = String::from_utf8_lossy(&data[startxref..]).to_string();
     let trailer_at = from
@@ -853,26 +853,22 @@ fn pdf_xmp_text(data: &[u8]) -> Option<String> {
 }
 
 fn pdf_read(data: &[u8], fields: &mut FieldMap, warnings: &mut Vec<String>) -> Result<(), String> {
-    let trailer = pdf_trailer(data)?;
-    if trailer.dict.contains("/Encrypt") {
-        return Err("加密 PDF 本版本不支持读取/写入属性".into());
+    let probe = crate::pdf::probe(data).ok_or_else(|| "不是有效的 PDF（缺少 %PDF 头）".to_string())?;
+    if let Some(enc) = &probe.encrypted {
+        return Err(format!(
+            "加密 PDF（{enc}）：没有密码读不到元数据，本版本不支持读取/写入属性"
+        ));
     }
-    let mut values: Vec<(String, String)> = Vec::new();
-    if let Some(info_ref) = pdf_dict_get(&trailer.dict, "Info") {
-        if let Some(num) = info_ref.split_whitespace().next().and_then(|n| n.parse::<usize>().ok()) {
-            match pdf_info_entries(data, num) {
-                Some(entries) => values = entries,
-                None => warnings.push("Info 对象在对象流内或结构特殊，改用 XMP 读取".into()),
-            }
-        }
+    if probe.info.is_empty() {
+        warnings.push("Info 字典缺失：导出工具没有写文档属性，改用 XMP 读取".into());
     }
     let xmp = pdf_xmp_text(data);
     for (id, key) in PDF_KEYS {
-        let from_info = values
-            .iter()
-            .find(|(k, _)| k == key)
-            .map(|(_, v)| pdf_decode_string(v))
-            .filter(|v| !v.trim().is_empty());
+        let from_info = probe
+            .info
+            .get(*key)
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty());
         let from_xmp = || -> Option<String> {
             let xml = xmp.as_deref()?;
             match *id {
