@@ -33,10 +33,11 @@ function check(name, ok, detail = '') {
 function transpile(name) {
   const source = readFileSync(join(root, 'src', 'lib', `${name}.ts`), 'utf8')
     .replace("from '../i18n'", "from './i18n.mjs'")
-    .replace(/from '\.\/(vars|metaFields|mapTable|encoding|script|codepage)'/g, "from './$1.mjs'")
+    .replace(/from '\.\/(vars|metaFields|mapTable|encoding|script|codepage|encrypt)'/g, "from './$1.mjs'")
     .replace("from 'iconv-lite'", `from '${pathToFileURL(join(root, 'node_modules', 'iconv-lite', 'lib', 'index.js')).href}'`)
     .replace("from 'opencc-js/cn2t'", `from '${pathToFileURL(join(root, 'node_modules', 'opencc-js', 'dist', 'esm', 'cn2t.js')).href}'`)
-    .replace("from 'opencc-js/t2cn'", `from '${pathToFileURL(join(root, 'node_modules', 'opencc-js', 'dist', 'esm', 't2cn.js')).href}'`);
+    .replace("from 'opencc-js/t2cn'", `from '${pathToFileURL(join(root, 'node_modules', 'opencc-js', 'dist', 'esm', 't2cn.js')).href}'`)
+    .replace("from 'crypto-js'", `from '${pathToFileURL(join(root, 'node_modules', 'crypto-js', 'index.js')).href}'`);
   writeFileSync(
     join(outDir, `${name}.mjs`),
     ts.transpileModule(source, {
@@ -54,6 +55,7 @@ transpile('mapTable');
 transpile('encoding');
 transpile('script');
 transpile('codepage');
+transpile('encrypt');
 transpile('rules');
 
 const sha = (buf) => createHash('sha256').update(buf).digest('hex');

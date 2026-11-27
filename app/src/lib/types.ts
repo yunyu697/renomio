@@ -1,10 +1,11 @@
 import type { CodepageMode } from './codepage';
+import type { EncryptMode } from './encrypt';
 import type { EncodingMode } from './encoding';
 import type { ShortcutId } from './shortcuts';
 
 export type RuleType =
   | 'add' | 'replace' | 'delete' | 'number' | 'move' | 'case' | 'ext' | 'meta' | 'map' | 'encoding'
-  | 'script' | 'codepage';
+  | 'script' | 'codepage' | 'encrypt';
 
 export interface Entry {
   id: string;
@@ -614,9 +615,16 @@ export interface CodepageRule extends RuleBase {
   mode: CodepageMode;
 }
 
+/** 文件名加解密：只改主干，扩展名保留；同名同口令得到同一密文 */
+export interface EncryptRule extends RuleBase {
+  type: 'encrypt';
+  mode: EncryptMode;
+  passphrase: string;
+}
+
 export type Rule =
   | AddRule | ReplaceRule | DeleteRule | NumberRule | MoveRule | CaseRule | ExtRule | MetaRule | MapRule
-  | EncodingRule | ScriptRule | CodepageRule;
+  | EncodingRule | ScriptRule | CodepageRule | EncryptRule;
 
 export type RowStatus = 'ready' | 'unchanged' | 'conflict' | 'warn' | 'invalid' | 'off';
 

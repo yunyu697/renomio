@@ -2663,6 +2663,65 @@ async function main() {
     const codepageRulesAfter = await evaluate(`document.querySelectorAll('[data-testid="rule-card"]').length`);
     check('UI', '删除内码规则后规则链回到原来的条数', codepageRulesAfter === codepageRulesBefore, `${codepageRulesAfter} vs ${codepageRulesBefore}`);
 
+    // --- 1.8e) 文件名加解密（3.13「高级规则 · 加密解密」） ---
+    const encryptRulesBefore = await evaluate(`document.querySelectorAll('[data-testid="rule-card"]').length`);
+    const encryptRow = () => evaluate(`(() => {
+      const row = document.querySelector('.trow');
+      const oldName = row && row.querySelector('.txt') ? row.querySelector('.txt').textContent.trim() : '';
+      const dot = oldName.lastIndexOf('.');
+      const ext = dot > 0 ? oldName.slice(dot) : '';
+      const newName = row && row.querySelector('.new-name') ? row.querySelector('.new-name').textContent.trim() : '';
+      return { oldName, ext, newName };
+    })()`);
+    const setEncryptPass = (value) => evaluate(`(() => {
+      const el = document.querySelector('[data-testid="encrypt-passphrase"]');
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+      setter.call(el, ${JSON.stringify(value)});
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      return el.value;
+    })()`);
+
+    await addRuleType('encrypt');
+    const encryptOpen = await openRule();
+    check('UI', '「+」菜单新增「文件名加密」，选中后打开对应编辑器', encryptOpen === 'encrypt', encryptOpen);
+    const encryptMode = await evaluate(`document.querySelector('[data-testid="encrypt-mode"] .on')?.textContent || ''`);
+    check('UI', '加解密规则默认「加密」模式', encryptMode.length > 0 && (encryptMode.includes('加密') || encryptMode.toLowerCase().includes('encrypt')), encryptMode);
+    const encryptPassType = await evaluate(`document.querySelector('[data-testid="encrypt-passphrase"]')?.type || ''`);
+    const encryptNeedPass = await textOf('[data-testid="encrypt-sample"]');
+    check('UI', '口令框是 password 类型，未填口令时示例提示先输入',
+      encryptPassType === 'password' && (encryptNeedPass.includes('口令') || encryptNeedPass.toLowerCase().includes('passphrase')),
+      `${encryptPassType} / ${encryptNeedPass}`);
+    await setEncryptPass('demo-passphrase');
+    await sleep(800);
+    const encryptSample = await textOf('[data-testid="encrypt-sample"]');
+    check('UI', '填入口令后示例出现 rnc1- 密文', encryptSample.includes('rnc1-') && encryptSample.includes('→'), encryptSample);
+    const encryptBefore = await encryptRow();
+    await sleep(400);
+    const encryptAfter = await encryptRow();
+    check('UI', '规则链真实加密首行主干，扩展名保持',
+      encryptAfter.newName.startsWith('rnc1-') && encryptAfter.newName.endsWith(encryptBefore.ext),
+      JSON.stringify({ encryptBefore, encryptAfter }));
+    await evaluate(`(() => {
+      const el = document.querySelector('[data-testid="encrypt-mode"]');
+      const opts = [...el.querySelectorAll('span')];
+      const decrypt = opts.find((s) => s.textContent.trim().toLowerCase().includes('decrypt') || s.textContent.trim() === '解密');
+      if (!decrypt) throw new Error('找不到解密按钮');
+      decrypt.click();
+      return true;
+    })()`);
+    await sleep(500);
+    const encryptSummary = await textOf('[data-testid="rule-detail"] .sum span');
+    check('UI', '切到解密后规则摘要随模式变化',
+      encryptSummary.toLowerCase().includes('decrypt') || encryptSummary.includes('解密'), encryptSummary);
+    await evaluate(`(() => {
+      const cards = [...document.querySelectorAll('[data-testid="rule-card"]')];
+      cards[cards.length - 1].querySelector('[data-testid="rule-delete"]').click();
+      return true;
+    })()`);
+    await sleep(300);
+    const encryptRulesAfter = await evaluate(`document.querySelectorAll('[data-testid="rule-card"]').length`);
+    check('UI', '删除加解密规则后规则链回到原来的条数', encryptRulesAfter === encryptRulesBefore, `${encryptRulesAfter} vs ${encryptRulesBefore}`);
+
     // --- 1.9) 键位窗：列表 / 录制 / 冲突 / 生效 / 持久化 / 恢复默认 ---
     const shortcutValue = (id) => textOf(`[data-testid="shortcut-value-${id}"]`);
     const openShortcuts = async () => {

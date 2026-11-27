@@ -1,7 +1,7 @@
 {
   "name": "rename-studio",
   "private": true,
-  "version": "1.2.0-alpha38",
+  "version": "1.3.0-RC1",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -49,12 +49,14 @@
     "test:integration": "node scripts/test-integration.mjs",
     "test:attrbackup": "node scripts/test-attrbackup.mjs",
     "test:bundle": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-bundle.ps1",
-    "foundation:build": "tsc -p packages/foundation/tsconfig.json"
+    "foundation:build": "tsc -p packages/foundation/tsconfig.json",
+    "test:encrypt": "node scripts/test-encrypt.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.9.0",
     "@tauri-apps/plugin-dialog": "^2.4.0",
     "buffer": "^6.0.3",
+    "crypto-js": "^4.2.0",
     "iconv-lite": "^0.7.3",
     "opencc-js": "^1.4.2",
     "react": "^19.2.0",
@@ -64,6 +66,7 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.9.0",
+    "@types/crypto-js": "^4.2.2",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.0",

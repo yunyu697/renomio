@@ -113,7 +113,8 @@ check('core 存在 version.rs', existsSync(path.join(coreRoot, 'src', 'version.r
 check('alpha 序号用数值比较（Prerelease::Alpha + cmp）', /Prerelease::Alpha\(m\), Prerelease::Alpha\(n\)\) => m\.cmp\(n\)/.test(versionRs));
 check('提供 is_newer 唯一入口', versionRs.includes('pub fn is_newer'));
 check('正式版高于预发布（None 排在 Some 之后）', /\(None, Some\(_\)\) => Ordering::Greater/.test(versionRs));
-check('拒绝 alpha 序号为 0 / 前导零 / 空序号', versionRs.includes('alpha 序号不能为 0') && versionRs.includes('alpha<正整数>'));
+check('拒绝预发布序号为 0 / 前导零 / 空序号', versionRs.includes('{label} 序号不能为 0') && versionRs.includes('{label}<正整数>'));
+check('RC 预发布按数值比较且排在 alpha 与正式版之间', versionRs.includes('Prerelease::Rc') && versionRs.includes('(Prerelease::Alpha(_), Prerelease::Rc(_))'));
 
 const coreLib = read(path.join(coreRoot, 'src', 'lib.rs'));
 check('core lib 注册 pub mod version', coreLib.includes('pub mod version;'));

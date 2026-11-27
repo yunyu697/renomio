@@ -977,6 +977,15 @@ mod tests {
     }
 
     #[test]
+    fn version_compare_handles_rc_prerelease() {
+        assert!(is_newer("1.3.0-RC1", "1.3.0-alpha38").unwrap());
+        assert!(is_newer("1.3.0-RC2", "1.3.0-RC1").unwrap());
+        assert!(is_newer("1.3.0-RC10", "1.3.0-RC2").unwrap());
+        assert!(is_newer("1.3.0", "1.3.0-RC1").unwrap());
+        assert!(!is_newer("1.3.0-RC1", "1.3.0").unwrap());
+    }
+
+    #[test]
     fn version_compare_handles_digit_width_boundary() {
         // 回归：alpha9 是单数字序号，直接字符串比较会让 alpha10 显得更旧
         assert!(is_newer("1.2.0-alpha10", "1.2.0-alpha9").unwrap());

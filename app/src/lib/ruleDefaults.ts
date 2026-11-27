@@ -1,7 +1,7 @@
 /** 新增规则时的默认值：与设计稿“规则配置”保持一致 */
 import type {
-  AddRule, CaseRule, CodepageRule, DeleteRule, EncodingRule, ExtRule, MapRule, MetaRule, MoveRule, NumberRule,
-  ReplaceRule, Rule, RuleType, ScriptRule,
+  AddRule, CaseRule, CodepageRule, DeleteRule, EncodingRule, EncryptRule, ExtRule, MapRule, MetaRule, MoveRule,
+  NumberRule, ReplaceRule, Rule, RuleType, ScriptRule,
 } from './types';
 
 export function createRuleDefaults(type: RuleType, id: string): Rule {
@@ -90,6 +90,12 @@ export function createRuleDefaults(type: RuleType, id: string): Rule {
       };
       return rule;
     }
+    case 'encrypt': {
+      const rule: EncryptRule = {
+        id, type: 'encrypt', enabled: true, mode: 'encrypt', passphrase: '',
+      };
+      return rule;
+    }
     default:
       throw new Error(`未知规则类型：${String(type)}`);
   }
@@ -97,4 +103,5 @@ export function createRuleDefaults(type: RuleType, id: string): Rule {
 
 export const RULE_TYPES: RuleType[] = [
   'replace', 'add', 'delete', 'number', 'move', 'case', 'ext', 'meta', 'map', 'encoding', 'script', 'codepage',
+  'encrypt',
 ];

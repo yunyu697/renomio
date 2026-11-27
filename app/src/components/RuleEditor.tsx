@@ -2,11 +2,12 @@ import { useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from '../i18n';
 import { useApp } from '../store';
 import type {
-  AddRule, CaseRule, CodepageRule, DeleteRule, EncodingRule, ExtRule, MapRule, MetaRule, MoveRule, NumberRule,
-  ReplaceRule, Rule, ScriptRule,
+  AddRule, CaseRule, CodepageRule, DeleteRule, EncodingRule, EncryptRule, ExtRule, MapRule, MetaRule, MoveRule,
+  NumberRule, ReplaceRule, Rule, ScriptRule,
 } from '../lib/types';
 import { ruleError } from '../lib/rules';
 import { applyCodepage, CODEPAGE_MODES, isCodepageMode, type CodepageMode } from '../lib/codepage';
+import { applyFilenameEncrypt, isEncryptMode } from '../lib/encrypt';
 import { applyEncoding, ENCODING_MODES } from '../lib/encoding';
 import { mapErrorKey, parseMapTable } from '../lib/mapTable';
 import { META_FIELD_GROUPS, metaFieldLabelKey } from '../lib/metaFields';
@@ -324,6 +325,7 @@ export function RuleEditor({ rule, patch }: { rule: Rule; patch: Patch }) {
       {rule.type === 'encoding' && <EncodingEditor rule={rule} patch={patch} />}
       {rule.type === 'script' && <ScriptEditor rule={rule} patch={patch} />}
       {rule.type === 'codepage' && <CodepageEditor rule={rule} patch={patch} />}
+      {rule.type === 'encrypt' && <EncryptEditor rule={rule} patch={patch} />}
       {error && <div className="rule-error">{error}</div>}
     </div>
   );
@@ -889,6 +891,53 @@ function CodepageEditor({ rule, patch }: { rule: CodepageRule; patch: Patch }) {
       <div className="hint-line" data-testid="codepage-hint">{t('f.codepageHint')}</div>
       <div className="hint-line mono" data-testid="codepage-sample">
         {t('f.codepageSample', { before, after })}
+      </div>
+    </>
+  );
+}
+
+/** 文件名加解密：只做主干，密文带 rnc1- 前缀；扩展名留给扩展名规则。 */
+const ENCRYPT_SAMPLE = '财务 2024 Q1';
+
+function EncryptEditor({ rule, patch }: { rule: EncryptRule; patch: Patch }) {
+  const { t } = useTranslation();
+  const mode = isEncryptMode(rule.mode) ? rule.mode : 'encrypt';
+  let before = ENCRYPT_SAMPLE;
+  let result = rule.passphrase
+    ? applyFilenameEncrypt(before, rule.passphrase, 'encrypt')
+    : null;
+  if (result && result.ok && mode === 'decrypt') {
+    before = result.value;
+    result = applyFilenameEncrypt(before, rule.passphrase, 'decrypt');
+  }
+  const after = result && result.ok ? result.value : t('f.encryptSampleFail');
+  return (
+    <>
+      <Field label={t('f.encryptMode')}>
+        <Seg
+          testId="encrypt-mode"
+          value={mode}
+          options={[['encrypt', t('f.encrypt.encrypt')], ['decrypt', t('f.encrypt.decrypt')]]}
+          onChange={(next) => patch({ mode: next })}
+        />
+      </Field>
+      <Field label={t('f.passphrase')}>
+        <input
+          className="input mono"
+          data-testid="encrypt-passphrase"
+          type="password"
+          autoComplete="new-password"
+          spellCheck={false}
+          value={rule.passphrase}
+          placeholder={t('ph.passphrase')}
+          onChange={(e) => patch({ passphrase: e.target.value })}
+        />
+      </Field>
+      <div className="hint-line" data-testid="encrypt-hint">{t('f.encryptHint')}</div>
+      <div className="hint-line mono" data-testid="encrypt-sample">
+        {rule.passphrase
+          ? t('f.encryptSample', { before, after })
+          : t('f.encryptNeedPass')}
       </div>
     </>
   );

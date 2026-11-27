@@ -50,6 +50,30 @@ fn every_alpha_after_nine_is_newer_than_nine() {
 }
 
 #[test]
+fn rc_suffix_is_numeric_and_sits_between_alpha_and_stable() {
+    assert_eq!(
+        version::compare("1.3.0-RC2", "1.3.0-RC10").unwrap(),
+        Ordering::Less
+    );
+    assert!(version::is_newer("1.3.0-RC1", "1.3.0-alpha99").unwrap());
+    assert!(version::is_newer("1.3.0-RC1", "1.2.0-alpha38").unwrap());
+    assert!(version::is_newer("1.3.0", "1.3.0-RC1").unwrap());
+    assert!(!version::is_newer("1.3.0-RC1", "1.3.0").unwrap());
+}
+
+#[test]
+fn rc_parse_accepts_uppercase_and_lowercase() {
+    assert_eq!(
+        version::parse("1.3.0-RC1").unwrap().pre,
+        Some(Prerelease::Rc(1))
+    );
+    assert_eq!(
+        version::parse("1.3.0-rc2").unwrap().pre,
+        Some(Prerelease::Rc(2))
+    );
+}
+
+#[test]
 fn stable_release_outranks_any_alpha_of_the_same_base() {
     assert!(version::is_newer("1.2.0", "1.2.0-alpha99").unwrap());
     assert!(!version::is_newer("1.2.0-alpha99", "1.2.0").unwrap());
@@ -93,6 +117,9 @@ fn malformed_versions_are_rejected_with_the_offending_text() {
         "1.2.0-alpha",
         "1.2.0-alpha0",
         "1.2.0-alpha09",
+        "1.3.0-RC",
+        "1.3.0-RC0",
+        "1.3.0-RC01",
         "01.2.0",
         "1.2.x",
     ] {

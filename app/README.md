@@ -232,6 +232,10 @@ powershell -ExecutionPolicy Bypass -File scripts/hold-lock.ps1 -Seconds 90
 - `to-big5` / `to-gbk`：OpenCC 简繁转换，分别采用 Big5 / GBK 用字（`简体中文测试` ↔ `簡體中文測試`）。
 - 三种模式都只作用于文件名主干；Emoji 与字符集外字符原样保留。旧存档缺或非法 `mode` 回落 `gbk-fix`。
 
+### 文件名加解密（3.13）
+
+只加密文件名主干，扩展名保留；**不加密文件内容、不做 Windows EFS**。`encrypt` 生成带 `rnc1-` 前缀的密文，`decrypt` 用同一口令还原。密文是 `rnc1-` + base64url(IV + AES-256-CBC + HMAC-SHA256 截断)，口令走 PBKDF2-SHA256；同口令同名得到同一密文，预览与撤销稳定，但也意味着相同明文可看出相等。明文上限 140 UTF-8 字节；空口令不执行，错误口令 / 密文被篡改 / 无前缀 / 坏载荷都保留原名。口令会随计划文件保存，别把含口令的计划发给别人。
+
 
 ### 名称元变量
 

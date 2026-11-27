@@ -1,11 +1,12 @@
 /** 规则引擎：纯函数，输入原名 + 规则链，输出新名。所有语义在 README 中固化说明。 */
 import { t } from '../i18n';
 import type {
-  AddRule, CaseRule, CodepageRule, DeleteRule, EncodingRule, ExtRule, MapRule, MetaFieldKey, MetaFields, MoveRule,
-  NumberRule, ReplaceRule, Rule, ScriptRule,
+  AddRule, CaseRule, CodepageRule, DeleteRule, EncodingRule, EncryptRule, ExtRule, MapRule, MetaFieldKey, MetaFields,
+  MoveRule, NumberRule, ReplaceRule, Rule, ScriptRule,
 } from './types';
 import { META_FIELDS, metaFieldLabelKey } from './metaFields';
 import { applyCodepage, isCodepageMode } from './codepage';
+import { applyFilenameEncrypt, isEncryptMode } from './encrypt';
 import { applyEncoding, isEncodingMode } from './encoding';
 import { applyMapping, mapErrorKey, parseMapTable } from './mapTable';
 import { compileScript, runScript, type ScriptError } from './script';
@@ -162,6 +163,9 @@ export function ruleError(rule: Rule): string | null {
     }
     case 'codepage':
       return isCodepageMode(rule.mode) ? null : t('ruleErr.badCodepageMode');
+    case 'encrypt':
+      if (!isEncryptMode(rule.mode)) return t('ruleErr.badEncryptMode');
+      return rule.passphrase ? null : t('ruleErr.encryptNoPassphrase');
     case 'map': {
       const parsed = parseMapTable(rule.table, rule.caseSensitive);
       if (parsed.errors.length) {
@@ -737,6 +741,12 @@ export function applyRules(
       case 'codepage':
         stem = applyCodepage(stem, isCodepageMode(rule.mode) ? rule.mode : 'gbk-fix');
         break;
+      case 'encrypt': {
+        // 失败（口令空 / 密文损坏 / 口令不对）一律保留原名，不让半截密文落盘
+        const result = applyFilenameEncrypt(stem, rule.passphrase, isEncryptMode(rule.mode) ? rule.mode : 'encrypt');
+        if (result.ok) stem = result.value;
+        break;
+      }
       default:
         break;
     }
@@ -821,6 +831,14 @@ export function normalizeRule(rule: Rule): Rule {
   if (rule.type === 'codepage') {
     const legacy = rule as CodepageRule & { mode?: string };
     return { ...legacy, mode: isCodepageMode(legacy.mode) ? legacy.mode : 'gbk-fix' };
+  }
+  if (rule.type === 'encrypt') {
+    const legacy = rule as EncryptRule & Partial<Pick<EncryptRule, 'mode' | 'passphrase'>>;
+    return {
+      ...legacy,
+      mode: isEncryptMode(legacy.mode) ? legacy.mode : 'encrypt',
+      passphrase: typeof legacy.passphrase === 'string' ? legacy.passphrase : '',
+    };
   }
   if (rule.type !== 'number') return rule;
   const legacy = rule as NumberRule & { perFolder?: boolean };
@@ -935,6 +953,8 @@ export function ruleSummary(rule: Rule): string {
       const mode = isCodepageMode(rule.mode) ? rule.mode : 'gbk-fix';
       return t('ruleSum.codepage', { mode: t(`f.codepage.${mode}`) });
     }
+    case 'encrypt':
+      return t(rule.mode === 'decrypt' ? 'ruleSum.decrypt' : 'ruleSum.encrypt');
     case 'map': {
       const parsed = parseMapTable(rule.table, rule.caseSensitive);
       return t(rule.caseSensitive ? 'ruleSum.mapCase' : 'ruleSum.map', { n: parsed.entries.length });
