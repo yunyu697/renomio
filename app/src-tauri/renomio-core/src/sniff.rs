@@ -62,6 +62,19 @@ pub fn sniff_magic(head: &[u8]) -> Option<&'static str> {
     if head.starts_with(&[0x30, 0x26, 0xB2, 0x75, 0x8E, 0x66, 0xCF, 0x11]) {
         return Some("wma");
     }
+    // 字体：TrueType 集合 / CFF 轮廓的 OpenType / TrueType（含 Apple `true` 与 Type 1 封装）
+    if head.starts_with(b"ttcf") {
+        return Some("ttc");
+    }
+    if head.starts_with(b"OTTO") {
+        return Some("otf");
+    }
+    if head.starts_with(&[0x00, 0x01, 0x00, 0x00])
+        || head.starts_with(b"true")
+        || head.starts_with(b"typ1")
+    {
+        return Some("ttf");
+    }
     // ftyp 家族：MP4 / M4A / MOV / HEIC / AVIF
     if at(head, 4, 4) == Some(b"ftyp") {
         return match at(head, 8, 4) {

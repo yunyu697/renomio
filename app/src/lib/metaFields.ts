@@ -6,11 +6,12 @@
  */
 import type { MetaFieldKey } from './types';
 
-/** 按类别分组，界面下拉里用分组标题区分拍摄参数 / 音频标签。 */
+/** 按类别分组，界面下拉里用分组标题区分拍摄参数 / 音频标签 / 字体信息。 */
 export const META_FIELD_GROUPS: Array<{ titleKey: string; fields: MetaFieldKey[] }> = [
   { titleKey: 'metaGroup.shooting', fields: ['taken', 'camera', 'iso', 'aperture', 'shutter', 'focal', 'lens'] },
   { titleKey: 'metaGroup.pixels', fields: ['width', 'height', 'resolution'] },
   { titleKey: 'metaGroup.audio', fields: ['title', 'artist', 'album', 'track', 'year', 'genre', 'composer'] },
+  { titleKey: 'metaGroup.font', fields: ['fontFamily', 'fontStyle', 'fontVersion'] },
 ];
 
 /** 扁平顺序（校验白名单用）：与分组顺序一致，保证 `field:` 枚举顺序稳定。 */

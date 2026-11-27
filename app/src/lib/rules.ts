@@ -711,6 +711,9 @@ const META_SUMMARY_KEYS: Record<MetaFieldKey, string> = {
   year: 'ruleSum.metaYear',
   genre: 'ruleSum.metaGenre',
   composer: 'ruleSum.metaComposer',
+  fontFamily: 'ruleSum.metaFontFamily',
+  fontStyle: 'ruleSum.metaFontStyle',
+  fontVersion: 'ruleSum.metaFontVersion',
 };
 
 /** 兼容旧规则字段：perFolder → groupBy；移动规则补齐 by/标记/insert；其余补齐默认值。 */

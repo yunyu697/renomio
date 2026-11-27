@@ -3,6 +3,7 @@
 pub mod audio_container;
 pub mod cfb;
 pub mod datadir;
+pub mod font;
 pub mod hashing;
 pub mod heif;
 pub mod image_container;

@@ -310,6 +310,22 @@ pub fn capabilities() -> Vec<MetaCapability> {
             notes: notes.into(),
         });
     }
+    for (format, notes) in [
+        (
+            "TTF/OTF/TTC",
+            "只读：`name` 表的族名 / 字形 / 全名 / PostScript 名 / 版本 / 设计者 / 授权，\
+             以及 `OS/2` 字重与斜体、`maxp` 字形数、`head` 设计网格；TTC 报集合内字体数；不支持写入",
+        ),
+    ] {
+        out.push(MetaCapability {
+            kind: "font".into(),
+            format: format.into(),
+            read: true,
+            write: false,
+            fields: vec![],
+            notes: notes.into(),
+        });
+    }
     out
 }
 

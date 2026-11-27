@@ -86,6 +86,9 @@ pub struct RenameFieldValues {
     pub year: String,
     pub genre: String,
     pub composer: String,
+    pub font_family: String,
+    pub font_style: String,
+    pub font_version: String,
 }
 
 /// Windows / macOS / Linux 都拒绝的字符一律换成 `-`（`/` 在文件名里等同于路径分隔符）。
@@ -211,7 +214,21 @@ pub fn rename_field_values(info: &MetadataInfo) -> RenameFieldValues {
         year: name_safe(&field_of(info, &["年份"])),
         genre: name_safe(&field_of(info, &["流派"])),
         composer: name_safe(&field_of(info, &["作曲"])),
+        font_family: name_safe(&field_of(info, &["字体名"])),
+        font_style: name_safe(&field_of(info, &["字形"])),
+        font_version: name_safe(&font_version_token(&field_of(info, &["字体版本"]))),
     }
+}
+
+/// 「Version 1.02」→ `1.02`、「1.000;hotconv` → `1.000`：版本串里常带生成器尾巴，
+/// 拼文件名只需要版本号本身。
+fn font_version_token(raw: &str) -> String {
+    let trimmed = raw.trim();
+    let rest = trimmed
+        .strip_prefix("Version ")
+        .or_else(|| trimmed.strip_prefix("version "))
+        .unwrap_or(trimmed);
+    rest.split([';', ',', '(']).next().unwrap_or(rest).trim().to_string()
 }
 
 pub fn read_metadata(path: &str) -> Result<MetadataInfo, String> {
@@ -261,6 +278,9 @@ pub fn read_metadata(path: &str) -> Result<MetadataInfo, String> {
         heif_meta(probe)
     } else if let Some(probe) = crate::audio_container::probe(&data, &tail) {
         audio_container_meta(probe)
+    } else if let Some(probe) = crate::font::probe(&data) {
+        // TTF / OTF / TTC：族名、字形、版本、字重、字形数与设计网格
+        font_meta(probe)
     } else if data.starts_with(b"ID3") || looks_like_mpeg(&data, 0) {
         audio_mp3(&data, size)
     } else if data.starts_with(b"fLaC") {
@@ -851,6 +871,61 @@ fn rational(tiff: &[u8], offset: u32, count: u32, little: bool) -> Option<String
         return Some((num / den).to_string());
     }
     Some(format!("{:.2}", num as f64 / den as f64))
+}
+
+// ---------------------------------------------------------------------------
+// 字体
+// ---------------------------------------------------------------------------
+
+/// 把字体容器的解析结果转成展示信息（TTF / OTF / TTC）。
+fn font_meta(probe: crate::font::FontProbe) -> MetadataInfo {
+    let mut info = MetadataInfo::new("font", &probe.format);
+    if let Some(faces) = probe.faces {
+        info.push("集合内字体数", format!("{faces} 个"));
+    }
+    if let Some(family) = probe.family {
+        info.push("字体名", family);
+    }
+    if let Some(subfamily) = probe.subfamily {
+        info.push("字形", subfamily);
+    }
+    if let Some(full_name) = probe.full_name {
+        info.push("字体全名", full_name);
+    }
+    if let Some(postscript) = probe.postscript {
+        info.push("PostScript 名", postscript);
+    }
+    if let Some(version) = probe.version {
+        info.push("字体版本", version);
+    }
+    if let Some(weight) = probe.weight {
+        let name = crate::font::weight_name(weight);
+        let text = if name.is_empty() {
+            format!("{weight}")
+        } else {
+            format!("{weight}（{name}）")
+        };
+        info.push("字重", text);
+    }
+    if let Some(italic) = probe.italic {
+        info.push("斜体", if italic { "是".to_string() } else { "否".to_string() });
+    }
+    if let Some(glyphs) = probe.glyphs {
+        info.push("字形数", format!("{glyphs} 个"));
+    }
+    if let Some(upm) = probe.units_per_em {
+        info.push("设计网格", format!("{upm} units/em"));
+    }
+    if let Some(designer) = probe.designer {
+        info.push("设计者", designer);
+    }
+    if let Some(license) = probe.license {
+        info.push("授权", license);
+    }
+    for warning in probe.warnings {
+        info.warn(warning);
+    }
+    info
 }
 
 // ---------------------------------------------------------------------------

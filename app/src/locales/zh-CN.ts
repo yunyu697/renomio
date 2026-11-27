@@ -469,7 +469,7 @@ export const zhCN: Dict = {
   'f.metaField': '字段',
   'f.usage': '用法',
   'f.separator': '分隔符',
-  'f.metaHint': '只读元数据，不改写文件：拍摄时间取 EXIF DateTimeOriginal，相机型号取 EXIF Model，ISO / 光圈 / 快门 / 焦距 / 镜头取 EXIF 拍摄参数，像素宽高优先取 EXIF、缺失时回退到图像尺寸；音乐标题 / 艺术家 / 专辑 / 音轨号 / 年份 / 流派 / 作曲取 ID3 或 FLAC 标签。取值已做文件名安全化（/ : * ? 等换成 -）。字段缺失时该规则不改变名称。',
+  'f.metaHint': '只读元数据，不改写文件：拍摄时间取 EXIF DateTimeOriginal，相机型号取 EXIF Model，ISO / 光圈 / 快门 / 焦距 / 镜头取 EXIF 拍摄参数，像素宽高优先取 EXIF、缺失时回退到图像尺寸；音乐标题 / 艺术家 / 专辑 / 音轨号 / 年份 / 流派 / 作曲取 ID3 或 FLAC 标签；字体文件的字体名 / 字形 / 字体版本取 `name` 表（nameID 1/2/5，集合取第一个字体）。取值已做文件名安全化（/ : * ? 等换成 -）。字段缺失时该规则不改变名称。',
   'f.mapTable': '对照表',
   'f.mapHint': '一行一条「旧=新」，第一个 = 或制表符作分隔；# 或 // 开头为注释；键值两侧空白会被去掉，要保留空格写 \\s。只替换文件主干，不动扩展名；替换进来的词不会被再次扫描（A=B、B=C 不会连锁）。同一位置有多条可匹配时取最长键。',
   'f.mapCaseSensitive': '区分大小写',
@@ -515,9 +515,13 @@ export const zhCN: Dict = {
   'o.metaYear': '年份',
   'o.metaGenre': '流派',
   'o.metaComposer': '作曲',
+  'o.metaFontFamily': '字体名',
+  'o.metaFontStyle': '字形',
+  'o.metaFontVersion': '字体版本',
   'metaGroup.shooting': '拍摄参数',
   'metaGroup.pixels': '图像尺寸',
   'metaGroup.audio': '音频标签',
+  'metaGroup.font': '字体信息',
   'ph.insert': '例如 旅行_',
   'ph.left': '留空则从开头',
   'ph.right': '留空则到结尾',
@@ -625,6 +629,9 @@ export const zhCN: Dict = {
   'ruleSum.metaYear': '音频年份',
   'ruleSum.metaGenre': '音频流派',
   'ruleSum.metaComposer': '音频作曲',
+  'ruleSum.metaFontFamily': '字体名',
+  'ruleSum.metaFontStyle': '字形',
+  'ruleSum.metaFontVersion': '字体版本',
 
   // 预览与执行
   'policy.skip': '跳过冲突行',
@@ -740,6 +747,7 @@ export const zhCN: Dict = {
   'meta.audio': '音乐',
   'meta.document': '文档',
   'meta.other': '其他',
+  'meta.font': '字体',
 
   // 方案
   'plan.exportTitle': '保存更名方案',
