@@ -2,6 +2,7 @@
 
 pub mod apk;
 pub mod audio_container;
+pub mod iptc;
 pub mod cfb;
 pub mod datadir;
 pub mod font;

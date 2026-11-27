@@ -90,6 +90,10 @@ pub struct RenameFieldValues {
     pub font_style: String,
     pub font_version: String,
     pub file_version: String,
+    pub keywords: String,
+    pub caption: String,
+    pub copyright: String,
+    pub location: String,
 }
 
 /// Windows / macOS / Linux 都拒绝的字符一律换成 `-`（`/` 在文件名里等同于路径分隔符）。
@@ -219,7 +223,29 @@ pub fn rename_field_values(info: &MetadataInfo) -> RenameFieldValues {
         font_style: name_safe(&field_of(info, &["字形"])),
         font_version: name_safe(&font_version_token(&field_of(info, &["字体版本"]))),
         file_version: name_safe(&field_of(info, &["文件版本"])),
+        keywords: keywords_token(&field_of(info, &["关键词"])),
+        caption: clip_token(&field_of(info, &["说明"])),
+        copyright: clip_token(&field_of(info, &["版权"])),
+        location: clip_token(&field_of(info, &["拍摄地点"])),
     }
+}
+
+/// 关键词进文件名：取前 3 条、各做文件名安全化、用 `-` 连接。
+/// 属性面板里的「关键词」可能带 `等 N 项` 尾巴，先剥掉再切。
+fn keywords_token(raw: &str) -> String {
+    let body = raw.split(" 等 ").next().unwrap_or(raw);
+    body.split('、')
+        .map(name_safe)
+        .filter(|k| !k.is_empty())
+        .take(3)
+        .collect::<Vec<_>>()
+        .join("-")
+}
+
+/// 说明 / 版权这类长文本进文件名只取前 80 个字符，避免名字长到不可用。
+fn clip_token(raw: &str) -> String {
+    let clipped: String = raw.trim().chars().take(80).collect();
+    name_safe(&clipped)
 }
 
 /// 「Version 1.02」→ `1.02`、「1.000;hotconv` → `1.000`：版本串里常带生成器尾巴，
@@ -480,7 +506,47 @@ fn image_jpeg(data: &[u8]) -> MetadataInfo {
     for field in exif {
         info.push(&field.label, field.value);
     }
+    // IPTC 细分标签：XMP 优先、IIM 兜底；没有就什么都不加，不编默认值
+    if let Some(probe) = crate::iptc::probe(data) {
+        iptc_meta(&mut info, probe);
+    }
     info
+}
+
+/// IPTC 细分标签进属性面板：关键词最多列 8 条 + 总数，长文本原样（读侧已截到 512 字符），
+/// 并把「哪一路提供的」写清楚，免得用户以为 XMP 和 IIM 是同一份数据。
+fn iptc_meta(info: &mut MetadataInfo, probe: crate::iptc::IptcProbe) {
+    if !probe.keywords.is_empty() {
+        let total = probe.keywords.len();
+        let shown: Vec<&str> = probe.keywords.iter().take(8).map(|s| s.as_str()).collect();
+        let mut text = shown.join("、");
+        if total > shown.len() {
+            text.push_str(&format!(" 等 {total} 项"));
+        }
+        info.push("关键词", text);
+        info.push("关键词数", format!("{total} 个"));
+    }
+    if let Some(v) = probe.caption {
+        info.push("说明", v);
+    }
+    if let Some(v) = probe.copyright {
+        info.push("版权", v);
+    }
+    if let Some(v) = probe.location {
+        info.push("拍摄地点", v);
+    }
+    if let Some(v) = probe.city {
+        info.push("城市", v);
+    }
+    if let Some(v) = probe.country {
+        info.push("国家", v);
+    }
+    if !probe.source.is_empty() {
+        info.push("IPTC 来源", probe.source);
+    }
+    for warning in probe.warnings {
+        info.warn(warning);
+    }
 }
 
 fn image_png(data: &[u8]) -> MetadataInfo {
